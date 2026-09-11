@@ -68,27 +68,42 @@ function getCradDatabaseConnection(): PDO
         );
     }
 
-    $dsn = 'mysql:host=' . CRAD_DB_HOST . ';port=' . CRAD_DB_PORT . ';dbname=' . CRAD_DB_NAME . ';charset=' . CRAD_DB_CHARSET;
+    $pdoOptions = [
+        PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        PDO::ATTR_EMULATE_PREPARES   => false,
+    ];
 
-    try {
-        $pdo = new PDO($dsn, CRAD_DB_USER, CRAD_DB_PASS, [
-            PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-            PDO::ATTR_EMULATE_PREPARES   => false,
-        ]);
-        cradEnsurePanelNotificationDeleteTrigger($pdo);
-        cradCleanupPreoralEvaluationsForInvalidRegistry($pdo);
-    } catch (PDOException $e) {
-        error_log('CRAD DB connection failed: ' . $e->getMessage());
-        throw new RuntimeException(
-            'CRAD database unavailable (' . CRAD_DB_HOST . ':' . CRAD_DB_PORT . '/' . CRAD_DB_NAME . '). '
-            . 'Check CRAD_DB_* env vars and that crad_db is reachable from the app.',
-            0,
-            $e
-        );
+    // HostForge UI often shows a published port (e.g. 33632) while app pods
+    // reach MariaDB on the in-cluster port 3306 (same pattern as attached DB_*).
+    $portsToTry = [CRAD_DB_PORT];
+    if ((string) CRAD_DB_PORT !== '3306') {
+        $portsToTry[] = '3306';
     }
 
-    return $pdo;
+    $lastException = null;
+    foreach ($portsToTry as $port) {
+        $dsn = 'mysql:host=' . CRAD_DB_HOST . ';port=' . $port . ';dbname=' . CRAD_DB_NAME . ';charset=' . CRAD_DB_CHARSET;
+        try {
+            $pdo = new PDO($dsn, CRAD_DB_USER, CRAD_DB_PASS, $pdoOptions);
+            if ((string) $port !== (string) CRAD_DB_PORT) {
+                error_log('CRAD DB connected via fallback port ' . $port . ' (CRAD_DB_PORT=' . CRAD_DB_PORT . ')');
+            }
+            cradEnsurePanelNotificationDeleteTrigger($pdo);
+            cradCleanupPreoralEvaluationsForInvalidRegistry($pdo);
+            return $pdo;
+        } catch (PDOException $e) {
+            $lastException = $e;
+            error_log('CRAD DB connection failed on port ' . $port . ': ' . $e->getMessage());
+        }
+    }
+
+    throw new RuntimeException(
+        'CRAD database unavailable (' . CRAD_DB_HOST . ':' . CRAD_DB_PORT . '/' . CRAD_DB_NAME . '). '
+        . 'Check CRAD_DB_* env vars and that crad_db is reachable from the app.',
+        0,
+        $lastException
+    );
 }
 
 /**
