@@ -29,6 +29,7 @@ if ($expectedToken === '' || !hash_equals($expectedToken, $providedToken)) {
 require_once ROOT_PATH . '/config/database.php';
 require_once ROOT_PATH . '/config/session.php';
 require_once ROOT_PATH . '/modules/crad/config/config.php';
+require_once ROOT_PATH . '/includes/security.php';
 require_once ROOT_PATH . '/includes/captcha.php';
 
 $hasCloudDbEnv = sms2_has_cloud_db_env();
