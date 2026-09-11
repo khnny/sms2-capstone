@@ -106,6 +106,30 @@ function smsEnsureSecurityTables(): void
         error_log('SMS2 login_throttles: ' . $e->getMessage());
     }
 
+    // phpMyAdmin dumps often create id without AUTO_INCREMENT; INSERT then fatals under STRICT mode.
+    try {
+        $idCol = $pdo->query("SHOW COLUMNS FROM login_throttles LIKE 'id'")->fetch(PDO::FETCH_ASSOC);
+        if (is_array($idCol) && stripos((string) ($idCol['Extra'] ?? ''), 'auto_increment') === false) {
+            $pdo->exec(
+                'ALTER TABLE login_throttles
+                 MODIFY id INT UNSIGNED NOT NULL AUTO_INCREMENT'
+            );
+        }
+        $indexes = $pdo->query('SHOW INDEX FROM login_throttles')->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        $hasThrottleUnique = false;
+        foreach ($indexes as $idx) {
+            if (($idx['Key_name'] ?? '') === 'uq_login_throttle_key') {
+                $hasThrottleUnique = true;
+                break;
+            }
+        }
+        if (!$hasThrottleUnique) {
+            $pdo->exec('ALTER TABLE login_throttles ADD UNIQUE KEY uq_login_throttle_key (throttle_key)');
+        }
+    } catch (Throwable $e) {
+        error_log('SMS2 login_throttles repair: ' . $e->getMessage());
+    }
+
     try {
         if (function_exists('smsEnsureAuthenticatorTable')) {
             smsEnsureAuthenticatorTable();
