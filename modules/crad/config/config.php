@@ -81,7 +81,10 @@ function getCradDatabaseConnection(): PDO
     } catch (PDOException $e) {
         error_log('CRAD DB connection failed: ' . $e->getMessage());
         throw new RuntimeException(
-            'CRAD database unavailable. Run modules/crad/database/install.php or create crad_db in MySQL.'
+            'CRAD database unavailable (' . CRAD_DB_HOST . ':' . CRAD_DB_PORT . '/' . CRAD_DB_NAME . '). '
+            . 'Check CRAD_DB_* env vars and that crad_db is reachable from the app.',
+            0,
+            $e
         );
     }
 
