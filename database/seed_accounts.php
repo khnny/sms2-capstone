@@ -62,6 +62,7 @@ $perms = [
     'department_chair' => ['crad'],
     'research_office' => ['crad'],
     'research_director' => ['faculty'],
+    'adviser'      => ['faculty'],
     'grammarian'   => ['faculty'],
     'review_committee' => ['crad_grant'],
     'panel'        => ['faculty'],
@@ -153,7 +154,7 @@ $accounts = [
     ],
     [
         'username' => 'researchdirector',
-        'email' => 'researchdirector@bestlink.edu.ph',
+        'email' => 'research.director@bestlink.edu.ph',
         'password' => '@Director123',
         'full_name' => 'Research Director',
         'role_key' => 'research_director',
@@ -271,13 +272,15 @@ $upsert = $pdo->prepare(
      VALUES (?, ?, ?, ?, ?, ?, \'active\', NOW(), 0, 0, NULL)
      ON DUPLICATE KEY UPDATE
         email = VALUES(email),
+        password_hash = VALUES(password_hash),
         full_name = VALUES(full_name),
         role_key = VALUES(role_key),
         student_id = VALUES(student_id),
         status = \'active\',
         must_change_password = 0,
         failed_login_attempts = 0,
-        locked_until = NULL'
+        locked_until = NULL,
+        password_changed_at = NOW()'
 );
 
 foreach ($accounts as $a) {
