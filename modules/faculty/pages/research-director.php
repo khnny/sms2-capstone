@@ -273,9 +273,9 @@ function rdScheduleReadyGroup(PDO $pdo, int $groupId, string $defenseType = CRAD
     return null;
 }
 
-function rdScheduleAutoDefenseType(PDO $pdo, int $groupId, string $requestedType): string
+function rdScheduleAutoDefenseType(?PDO $pdo, int $groupId, string $requestedType): string
 {
-    if ($requestedType === CRAD_DEFENSE_TYPE_FINAL || $groupId <= 0) {
+    if (!$pdo instanceof PDO || $requestedType === CRAD_DEFENSE_TYPE_FINAL || $groupId <= 0) {
         return $requestedType;
     }
 
@@ -706,6 +706,12 @@ $officialScheduledCount = 0;
 $completedScheduleCount = 0;
 $venueMessage = null;
 $crad = cradDb();
+if (!$crad) {
+    $venueMessage = [
+        'type' => 'danger',
+        'text' => 'CRAD database unavailable. On HostForge, set CRAD_DB_HOST, CRAD_DB_PORT, CRAD_DB_NAME, CRAD_DB_USER, and CRAD_DB_PASS to crad_db connection details, then redeploy.',
+    ];
+}
 if ($crad) {
     try {
         $crad->exec(
@@ -1439,7 +1445,9 @@ $schedulerViews = ['manual-scheduling-optimizer', 'alternative-time-slots'];
 $isSchedulerView = in_array($view, $schedulerViews, true);
 $hasExplicitGroupSelection = isset($_GET['group_id']) && (int) $_GET['group_id'] > 0;
 $selectedGroupId = (int) ($_GET['group_id'] ?? 0);
-$requestedDefenseType = rdScheduleAutoDefenseType($crad, $selectedGroupId, $requestedDefenseType);
+$requestedDefenseType = $crad
+    ? rdScheduleAutoDefenseType($crad, $selectedGroupId, $requestedDefenseType)
+    : $requestedDefenseType;
 $defenseTypeLabel = $requestedDefenseType === CRAD_DEFENSE_TYPE_FINAL ? CRAD_DEFENSE_TYPE_FINAL : 'Pre-Oral Defense';
 $activePage = rdScheduleSidebarActivePage($view, $requestedDefenseType);
 $selectedReadyGroup = ($crad && $selectedGroupId > 0) ? rdScheduleReadyGroup($crad, $selectedGroupId, $requestedDefenseType) : null;
