@@ -35,6 +35,7 @@ $roles = [
     ['research_office', 'Research Office', 'Grant approval — research office sign-off'],
     ['vpaa', 'VPAA', 'Grant approval — VPAA sign-off'],
     ['research_director', 'Research Director', 'Research defense scheduling director account'],
+    ['adviser', 'Adviser', 'Research adviser faculty account'],
     ['grammarian', 'Grammarian', 'Research grammar and manuscript evaluation account'],
     ['review_committee', 'Review Committee', 'Grant proposal review and rubric evaluation'],
     ['panel', 'Panel Member', 'Research defense panel account'],

@@ -75,12 +75,12 @@ function smsOfficialAccounts(): array
         ],
         [
             'username' => 'cradofficer',
-            'email' => 'cradofficer@bestlink.ph',
+            'email' => 'cradofficer@bestlink.edu.ph',
             'password' => '@Cradofficer123',
             'full_name' => 'CRAD Officer',
             'role_key' => 'crad_officer',
             'student_id' => null,
-            'lookup' => ['cradofficer@bestlink.edu.ph'],
+            'lookup' => ['cradofficer@bestlink.ph'],
         ],
         [
             'username' => 'researchcoordinator',
