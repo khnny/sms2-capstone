@@ -5,7 +5,8 @@
 ALTER TABLE login_throttles
   MODIFY id INT UNSIGNED NOT NULL AUTO_INCREMENT;
 
--- Required for ON DUPLICATE KEY UPDATE attempt counting
+-- Required for ON DUPLICATE KEY UPDATE attempt counting (ignore error if already present)
+-- If this fails with "Duplicate key name", that is fine.
 ALTER TABLE login_throttles
   ADD UNIQUE KEY uq_login_throttle_key (throttle_key);
 

@@ -137,7 +137,7 @@ $accounts = [
     ],
     [
         'username' => 'cradofficer',
-        'email' => 'cradofficer@bestlink.ph',
+        'email' => 'cradofficer@bestlink.edu.ph',
         'password' => '@Cradofficer123',
         'full_name' => 'CRAD Officer',
         'role_key' => 'crad_officer',
