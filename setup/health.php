@@ -105,6 +105,16 @@ try {
     unset($cradPdo);
 } catch (Throwable $e) {
     $cradError = $e->getMessage();
+    $prev = $e->getPrevious();
+    if ($prev instanceof Throwable && $prev->getMessage() !== '') {
+        $cradError .= ' | ' . $prev->getMessage();
+    }
+    // Surface PDO details when getCradDatabaseConnection() wraps them without previous.
+    if (!str_contains($cradError, 'SQLSTATE') && !str_contains($cradError, 'getaddrinfo')) {
+        $cradError .= ' | trying ' . CRAD_DB_HOST . ':' . CRAD_DB_PORT . '/' . CRAD_DB_NAME
+            . ' as ' . CRAD_DB_USER
+            . ' (check CRAD_DB_PASS and that crad_db is reachable from the app)';
+    }
     $checks[] = [
         'label' => 'CRAD database connection',
         'ok' => false,
