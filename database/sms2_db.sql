@@ -2056,12 +2056,16 @@ INSERT INTO `activity_logs` (`id`, `user_id`, `user_name`, `role_key`, `action`,
 --
 
 CREATE TABLE `login_throttles` (
-  `id` int(10) UNSIGNED NOT NULL,
+  `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT,
   `throttle_key` char(64) NOT NULL,
   `ip_address` varchar(45) NOT NULL,
   `attempts` int(10) UNSIGNED NOT NULL DEFAULT 0,
   `locked_until` datetime DEFAULT NULL,
-  `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+  `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_login_throttle_key` (`throttle_key`),
+  KEY `idx_login_throttle_ip` (`ip_address`),
+  KEY `idx_login_throttle_locked` (`locked_until`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
