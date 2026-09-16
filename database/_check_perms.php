@@ -5,7 +5,7 @@ try {
     $pdo = db();
     // Check if role_permissions table exists
     $tables = $pdo->query("SHOW TABLES LIKE 'sms_role_permissions'")->fetchAll();
-    if (empty($tables)) { echo "Table role_permissions does not exist.\n"; exit; }
+    if (empty($tables)) { echo "Table sms_role_permissions does not exist.\n"; exit; }
 
     // Show all grants for user-management
     $rows = $pdo->query("SELECT * FROM sms_role_permissions WHERE module_key = 'user-management'")->fetchAll(PDO::FETCH_ASSOC);

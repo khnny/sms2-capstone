@@ -121,7 +121,7 @@ $defaults = [
 ];
 
 // Store under actual role_key for crad_officer as 'crad' in permissions table
-// using role_key column that references roles — crad is NOT in roles table.
+// using role_key column that references sms_roles — crad is NOT in sms_roles.
 // So we store permissions under crad_officer and map in app, OR add a virtual key.
 // Simplest: store permissions with role_key = crad_officer for CRAD modules.
 
