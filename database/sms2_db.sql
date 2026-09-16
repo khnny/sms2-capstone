@@ -35,7 +35,7 @@ DROP TABLE IF EXISTS `users`;
 /*!40101 SET NAMES utf8mb4 */;
 
 --
--- Database: `sms2_db`
+-- Import into the currently selected database (HostForge DB_DATABASE).
 --
 
 -- --------------------------------------------------------
