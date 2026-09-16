@@ -149,7 +149,7 @@ function smsUsersTableExists(?PDO $pdo): bool
     }
 
     try {
-        return (bool) $pdo->query("SHOW TABLES LIKE 'users'")->fetchColumn();
+        return (bool) $pdo->query("SHOW TABLES LIKE 'sms_users'")->fetchColumn();
     } catch (Throwable $e) {
         return false;
     }
@@ -165,7 +165,7 @@ function smsUsersIdSqlType(?PDO $pdo): string
     }
 
     try {
-        $row = $pdo->query("SHOW COLUMNS FROM users LIKE 'id'")->fetch(PDO::FETCH_ASSOC);
+        $row = $pdo->query("SHOW COLUMNS FROM sms_users LIKE 'id'")->fetch(PDO::FETCH_ASSOC);
         if (!is_array($row) || empty($row['Type'])) {
             return 'INT UNSIGNED';
         }

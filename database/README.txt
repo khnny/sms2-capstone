@@ -95,14 +95,14 @@ If login says "invalid credentials" but health check shows users > 0:
   - You may have imported users into the wrong database — SHOW TABLES on the
     database named in DB_DATABASE (e.g. hf_db_vnbeokwb), not a second instance.
   - Clear lockouts:
-      DELETE FROM login_throttles;
-      UPDATE users SET failed_login_attempts = 0, locked_until = NULL;
+      DELETE FROM sms_login_throttles;
+      UPDATE sms_users SET failed_login_attempts = 0, locked_until = NULL;
   - Complete the "Verify you are human" CAPTCHA before Sign In.
 
 Password reset (attached database console or app terminal):
      php -r "echo password_hash('YourNewPassword123!', PASSWORD_DEFAULT);"
   Copy the hash, then in the ATTACHED database SQL console:
-     UPDATE users SET password_hash = 'PASTE_HASH_HERE',
+     UPDATE sms_users SET password_hash = 'PASTE_HASH_HERE',
        failed_login_attempts = 0, locked_until = NULL, must_change_password = 0
      WHERE email = 'superadmin@bestlink.edu.ph';
 

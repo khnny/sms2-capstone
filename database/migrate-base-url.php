@@ -28,10 +28,10 @@ function sms2MigrateStoredBaseUrls(?callable $sink = null): array
 
     $pdo = getCradDatabaseConnection();
     $tables = [
-        'grant_proposal_notifications' => 'url',
-        'chapter_evaluation_notifications' => 'url',
-        'research_progress_notifications' => 'action_url',
-        'panel_assignment_notifications' => 'url',
+        'crad_grant_proposal_notifications' => 'url',
+        'crad_chapter_evaluation_notifications' => 'url',
+        'crad_research_progress_notifications' => 'action_url',
+        'crad_panel_assignment_notifications' => 'url',
     ];
 
     $log('Canonical BASE_URL: ' . (BASE_URL !== '' ? BASE_URL : '(root)'));

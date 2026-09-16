@@ -176,12 +176,12 @@ function smsApplyOfficialAccountCredentials(PDO $pdo): array
 {
     $accounts = smsOfficialAccounts();
     $find = $pdo->prepare(
-        'SELECT id FROM users
+        'SELECT id FROM sms_users
          WHERE username = :uname OR LOWER(email) = LOWER(:email)
          LIMIT 1'
     );
     $update = $pdo->prepare(
-        'UPDATE users
+        'UPDATE sms_users
             SET username = :username,
                 email = :email,
                 password_hash = :hash,
@@ -196,7 +196,7 @@ function smsApplyOfficialAccountCredentials(PDO $pdo): array
           WHERE id = :id'
     );
     $insert = $pdo->prepare(
-        'INSERT INTO users
+        'INSERT INTO sms_users
             (username, email, password_hash, full_name, role_key, student_id, status, password_changed_at, must_change_password, failed_login_attempts, locked_until)
          VALUES (?, ?, ?, ?, ?, ?, \'active\', NOW(), 0, 0, NULL)'
     );
