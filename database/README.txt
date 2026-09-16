@@ -52,10 +52,14 @@ Step-by-step
 2. Do NOT upload config/local.php with XAMPP localhost settings. When DB_* env
    vars are present, the app skips local.php automatically.
 3. Verify which database has your tables. On the Databases page, open the
-   ATTACHED database console and run:
+   ATTACHED database console (the name in DB_DATABASE, e.g. hf_db_xxxx) and run:
      SHOW TABLES;
-   You need tables like users, roles, system_settings. If empty, import
-   database/sms2_db.sql INTO THIS DATABASE (hf_db_xxxx), not a different one.
+   You need tables like users, roles, system_settings. If empty or users is
+   missing, import database/sms2_db.sql INTO THIS DATABASE. Do not create a
+   separate database named sms2_db unless that is the attached DB_DATABASE.
+   The dump drops leftover tables (like login_throttles) so a re-upload can
+   replace an empty HostForge schema.
+   Web helper: /setup/deploy-db.php?token=YOUR_SMS2_DEPLOY_TOKEN
 4. If you provisioned a second database for CRAD, import
    modules/crad/database/crad_db.sql there, then add Environment Variables
    from THAT database's row (HostForge does not copy these for you):
@@ -71,8 +75,9 @@ Step-by-step
    DB_DATABASE (the first attached database).
 
 5. Run schema (app web terminal, after first deploy):
-     php database/migrate.php
-   Or use Import on the Databases page for each .sql file.
+     php database/migrate.php --sms2-only
+   Or HostForge Databases → Import sms2_db.sql into DB_DATABASE.
+   Or /setup/deploy-db.php?token=YOUR_TOKEN (sms2-only by default).
 
 6. Optional env vars:
      SMS2_DEPLOY_TOKEN=<plain random secret — not PHP code>
