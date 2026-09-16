@@ -1,10 +1,30 @@
 <?php
 /**
  * Official SMS 2 bootstrap account credentials (email + password).
- * Used by seed/update scripts only. Seeded users must change password on first login.
- * Rotate these before any shared/production environment.
+ * Used by seed/update scripts only. Defaults are for local XAMPP demos.
+ * Cloud/HostForge: smsApplyOfficialAccountCredentials is blocked unless
+ * SMS2_ALLOW_OFFICIAL_RESET=1 (optional SMS2_OFFICIAL_SEED_PASSWORD override).
  */
 declare(strict_types=1);
+
+/**
+ * Whether official seed/reset may apply plaintext bootstrap passwords.
+ */
+function smsOfficialCredentialResetAllowed(): bool
+{
+    if (function_exists('sms2_env')
+        && strtolower((string) sms2_env('SMS2_ALLOW_OFFICIAL_RESET', '0')) === '1'
+    ) {
+        return true;
+    }
+
+    // HostForge injects DB_* — never apply known demo passwords there by default.
+    if (function_exists('sms2_has_cloud_db_env') && sms2_has_cloud_db_env()) {
+        return false;
+    }
+
+    return true;
+}
 
 /**
  * @return list<array{
@@ -174,7 +194,20 @@ function smsOfficialAccounts(): array
  */
 function smsApplyOfficialAccountCredentials(PDO $pdo): array
 {
+    if (!smsOfficialCredentialResetAllowed()) {
+        throw new RuntimeException(
+            'Official credential reset is disabled on cloud hosts. '
+            . 'Set SMS2_ALLOW_OFFICIAL_RESET=1 only for controlled recovery '
+            . '(prefer SMS2_OFFICIAL_SEED_PASSWORD for a one-time override).'
+        );
+    }
+
     $accounts = smsOfficialAccounts();
+    $passwordOverride = '';
+    if (function_exists('sms2_env')) {
+        $passwordOverride = trim((string) sms2_env('SMS2_OFFICIAL_SEED_PASSWORD', ''));
+    }
+
     $find = $pdo->prepare(
         'SELECT id FROM sms_users
          WHERE username = :uname OR LOWER(email) = LOWER(:email)
@@ -190,7 +223,7 @@ function smsApplyOfficialAccountCredentials(PDO $pdo): array
                 student_id = :student_id,
                 status = \'active\',
                 password_changed_at = NOW(),
-                must_change_password = 0,
+                must_change_password = 1,
                 failed_login_attempts = 0,
                 locked_until = NULL
           WHERE id = :id'
@@ -198,7 +231,7 @@ function smsApplyOfficialAccountCredentials(PDO $pdo): array
     $insert = $pdo->prepare(
         'INSERT INTO sms_users
             (username, email, password_hash, full_name, role_key, student_id, status, password_changed_at, must_change_password, failed_login_attempts, locked_until)
-         VALUES (?, ?, ?, ?, ?, ?, \'active\', NOW(), 0, 0, NULL)'
+         VALUES (?, ?, ?, ?, ?, ?, \'active\', NOW(), 1, 0, NULL)'
     );
 
     $updated = 0;
@@ -216,7 +249,8 @@ function smsApplyOfficialAccountCredentials(PDO $pdo): array
                 break;
             }
         }
-        $hash = password_hash((string) $account['password'], PASSWORD_DEFAULT);
+        $plain = $passwordOverride !== '' ? $passwordOverride : (string) $account['password'];
+        $hash = password_hash($plain, PASSWORD_DEFAULT);
         if ($row) {
             $update->execute([
                 ':username' => $account['username'],

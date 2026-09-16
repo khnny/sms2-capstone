@@ -113,11 +113,17 @@ if ($pdo instanceof PDO && $_SERVER['REQUEST_METHOD'] === 'POST' && $postedActio
             $actionFlash = 'Login locks cleared. Try signing in again.';
         } elseif ($postedAction === 'reset_official') {
             require_once ROOT_PATH . '/database/official_accounts.php';
-            $pdo->exec('DELETE FROM sms_login_throttles');
-            $result = smsApplyOfficialAccountCredentials($pdo);
-            $actionFlash = 'Official account passwords reset ('
-                . (int) $result['updated'] . ' updated, '
-                . (int) $result['created'] . ' created) and login locks cleared.';
+            if (!smsOfficialCredentialResetAllowed()) {
+                $actionOk = false;
+                $actionFlash = 'Official password reset is blocked on cloud hosts. '
+                    . 'Set SMS2_ALLOW_OFFICIAL_RESET=1 only for controlled recovery.';
+            } else {
+                $pdo->exec('DELETE FROM sms_login_throttles');
+                $result = smsApplyOfficialAccountCredentials($pdo);
+                $actionFlash = 'Official account passwords reset ('
+                    . (int) $result['updated'] . ' updated, '
+                    . (int) $result['created'] . ' created) and login locks cleared.';
+            }
         } else {
             $actionOk = false;
             $actionFlash = 'Unknown health action.';
