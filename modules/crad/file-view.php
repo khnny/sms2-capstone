@@ -66,18 +66,34 @@ function cradFileViewAuthorized(PDO $cradPdo, array $proposalRow, int $proposalI
         }
     }
 
-    if (in_array($role, ['panel', 'grammarian'], true) && $proposalNumber !== '') {
+    if (in_array($role, ['panel', 'grammarian'], true)) {
         $stmt = $cradPdo->prepare(
             "SELECT 1
              FROM crad_research_panel_assignments pa
-             INNER JOIN crad_research_groups g ON g.id = pa.research_group_id
              WHERE pa.panel_user_id = :uid
-               AND g.proposal_number = :pnum
+               AND (
+                    pa.proposal_id = :pid
+                 OR (:pnum <> '' AND pa.proposal_number = :pnum2)
+                 OR EXISTS (
+                        SELECT 1
+                          FROM crad_research_groups g
+                         WHERE g.id = pa.research_group_id
+                           AND (
+                                g.proposal_id = :pid2
+                             OR (:pnum3 <> '' AND g.proposal_number = :pnum4)
+                           )
+                    )
+               )
              LIMIT 1"
         );
         $stmt->execute([
             ':uid' => $sessionUserId,
+            ':pid' => $proposalId,
+            ':pid2' => $proposalId,
             ':pnum' => $proposalNumber,
+            ':pnum2' => $proposalNumber,
+            ':pnum3' => $proposalNumber,
+            ':pnum4' => $proposalNumber,
         ]);
         if ($stmt->fetchColumn()) {
             return true;
