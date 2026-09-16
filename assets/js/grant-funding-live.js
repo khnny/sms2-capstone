@@ -8,6 +8,7 @@
     var root = document.querySelector('[data-grant-funding-live="1"]');
     if (!root) return;
 
+    var csrfToken = root.getAttribute('data-csrf') || '';
     var selectedId = parseInt(root.getAttribute('data-selected-id') || '0', 10) || 0;
     var canRelease = root.getAttribute('data-can-release') === '1';
     var apiBase = (function () {
@@ -325,7 +326,8 @@
                     amount_released: releaseAmount ? releaseAmount.value : '',
                     release_date: releaseDate ? releaseDate.value : '',
                     reference_number: releaseReference ? releaseReference.value.trim() : '',
-                    remarks: releaseRemarks ? releaseRemarks.value.trim() : ''
+                    remarks: releaseRemarks ? releaseRemarks.value.trim() : '',
+                    csrf_token: csrfToken
                 })
             })
                 .then(function (r) { return r.json(); })

@@ -3,11 +3,16 @@ import os
 import sys
 from ftplib import FTP_TLS, error_perm
 
-HOSTS = ['ftpupload.net', 'ftp.epizy.com']
-USER = 'if0_42794375'
-PASS = 'HVfvZIn3gF8RfyR'
-LOCAL = r'C:\xampp\htdocs\sms2_deploy_staging'
-REMOTE_ROOT = '/htdocs'
+# Read credentials from environment — never hardcode secrets in the repo.
+HOSTS = [h.strip() for h in os.environ.get('SMS2_FTP_HOSTS', 'ftpupload.net,ftp.epizy.com').split(',') if h.strip()]
+USER = os.environ.get('SMS2_FTP_USER', '')
+PASS = os.environ.get('SMS2_FTP_PASS', '')
+LOCAL = os.environ.get('SMS2_FTP_LOCAL', r'C:\xampp\htdocs\sms2_deploy_staging')
+REMOTE_ROOT = os.environ.get('SMS2_FTP_REMOTE', '/htdocs')
+
+if not USER or not PASS:
+    print('Set SMS2_FTP_USER and SMS2_FTP_PASS environment variables before running.', file=sys.stderr)
+    sys.exit(1)
 
 def upload_tree(ftp, local_dir, remote_dir):
     try:
@@ -28,17 +33,16 @@ def upload_tree(ftp, local_dir, remote_dir):
 for host in HOSTS:
     print(f'Trying {host}...')
     try:
-        ftp = FTP_TLS()
-        ftp.connect(host, 21, timeout=60)
-        ftp.auth()
-        ftp.prot_p()
+        ftp = FTP_TLS(host)
         ftp.login(USER, PASS)
-        print(f'Logged in to {host}')
-        upload_tree(ftp, LOCAL, REMOTE_ROOT)
+        ftp.prot_p()
+        ftp.cwd(REMOTE_ROOT)
+        upload_tree(ftp, LOCAL, '.')
         ftp.quit()
-        print('Upload complete.')
+        print(f'Upload finished via {host}')
         sys.exit(0)
     except Exception as e:
-        print(f'Failed on {host}: {e}')
+        print(f'{host} failed: {e}')
 
+print('All FTP hosts failed.', file=sys.stderr)
 sys.exit(1)

@@ -9,22 +9,16 @@
 
 declare(strict_types=1);
 
+// CLI only — never expose schema install over HTTP.
+if (PHP_SAPI !== 'cli') {
+    http_response_code(403);
+    header('Content-Type: text/plain; charset=utf-8');
+    echo "Forbidden. Run from CLI:\n  php modules/crad/database/install_progress_module.php\n";
+    exit(1);
+}
+
 // Require existing CRAD configuration
 require_once __DIR__ . '/../config/config.php';
-
-if (PHP_SAPI !== 'cli') {
-    // Web-based execution with basic protection
-    session_start();
-    require_once __DIR__ . '/../../../config/config.php';
-    require_once ROOT_PATH . '/includes/authentication.php';
-    $isAuthorized = !empty($_SESSION['user_role_key'])
-        && (smsRoleAllowedForModule(['crad_officer'], 'crad') || smsCanBypassSystemControls((string) $_SESSION['user_role_key']));
-    
-    if (!$isAuthorized) {
-        http_response_code(403);
-        die('Access denied. Admin/CRAD Officer authentication required.');
-    }
-}
 
 // Get database connection
 try {

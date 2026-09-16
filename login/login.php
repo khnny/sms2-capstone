@@ -182,7 +182,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         smsLoginGateClear();
 
         // Global maintenance: only Super Admin may enter the system
-        if (smsIsSystemInMaintenance() && getCurrentUserRoleKey() !== 'admin') {
+        if (smsIsSystemInMaintenance() && !smsCanBypassSystemControls()) {
             logout();
             header('Location: ' . BASE_URL . '/account/maintenance.php');
             exit;

@@ -27,6 +27,10 @@ if ($isCradPage && strpos(' ' . $bodyClass . ' ', ' crad-app ') === false) {
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="description" content="<?= e(APP_NAME) ?> - <?= e(INSTITUTION) ?>">
+    <?php if (function_exists('isAuthenticated') && isAuthenticated()): ?>
+    <meta name="csrf-token" content="<?= e(csrfToken()) ?>">
+    <script src="<?= BASE_URL ?>/assets/js/sms-csrf.js?v=1"></script>
+    <?php endif; ?>
     <title><?= e($pageTitle) ?> | <?= e(APP_SHORT_NAME) ?></title>
     <link rel="icon" href="<?= e(smsBrandLogoUrl()) ?>" type="<?= str_ends_with(smsBrandLogoUrl(), '.svg') ? 'image/svg+xml' : 'image/png' ?>">
 

@@ -94,7 +94,7 @@ if ($pdo) {
             "INSERT IGNORE INTO users
                 (username, email, password_hash, full_name, role_key, student_id, status, password_changed_at, must_change_password, failed_login_attempts, locked_until)
              VALUES
-                ('admin', 'admin@bestlink.edu.ph', ?, 'Admin', 'sms_admin', NULL, 'active', NOW(), 0, 0, NULL)"
+                ('admin', 'admin@bestlink.edu.ph', ?, 'Admin', 'sms_admin', NULL, 'active', NOW(), 1, 0, NULL)"
         )->execute([$adminHash]);
         $insAdminPerm = $pdo->prepare(
             "INSERT INTO role_permissions (role_key, module_key, granted)
@@ -109,7 +109,7 @@ if ($pdo) {
             "INSERT IGNORE INTO users
                 (username, email, password_hash, full_name, role_key, student_id, status, notes, password_changed_at, must_change_password, failed_login_attempts, locked_until)
              VALUES
-                (?, ?, ?, ?, ?, NULL, 'active', ?, NOW(), 0, 0, NULL)"
+                (?, ?, ?, ?, ?, NULL, 'active', ?, NOW(), 1, 0, NULL)"
         );
         $seedFaculty->execute(['rsantos', 'rsantos@bestlink.edu.ph', password_hash('@Adviser123', PASSWORD_DEFAULT), 'Dr. Roberto M. Santos', 'adviser', 'Research Adviser']);
         $seedFaculty->execute(['researchdirector', 'researchdirector@bestlink.edu.ph', password_hash('@Director123', PASSWORD_DEFAULT), 'Research Director', 'research_director', 'Research Director']);
@@ -132,7 +132,7 @@ if ($pdo) {
             "INSERT IGNORE INTO users
                 (username, email, password_hash, full_name, role_key, student_id, status, password_changed_at, must_change_password, failed_login_attempts, locked_until)
              VALUES
-                ('researchgrant', 'researchgrant@bestlink.edu.ph', ?, 'Research Grant', 'research_grant', NULL, 'active', NOW(), 0, 0, NULL)"
+                ('researchgrant', 'researchgrant@bestlink.edu.ph', ?, 'Research Grant', 'research_grant', NULL, 'active', NOW(), 1, 0, NULL)"
         )->execute([$rgHash]);
         $pdo->prepare(
             "INSERT INTO role_permissions (role_key, module_key, granted)
@@ -146,7 +146,7 @@ if ($pdo) {
             "INSERT IGNORE INTO users
                 (username, email, password_hash, full_name, role_key, student_id, status, password_changed_at, must_change_password, failed_login_attempts, locked_until)
              VALUES
-                ('reviewcommittee', 'reviewcommittee@bestlink.edu.ph', ?, 'Review Committee Member', 'review_committee', NULL, 'active', NOW(), 0, 0, NULL)"
+                ('reviewcommittee', 'reviewcommittee@bestlink.edu.ph', ?, 'Review Committee Member', 'review_committee', NULL, 'active', NOW(), 1, 0, NULL)"
         )->execute([$rcHash]);
         $pdo->prepare(
             "INSERT INTO role_permissions (role_key, module_key, granted)

@@ -1,7 +1,8 @@
 <?php
 /**
- * Official SMS 2 account credentials (email + password).
- * Used by seed/update scripts — keep in sync with stakeholder handoff list.
+ * Official SMS 2 bootstrap account credentials (email + password).
+ * Used by seed/update scripts only. Seeded users must change password on first login.
+ * Rotate these before any shared/production environment.
  */
 declare(strict_types=1);
 

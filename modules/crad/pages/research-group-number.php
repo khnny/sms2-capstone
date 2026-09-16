@@ -10,6 +10,17 @@ require_once ROOT_PATH . '/includes/authentication.php';
 require_once ROOT_PATH . '/includes/security.php';
 
 requireAuth();
+requireModuleAccess('crad');
+
+if (!smsRoleAllowedForModule(['crad_officer', 'research_coordinator', 'research_director'], 'crad')) {
+    http_response_code(403);
+    if (isset($_GET['ajax']) || str_contains($_SERVER['HTTP_ACCEPT'] ?? '', 'application/json')) {
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['ok' => false, 'error' => 'Access denied.']);
+        exit;
+    }
+    exit('Access denied.');
+}
 
 $pageTitle    = 'Research Group Number';
 $activeModule = 'crad';
@@ -177,7 +188,7 @@ try {
     rgnEnsureTitleApprovalSchema($cradPdo);
 } catch (Throwable $e) {
     error_log('CRAD research group setup error: ' . $e->getMessage());
-    $formError = 'Failed to prepare research group database. (' . htmlspecialchars($e->getMessage()) . ')';
+    $formError = 'Failed to prepare research group database. Please try again or contact support.';
 }
 
 if (($_GET['ajax'] ?? '') === 'title-approval-groups') {
@@ -283,7 +294,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (($_POST['process'] ?? '') === 'gen
                 $cradPdo->rollBack();
             }
             error_log('CRAD title approval group number error: ' . $e->getMessage());
-            $formError = 'Failed to generate title approval group number. ' . htmlspecialchars($e->getMessage());
+            $formError = 'Failed to generate title approval group number. Please try again or contact support.';
         }
     }
 }
@@ -372,7 +383,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (($_POST['process'] ?? '') === 'gen
                 $cradPdo->rollBack();
             }
             error_log('CRAD generate research group error: ' . $e->getMessage());
-            $formError = 'Failed to generate research group number. ' . htmlspecialchars($e->getMessage());
+            $formError = 'Failed to generate research group number. Please try again or contact support.';
         }
     }
 }
@@ -413,7 +424,7 @@ try {
 } catch (Throwable $e) {
     error_log('CRAD research group list error: ' . $e->getMessage());
     if ($formError === '') {
-        $formError = 'Failed to load registered proposals. (' . htmlspecialchars($e->getMessage()) . ')';
+        $formError = 'Failed to load registered proposals. Please try again or contact support.';
     }
 }
 

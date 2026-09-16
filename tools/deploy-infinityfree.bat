@@ -1,11 +1,11 @@
 @echo off
 setlocal
 echo SMS2 InfinityFree Deploy
-echo Account: if0_42794375 / bestlinksms2portal.free.nf
+echo Set SMS2_FTP_USER / SMS2_FTP_PASS / SMS2_DEPLOY_TOKEN in your environment.
 echo.
-set /p SMS2_FTP_PASS=Enter hosting account password: 
+if "%SMS2_FTP_PASS%"=="" set /p SMS2_FTP_PASS=Enter hosting account password: 
 powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0build-infinityfree-zip.ps1" -Password "%SMS2_FTP_PASS%"
 powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0deploy-infinityfree.ps1" -FtpPass "%SMS2_FTP_PASS%"
 echo.
-echo Open: https://bestlinksms2portal.free.nf/setup/deploy-db.php?token=bcp-sms2-deploy-2026
+echo Open: https://YOUR_SITE/setup/deploy-db.php?token=YOUR_SMS2_DEPLOY_TOKEN
 pause

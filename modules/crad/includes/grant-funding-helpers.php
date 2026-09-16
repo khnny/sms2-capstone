@@ -449,12 +449,47 @@ function grantReleaseFundingTranche(
         return ['ok' => false, 'error' => 'This tranche is no longer pending release.'];
     }
 
-    $amount = (float) ($input['amount_released'] ?? $row['amount_released'] ?? 0);
+    $amount = (float) ($input['amount_released'] ?? 0);
+    $plannedAmount = (float) ($row['amount_released'] ?? 0);
+    $approvedBudget = (float) ($row['approved_budget'] ?? 0);
+
     if ($amount <= 0) {
-        $trancheNumber = (int) ($row['tranche_number'] ?? 1);
-        $approved = (float) ($row['approved_budget'] ?? 0);
-        $amounts = grantBuildDefaultTrancheAmounts($approved);
-        $amount = (float) ($amounts[$trancheNumber - 1] ?? $approved);
+        if ($plannedAmount > 0) {
+            $amount = $plannedAmount;
+        } else {
+            $trancheNumber = (int) ($row['tranche_number'] ?? 1);
+            $amounts = grantBuildDefaultTrancheAmounts($approvedBudget);
+            $amount = (float) ($amounts[$trancheNumber - 1] ?? $approvedBudget);
+        }
+    }
+
+    $maxTranche = $plannedAmount > 0 ? $plannedAmount : $approvedBudget;
+    if ($maxTranche > 0 && $amount > ($maxTranche + 0.009)) {
+        return [
+            'ok' => false,
+            'error' => 'Release amount exceeds the planned tranche amount ('
+                . number_format($maxTranche, 2) . ').',
+        ];
+    }
+
+    $releasedStmt = $crad->prepare(
+        "SELECT COALESCE(SUM(amount_released), 0)
+           FROM grant_funding_disbursements
+          WHERE grant_application_id = ?
+            AND status = 'Released'
+            AND id <> ?"
+    );
+    $releasedStmt->execute([
+        (int) ($row['grant_application_id'] ?? 0),
+        $disbursementId,
+    ]);
+    $alreadyReleased = (float) $releasedStmt->fetchColumn();
+    if ($approvedBudget > 0 && ($alreadyReleased + $amount) > ($approvedBudget + 0.009)) {
+        return [
+            'ok' => false,
+            'error' => 'Release would exceed the approved budget ('
+                . number_format($approvedBudget, 2) . ').',
+        ];
     }
 
     $releaseDate = trim((string) ($input['release_date'] ?? ''));
@@ -470,7 +505,7 @@ function grantReleaseFundingTranche(
     $remarks = trim((string) ($input['remarks'] ?? '')) ?: null;
 
     try {
-        $crad->prepare("
+        $update = $crad->prepare("
             UPDATE grant_funding_disbursements
                SET amount_released = ?,
                    release_date = ?,
@@ -481,7 +516,9 @@ function grantReleaseFundingTranche(
                    remarks = ?,
                    updated_at = NOW()
              WHERE id = ?
-        ")->execute([
+               AND status = 'Pending'
+        ");
+        $update->execute([
             $amount,
             $releaseDate,
             $reference,
@@ -490,6 +527,9 @@ function grantReleaseFundingTranche(
             $remarks,
             $disbursementId,
         ]);
+        if ($update->rowCount() < 1) {
+            return ['ok' => false, 'error' => 'This tranche is no longer pending release.'];
+        }
 
         $applicationId = (int) ($row['grant_application_id'] ?? 0);
         grantNotifyApplicantFundReleased($crad, $applicationId, $row, $amount, $reference, $userName);

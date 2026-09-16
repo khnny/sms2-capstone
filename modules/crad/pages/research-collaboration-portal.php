@@ -2,6 +2,7 @@
 /**
  * SMS 2 - Research Collaboration Portal
  * Module: CRAD
+ * Demo shell only — no live collaboration ledger yet.
  */
 require_once __DIR__ . '/../../../config/config.php';
 
@@ -14,13 +15,13 @@ $breadcrumbs  = [
 ];
 
 $cradProcess = [
-    'kicker' => 'CRAD Officer · Collaboration Workflow',
-    'description' => 'Coordinate internal and external research partnerships, MoUs, joint projects, and milestone tracking.',
+    'kicker' => 'CRAD Officer · Collaboration Workflow (demo shell)',
+    'description' => 'Sample UI only — metrics and records below are placeholders until a live collaboration table is wired.',
     'metrics' => [
-        ['label' => 'Open Collaborations', 'value' => '8', 'icon' => 'fa-handshake', 'tone' => 'blue'],
-        ['label' => 'Pending MoU', 'value' => '3', 'icon' => 'fa-file-signature', 'tone' => 'amber'],
-        ['label' => 'Active Partners', 'value' => '14', 'icon' => 'fa-building', 'tone' => 'green'],
-        ['label' => 'Milestones Due', 'value' => '5', 'icon' => 'fa-flag', 'tone' => 'purple'],
+        ['label' => 'Open Collaborations', 'value' => '—', 'icon' => 'fa-handshake', 'tone' => 'blue'],
+        ['label' => 'Pending MoU', 'value' => '—', 'icon' => 'fa-file-signature', 'tone' => 'amber'],
+        ['label' => 'Active Partners', 'value' => '—', 'icon' => 'fa-building', 'tone' => 'green'],
+        ['label' => 'Milestones Due', 'value' => '—', 'icon' => 'fa-flag', 'tone' => 'purple'],
     ],
     'steps' => [
         ['Create Collaboration Request', 'Register partner institution, project scope, and lead researchers.'],
@@ -30,40 +31,7 @@ $cradProcess = [
     ],
     'columns' => ['Reference', 'Collaboration Project', 'Partner', 'Status', 'Updated'],
     'fields' => ['reference', 'title', 'owner', 'status', 'updated'],
-    'records' => [
-        [
-            'reference' => 'COL-2026-009',
-            'title' => 'Barangay Disaster Resilience Mapping',
-            'owner' => 'Brgy. Kaligayahan LGU',
-            'status' => 'Active',
-            'status_class' => 'active',
-            'updated' => 'Jul 17, 2026',
-        ],
-        [
-            'reference' => 'COL-2026-008',
-            'title' => 'STEM Mentoring Exchange',
-            'owner' => 'Partner Senior High School',
-            'status' => 'Pending MoU',
-            'status_class' => 'pending',
-            'updated' => 'Jul 15, 2026',
-        ],
-        [
-            'reference' => 'COL-2026-007',
-            'title' => 'Industry Capstone Alignment Talks',
-            'owner' => 'Local Tech Cooperative',
-            'status' => 'Under Review',
-            'status_class' => 'review',
-            'updated' => 'Jul 12, 2026',
-        ],
-        [
-            'reference' => 'COL-2026-006',
-            'title' => 'Community Health Literacy Drive',
-            'owner' => 'City Health Office',
-            'status' => 'Open',
-            'status_class' => 'open',
-            'updated' => 'Jul 8, 2026',
-        ],
-    ],
+    'records' => [],
     'actions' => [
         ['label' => 'New Collaboration', 'process' => 'new', 'icon' => 'fa-plus', 'class' => 'primary'],
         ['label' => 'Review Partnership', 'process' => 'validate', 'icon' => 'fa-search', 'class' => 'ghost'],
@@ -83,13 +51,11 @@ $cradProcess = [
         ['label' => 'Lead Researcher / Office', 'type' => 'text', 'name' => 'lead', 'placeholder' => 'Faculty or CRAD focal'],
         ['label' => 'Scope & Milestone Notes', 'type' => 'textarea', 'name' => 'notes', 'placeholder' => 'Objectives, deliverables, timeline...'],
     ],
-    'notice' => 'External collaborations require documented partnership instruments before data sharing, fieldwork, or joint publication activities begin.',
+    'notice' => 'This page is a process shell. Forms do not persist to a collaboration database yet.',
 ];
 
 require_once __DIR__ . '/../../../includes/breadcrumbs.php';
 require_once __DIR__ . '/../../../includes/layout-start.php';
-?>
-
-<?php renderBreadcrumbs($breadcrumbs); ?>
-<?php require_once ROOT_PATH . '/includes/crad-module-process.php'; ?>
-<?php require_once __DIR__ . '/../../../includes/layout-end.php'; ?>
+renderBreadcrumbs($breadcrumbs);
+require_once ROOT_PATH . '/includes/crad-module-process.php';
+require_once __DIR__ . '/../../../includes/layout-end.php';

@@ -79,23 +79,15 @@ if (($_GET['ajax'] ?? '') === 'research-status') {
 }
 
 // ── Research Forum payment check ─────────────────────────────────────────────
-// In production, query your payments table. Here we check against the
-// hardcoded payment history transactions (the "Research Forum" row).
-$paymentTransactions = [
-    ['ref' => 'OR-2026-0018', 'description' => 'Tuition Down Payment',  'amount' => 5000.00, 'status' => 'Paid', 'date' => 'Jul 5, 2026'],
-    ['ref' => 'OR-2026-0009', 'description' => 'Registration Fee',       'amount' => 1500.00, 'status' => 'Paid', 'date' => 'Jun 20, 2026'],
-    ['ref' => 'OR-2026-0003', 'description' => 'Laboratory Fee',         'amount' => 2500.00, 'status' => 'Paid', 'date' => 'Jun 15, 2026'],
-    ['ref' => 'OR-2026-0001', 'description' => 'Research Forum',         'amount' => 800.00,  'status' => 'Paid', 'date' => 'May 28, 2026'],
-];
-$researchForumPaid = false;
-foreach ($paymentTransactions as $txn) {
-    if (
-        stripos($txn['description'], 'Research Forum') !== false &&
-        strtolower($txn['status']) === 'paid'
-    ) {
-        $researchForumPaid = true;
-        break;
-    }
+// Payment Management has no live gateway yet. Do not invent "Paid" OR rows.
+// Keep research flows open until a real ledger exists; show an honest notice.
+$paymentModuleLive = false;
+$paymentTransactions = [];
+$researchForumPaid = true;
+$paymentSystemNotice = 'Online payment is not connected yet. Research Forum fee is not verified from a live ledger.';
+if ($paymentModuleLive) {
+    // Future: query payments table for this student and set $researchForumPaid accordingly.
+    $researchForumPaid = false;
 }
 
 $studentProfile = [
@@ -260,7 +252,8 @@ require_once __DIR__ . '/../../includes/layout-start.php';
                         <div class="stat-icon me-3"><?= smsIcon('wallet') ?></div>
                         <div>
                             <h6 class="text-muted">Balance</h6>
-                            <h4 class="fw-bold mb-0">PHP 8,450.00</h4>
+                            <h4 class="fw-bold mb-0">—</h4>
+                            <small class="text-muted">Ledger not connected</small>
                         </div>
                     </div>
                 </section>
@@ -499,15 +492,18 @@ require_once __DIR__ . '/../../includes/layout-start.php';
             </div>
         </div>
     <?php elseif ($studentPortalPage === 'account-balance'): ?>
+        <?php if (!empty($paymentSystemNotice)): ?>
+            <div class="alert alert-warning mb-3"><?= htmlspecialchars($paymentSystemNotice) ?></div>
+        <?php endif; ?>
         <div class="row g-3 mb-3 dashboard-stats">
             <div class="col-md-4">
-                <section class="card stat-card warning"><div class="card-body d-flex align-items-center"><div class="stat-icon me-3"><?= smsIcon('file-invoice-dollar') ?></div><div><h6 class="text-muted">Total Assessment</h6><h4 class="fw-bold mb-0">PHP 24,950.00</h4></div></div></section>
+                <section class="card stat-card warning"><div class="card-body d-flex align-items-center"><div class="stat-icon me-3"><?= smsIcon('file-invoice-dollar') ?></div><div><h6 class="text-muted">Total Assessment</h6><h4 class="fw-bold mb-0">—</h4></div></div></section>
             </div>
             <div class="col-md-4">
-                <section class="card stat-card success"><div class="card-body d-flex align-items-center"><div class="stat-icon me-3"><?= smsIcon('check-circle') ?></div><div><h6 class="text-muted">Total Paid</h6><h4 class="fw-bold mb-0">PHP 16,500.00</h4></div></div></section>
+                <section class="card stat-card success"><div class="card-body d-flex align-items-center"><div class="stat-icon me-3"><?= smsIcon('check-circle') ?></div><div><h6 class="text-muted">Total Paid</h6><h4 class="fw-bold mb-0">—</h4></div></div></section>
             </div>
             <div class="col-md-4">
-                <section class="card stat-card primary"><div class="card-body d-flex align-items-center"><div class="stat-icon me-3"><?= smsIcon('wallet') ?></div><div><h6 class="text-muted">Balance</h6><h4 class="fw-bold mb-0">PHP 8,450.00</h4></div></div></section>
+                <section class="card stat-card primary"><div class="card-body d-flex align-items-center"><div class="stat-icon me-3"><?= smsIcon('wallet') ?></div><div><h6 class="text-muted">Balance</h6><h4 class="fw-bold mb-0">—</h4></div></div></section>
             </div>
         </div>
         <section class="card">
@@ -517,15 +513,15 @@ require_once __DIR__ . '/../../includes/layout-start.php';
                     <table class="table student-table align-middle mb-0">
                         <thead><tr><th>Fee</th><th class="text-end">Amount</th><th>Status</th></tr></thead>
                         <tbody>
-                            <tr><td>Tuition Fee</td><td class="text-end">PHP 18,000.00</td><td><span class="badge text-bg-warning">Partial</span></td></tr>
-                            <tr><td>Miscellaneous Fee</td><td class="text-end">PHP 4,450.00</td><td><span class="badge text-bg-warning">Partial</span></td></tr>
-                            <tr><td>Laboratory Fee</td><td class="text-end">PHP 2,500.00</td><td><span class="badge text-bg-success">Paid</span></td></tr>
+                            <tr>
+                                <td colspan="3" class="text-muted">No fee ledger is connected yet. Amounts and Paid status will appear when Payment Management is live.</td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>
                 <div class="student-process-bar">
-                    <a class="btn btn-sms-primary" href="?process=pay-now"><?= smsIcon('credit-card', ['class' => 'me-2']) ?>Proceed to Payment</a>
-                    <a class="btn btn-outline-primary" href="?process=soa"><?= smsIcon('file-invoice', ['class' => 'me-2']) ?>Request Statement of Account</a>
+                    <button type="button" class="btn btn-sms-primary" disabled title="Online payment is not connected yet"><?= smsIcon('credit-card', ['class' => 'me-2']) ?>Proceed to Payment</button>
+                    <button type="button" class="btn btn-outline-primary" disabled title="Statement of account requires a live ledger"><?= smsIcon('file-invoice', ['class' => 'me-2']) ?>Request Statement of Account</button>
                 </div>
             </div>
         </section>
@@ -609,10 +605,18 @@ require_once __DIR__ . '/../../includes/layout-start.php';
         <section class="card">
             <div class="card-body">
                 <h5 class="card-title fw-semibold mb-3">Official Payment Transactions</h5>
+                <?php if (!empty($paymentSystemNotice)): ?>
+                    <div class="alert alert-warning"><?= htmlspecialchars($paymentSystemNotice) ?></div>
+                <?php endif; ?>
                 <div class="table-responsive">
                     <table class="table student-table align-middle mb-0">
                         <thead><tr><th>Date</th><th>Reference No.</th><th>Description</th><th class="text-end">Amount</th><th>Status</th></tr></thead>
                         <tbody>
+                            <?php if ($paymentTransactions === []): ?>
+                            <tr>
+                                <td colspan="5" class="text-muted">No payment ledger is connected yet.</td>
+                            </tr>
+                            <?php endif; ?>
                             <?php foreach ($paymentTransactions as $txn): ?>
                             <tr>
                                 <td><?= htmlspecialchars($txn['date']) ?></td>

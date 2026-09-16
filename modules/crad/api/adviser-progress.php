@@ -19,6 +19,7 @@ header('Content-Type: application/json');
 
 require_once __DIR__ . '/../../../config/config.php';
 require_once __DIR__ . '/../../../includes/authentication.php';
+require_once __DIR__ . '/../../../includes/security.php';
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../includes/research-progress-helpers.php';
 
@@ -41,6 +42,7 @@ if ($method === 'POST') {
     if (is_array($decodedInput)) {
         $rpJsonInput = $decodedInput;
     }
+    smsRequireMutatingCsrf($rpJsonInput !== [] ? $rpJsonInput : $_POST);
 }
 $action = $_GET['action'] ?? $_POST['action'] ?? ($rpJsonInput['action'] ?? '');
 

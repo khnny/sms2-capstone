@@ -9,25 +9,26 @@ declare(strict_types=1);
 require_once dirname(__DIR__, 3) . '/config/config.php';
 
 if (!defined('CRAD_DB_HOST')) {
-    define('CRAD_DB_HOST', sms2_env_first(['CRAD_DB_HOST', 'SMS2_DB_HOST', 'DB_HOST', 'MYSQL_HOST', 'MARIADB_HOST'], 'localhost'));
+    // Prefer explicit CRAD_DB_*; do not silently reuse SMS2 attached-DB credentials.
+    define('CRAD_DB_HOST', sms2_env_first(['CRAD_DB_HOST'], 'localhost'));
 }
 if (!defined('CRAD_DB_PORT')) {
-    define('CRAD_DB_PORT', sms2_env_first(['CRAD_DB_PORT', 'SMS2_DB_PORT', 'DB_PORT', 'MYSQL_PORT', 'MARIADB_PORT'], '3306'));
+    define('CRAD_DB_PORT', sms2_env_first(['CRAD_DB_PORT'], '3306'));
 }
 if (!defined('CRAD_DB_NAME')) {
-    define('CRAD_DB_NAME', sms2_env_first(['CRAD_DB_NAME', 'SMS2_DB_NAME', 'DB_DATABASE', 'DB_NAME', 'MYSQL_DATABASE', 'MARIADB_DATABASE'], 'crad_db'));
+    define('CRAD_DB_NAME', sms2_env_first(['CRAD_DB_NAME'], 'crad_db'));
 }
 if (!defined('CRAD_DB_USER')) {
-    define('CRAD_DB_USER', sms2_env_first(['CRAD_DB_USER', 'SMS2_DB_USER', 'DB_USERNAME', 'DB_USER', 'MYSQL_USER', 'MARIADB_USER'], 'root'));
+    define('CRAD_DB_USER', sms2_env_first(['CRAD_DB_USER'], 'root'));
 }
 if (!defined('CRAD_DB_PASS')) {
-    define('CRAD_DB_PASS', sms2_env_first(['CRAD_DB_PASS', 'SMS2_DB_PASS', 'DB_PASSWORD', 'DB_PASS', 'MYSQL_PASSWORD', 'MARIADB_PASSWORD'], ''));
+    define('CRAD_DB_PASS', sms2_env_first(['CRAD_DB_PASS'], ''));
 }
 if (!defined('CRAD_DB_CHARSET')) {
-    define('CRAD_DB_CHARSET', sms2_env_first(['CRAD_DB_CHARSET', 'SMS2_DB_CHARSET', 'DB_CHARSET'], 'utf8mb4'));
+    define('CRAD_DB_CHARSET', sms2_env_first(['CRAD_DB_CHARSET'], 'utf8mb4'));
 }
 if (!defined('CRAD_DB_CONNECTION')) {
-    define('CRAD_DB_CONNECTION', strtolower((string) sms2_env_first(['CRAD_DB_CONNECTION', 'SMS2_DB_CONNECTION', 'DB_CONNECTION'], 'mysql')));
+    define('CRAD_DB_CONNECTION', strtolower((string) sms2_env_first(['CRAD_DB_CONNECTION'], 'mysql')));
 }
 if (!defined('CRAD_PHASE_1ST_SEM')) {
     define('CRAD_PHASE_1ST_SEM', '1st Semester');
@@ -116,6 +117,7 @@ function cradDb(): ?PDO
     try {
         return getCradDatabaseConnection();
     } catch (Throwable $e) {
+        error_log('cradDb() unavailable: ' . $e->getMessage());
         return null;
     }
 }

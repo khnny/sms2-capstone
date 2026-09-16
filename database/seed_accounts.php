@@ -270,7 +270,7 @@ $accounts = [
 $upsert = $pdo->prepare(
     'INSERT INTO users
         (username, email, password_hash, full_name, role_key, student_id, status, password_changed_at, must_change_password, failed_login_attempts, locked_until)
-     VALUES (?, ?, ?, ?, ?, ?, \'active\', NOW(), 0, 0, NULL)
+     VALUES (?, ?, ?, ?, ?, ?, \'active\', NOW(), 1, 0, NULL)
      ON DUPLICATE KEY UPDATE
         email = VALUES(email),
         password_hash = VALUES(password_hash),
@@ -278,7 +278,7 @@ $upsert = $pdo->prepare(
         role_key = VALUES(role_key),
         student_id = VALUES(student_id),
         status = \'active\',
-        must_change_password = 0,
+        must_change_password = 1,
         failed_login_attempts = 0,
         locked_until = NULL,
         password_changed_at = NOW()'

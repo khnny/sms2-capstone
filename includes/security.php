@@ -114,6 +114,29 @@ function requireCsrfJson(array $data): void
 }
 
 /**
+ * Require CSRF on mutating HTTP methods (POST/PUT/PATCH/DELETE).
+ * Accepts csrf_token from JSON body, form POST, or X-CSRF-Token header.
+ */
+function smsRequireMutatingCsrf(?array $jsonBody = null): void
+{
+    $method = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
+    if (!in_array($method, ['POST', 'PUT', 'PATCH', 'DELETE'], true)) {
+        return;
+    }
+
+    $token = '';
+    if (is_array($jsonBody) && isset($jsonBody['csrf_token'])) {
+        $token = (string) $jsonBody['csrf_token'];
+    } elseif (isset($_POST['csrf_token'])) {
+        $token = (string) $_POST['csrf_token'];
+    } elseif (!empty($_SERVER['HTTP_X_CSRF_TOKEN'])) {
+        $token = (string) $_SERVER['HTTP_X_CSRF_TOKEN'];
+    }
+
+    requireCsrf($token !== '' ? $token : null);
+}
+
+/**
  * Read a system setting with default.
  * Sensitive keys (SMTP / Turnstile secret) are decrypted transparently.
  */

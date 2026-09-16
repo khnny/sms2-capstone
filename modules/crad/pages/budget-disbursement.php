@@ -43,7 +43,7 @@ if ($crad) {
             $detail = grantGetFundingDisbursementDetail($crad, $selectedId);
         }
     } catch (Throwable $e) {
-        $dbError = htmlspecialchars($e->getMessage());
+        $dbError = 'Unable to load funding data. Please try again or contact support.';
         error_log('budget-disbursement: ' . $e->getMessage());
     }
 } else {
@@ -61,6 +61,7 @@ renderBreadcrumbs($breadcrumbs);
 
 <div class="gfd"
      data-grant-funding-live="1"
+     data-csrf="<?= htmlspecialchars(csrfToken(), ENT_QUOTES, 'UTF-8') ?>"
      data-selected-id="<?= (int) $selectedId ?>"
      data-can-release="<?= $canRelease ? '1' : '0' ?>"
      data-proposal-ref="<?= htmlspecialchars((string) ($detail['application']['proposal_reference'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">

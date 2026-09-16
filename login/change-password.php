@@ -10,15 +10,15 @@ require_once ROOT_PATH . '/includes/module-controls.php';
 requireAuth();
 
 // Password changes are disabled while the whole system is in maintenance
-if (smsIsSystemInMaintenance() && getCurrentUserRoleKey() !== 'admin') {
+if (smsIsSystemInMaintenance() && !smsCanBypassSystemControls()) {
     header('Location: ' . BASE_URL . '/account/maintenance.php');
     exit;
 }
 
-// Module staff cannot self-change passwords — only Super Admin (or forced first-login change)
+// Module staff cannot self-change passwords — only Super Admin / SMS Admin (or forced first-login change)
 $error = '';
 $forced = !empty($_SESSION['must_change_password']);
-if (!$forced && getCurrentUserRoleKey() !== 'admin') {
+if (!$forced && !smsIsGrantedAdminRole(getCurrentUserRoleKey())) {
     header('Location: ' . BASE_URL . '/dashboard/index.php');
     exit;
 }

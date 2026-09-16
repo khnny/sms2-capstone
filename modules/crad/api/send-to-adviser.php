@@ -12,6 +12,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../../config/config.php';
 require_once __DIR__ . '/../config/config.php';
 require_once ROOT_PATH . '/includes/authentication.php';
+require_once ROOT_PATH . '/includes/security.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -27,6 +28,11 @@ if (!isAuthenticated()) {
     saJson(false, 'Not authenticated.');
 }
 
+if (getCurrentUserRoleKey() !== 'student') {
+    http_response_code(403);
+    saJson(false, 'Only students can submit title approvals.');
+}
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
     saJson(false, 'Method not allowed.');
@@ -39,10 +45,16 @@ if (!is_array($body)) {
     saJson(false, 'Invalid JSON body.');
 }
 
-$studentId     = trim((string) ($body['student_id']       ?? ''));
-$studentUserId = isset($body['student_user_id']) && $body['student_user_id'] !== ''
-                    ? (int) $body['student_user_id'] : null;
-$studentName   = trim((string) ($body['student_name']     ?? ''));
+requireCsrfJson($body);
+
+// Bind identity to the authenticated session — never trust client-supplied student fields.
+$sessionUserId = (int) (getCurrentUserId() ?? 0);
+$studentId     = trim((string) ($_SESSION['student_id'] ?? ''));
+$studentUserId = $sessionUserId > 0 ? $sessionUserId : null;
+$studentName   = trim((string) ($_SESSION['user_name'] ?? $_SESSION['full_name'] ?? ''));
+if ($studentName === '') {
+    $studentName = trim((string) ($_SESSION['username'] ?? 'Student'));
+}
 $adviserName   = trim((string) ($body['adviser_name']     ?? ''));
 $adviserEmail  = trim((string) ($body['adviser_email']    ?? ''));
 $coordName     = trim((string) ($body['coordinator_name'] ?? ''));
@@ -55,6 +67,11 @@ $agenda        = trim((string) ($body['research_agenda']  ?? ''));
 $justification = trim((string) ($body['justification']    ?? ''));
 $membersRaw    = $body['members'] ?? '[]';
 $submissionId  = (int) ($body['submission_id'] ?? 0);
+
+if ($studentId === '' && $sessionUserId <= 0) {
+    http_response_code(422);
+    saJson(false, 'Your student profile is incomplete. Contact the registrar.');
+}
 
 if ($coordName === '' || strcasecmp($coordName, 'Research Coordinator') === 0 || strcasecmp($coordName, 'Program Research Coordinator') === 0) {
     $coordName = 'Mrs. Kris Guevarra';

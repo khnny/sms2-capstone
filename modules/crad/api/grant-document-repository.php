@@ -8,6 +8,7 @@ header('Content-Type: application/json');
 
 require_once __DIR__ . '/../../../config/config.php';
 require_once __DIR__ . '/../../../includes/authentication.php';
+require_once __DIR__ . '/../../../includes/security.php';
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../includes/grant-document-repository-helpers.php';
 
@@ -21,6 +22,15 @@ if (!grantUserCanArchiveDocuments()) {
 
 $method = $_SERVER['REQUEST_METHOD'];
 $action = trim((string) ($_GET['action'] ?? ($_POST['action'] ?? '')));
+$jsonBody = null;
+if ($method === 'POST') {
+    $decoded = json_decode((string) file_get_contents('php://input'), true);
+    $jsonBody = is_array($decoded) ? $decoded : $_POST;
+    if ($action === '' && is_array($jsonBody)) {
+        $action = trim((string) ($jsonBody['action'] ?? ''));
+    }
+    smsRequireMutatingCsrf(is_array($jsonBody) ? $jsonBody : null);
+}
 
 try {
     $crad = getCradDatabaseConnection();

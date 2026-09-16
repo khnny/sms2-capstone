@@ -1,8 +1,13 @@
 param([string]$RemotePath = '/.override')
 
-$FtpHost = 'ftpupload.net'
-$FtpUser = 'if0_42794375'
-$FtpPass = 'HVfvZIn3gF8RfyR'
+$FtpHost = if ($env:SMS2_FTP_HOST) { $env:SMS2_FTP_HOST } else { 'ftpupload.net' }
+$FtpUser = $env:SMS2_FTP_USER
+$FtpPass = $env:SMS2_FTP_PASS
+
+if (-not $FtpUser -or -not $FtpPass) {
+    Write-Error 'Set SMS2_FTP_USER and SMS2_FTP_PASS before running.'
+    exit 1
+}
 
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 [Net.ServicePointManager]::ServerCertificateValidationCallback = { $true }
@@ -21,4 +26,4 @@ $stream.CopyTo($file)
 $file.Close()
 $stream.Close()
 $response.Close()
-Get-Content $local -Raw
+Get-Content $local

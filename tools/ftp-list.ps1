@@ -1,6 +1,11 @@
-$FtpHost = 'ftpupload.net'
-$FtpUser = 'if0_42794375'
-$FtpPass = 'HVfvZIn3gF8RfyR'
+$FtpHost = if ($env:SMS2_FTP_HOST) { $env:SMS2_FTP_HOST } else { 'ftpupload.net' }
+$FtpUser = $env:SMS2_FTP_USER
+$FtpPass = $env:SMS2_FTP_PASS
+
+if (-not $FtpUser -or -not $FtpPass) {
+    Write-Error 'Set SMS2_FTP_USER and SMS2_FTP_PASS before running.'
+    exit 1
+}
 
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 [Net.ServicePointManager]::ServerCertificateValidationCallback = { $true }
@@ -20,9 +25,4 @@ function List-FtpDir([string]$remotePath) {
     return $listing
 }
 
-Write-Host '=== / ==='
-List-FtpDir '/' | Write-Host
-Write-Host '=== /htdocs ==='
-List-FtpDir '/htdocs/' | Write-Host
-Write-Host '=== /htdocs/setup ==='
-List-FtpDir '/htdocs/setup/' | Write-Host
+List-FtpDir '/htdocs'

@@ -156,7 +156,16 @@ try {
     }
 
     if ($action === 'login_options') {
+        require_once ROOT_PATH . '/includes/authentication.php';
         $username = (string) ($body['username'] ?? '');
+        $throttle = smsGetLoginThrottle($username);
+        if (!empty($throttle['locked'])) {
+            smsPasskeyJson([
+                'ok' => false,
+                'error' => 'Too many failed login attempts. Please wait and try again.',
+                'locked' => true,
+            ], 429);
+        }
         $opts = smsPasskeyLoginOptions($username !== '' ? $username : null);
         smsPasskeyJson(['ok' => true, 'options' => $opts]);
     }
@@ -164,17 +173,48 @@ try {
     if ($action === 'login_verify') {
         require_once ROOT_PATH . '/includes/module-controls.php';
         require_once ROOT_PATH . '/includes/authentication.php';
+        require_once ROOT_PATH . '/includes/captcha.php';
+
+        $usernameHint = trim((string) ($body['username'] ?? ''));
+        $throttle = smsGetLoginThrottle($usernameHint);
+        if (!empty($throttle['locked'])) {
+            smsPasskeyJson([
+                'ok' => false,
+                'error' => 'Too many failed login attempts. Please wait and try again.',
+                'locked' => true,
+            ], 429);
+        }
+
+        if (smsCaptchaEnabled()) {
+            $_POST['captcha_token'] = (string) ($body['captcha_token'] ?? $_POST['captcha_token'] ?? '');
+            $_POST['captcha_ok'] = (string) ($body['captcha_ok'] ?? $_POST['captcha_ok'] ?? '');
+            $_POST['captcha_hp'] = (string) ($body['captcha_hp'] ?? $_POST['captcha_hp'] ?? '');
+            $_POST['cf-turnstile-response'] = (string) ($body['cf-turnstile-response'] ?? $_POST['cf-turnstile-response'] ?? '');
+            $captcha = smsCaptchaVerifyRequest();
+            if (empty($captcha['ok'])) {
+                smsPasskeyJson([
+                    'ok' => false,
+                    'error' => (string) ($captcha['error'] ?? 'Security check failed. Please try again.'),
+                ], 400);
+            }
+        }
 
         $cred = is_array($body['credential'] ?? null) ? $body['credential'] : [];
         $result = smsPasskeyLoginVerify($cred);
         if (empty($result['ok']) || empty($result['user'])) {
+            smsRegisterLoginThrottleFailure($usernameHint);
+            $failUser = is_array($result['user'] ?? null) ? $result['user'] : null;
+            if (is_array($failUser) && (int) ($failUser['id'] ?? 0) > 0) {
+                smsRegisterFailedLogin($failUser);
+            }
             smsPasskeyJson(['ok' => false, 'error' => $result['error'] ?? 'Passkey login failed.'], 400);
         }
         $user = $result['user'];
+        smsClearLoginThrottle((string) ($user['email'] ?? $user['username'] ?? $usernameHint));
         // Passkey is phishing-resistant — complete login without password / TOTP step.
         smsCompleteLoginSession($user, (string) ($user['email'] ?? $user['username'] ?? ''));
 
-        if (smsIsSystemInMaintenance() && getCurrentUserRoleKey() !== 'admin') {
+        if (smsIsSystemInMaintenance() && !smsCanBypassSystemControls()) {
             logout();
             smsPasskeyJson([
                 'ok' => false,

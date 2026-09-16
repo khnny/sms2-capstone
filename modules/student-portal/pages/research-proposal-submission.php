@@ -6,11 +6,15 @@
 require_once __DIR__ . '/../../../config/config.php';
 require_once __DIR__ . '/../../../modules/crad/config/config.php';
 require_once ROOT_PATH . '/includes/authentication.php';
+require_once ROOT_PATH . '/includes/security.php';
 require_once ROOT_PATH . '/includes/breadcrumbs.php';
 
-$studentId     = $_SESSION['student_id'] ?? 'S230000001';
+$studentId     = trim((string) ($_SESSION['student_id'] ?? ''));
 $studentUserId = $_SESSION['user_id']    ?? null;
-$studentName   = $_SESSION['user_name']  ?? 'Juan Dela Cruz';
+$studentName   = trim((string) ($_SESSION['user_name']  ?? ''));
+if ($studentName === '') {
+    $studentName = trim((string) ($_SESSION['username'] ?? 'Student'));
+}
 $nameParts = array_values(array_filter(preg_split('/\s+/', trim($studentName)) ?: []));
 if (count($nameParts) >= 3) {
     $lastName = $nameParts[count($nameParts) - 2] . ' ' . $nameParts[count($nameParts) - 1];
@@ -1871,7 +1875,8 @@ require_once ROOT_PATH . '/includes/layout-start.php';
             primary_sdg:      btn.dataset.sdg,
             research_agenda:  btn.dataset.agenda,
             justification:    btn.dataset.justification,
-            members:          btn.dataset.members
+            members:          btn.dataset.members,
+            csrf_token:       <?= json_encode(csrfToken()) ?>
         };
 
         fetch('<?= BASE_URL ?>/modules/crad/api/send-to-adviser.php', {

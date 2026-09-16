@@ -1045,7 +1045,7 @@ function grantSubmitApprovalSignoff(
     try {
         $crad->beginTransaction();
 
-        $crad->prepare("
+        $stepUpdate = $crad->prepare("
             UPDATE grant_proposal_approval_steps
                SET status = 'Approved',
                    approver_user_id = ?,
@@ -1054,8 +1054,9 @@ function grantSubmitApprovalSignoff(
                    signature_data = ?,
                    acted_at = NOW(),
                    updated_at = NOW()
-             WHERE workflow_id = ? AND step_key = ?
-        ")->execute([
+             WHERE workflow_id = ? AND step_key = ? AND status = 'Pending'
+        ");
+        $stepUpdate->execute([
             $userId > 0 ? $userId : null,
             $userName,
             $remarks !== '' ? $remarks : null,
@@ -1063,6 +1064,10 @@ function grantSubmitApprovalSignoff(
             $workflowId,
             $stepKey,
         ]);
+        if ($stepUpdate->rowCount() < 1) {
+            $crad->rollBack();
+            return ['ok' => false, 'error' => 'This approval step was already completed.'];
+        }
 
         if ($nextStep === null) {
             $crad->prepare("

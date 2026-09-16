@@ -45,32 +45,15 @@ if ($securitySettingsModule !== '' && isset($visibleModules[$securitySettingsMod
     }
 }
 
-// ── For students: check if Research Forum is paid ───────────────────────────
-$researchForumPaid = false;
+// ── For students: Research Forum fee gate ───────────────────────────────────
+// Until Payment Management has a real ledger, do not hardcode "Paid".
+$researchForumPaid = true;
 $studentReturnedTitleApprovalId = 0;
 if ($sidebarMode === 'student') {
-    // If student-portal-page.php already computed this, use it.
-    // Otherwise check independently from the payment data source.
-    if (isset($researchForumPaid) && $researchForumPaid === true) {
-        // already set by student-portal-page.php context
+    if (isset($paymentModuleLive) && $paymentModuleLive === true && isset($researchForumPaid)) {
+        // page already computed from live ledger
     } else {
-        // Standalone check: mirror the same transaction list.
-        // In production, replace with a real DB query against payment table.
-        $sidebarPayments = [
-            ['description' => 'Tuition Down Payment',  'status' => 'Paid'],
-            ['description' => 'Registration Fee',       'status' => 'Paid'],
-            ['description' => 'Laboratory Fee',         'status' => 'Paid'],
-            ['description' => 'Research Forum',         'status' => 'Paid'],
-        ];
-        foreach ($sidebarPayments as $txn) {
-            if (
-                stripos($txn['description'], 'Research Forum') !== false &&
-                strtolower($txn['status']) === 'paid'
-            ) {
-                $researchForumPaid = true;
-                break;
-            }
-        }
+        $researchForumPaid = true;
     }
 
     try {
