@@ -129,13 +129,34 @@ if ($pdo instanceof PDO && $_SERVER['REQUEST_METHOD'] === 'POST' && $postedActio
 }
 
 $cradError = '';
+$cradSameDb = strcasecmp((string) CRAD_DB_NAME, (string) DB_NAME) === 0;
 try {
     $cradPdo = getCradDatabaseConnection();
     $checks[] = [
         'label' => 'CRAD database connection',
         'ok' => true,
-        'detail' => 'Connected to ' . CRAD_DB_HOST . '/' . CRAD_DB_NAME,
+        'detail' => $cradSameDb
+            ? 'Same database as SMS2 (' . CRAD_DB_NAME . ') — unified sms_*/crad_* mode'
+            : 'Connected to ' . CRAD_DB_HOST . '/' . CRAD_DB_NAME,
     ];
+    if ($cradSameDb && $pdo instanceof PDO) {
+        try {
+            $cradTableOk = (bool) $pdo->query("SHOW TABLES LIKE 'crad_title_approvals'")->fetchColumn();
+            $checks[] = [
+                'label' => 'crad_title_approvals present',
+                'ok' => $cradTableOk,
+                'detail' => $cradTableOk
+                    ? 'Found in unified database'
+                    : 'Missing — re-import database/sms2_db.sql (unified dump)',
+            ];
+        } catch (Throwable $e) {
+            $checks[] = [
+                'label' => 'crad_title_approvals present',
+                'ok' => false,
+                'detail' => $e->getMessage(),
+            ];
+        }
+    }
     unset($cradPdo);
 } catch (Throwable $e) {
     $cradError = $e->getMessage();
@@ -143,11 +164,10 @@ try {
     if ($prev instanceof Throwable && $prev->getMessage() !== '') {
         $cradError .= ' | ' . $prev->getMessage();
     }
-    // Surface PDO details when getCradDatabaseConnection() wraps them without previous.
     if (!str_contains($cradError, 'SQLSTATE') && !str_contains($cradError, 'getaddrinfo')) {
         $cradError .= ' | trying ' . CRAD_DB_HOST . ':' . CRAD_DB_PORT . '/' . CRAD_DB_NAME
             . ' as ' . CRAD_DB_USER
-            . ' (check CRAD_DB_PASS and that crad_db is reachable from the app)';
+            . ' (prefer CRAD_DB_NAME=' . DB_NAME . ' and import database/sms2_db.sql once)';
     }
     $checks[] = [
         'label' => 'CRAD database connection',
@@ -161,13 +181,13 @@ if ($pdo instanceof PDO) {
     try {
         $userCount = (int) $pdo->query('SELECT COUNT(*) FROM sms_users')->fetchColumn();
         $checks[] = [
-            'label' => 'users table row count',
+            'label' => 'sms_users table row count',
             'ok' => $userCount > 0,
             'detail' => (string) $userCount . ' user(s)',
         ];
     } catch (Throwable $e) {
         $checks[] = [
-            'label' => 'users table row count',
+            'label' => 'sms_users table row count',
             'ok' => false,
             'detail' => $e->getMessage(),
         ];
@@ -178,13 +198,13 @@ if ($pdo instanceof PDO) {
             'SELECT COUNT(*) FROM sms_users u INNER JOIN sms_roles r ON r.role_key = u.role_key'
         )->fetchColumn();
         $checks[] = [
-            'label' => 'users INNER JOIN sms_roles (login lookup)',
+            'label' => 'sms_users INNER JOIN sms_roles (login lookup)',
             'ok' => $joinCount > 0,
             'detail' => (string) $joinCount . ' login-capable user(s)',
         ];
     } catch (Throwable $e) {
         $checks[] = [
-            'label' => 'users INNER JOIN sms_roles (login lookup)',
+            'label' => 'sms_users INNER JOIN sms_roles (login lookup)',
             'ok' => false,
             'detail' => $e->getMessage(),
         ];
