@@ -72,20 +72,62 @@ function getCradDatabaseConnection(): PDO
         return $pdo;
     }
 
+    // #region agent log
+    $sms2AgentDebugLog = static function (string $hypothesisId, string $message, array $data = []): void {
+        $payload = [
+            'sessionId' => '4aceee',
+            'runId' => 'pre-fix',
+            'hypothesisId' => $hypothesisId,
+            'location' => 'modules/crad/config/config.php:getCradDatabaseConnection',
+            'message' => $message,
+            'data' => $data,
+            'timestamp' => (int) round(microtime(true) * 1000),
+        ];
+        $line = json_encode($payload, JSON_UNESCAPED_SLASHES) . "\n";
+        @file_put_contents(dirname(__DIR__, 3) . '/debug-4aceee.log', $line, FILE_APPEND | LOCK_EX);
+        error_log('SMS2_DEBUG ' . $line);
+    };
+    // #endregion
+
     if (!in_array(CRAD_DB_CONNECTION, ['mysql', 'mariadb'], true)) {
         throw new RuntimeException(
             'Unsupported CRAD database connection "' . CRAD_DB_CONNECTION . '". Select MySQL/MariaDB on HostForge for SMS 2.'
         );
     }
 
+    $nameSame = strcasecmp((string) CRAD_DB_NAME, (string) DB_NAME) === 0;
+    $hostSame = strcasecmp((string) CRAD_DB_HOST, (string) DB_HOST) === 0;
+
+    // #region agent log
+    $sms2AgentDebugLog('A', 'CRAD connection decision inputs', [
+        'cradHost' => (string) CRAD_DB_HOST,
+        'cradName' => (string) CRAD_DB_NAME,
+        'cradPort' => (string) CRAD_DB_PORT,
+        'dbHost' => (string) DB_HOST,
+        'dbName' => (string) DB_NAME,
+        'nameSame' => $nameSame,
+        'hostSame' => $hostSame,
+        'willReuseMainPdo' => ($nameSame && $hostSame),
+    ]);
+    // #endregion
+
     // Same database as SMS2 → reuse the main PDO (single HostForge DB).
-    if (strcasecmp((string) CRAD_DB_NAME, (string) DB_NAME) === 0
-        && strcasecmp((string) CRAD_DB_HOST, (string) DB_HOST) === 0) {
+    if ($nameSame && $hostSame) {
+        // #region agent log
+        $sms2AgentDebugLog('D', 'Taking same-DB reuse path', ['path' => 'reuse_main_pdo']);
+        // #endregion
         $pdo = getDatabaseConnection();
         cradEnsurePanelNotificationDeleteTrigger($pdo);
         cradCleanupPreoralEvaluationsForInvalidRegistry($pdo);
         return $pdo;
     }
+
+    // #region agent log
+    $sms2AgentDebugLog('B', 'Taking separate CRAD DSN path', [
+        'path' => 'separate_dsn',
+        'reason' => !$nameSame ? 'name_mismatch' : 'host_mismatch',
+    ]);
+    // #endregion
 
     $pdoOptions = [
         PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
@@ -113,12 +155,26 @@ function getCradDatabaseConnection(): PDO
             return $pdo;
         } catch (PDOException $e) {
             $lastException = $e;
+            // #region agent log
+            $sms2AgentDebugLog('A', 'Separate CRAD DSN failed', [
+                'port' => (string) $port,
+                'errorClass' => get_class($e),
+                'error' => $e->getMessage(),
+            ]);
+            // #endregion
             error_log('CRAD DB connection failed on port ' . $port . ': ' . $e->getMessage());
         }
     }
 
     // Legacy CRAD_DB_NAME=crad_db on HostForge → fall back to main SMS2 database.
-    if (strcasecmp((string) CRAD_DB_NAME, 'crad_db') === 0) {
+    $legacyCradName = strcasecmp((string) CRAD_DB_NAME, 'crad_db') === 0;
+    // #region agent log
+    $sms2AgentDebugLog('C', 'Legacy crad_db-name fallback gate', [
+        'legacyCradNameMatch' => $legacyCradName,
+        'willAttemptMainFallback' => $legacyCradName,
+    ]);
+    // #endregion
+    if ($legacyCradName) {
         try {
             $pdo = getDatabaseConnection();
             cradEnsurePanelNotificationDeleteTrigger($pdo);
@@ -129,6 +185,13 @@ function getCradDatabaseConnection(): PDO
             error_log('CRAD main-DB fallback failed: ' . $fallbackError->getMessage());
         }
     }
+
+    // #region agent log
+    $sms2AgentDebugLog('E', 'Throwing CRAD unavailable (no fallback taken)', [
+        'cradHost' => (string) CRAD_DB_HOST,
+        'cradName' => (string) CRAD_DB_NAME,
+    ]);
+    // #endregion
 
     throw new RuntimeException(
         'CRAD database unavailable (' . CRAD_DB_HOST . ':' . CRAD_DB_PORT . '/' . CRAD_DB_NAME . '). '
