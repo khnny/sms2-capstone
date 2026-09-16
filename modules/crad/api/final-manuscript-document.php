@@ -12,7 +12,7 @@ if (!$crad instanceof PDO) {
     http_response_code(503);
     exit('Research database unavailable.');
 }
-$stmt = $crad->prepare('SELECT ms.*, rg.leader_id FROM manuscript_submissions ms INNER JOIN research_groups rg ON rg.id = ms.research_group_id WHERE ms.id = ? LIMIT 1');
+$stmt = $crad->prepare('SELECT ms.*, rg.leader_id FROM crad_manuscript_submissions ms INNER JOIN crad_research_groups rg ON rg.id = ms.research_group_id WHERE ms.id = ? LIMIT 1');
 $stmt->execute([$id]); $row = $stmt->fetch(PDO::FETCH_ASSOC);
 if (!$row) { http_response_code(404); exit('Document not found.'); }
 $role = getCurrentUserRoleKey(); $allowed = smsRoleAllowedForModule(['crad_officer','research_coordinator','adviser'], 'crad');

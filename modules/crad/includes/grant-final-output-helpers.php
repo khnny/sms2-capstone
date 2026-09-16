@@ -72,10 +72,10 @@ function grantEnsureFinalOutputTables(PDO $crad): void
     }
     $done = true;
 
-    $crad->exec("UPDATE grant_final_output_submissions SET status = 'OUTPUT_VERIFIED' WHERE status = 'VERIFIED'");
+    $crad->exec("UPDATE crad_grant_final_output_submissions SET status = 'OUTPUT_VERIFIED' WHERE status = 'VERIFIED'");
 
     $crad->exec("
-        CREATE TABLE IF NOT EXISTS grant_final_output_submissions (
+        CREATE TABLE IF NOT EXISTS crad_grant_final_output_submissions (
             id                      INT UNSIGNED NOT NULL AUTO_INCREMENT,
             grant_application_id    INT UNSIGNED NOT NULL,
             version_number          INT UNSIGNED NOT NULL DEFAULT 1,
@@ -112,7 +112,7 @@ function grantEnsureFinalOutputTables(PDO $crad): void
     ");
 
     $crad->exec("
-        CREATE TABLE IF NOT EXISTS grant_publications_ip_repository (
+        CREATE TABLE IF NOT EXISTS crad_grant_publications_ip_repository (
             id                      INT UNSIGNED NOT NULL AUTO_INCREMENT,
             grant_application_id    INT UNSIGNED NOT NULL,
             submission_id           INT UNSIGNED NOT NULL,
@@ -174,10 +174,10 @@ function grantGetFinalOutputOverview(PDO $crad): array
                r.id AS repository_id,
                r.repository_reference,
                r.verified_at
-          FROM grant_applications ga
-         INNER JOIN grant_opportunities go ON go.id = ga.grant_opportunity_id
-          LEFT JOIN grant_final_output_submissions s ON s.grant_application_id = ga.id
-          LEFT JOIN grant_publications_ip_repository r ON r.grant_application_id = ga.id
+          FROM crad_grant_applications ga
+         INNER JOIN crad_grant_opportunities go ON go.id = ga.grant_opportunity_id
+          LEFT JOIN crad_grant_final_output_submissions s ON s.grant_application_id = ga.id
+          LEFT JOIN crad_grant_publications_ip_repository r ON r.grant_application_id = ga.id
          WHERE ga.status IN ({$placeholders})
     ";
     $params = $statuses;
@@ -271,8 +271,8 @@ function grantGetFinalOutputDetail(PDO $crad, int $applicationId): ?array
 
     $stmt = $crad->prepare("
         SELECT ga.*, go.funding_title
-          FROM grant_applications ga
-         INNER JOIN grant_opportunities go ON go.id = ga.grant_opportunity_id
+          FROM crad_grant_applications ga
+         INNER JOIN crad_grant_opportunities go ON go.id = ga.grant_opportunity_id
          WHERE ga.id = ?
          LIMIT 1
     ");
@@ -296,11 +296,11 @@ function grantGetFinalOutputDetail(PDO $crad, int $applicationId): ?array
         return null;
     }
 
-    $subStmt = $crad->prepare('SELECT * FROM grant_final_output_submissions WHERE grant_application_id = ? LIMIT 1');
+    $subStmt = $crad->prepare('SELECT * FROM crad_grant_final_output_submissions WHERE grant_application_id = ? LIMIT 1');
     $subStmt->execute([$applicationId]);
     $submission = $subStmt->fetch(PDO::FETCH_ASSOC) ?: null;
 
-    $repoStmt = $crad->prepare('SELECT * FROM grant_publications_ip_repository WHERE grant_application_id = ? LIMIT 1');
+    $repoStmt = $crad->prepare('SELECT * FROM crad_grant_publications_ip_repository WHERE grant_application_id = ? LIMIT 1');
     $repoStmt->execute([$applicationId]);
     $repository = $repoStmt->fetch(PDO::FETCH_ASSOC) ?: null;
 
@@ -422,7 +422,7 @@ function grantSubmitFinalOutput(
 
         if ($existing === null) {
             $insert = $crad->prepare("
-                INSERT INTO grant_final_output_submissions
+                INSERT INTO crad_grant_final_output_submissions
                     (grant_application_id, version_number, final_research_title, authors, abstract,
                      publication_type, journal_conference, doi, publication_url,
                      ip_information, copyright_info, patent_info, other_ip_info,
@@ -452,7 +452,7 @@ function grantSubmitFinalOutput(
             ]);
         } else {
             $update = $crad->prepare("
-                UPDATE grant_final_output_submissions
+                UPDATE crad_grant_final_output_submissions
                    SET version_number = ?,
                        final_research_title = ?,
                        authors = ?,
@@ -502,7 +502,7 @@ function grantSubmitFinalOutput(
             ]);
         }
 
-        $appUpdate = $crad->prepare('UPDATE grant_applications SET status = ?, updated_at = NOW() WHERE id = ?');
+        $appUpdate = $crad->prepare('UPDATE crad_grant_applications SET status = ?, updated_at = NOW() WHERE id = ?');
         $appUpdate->execute([grantStatusFinalOutputSubmitted(), $applicationId]);
 
         $crad->commit();
@@ -549,7 +549,7 @@ function grantVerifyFinalOutput(PDO $crad, int $applicationId, array $post, int 
 
         $subId = (int) ($submission['id'] ?? 0);
         $verifySub = $crad->prepare("
-            UPDATE grant_final_output_submissions
+            UPDATE crad_grant_final_output_submissions
                SET status = 'OUTPUT_VERIFIED',
                    verification_notes = ?,
                    reviewed_by_user_id = ?,
@@ -568,7 +568,7 @@ function grantVerifyFinalOutput(PDO $crad, int $applicationId, array $post, int 
         $reference = grantGenerateRepositoryReference($crad);
 
         $repoInsert = $crad->prepare("
-            INSERT INTO grant_publications_ip_repository
+            INSERT INTO crad_grant_publications_ip_repository
                 (grant_application_id, submission_id, repository_reference,
                  final_research_title, authors, abstract, publication_type, journal_conference,
                  doi, publication_url, ip_information, copyright_info, patent_info, other_ip_info,
@@ -618,7 +618,7 @@ function grantVerifyFinalOutput(PDO $crad, int $applicationId, array $post, int 
             $userName,
         ]);
 
-        $appUpdate = $crad->prepare('UPDATE grant_applications SET status = ?, updated_at = NOW() WHERE id = ?');
+        $appUpdate = $crad->prepare('UPDATE crad_grant_applications SET status = ?, updated_at = NOW() WHERE id = ?');
         $appUpdate->execute([grantStatusOutputVerified(), $applicationId]);
 
         $crad->commit();
@@ -671,7 +671,7 @@ function grantReturnFinalOutput(
 
         $subId = (int) ($submission['id'] ?? 0);
         $returnSub = $crad->prepare("
-            UPDATE grant_final_output_submissions
+            UPDATE crad_grant_final_output_submissions
                SET status = 'RETURNED_FOR_CORRECTION',
                    return_reason = ?,
                    reviewed_by_user_id = ?,
@@ -682,7 +682,7 @@ function grantReturnFinalOutput(
         ");
         $returnSub->execute([$reason, $userId > 0 ? $userId : null, $userName, $subId]);
 
-        $appUpdate = $crad->prepare('UPDATE grant_applications SET status = ?, updated_at = NOW() WHERE id = ?');
+        $appUpdate = $crad->prepare('UPDATE crad_grant_applications SET status = ?, updated_at = NOW() WHERE id = ?');
         $appUpdate->execute([grantStatusApprovedFunded(), $applicationId]);
 
         $crad->commit();
@@ -710,7 +710,7 @@ function grantGenerateRepositoryReference(PDO $crad): string
 
     $stmt = $crad->prepare("
         SELECT repository_reference
-          FROM grant_publications_ip_repository
+          FROM crad_grant_publications_ip_repository
          WHERE repository_reference LIKE ?
          ORDER BY id DESC
          LIMIT 1
@@ -795,7 +795,7 @@ function grantNotifyCradFinalOutputSubmitted(
     }
 
     $cradUsers = $mainDb->query("
-        SELECT id FROM users WHERE role_key = 'crad_officer' AND status = 'active'
+        SELECT id FROM sms_users WHERE role_key = 'crad_officer' AND status = 'active'
     ")->fetchAll(PDO::FETCH_ASSOC) ?: [];
 
     $ref = trim((string) ($application['proposal_reference'] ?? ''));
@@ -859,7 +859,7 @@ function grantNotifyApplicantFinalOutputVerified(
     if (function_exists('db')) {
         $mainDb = db();
         if ($mainDb) {
-            $userStmt = $mainDb->prepare('SELECT role_key FROM users WHERE id = ? LIMIT 1');
+            $userStmt = $mainDb->prepare('SELECT role_key FROM sms_users WHERE id = ? LIMIT 1');
             $userStmt->execute([$recipientUserId]);
             $recipientRole = (string) ($userStmt->fetchColumn() ?: 'student');
         }
@@ -909,7 +909,7 @@ function grantNotifyApplicantFinalOutputReturned(
     if (function_exists('db')) {
         $mainDb = db();
         if ($mainDb) {
-            $userStmt = $mainDb->prepare('SELECT role_key FROM users WHERE id = ? LIMIT 1');
+            $userStmt = $mainDb->prepare('SELECT role_key FROM sms_users WHERE id = ? LIMIT 1');
             $userStmt->execute([$recipientUserId]);
             $recipientRole = (string) ($userStmt->fetchColumn() ?: 'student');
         }

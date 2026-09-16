@@ -55,7 +55,7 @@ if ($crad) {
         // ── Total funding cap (sum of all open grants)
         $capStmt = $crad->query(
             "SELECT COALESCE(SUM(max_funding_cap), 0) AS total_cap
-               FROM grant_opportunities
+               FROM crad_grant_opportunities
               WHERE status = 'Open for Application'"
         );
         $stats['total_funding_cap'] = (float) ($capStmt ? $capStmt->fetchColumn() : 0);
@@ -63,7 +63,7 @@ if ($crad) {
         // ── Application status breakdown for donut chart
         $sdStmt = $crad->query(
             "SELECT status, COUNT(*) AS cnt
-               FROM grant_applications
+               FROM crad_grant_applications
               GROUP BY status
               ORDER BY cnt DESC"
         );
@@ -72,7 +72,7 @@ if ($crad) {
         // ── Eligibility breakdown for bar chart (grant opportunities by eligibility)
         $elStmt = $crad->query(
             "SELECT eligibility, COUNT(*) AS cnt
-               FROM grant_opportunities
+               FROM crad_grant_opportunities
               GROUP BY eligibility
               ORDER BY cnt DESC"
         );

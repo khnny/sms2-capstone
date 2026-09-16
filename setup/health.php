@@ -100,9 +100,9 @@ $postedAction = trim((string) ($_POST['health_action'] ?? ''));
 if ($pdo instanceof PDO && $_SERVER['REQUEST_METHOD'] === 'POST' && $postedAction !== '') {
     try {
         if ($postedAction === 'clear_locks') {
-            $pdo->exec('DELETE FROM login_throttles');
+            $pdo->exec('DELETE FROM sms_login_throttles');
             $pdo->exec(
-                "UPDATE users
+                "UPDATE sms_users
                  SET failed_login_attempts = 0,
                      locked_until = NULL,
                      status = CASE WHEN status = 'locked' THEN 'active' ELSE status END
@@ -113,7 +113,7 @@ if ($pdo instanceof PDO && $_SERVER['REQUEST_METHOD'] === 'POST' && $postedActio
             $actionFlash = 'Login locks cleared. Try signing in again.';
         } elseif ($postedAction === 'reset_official') {
             require_once ROOT_PATH . '/database/official_accounts.php';
-            $pdo->exec('DELETE FROM login_throttles');
+            $pdo->exec('DELETE FROM sms_login_throttles');
             $result = smsApplyOfficialAccountCredentials($pdo);
             $actionFlash = 'Official account passwords reset ('
                 . (int) $result['updated'] . ' updated, '
@@ -159,7 +159,7 @@ try {
 
 if ($pdo instanceof PDO) {
     try {
-        $userCount = (int) $pdo->query('SELECT COUNT(*) FROM users')->fetchColumn();
+        $userCount = (int) $pdo->query('SELECT COUNT(*) FROM sms_users')->fetchColumn();
         $checks[] = [
             'label' => 'users table row count',
             'ok' => $userCount > 0,
@@ -175,27 +175,27 @@ if ($pdo instanceof PDO) {
 
     try {
         $joinCount = (int) $pdo->query(
-            'SELECT COUNT(*) FROM users u INNER JOIN roles r ON r.role_key = u.role_key'
+            'SELECT COUNT(*) FROM sms_users u INNER JOIN sms_roles r ON r.role_key = u.role_key'
         )->fetchColumn();
         $checks[] = [
-            'label' => 'users INNER JOIN roles (login lookup)',
+            'label' => 'users INNER JOIN sms_roles (login lookup)',
             'ok' => $joinCount > 0,
             'detail' => (string) $joinCount . ' login-capable user(s)',
         ];
     } catch (Throwable $e) {
         $checks[] = [
-            'label' => 'users INNER JOIN roles (login lookup)',
+            'label' => 'users INNER JOIN sms_roles (login lookup)',
             'ok' => false,
             'detail' => $e->getMessage(),
         ];
     }
 
     try {
-        $throttleCount = (int) $pdo->query('SELECT COUNT(*) FROM login_throttles')->fetchColumn();
+        $throttleCount = (int) $pdo->query('SELECT COUNT(*) FROM sms_login_throttles')->fetchColumn();
         $lockedCount = 0;
         try {
             $lockedCount = (int) $pdo->query(
-                'SELECT COUNT(*) FROM login_throttles
+                'SELECT COUNT(*) FROM sms_login_throttles
                  WHERE locked_until IS NOT NULL AND locked_until > NOW()'
             )->fetchColumn();
         } catch (Throwable) {
@@ -203,7 +203,7 @@ if ($pdo instanceof PDO) {
         }
         $usersMissing = false;
         try {
-            $pdo->query('SELECT 1 FROM users LIMIT 1');
+            $pdo->query('SELECT 1 FROM sms_users LIMIT 1');
         } catch (Throwable) {
             $usersMissing = true;
         }
@@ -220,7 +220,7 @@ if ($pdo instanceof PDO) {
         ];
     } catch (Throwable $e) {
         $checks[] = [
-            'label' => 'login_throttles',
+            'label' => 'sms_login_throttles',
             'ok' => true,
             'detail' => 'Table not present or unreadable: ' . $e->getMessage(),
         ];

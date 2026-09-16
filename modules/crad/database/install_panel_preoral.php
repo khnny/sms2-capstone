@@ -16,7 +16,7 @@ require_once __DIR__ . '/../config/config.php';
 $pdo = getCradDatabaseConnection();
 
 $pdo->exec(
-    "CREATE TABLE IF NOT EXISTS preoral_defense_evaluations (
+    "CREATE TABLE IF NOT EXISTS crad_preoral_defense_evaluations (
         id INT UNSIGNED NOT NULL AUTO_INCREMENT,
         defense_schedule_id INT UNSIGNED NOT NULL,
         research_group_id INT UNSIGNED DEFAULT NULL,

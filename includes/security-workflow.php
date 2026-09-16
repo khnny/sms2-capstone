@@ -22,16 +22,16 @@ function smsEnsureSecurityTables(): void
     $idType = smsUsersIdSqlType($pdo);
     $usersExist = smsUsersTableExists($pdo);
     $otpFk = $usersExist
-        ? ",\n            CONSTRAINT fk_otp_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
+        ? ",\n            CONSTRAINT fk_otp_user FOREIGN KEY (user_id) REFERENCES sms_users(id) ON DELETE CASCADE"
         : '';
     $prrFk = $usersExist
-        ? ",\n            CONSTRAINT fk_prr_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,\n            CONSTRAINT fk_prr_admin FOREIGN KEY (admin_id) REFERENCES users(id) ON DELETE SET NULL"
+        ? ",\n            CONSTRAINT fk_prr_user FOREIGN KEY (user_id) REFERENCES sms_users(id) ON DELETE CASCADE,\n            CONSTRAINT fk_prr_admin FOREIGN KEY (admin_id) REFERENCES sms_users(id) ON DELETE SET NULL"
         : '';
 
     try {
         smsCreateTableIfNeeded(
             $pdo,
-            "CREATE TABLE IF NOT EXISTS security_otps (
+            "CREATE TABLE IF NOT EXISTS sms_security_otps (
                 id INT UNSIGNED NOT NULL AUTO_INCREMENT,
                 user_id {$idType} NOT NULL,
                 purpose VARCHAR(40) NOT NULL,
@@ -52,7 +52,7 @@ function smsEnsureSecurityTables(): void
     try {
         smsCreateTableIfNeeded(
             $pdo,
-            "CREATE TABLE IF NOT EXISTS password_reset_requests (
+            "CREATE TABLE IF NOT EXISTS sms_password_reset_requests (
                 id INT UNSIGNED NOT NULL AUTO_INCREMENT,
                 user_id {$idType} NOT NULL,
                 module_key VARCHAR(60) NOT NULL,
@@ -76,10 +76,10 @@ function smsEnsureSecurityTables(): void
 
     // Upgrade older installs that lack requested_password_hash
     try {
-        $cols = $pdo->query("SHOW COLUMNS FROM password_reset_requests LIKE 'requested_password_hash'")->fetch();
+        $cols = $pdo->query("SHOW COLUMNS FROM sms_password_reset_requests LIKE 'requested_password_hash'")->fetch();
         if (!$cols) {
             $pdo->exec(
-                'ALTER TABLE password_reset_requests
+                'ALTER TABLE sms_password_reset_requests
                  ADD COLUMN requested_password_hash VARCHAR(255) NULL AFTER reason'
             );
         }
@@ -89,7 +89,7 @@ function smsEnsureSecurityTables(): void
 
     try {
         $pdo->exec(
-            'CREATE TABLE IF NOT EXISTS login_throttles (
+            'CREATE TABLE IF NOT EXISTS sms_login_throttles (
                 id INT UNSIGNED NOT NULL AUTO_INCREMENT,
                 throttle_key CHAR(64) NOT NULL,
                 ip_address VARCHAR(45) NOT NULL,
@@ -108,14 +108,14 @@ function smsEnsureSecurityTables(): void
 
     // phpMyAdmin dumps often create id without AUTO_INCREMENT; INSERT then fatals under STRICT mode.
     try {
-        $idCol = $pdo->query("SHOW COLUMNS FROM login_throttles LIKE 'id'")->fetch(PDO::FETCH_ASSOC);
+        $idCol = $pdo->query("SHOW COLUMNS FROM sms_login_throttles LIKE 'id'")->fetch(PDO::FETCH_ASSOC);
         if (is_array($idCol) && stripos((string) ($idCol['Extra'] ?? ''), 'auto_increment') === false) {
             $pdo->exec(
-                'ALTER TABLE login_throttles
+                'ALTER TABLE sms_login_throttles
                  MODIFY id INT UNSIGNED NOT NULL AUTO_INCREMENT'
             );
         }
-        $indexes = $pdo->query('SHOW INDEX FROM login_throttles')->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        $indexes = $pdo->query('SHOW INDEX FROM sms_login_throttles')->fetchAll(PDO::FETCH_ASSOC) ?: [];
         $hasThrottleUnique = false;
         foreach ($indexes as $idx) {
             if (($idx['Key_name'] ?? '') === 'uq_login_throttle_key') {
@@ -124,7 +124,7 @@ function smsEnsureSecurityTables(): void
             }
         }
         if (!$hasThrottleUnique) {
-            $pdo->exec('ALTER TABLE login_throttles ADD UNIQUE KEY uq_login_throttle_key (throttle_key)');
+            $pdo->exec('ALTER TABLE sms_login_throttles ADD UNIQUE KEY uq_login_throttle_key (throttle_key)');
         }
     } catch (Throwable $e) {
         error_log('SMS2 login_throttles repair: ' . $e->getMessage());
@@ -156,7 +156,7 @@ function smsCreateOtp(int $userId, string $purpose, ?string $moduleKey = null, i
 
     // Invalidate previous unused OTPs for same purpose
     $pdo->prepare(
-        'UPDATE security_otps SET used_at = NOW()
+        'UPDATE sms_security_otps SET used_at = NOW()
          WHERE user_id = ? AND purpose = ? AND used_at IS NULL'
     )->execute([$userId, $purpose]);
 
@@ -164,7 +164,7 @@ function smsCreateOtp(int $userId, string $purpose, ?string $moduleKey = null, i
     $hash = hash('sha256', $code);
 
     $pdo->prepare(
-        'INSERT INTO security_otps (user_id, purpose, code_hash, module_key, expires_at)
+        'INSERT INTO sms_security_otps (user_id, purpose, code_hash, module_key, expires_at)
          VALUES (?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL ? MINUTE))'
     )->execute([$userId, $purpose, $hash, $moduleKey, $ttlMinutes]);
 
@@ -182,7 +182,7 @@ function smsVerifyOtp(int $userId, string $purpose, string $code): bool
     $hash = hash('sha256', $code);
 
     $stmt = $pdo->prepare(
-        'SELECT id FROM security_otps
+        'SELECT id FROM sms_security_otps
          WHERE user_id = ? AND purpose = ? AND code_hash = ?
            AND used_at IS NULL AND expires_at > NOW()
          ORDER BY id DESC LIMIT 1'
@@ -193,7 +193,7 @@ function smsVerifyOtp(int $userId, string $purpose, string $code): bool
         return false;
     }
 
-    $pdo->prepare('UPDATE security_otps SET used_at = NOW() WHERE id = ?')
+    $pdo->prepare('UPDATE sms_security_otps SET used_at = NOW() WHERE id = ?')
         ->execute([(int) $row['id']]);
 
     return true;
@@ -480,7 +480,7 @@ function smsIssueOtpToEmail(
         'email' => '',
     ];
     if ($pdo) {
-        $stmt = $pdo->prepare('SELECT id, full_name, email FROM users WHERE id = ? LIMIT 1');
+        $stmt = $pdo->prepare('SELECT id, full_name, email FROM sms_users WHERE id = ? LIMIT 1');
         $stmt->execute([$userId]);
         $row = $stmt->fetch();
         if ($row) {
@@ -611,7 +611,7 @@ function smsUsersForModuleReset(string $moduleKey): array
     $placeholders = implode(',', array_fill(0, count($roles), '?'));
     $stmt = $pdo->prepare(
         "SELECT id, full_name, username, email, role_key, status, last_login_at, last_seen_at
-         FROM users
+         FROM sms_users
          WHERE status IN ('active','locked')
            AND role_key IN ($placeholders)
          ORDER BY full_name ASC"
@@ -678,7 +678,7 @@ function smsRolesForModule(string $moduleKey): array
     if ($pdo) {
         try {
             $stmt = $pdo->prepare(
-                'SELECT DISTINCT role_key FROM role_permissions WHERE module_key = ? AND granted = 1'
+                'SELECT DISTINCT role_key FROM sms_role_permissions WHERE module_key = ? AND granted = 1'
             );
             $stmt->execute([$moduleKey]);
             $roles = array_map(
@@ -745,7 +745,7 @@ function smsCreatePasswordResetRequest(
     }
 
     $stmt = $pdo->prepare(
-        'SELECT id FROM password_reset_requests
+        'SELECT id FROM sms_password_reset_requests
          WHERE user_id = ? AND status = \'pending\' LIMIT 1'
     );
     $stmt->execute([$userId]);
@@ -754,7 +754,7 @@ function smsCreatePasswordResetRequest(
     }
 
     $pdo->prepare(
-        'INSERT INTO password_reset_requests (user_id, module_key, reason, requested_password_hash)
+        'INSERT INTO sms_password_reset_requests (user_id, module_key, reason, requested_password_hash)
          VALUES (?, ?, ?, ?)'
     )->execute([
         $userId,
@@ -787,8 +787,8 @@ function smsPendingPasswordRequests(?string $moduleKey = null): array
     if ($moduleKey) {
         $stmt = $pdo->prepare(
             'SELECT r.*, u.full_name, u.email, u.username, u.role_key
-             FROM password_reset_requests r
-             INNER JOIN users u ON u.id = r.user_id
+             FROM sms_password_reset_requests r
+             INNER JOIN sms_users u ON u.id = r.user_id
              WHERE r.status = \'pending\' AND r.module_key = ?
              ORDER BY r.created_at ASC'
         );
@@ -796,8 +796,8 @@ function smsPendingPasswordRequests(?string $moduleKey = null): array
     } else {
         $stmt = $pdo->query(
             'SELECT r.*, u.full_name, u.email, u.username, u.role_key
-             FROM password_reset_requests r
-             INNER JOIN users u ON u.id = r.user_id
+             FROM sms_password_reset_requests r
+             INNER JOIN sms_users u ON u.id = r.user_id
              WHERE r.status = \'pending\'
              ORDER BY r.created_at ASC'
         );
@@ -820,7 +820,7 @@ function smsApprovePasswordRequest(int $requestId, int $adminId): array
     smsEnsureSecurityTables();
 
     $stmt = $pdo->prepare(
-        'SELECT * FROM password_reset_requests WHERE id = ? AND status = \'pending\' LIMIT 1'
+        'SELECT * FROM sms_password_reset_requests WHERE id = ? AND status = \'pending\' LIMIT 1'
     );
     $stmt->execute([$requestId]);
     $req = $stmt->fetch();
@@ -834,7 +834,7 @@ function smsApprovePasswordRequest(int $requestId, int $adminId): array
     }
 
     $pdo->prepare(
-        'UPDATE users
+        'UPDATE sms_users
          SET password_hash = ?, must_change_password = 0, password_changed_at = NOW(),
              failed_login_attempts = 0, locked_until = NULL,
              status = CASE WHEN status = \'locked\' THEN \'active\' ELSE status END
@@ -842,7 +842,7 @@ function smsApprovePasswordRequest(int $requestId, int $adminId): array
     )->execute([$hash, (int) $req['user_id']]);
 
     $pdo->prepare(
-        'UPDATE password_reset_requests
+        'UPDATE sms_password_reset_requests
          SET status = \'approved\', admin_id = ?, temp_password_set = 0, resolved_at = NOW(),
              requested_password_hash = NULL
          WHERE id = ?'
@@ -867,7 +867,7 @@ function smsRejectPasswordRequest(int $requestId, int $adminId, string $note = '
     smsEnsureSecurityTables();
 
     $stmt = $pdo->prepare(
-        'UPDATE password_reset_requests
+        'UPDATE sms_password_reset_requests
          SET status = \'rejected\', admin_id = ?, admin_note = ?, resolved_at = NOW(),
              requested_password_hash = NULL
          WHERE id = ? AND status = \'pending\''
@@ -877,7 +877,7 @@ function smsRejectPasswordRequest(int $requestId, int $adminId, string $note = '
     if ($stmt->rowCount() > 0) {
         $modKey = 'user-management';
         try {
-            $q = $pdo->prepare('SELECT module_key FROM password_reset_requests WHERE id = ? LIMIT 1');
+            $q = $pdo->prepare('SELECT module_key FROM sms_password_reset_requests WHERE id = ? LIMIT 1');
             $q->execute([$requestId]);
             $row = $q->fetch();
             if ($row && !empty($row['module_key'])) {
@@ -922,7 +922,7 @@ function smsModuleActivityLogs(string $moduleKey, int $limit = 100, ?int $userId
                    created_at,
                    DATE_FORMAT(created_at, '%b %e, %Y %H:%i:%s') AS time,
                    DATE_FORMAT(created_at, '%Y-%m-%d') AS log_date
-            FROM activity_logs
+            FROM sms_activity_logs
             WHERE module_key = ?";
     $params = [$moduleKey];
     if ($userId !== null && $userId > 0) {
@@ -950,7 +950,7 @@ function smsUserLogLabel(int $userId): string
     if (!$pdo) {
         return 'user #' . $userId;
     }
-    $stmt = $pdo->prepare('SELECT full_name, email, username FROM users WHERE id = ? LIMIT 1');
+    $stmt = $pdo->prepare('SELECT full_name, email, username FROM sms_users WHERE id = ? LIMIT 1');
     $stmt->execute([$userId]);
     $row = $stmt->fetch() ?: null;
     if (!$row) {

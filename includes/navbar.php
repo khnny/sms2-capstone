@@ -43,8 +43,8 @@ if ($navRoleKey === 'student') {
                     "SELECT p.proposal_number, p.research_title, p.registration_status,
                             p.rep_name, p.rep_id, p.rep_email, p.submitted_by_user,
                             g.group_number, g.group_name, g.status, g.date_assigned, g.created_at
-                     FROM research_groups g
-                     INNER JOIN research_proposals p ON p.id = g.proposal_id
+                     FROM crad_research_groups g
+                     INNER JOIN crad_research_proposals p ON p.id = g.proposal_id
                      WHERE g.group_number IS NOT NULL
                        AND (
                             (:student_id_value <> '' AND p.rep_id = :student_id_rep)
@@ -61,7 +61,7 @@ if ($navRoleKey === 'student') {
 
             $navReturnedStmt = $navCradPdo->prepare(
                 "SELECT ref_code, research_title, notes, updated_at
-                 FROM research_proposals
+                 FROM crad_research_proposals
                  WHERE status = 'Returned'
                    AND (
                         (:student_id_value <> '' AND rep_id = :student_id_rep)

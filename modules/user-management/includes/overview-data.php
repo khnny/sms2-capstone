@@ -106,15 +106,15 @@ if (!$pdo) {
 
 try {
     $stats = [
-        'total' => (int) $pdo->query('SELECT COUNT(*) FROM users')->fetchColumn(),
+        'total' => (int) $pdo->query('SELECT COUNT(*) FROM sms_users')->fetchColumn(),
         'inactive' => (int) $pdo->query(
-            "SELECT COUNT(*) FROM users WHERE status IN ('inactive', 'suspended')"
+            "SELECT COUNT(*) FROM sms_users WHERE status IN ('inactive', 'suspended')"
         )->fetchColumn(),
         'locked' => (int) $pdo->query(
-            "SELECT COUNT(*) FROM users WHERE status = 'locked' OR (locked_until IS NOT NULL AND locked_until > NOW())"
+            "SELECT COUNT(*) FROM sms_users WHERE status = 'locked' OR (locked_until IS NOT NULL AND locked_until > NOW())"
         )->fetchColumn(),
         'active' => (int) $pdo->query(
-            "SELECT COUNT(*) FROM users
+            "SELECT COUNT(*) FROM sms_users
              WHERE status = 'active'
                AND (locked_until IS NULL OR locked_until <= NOW())"
         )->fetchColumn(),
@@ -123,8 +123,8 @@ try {
     $stmt = $pdo->query(
         'SELECT u.id, u.full_name AS name, u.username, u.email, u.role_key AS role,
                 r.label AS roleLabel, u.status, u.last_login_at, u.locked_until
-         FROM users u
-         INNER JOIN roles r ON r.role_key = u.role_key
+         FROM sms_users u
+         INNER JOIN sms_roles r ON r.role_key = u.role_key
          ORDER BY
             CASE WHEN u.status = "active" THEN 0 WHEN u.status = "locked" THEN 1 ELSE 2 END,
             COALESCE(u.last_login_at, u.created_at) DESC,

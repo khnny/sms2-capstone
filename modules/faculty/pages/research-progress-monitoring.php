@@ -30,7 +30,7 @@ renderBreadcrumbs($breadcrumbs);
 // Module check
 try {
     $crad = cradDb();
-    $tablesCheck = $crad->query("SHOW TABLES LIKE 'research_plans'")->fetch();
+    $tablesCheck = $crad->query("SHOW TABLES LIKE 'crad_research_plans'")->fetch();
     if (!$tablesCheck) throw new Exception('Not installed.');
 } catch (Throwable $e) {
     echo '<div class="alert alert-warning m-3">' . smsIcon('exclamation-triangle', ['class' => 'me-2']) . '<strong>Module Not Installed</strong><br>The Research Progress module is not yet installed.</div>';
@@ -113,8 +113,8 @@ try {
 try {
     $recentUpdatesStmt = $crad->prepare("
         SELECT rpu.*, rm.milestone_name
-        FROM research_progress_updates rpu
-        LEFT JOIN research_milestones rm ON rm.id = rpu.milestone_id
+        FROM crad_research_progress_updates rpu
+        LEFT JOIN crad_research_milestones rm ON rm.id = rpu.milestone_id
         WHERE rpu.research_group_id = ?
         ORDER BY rpu.submitted_at DESC
         LIMIT 5

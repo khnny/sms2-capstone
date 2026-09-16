@@ -28,7 +28,7 @@ renderBreadcrumbs($breadcrumbs);
 // Check if module is properly installed
 try {
     $crad = cradDb();
-    $tablesCheck = $crad->query("SHOW TABLES LIKE 'research_plans'")->fetch();
+    $tablesCheck = $crad->query("SHOW TABLES LIKE 'crad_research_plans'")->fetch();
     if (!$tablesCheck) {
         throw new Exception('Research Progress module not installed.');
     }

@@ -37,7 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $pdo = db();
         $row = null;
         if ($pdo && $userId) {
-            $stmt = $pdo->prepare('SELECT password_hash FROM users WHERE id = ? LIMIT 1');
+            $stmt = $pdo->prepare('SELECT password_hash FROM sms_users WHERE id = ? LIMIT 1');
             $stmt->execute([$userId]);
             $row = $stmt->fetch();
         }

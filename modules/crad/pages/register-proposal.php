@@ -26,20 +26,20 @@ require_once __DIR__ . '/../../../includes/breadcrumbs.php';
 function rpEnsureTitleApprovalColumns(PDO $pdo): void
 {
     $columns = [
-        'adviser_signature_data' => "ALTER TABLE title_approvals ADD COLUMN adviser_signature_data MEDIUMTEXT NULL DEFAULT NULL AFTER adviser_remarks",
-        'coordinator_status' => "ALTER TABLE title_approvals ADD COLUMN coordinator_status VARCHAR(30) NOT NULL DEFAULT 'Not Ready' AFTER adviser_signature_data",
-        'coordinator_remarks' => "ALTER TABLE title_approvals ADD COLUMN coordinator_remarks TEXT NULL DEFAULT NULL AFTER coordinator_status",
-        'coordinator_screening_json' => "ALTER TABLE title_approvals ADD COLUMN coordinator_screening_json TEXT NULL DEFAULT NULL AFTER coordinator_remarks",
-        'coordinator_signature_data' => "ALTER TABLE title_approvals ADD COLUMN coordinator_signature_data MEDIUMTEXT NULL DEFAULT NULL AFTER coordinator_remarks",
-        'coordinator_reviewed_at' => "ALTER TABLE title_approvals ADD COLUMN coordinator_reviewed_at DATETIME NULL DEFAULT NULL AFTER coordinator_signature_data",
-        'crad_status' => "ALTER TABLE title_approvals ADD COLUMN crad_status VARCHAR(30) NOT NULL DEFAULT 'Not Ready' AFTER coordinator_reviewed_at",
-        'crad_signature_data' => "ALTER TABLE title_approvals ADD COLUMN crad_signature_data MEDIUMTEXT NULL DEFAULT NULL AFTER crad_status",
-        'crad_reviewed_at' => "ALTER TABLE title_approvals ADD COLUMN crad_reviewed_at DATETIME NULL DEFAULT NULL AFTER crad_signature_data",
+        'adviser_signature_data' => "ALTER TABLE crad_title_approvals ADD COLUMN adviser_signature_data MEDIUMTEXT NULL DEFAULT NULL AFTER adviser_remarks",
+        'coordinator_status' => "ALTER TABLE crad_title_approvals ADD COLUMN coordinator_status VARCHAR(30) NOT NULL DEFAULT 'Not Ready' AFTER adviser_signature_data",
+        'coordinator_remarks' => "ALTER TABLE crad_title_approvals ADD COLUMN coordinator_remarks TEXT NULL DEFAULT NULL AFTER coordinator_status",
+        'coordinator_screening_json' => "ALTER TABLE crad_title_approvals ADD COLUMN coordinator_screening_json TEXT NULL DEFAULT NULL AFTER coordinator_remarks",
+        'coordinator_signature_data' => "ALTER TABLE crad_title_approvals ADD COLUMN coordinator_signature_data MEDIUMTEXT NULL DEFAULT NULL AFTER coordinator_remarks",
+        'coordinator_reviewed_at' => "ALTER TABLE crad_title_approvals ADD COLUMN coordinator_reviewed_at DATETIME NULL DEFAULT NULL AFTER coordinator_signature_data",
+        'crad_status' => "ALTER TABLE crad_title_approvals ADD COLUMN crad_status VARCHAR(30) NOT NULL DEFAULT 'Not Ready' AFTER coordinator_reviewed_at",
+        'crad_signature_data' => "ALTER TABLE crad_title_approvals ADD COLUMN crad_signature_data MEDIUMTEXT NULL DEFAULT NULL AFTER crad_status",
+        'crad_reviewed_at' => "ALTER TABLE crad_title_approvals ADD COLUMN crad_reviewed_at DATETIME NULL DEFAULT NULL AFTER crad_signature_data",
     ];
 
     foreach ($columns as $column => $sql) {
         try {
-            if (!$pdo->query("SHOW COLUMNS FROM title_approvals LIKE " . $pdo->quote($column))->fetch()) {
+            if (!$pdo->query("SHOW COLUMNS FROM crad_title_approvals LIKE " . $pdo->quote($column))->fetch()) {
                 $pdo->exec($sql);
             }
         } catch (Throwable $e) {
@@ -59,7 +59,7 @@ function rpTitleApprovalRows(PDO $pdo): array
                 coordinator_status, coordinator_remarks, coordinator_screening_json, coordinator_signature_data,
                 coordinator_reviewed_at, crad_status, crad_signature_data,
                 crad_reviewed_at, sent_at, reviewed_at
-         FROM title_approvals
+         FROM crad_title_approvals
          WHERE status = 'Approved'
            AND coordinator_status = 'Approved'
          ORDER BY FIELD(crad_status, 'Pending', 'Approved', 'Not Ready'),
@@ -94,7 +94,7 @@ function rpTitleApprovalApprove(int $id, string $signature): bool
     $pdo = getCradDatabaseConnection();
     rpEnsureTitleApprovalColumns($pdo);
     $stmt = $pdo->prepare(
-        "UPDATE title_approvals
+        "UPDATE crad_title_approvals
          SET crad_status = 'Approved',
              crad_signature_data = :signature,
              crad_reviewed_at = NOW()
@@ -156,7 +156,7 @@ if ($cradPdo instanceof PDO) {
         $proposalStmt = $cradPdo->query(
             "SELECT id, proposal_number, research_title, rep_name, college_department,
                     registered_at, approved_at AS approved_on, registration_status, ref_code
-             FROM research_proposals
+             FROM crad_research_proposals
              WHERE status = 'Approved'
              ORDER BY approved_on DESC, id DESC"
         );

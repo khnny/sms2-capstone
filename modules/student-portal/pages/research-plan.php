@@ -30,7 +30,7 @@ try {
     $crad = cradDb();
     
     // Verify research_progress tables exist
-    $tablesCheck = $crad->query("SHOW TABLES LIKE 'research_plans'")->fetch();
+    $tablesCheck = $crad->query("SHOW TABLES LIKE 'crad_research_plans'")->fetch();
     if (!$tablesCheck) {
         throw new Exception('Research Progress module not installed.');
     }

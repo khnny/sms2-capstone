@@ -29,7 +29,7 @@ if ($pdo) {
                 IFNULL(ip_address, "—") AS ip,
                 DATE_FORMAT(created_at, "%b %e, %Y %H:%i:%s") AS time,
                 DATE_FORMAT(created_at, "%Y-%m-%d") AS log_date
-         FROM activity_logs
+         FROM sms_activity_logs
          ORDER BY id DESC
          LIMIT 200'
     );

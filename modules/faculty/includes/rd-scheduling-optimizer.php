@@ -47,7 +47,7 @@ function rdScheduleGenerateOptimizedSlots(
 
     $venues = $pdo->query(
         "SELECT id, venue_name, capacity, venue_type, status
-           FROM research_venues
+           FROM crad_research_venues
           WHERE LOWER(status) = 'available'
             AND capacity >= " . (int) $expectedAttendees . "
           ORDER BY capacity ASC, venue_name ASC"
@@ -165,7 +165,7 @@ function rdScheduleVenueDayLoad(PDO $pdo, int $venueId, string $date): int
 {
     $stmt = $pdo->prepare(
         "SELECT COUNT(*)
-           FROM research_defense_schedules rds
+           FROM crad_research_defense_schedules rds
            " . rdOfficialScheduleJoinSql() . "
           WHERE rds.venue_id = ?
             AND DATE(rds.defense_datetime) = ?

@@ -28,7 +28,7 @@ renderBreadcrumbs($breadcrumbs);
 // Check if module is properly installed
 try {
     $crad = cradDb();
-    $tablesCheck = $crad->query("SHOW TABLES LIKE 'research_plans'")->fetch();
+    $tablesCheck = $crad->query("SHOW TABLES LIKE 'crad_research_plans'")->fetch();
     if (!$tablesCheck) {
         throw new Exception('Research Progress module not installed.');
     }
@@ -79,7 +79,7 @@ try {
         
         $updateStmt = $crad->prepare("
             SELECT id, update_title, submitted_at, submitted_by_name
-            FROM research_progress_updates 
+            FROM crad_research_progress_updates 
             WHERE milestone_id = ? 
             ORDER BY submitted_at DESC 
             LIMIT 1

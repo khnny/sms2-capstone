@@ -75,9 +75,9 @@ $defaults = [
 
 try {
     if ($role === '__reset__' && $module === '__all__') {
-        $pdo->exec('DELETE FROM role_permissions');
+        $pdo->exec('DELETE FROM sms_role_permissions');
         $ins = $pdo->prepare(
-            'INSERT INTO role_permissions (role_key, module_key, granted) VALUES (?, ?, 1)'
+            'INSERT INTO sms_role_permissions (role_key, module_key, granted) VALUES (?, ?, 1)'
         );
         foreach ($defaults as $rk => $mods) {
             foreach ($mods as $m) {
@@ -124,7 +124,7 @@ try {
     $dbRole = smsNormalizeRoleKey($role);
 
     $pdo->prepare(
-        'INSERT INTO role_permissions (role_key, module_key, granted)
+        'INSERT INTO sms_role_permissions (role_key, module_key, granted)
          VALUES (?, ?, ?)
          ON DUPLICATE KEY UPDATE granted = VALUES(granted)'
     )->execute([$dbRole, $module, $granted ? 1 : 0]);

@@ -23,7 +23,7 @@ function smsNeedsSetup(): bool
         return false;
     }
     try {
-        $count = (int) $pdo->query('SELECT COUNT(*) AS c FROM users')->fetch()['c'];
+        $count = (int) $pdo->query('SELECT COUNT(*) AS c FROM sms_users')->fetch()['c'];
         return $count === 0;
     } catch (Throwable $e) {
         return false;
@@ -215,7 +215,7 @@ function smsAllowedModuleKeysForRole(string $roleKey): array
             $lookupKeys = smsRolePermissionLookupKeys($roleKey);
             $placeholders = implode(',', array_fill(0, count($lookupKeys), '?'));
             $stmt = $pdo->prepare(
-                "SELECT module_key, granted FROM role_permissions WHERE role_key IN ($placeholders)"
+                "SELECT module_key, granted FROM sms_role_permissions WHERE role_key IN ($placeholders)"
             );
             $stmt->execute($lookupKeys);
             $rows = $stmt->fetchAll();
@@ -623,8 +623,8 @@ function smsFindUserByLogin(string $input): ?array
         if (str_contains($input, '@')) {
             $stmt = $pdo->prepare(
                 'SELECT u.*, r.label AS role_label
-                 FROM users u
-                 INNER JOIN roles r ON r.role_key = u.role_key
+                 FROM sms_users u
+                 INNER JOIN sms_roles r ON r.role_key = u.role_key
                  WHERE LOWER(u.email) = ? OR LOWER(u.username) = ?
                  LIMIT 1'
             );
@@ -633,8 +633,8 @@ function smsFindUserByLogin(string $input): ?array
             // Allow bare username (staff) or student ID
             $stmt = $pdo->prepare(
                 'SELECT u.*, r.label AS role_label
-                 FROM users u
-                 INNER JOIN roles r ON r.role_key = u.role_key
+                 FROM sms_users u
+                 INNER JOIN sms_roles r ON r.role_key = u.role_key
                  WHERE LOWER(u.username) = ?
                     OR LOWER(u.student_id) = ?
                     OR LOWER(u.email) = ?
@@ -684,7 +684,7 @@ function smsClearLockIfExpired(array $user): void
     }
 
     $pdo->prepare(
-        'UPDATE users SET locked_until = NULL, failed_login_attempts = 0,
+        'UPDATE sms_users SET locked_until = NULL, failed_login_attempts = 0,
          status = CASE WHEN status = \'locked\' THEN \'active\' ELSE status END
          WHERE id = ?'
     )->execute([(int) $user['id']]);
@@ -777,7 +777,7 @@ function smsGetLoginThrottle(string $loginInput = ''): array
     }
 
     $key = smsLoginThrottleKey($loginInput);
-    $stmt = $pdo->prepare('SELECT attempts, locked_until FROM login_throttles WHERE throttle_key = ? LIMIT 1');
+    $stmt = $pdo->prepare('SELECT attempts, locked_until FROM sms_login_throttles WHERE throttle_key = ? LIMIT 1');
     $stmt->execute([$key]);
     $row = $stmt->fetch();
     if (!$row) {
@@ -788,7 +788,7 @@ function smsGetLoginThrottle(string $loginInput = ''): array
     if ($lockedUntil) {
         $untilTs = strtotime((string) $lockedUntil);
         if ($untilTs !== false && $untilTs <= time()) {
-            $pdo->prepare('UPDATE login_throttles SET attempts = 0, locked_until = NULL WHERE throttle_key = ?')
+            $pdo->prepare('UPDATE sms_login_throttles SET attempts = 0, locked_until = NULL WHERE throttle_key = ?')
                 ->execute([$key]);
             return $empty;
         }
@@ -848,7 +848,7 @@ function smsRegisterLoginThrottleFailure(string $loginInput = ''): array
     // Atomic increment — prevents spam/race from skipping the lock threshold
     try {
         $pdo->prepare(
-            'INSERT INTO login_throttles (throttle_key, ip_address, attempts, locked_until)
+            'INSERT INTO sms_login_throttles (throttle_key, ip_address, attempts, locked_until)
              VALUES (?, ?, 1, NULL)
              ON DUPLICATE KEY UPDATE
                 attempts = attempts + 1,
@@ -860,7 +860,7 @@ function smsRegisterLoginThrottleFailure(string $loginInput = ''): array
         return $result;
     }
 
-    $stmt = $pdo->prepare('SELECT attempts, locked_until FROM login_throttles WHERE throttle_key = ? LIMIT 1');
+    $stmt = $pdo->prepare('SELECT attempts, locked_until FROM sms_login_throttles WHERE throttle_key = ? LIMIT 1');
     $stmt->execute([$key]);
     $row = $stmt->fetch() ?: [];
     $attempts = max(1, (int) ($row['attempts'] ?? 1));
@@ -871,11 +871,11 @@ function smsRegisterLoginThrottleFailure(string $loginInput = ''): array
         $locked = true;
         try {
             $pdo->prepare(
-                'UPDATE login_throttles
+                'UPDATE sms_login_throttles
                  SET locked_until = DATE_ADD(NOW(), INTERVAL ? SECOND)
                  WHERE throttle_key = ?'
             )->execute([$lockSeconds, $key]);
-            $fresh = $pdo->prepare('SELECT locked_until FROM login_throttles WHERE throttle_key = ? LIMIT 1');
+            $fresh = $pdo->prepare('SELECT locked_until FROM sms_login_throttles WHERE throttle_key = ? LIMIT 1');
             $fresh->execute([$key]);
             $lockedUntil = $fresh->fetchColumn() ?: null;
         } catch (Throwable $e) {
@@ -906,7 +906,7 @@ function smsClearLoginThrottle(string $loginInput = ''): void
         return;
     }
     smsEnsureLoginThrottleTables();
-    $pdo->prepare('DELETE FROM login_throttles WHERE throttle_key = ?')
+    $pdo->prepare('DELETE FROM sms_login_throttles WHERE throttle_key = ?')
         ->execute([smsLoginThrottleKey($loginInput)]);
 }
 
@@ -925,7 +925,7 @@ function smsForceLoginThrottleLock(string $loginInput = '', ?int $lockSeconds = 
     $key = smsLoginThrottleKey($loginInput);
     try {
         $pdo->prepare(
-            'INSERT INTO login_throttles (throttle_key, ip_address, attempts, locked_until)
+            'INSERT INTO sms_login_throttles (throttle_key, ip_address, attempts, locked_until)
              VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL ? SECOND))
              ON DUPLICATE KEY UPDATE
                 attempts = GREATEST(attempts, VALUES(attempts)),
@@ -933,7 +933,7 @@ function smsForceLoginThrottleLock(string $loginInput = '', ?int $lockSeconds = 
                 ip_address = VALUES(ip_address)'
         )->execute([$key, smsClientIp(), $attempts, $seconds, $seconds]);
 
-        $stmt = $pdo->prepare('SELECT locked_until FROM login_throttles WHERE throttle_key = ? LIMIT 1');
+        $stmt = $pdo->prepare('SELECT locked_until FROM sms_login_throttles WHERE throttle_key = ? LIMIT 1');
         $stmt->execute([$key]);
         $until = $stmt->fetchColumn();
         return $until ? (string) $until : null;
@@ -1063,11 +1063,11 @@ function smsRegisterFailedLogin(array $user): array
 
     // Atomic increment — rapid spam clicks must still hit the lock threshold
     $pdo->prepare(
-        'UPDATE users SET failed_login_attempts = failed_login_attempts + 1 WHERE id = ?'
+        'UPDATE sms_users SET failed_login_attempts = failed_login_attempts + 1 WHERE id = ?'
     )->execute([(int) $user['id']]);
 
     $fresh = $pdo->prepare(
-        'SELECT failed_login_attempts, locked_until, status FROM users WHERE id = ? LIMIT 1'
+        'SELECT failed_login_attempts, locked_until, status FROM sms_users WHERE id = ? LIMIT 1'
     );
     $fresh->execute([(int) $user['id']]);
     $row = $fresh->fetch() ?: [];
@@ -1077,14 +1077,14 @@ function smsRegisterFailedLogin(array $user): array
 
     if ($maxFails > 0 && $attempts >= $maxFails) {
         $pdo->prepare(
-            'UPDATE users
+            'UPDATE sms_users
              SET locked_until = DATE_ADD(NOW(), INTERVAL ? SECOND), status = \'locked\'
              WHERE id = ?'
         )->execute([$lockSeconds, (int) $user['id']]);
 
         $result['locked'] = true;
         $result['remaining'] = 0;
-        $untilStmt = $pdo->prepare('SELECT locked_until FROM users WHERE id = ? LIMIT 1');
+        $untilStmt = $pdo->prepare('SELECT locked_until FROM sms_users WHERE id = ? LIMIT 1');
         $untilStmt->execute([(int) $user['id']]);
         $result['locked_until'] = $untilStmt->fetchColumn() ?: null;
 
@@ -1110,7 +1110,7 @@ function smsRegisterSuccessfulLogin(array $user): void
     }
 
     $pdo->prepare(
-        'UPDATE users
+        'UPDATE sms_users
          SET failed_login_attempts = 0, locked_until = NULL,
              last_login_at = NOW(), last_login_ip = ?,
              status = CASE WHEN status = \'locked\' THEN \'active\' ELSE status END
@@ -1307,7 +1307,7 @@ function smsLoginAttempt(string $username, string $password): array
     if (password_needs_rehash((string) $user['password_hash'], PASSWORD_DEFAULT)) {
         $pdo = db();
         if ($pdo) {
-            $pdo->prepare('UPDATE users SET password_hash = ?, password_changed_at = password_changed_at WHERE id = ?')
+            $pdo->prepare('UPDATE sms_users SET password_hash = ?, password_changed_at = password_changed_at WHERE id = ?')
                 ->execute([password_hash($password, PASSWORD_DEFAULT), (int) $user['id']]);
         }
     }
@@ -1417,11 +1417,11 @@ function smsCreatePasswordResetToken(int $userId): ?string
 
     // Invalidate previous unused tokens
     $pdo->prepare(
-        'UPDATE password_resets SET used_at = NOW() WHERE user_id = ? AND used_at IS NULL'
+        'UPDATE sms_password_resets SET used_at = NOW() WHERE user_id = ? AND used_at IS NULL'
     )->execute([$userId]);
 
     $pdo->prepare(
-        'INSERT INTO password_resets (user_id, token_hash, expires_at, created_ip)
+        'INSERT INTO sms_password_resets (user_id, token_hash, expires_at, created_ip)
          VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 1 HOUR), ?)'
     )->execute([$userId, $hash, smsClientIp()]);
 
@@ -1440,7 +1440,7 @@ function smsResetPasswordWithToken(string $rawToken, string $newPassword): bool
 
     $hash = hash('sha256', $rawToken);
     $stmt = $pdo->prepare(
-        'SELECT * FROM password_resets
+        'SELECT * FROM sms_password_resets
          WHERE token_hash = ? AND used_at IS NULL AND expires_at > NOW()
          LIMIT 1'
     );
@@ -1454,14 +1454,14 @@ function smsResetPasswordWithToken(string $rawToken, string $newPassword): bool
     $pdo->beginTransaction();
     try {
         $pdo->prepare(
-            'UPDATE users
+            'UPDATE sms_users
              SET password_hash = ?, must_change_password = 0, password_changed_at = NOW(),
                  failed_login_attempts = 0, locked_until = NULL,
                  status = CASE WHEN status = \'locked\' THEN \'active\' ELSE status END
              WHERE id = ?'
         )->execute([password_hash($newPassword, PASSWORD_DEFAULT), $userId]);
 
-        $pdo->prepare('UPDATE password_resets SET used_at = NOW() WHERE id = ?')
+        $pdo->prepare('UPDATE sms_password_resets SET used_at = NOW() WHERE id = ?')
             ->execute([(int) $row['id']]);
 
         $pdo->commit();
@@ -1486,7 +1486,7 @@ function smsSetUserPassword(int $userId, string $newPassword, bool $forceChange 
     }
 
     $pdo->prepare(
-        'UPDATE users
+        'UPDATE sms_users
          SET password_hash = ?, must_change_password = ?, password_changed_at = NOW(),
              failed_login_attempts = 0, locked_until = NULL
          WHERE id = ?'
@@ -1545,10 +1545,10 @@ function smsEnsureUserPresenceColumn(): void
         return;
     }
     try {
-        $col = $pdo->query("SHOW COLUMNS FROM users LIKE 'last_seen_at'")->fetch();
+        $col = $pdo->query("SHOW COLUMNS FROM sms_users LIKE 'last_seen_at'")->fetch();
         if (!$col) {
             $pdo->exec(
-                'ALTER TABLE users
+                'ALTER TABLE sms_users
                  ADD COLUMN last_seen_at DATETIME NULL AFTER last_login_at,
                  ADD KEY idx_users_last_seen (last_seen_at)'
             );
@@ -1581,7 +1581,7 @@ function smsTouchUserPresence(?int $userId = null): void
         return;
     }
     try {
-        $stmt = $pdo->prepare('UPDATE users SET last_seen_at = ? WHERE id = ? LIMIT 1');
+        $stmt = $pdo->prepare('UPDATE sms_users SET last_seen_at = ? WHERE id = ? LIMIT 1');
         $stmt->execute([date('Y-m-d H:i:s', $now), $userId]);
         $_SESSION['presence_touched_at'] = $now;
     } catch (Throwable $e) {
@@ -1600,7 +1600,7 @@ function smsMarkUserOffline(int $userId): void
         return;
     }
     try {
-        $stmt = $pdo->prepare('UPDATE users SET last_seen_at = NULL WHERE id = ? LIMIT 1');
+        $stmt = $pdo->prepare('UPDATE sms_users SET last_seen_at = NULL WHERE id = ? LIMIT 1');
         $stmt->execute([$userId]);
     } catch (Throwable $e) {
         // ignore

@@ -180,7 +180,7 @@ function grantEnsureTables(PDO $crad): void
 
     // ── grant_opportunities ─────────────────────────────────────────────────
     $crad->exec("
-        CREATE TABLE IF NOT EXISTS grant_opportunities (
+        CREATE TABLE IF NOT EXISTS crad_grant_opportunities (
             id               INT UNSIGNED    NOT NULL AUTO_INCREMENT,
             funding_title    VARCHAR(300)    NOT NULL,
             max_funding_cap  DECIMAL(14,2)   NOT NULL DEFAULT 0.00,
@@ -207,7 +207,7 @@ function grantEnsureTables(PDO $crad): void
 
     // ── grant_applications (core columns — original schema) ─────────────────
     $crad->exec("
-        CREATE TABLE IF NOT EXISTS grant_applications (
+        CREATE TABLE IF NOT EXISTS crad_grant_applications (
             id                    INT UNSIGNED  NOT NULL AUTO_INCREMENT,
             grant_opportunity_id  INT UNSIGNED  NOT NULL
                 COMMENT 'FK → grant_opportunities.id',
@@ -241,41 +241,41 @@ function grantEnsureTables(PDO $crad): void
 
     // ── grant_applications — proposal columns added for BRGFAMS Form 1 ──────
     // Each ALTER is guarded by SHOW COLUMNS so the call is a no-op on existing rows.
-    _grantAddColumnIfMissing($crad, 'grant_applications', 'college_dept',
+    _grantAddColumnIfMissing($crad, 'crad_grant_applications', 'college_dept',
         "VARCHAR(200) DEFAULT NULL COMMENT 'Academic college / department of the lead proponent' AFTER applicant_name");
 
-    _grantAddColumnIfMissing($crad, 'grant_applications', 'requested_budget',
+    _grantAddColumnIfMissing($crad, 'crad_grant_applications', 'requested_budget',
         "DECIMAL(14,2) DEFAULT NULL COMMENT 'Budget requested by the proponent; must not exceed grant max_funding_cap' AFTER college_dept");
 
-    _grantAddColumnIfMissing($crad, 'grant_applications', 'abstract',
+    _grantAddColumnIfMissing($crad, 'crad_grant_applications', 'abstract',
         "TEXT DEFAULT NULL COMMENT 'Executive abstract of the research proposal' AFTER requested_budget");
 
-    _grantAddColumnIfMissing($crad, 'grant_applications', 'objectives',
+    _grantAddColumnIfMissing($crad, 'crad_grant_applications', 'objectives',
         "TEXT DEFAULT NULL COMMENT 'Research objectives' AFTER abstract");
 
-    _grantAddColumnIfMissing($crad, 'grant_applications', 'proposal_pdf',
+    _grantAddColumnIfMissing($crad, 'crad_grant_applications', 'proposal_pdf',
         "VARCHAR(255) DEFAULT NULL COMMENT 'Stored filename of the uploaded proposal PDF/DOC under storage/uploads/grant_proposals/' AFTER objectives");
 
-    _grantAddColumnIfMissing($crad, 'grant_applications', 'proposal_pdf_original',
+    _grantAddColumnIfMissing($crad, 'crad_grant_applications', 'proposal_pdf_original',
         "VARCHAR(300) DEFAULT NULL COMMENT 'Original filename of the uploaded proposal document' AFTER proposal_pdf");
 
-    _grantAddColumnIfMissing($crad, 'grant_applications', 'supporting_docs',
+    _grantAddColumnIfMissing($crad, 'crad_grant_applications', 'supporting_docs',
         "VARCHAR(255) DEFAULT NULL COMMENT 'Stored filename of optional supporting documents' AFTER proposal_pdf_original");
 
-    _grantAddColumnIfMissing($crad, 'grant_applications', 'supporting_docs_original',
+    _grantAddColumnIfMissing($crad, 'crad_grant_applications', 'supporting_docs_original',
         "VARCHAR(300) DEFAULT NULL COMMENT 'Original filename of optional supporting documents' AFTER supporting_docs");
 
-    _grantAddColumnIfMissing($crad, 'grant_applications', 'ethics_doc',
+    _grantAddColumnIfMissing($crad, 'crad_grant_applications', 'ethics_doc',
         "VARCHAR(255) DEFAULT NULL COMMENT 'Stored filename of optional ethics clearance document' AFTER supporting_docs_original");
 
-    _grantAddColumnIfMissing($crad, 'grant_applications', 'ethics_doc_original',
+    _grantAddColumnIfMissing($crad, 'crad_grant_applications', 'ethics_doc_original',
         "VARCHAR(300) DEFAULT NULL COMMENT 'Original filename of optional ethics clearance document' AFTER ethics_doc");
 
     _grantEnsureApplicationStatusEnum($crad);
 
-    _grantAddColumnIfMissing($crad, 'grant_applications', 'proposal_reference',
+    _grantAddColumnIfMissing($crad, 'crad_grant_applications', 'proposal_reference',
         "VARCHAR(30) DEFAULT NULL COMMENT 'Stable proposal ID e.g. GR-2026-001' AFTER id");
-    _grantAddColumnIfMissing($crad, 'grant_applications', 'current_version',
+    _grantAddColumnIfMissing($crad, 'crad_grant_applications', 'current_version',
         "INT UNSIGNED NOT NULL DEFAULT 1 COMMENT 'Active proposal document version' AFTER proposal_reference");
 
     grantEnsureProposalVersionTables($crad);
@@ -291,7 +291,7 @@ function grantEnsureProposalVersionTables(PDO $crad): void
     $done = true;
 
     $crad->exec("
-        CREATE TABLE IF NOT EXISTS grant_proposal_versions (
+        CREATE TABLE IF NOT EXISTS crad_grant_proposal_versions (
             id                      INT UNSIGNED  NOT NULL AUTO_INCREMENT,
             grant_application_id    INT UNSIGNED  NOT NULL,
             version_number          INT UNSIGNED  NOT NULL,
@@ -331,7 +331,7 @@ function grantGenerateProposalReference(PDO $crad): string
 
     $stmt = $crad->prepare("
         SELECT proposal_reference
-          FROM grant_applications
+          FROM crad_grant_applications
          WHERE proposal_reference LIKE ?
          ORDER BY id DESC
          LIMIT 1
@@ -352,7 +352,7 @@ function _grantBackfillProposalReferences(PDO $crad): void
     try {
         $rows = $crad->query("
             SELECT id
-              FROM grant_applications
+              FROM crad_grant_applications
              WHERE proposal_reference IS NULL OR proposal_reference = ''
              ORDER BY id ASC
         ")->fetchAll(PDO::FETCH_COLUMN) ?: [];
@@ -360,7 +360,7 @@ function _grantBackfillProposalReferences(PDO $crad): void
         foreach ($rows as $appId) {
             $ref = grantGenerateProposalReference($crad);
             $crad->prepare("
-                UPDATE grant_applications
+                UPDATE crad_grant_applications
                    SET proposal_reference = ?, current_version = COALESCE(NULLIF(current_version, 0), 1)
                  WHERE id = ?
             ")->execute([$ref, (int) $appId]);
@@ -368,8 +368,8 @@ function _grantBackfillProposalReferences(PDO $crad): void
 
         $apps = $crad->query("
             SELECT ga.*
-              FROM grant_applications ga
-             LEFT JOIN grant_proposal_versions gpv
+              FROM crad_grant_applications ga
+             LEFT JOIN crad_grant_proposal_versions gpv
                     ON gpv.grant_application_id = ga.id AND gpv.version_number = 1
              WHERE gpv.id IS NULL
         ")->fetchAll(PDO::FETCH_ASSOC) ?: [];
@@ -397,12 +397,12 @@ function _grantBackfillApplicantUserIds(PDO $crad): void
     try {
         $rows = $crad->query("
             SELECT id, applicant_name, applicant_user_id
-              FROM grant_applications
+              FROM crad_grant_applications
              WHERE applicant_user_id IS NULL OR applicant_user_id = 0
         ")->fetchAll(PDO::FETCH_ASSOC) ?: [];
 
-        $update = $crad->prepare('UPDATE grant_applications SET applicant_user_id = ? WHERE id = ?');
-        $lookup = $main->prepare('SELECT id FROM users WHERE full_name = ? OR username = ? LIMIT 1');
+        $update = $crad->prepare('UPDATE crad_grant_applications SET applicant_user_id = ? WHERE id = ?');
+        $lookup = $main->prepare('SELECT id FROM sms_users WHERE full_name = ? OR username = ? LIMIT 1');
 
         foreach ($rows as $row) {
             $name = trim((string) ($row['applicant_name'] ?? ''));
@@ -540,7 +540,7 @@ function grantInsertProposalVersion(PDO $crad, array $application, int $versionN
     grantEnsureProposalVersionTables($crad);
 
     $stmt = $crad->prepare("
-        INSERT INTO grant_proposal_versions
+        INSERT INTO crad_grant_proposal_versions
             (grant_application_id, version_number, version_label,
              proposal_pdf, proposal_pdf_original,
              supporting_docs, supporting_docs_original,
@@ -594,7 +594,7 @@ function grantGetProposalVersions(PDO $crad, int $applicationId): array
 
     $stmt = $crad->prepare("
         SELECT *
-          FROM grant_proposal_versions
+          FROM crad_grant_proposal_versions
          WHERE grant_application_id = ?
          ORDER BY version_number ASC
     ");
@@ -618,7 +618,7 @@ function grantGetMyRevisionRequiredApplications(PDO $crad): array
     try {
         $stmt = $crad->prepare("
             SELECT ga.id
-              FROM grant_applications ga
+              FROM crad_grant_applications ga
              WHERE ga.applicant_user_id = ?
                AND ga.status = 'Revision Required'
         ");
@@ -699,8 +699,8 @@ function grantGetApplicationForResearcher(PDO $crad, int $applicationId): ?array
 {
     $stmt = $crad->prepare("
         SELECT ga.*, go.funding_title, go.max_funding_cap
-          FROM grant_applications ga
-         INNER JOIN grant_opportunities go ON go.id = ga.grant_opportunity_id
+          FROM crad_grant_applications ga
+         INNER JOIN crad_grant_opportunities go ON go.id = ga.grant_opportunity_id
          WHERE ga.id = ?
          LIMIT 1
     ");
@@ -785,7 +785,7 @@ function grantResubmitProposal(PDO $crad, int $applicationId, array $data, array
         grantInsertProposalVersion($crad, $updated, $nextVersion, $researcherNotes);
 
         $crad->prepare("
-            UPDATE grant_applications
+            UPDATE crad_grant_applications
                SET proposal_pdf = ?,
                    proposal_pdf_original = ?,
                    supporting_docs = ?,
@@ -838,7 +838,7 @@ function _grantEnsureApplicationStatusEnum(PDO $crad): void
         $stmt = $crad->prepare(
             "SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS
               WHERE TABLE_SCHEMA = DATABASE()
-                AND TABLE_NAME = 'grant_applications'
+                AND TABLE_NAME = 'crad_grant_applications'
                 AND COLUMN_NAME = 'status'"
         );
         $stmt->execute();
@@ -852,11 +852,11 @@ function _grantEnsureApplicationStatusEnum(PDO $crad): void
         }
 
         if (strpos($columnType, 'Publication Verified') !== false) {
-            $crad->exec("UPDATE grant_applications SET status = 'OUTPUT_VERIFIED' WHERE status = 'Publication Verified'");
+            $crad->exec("UPDATE crad_grant_applications SET status = 'OUTPUT_VERIFIED' WHERE status = 'Publication Verified'");
         }
 
         $crad->exec("
-            ALTER TABLE grant_applications
+            ALTER TABLE crad_grant_applications
             MODIFY COLUMN status ENUM(
                 'Submitted',
                 'Under Review',
@@ -888,7 +888,7 @@ function grantExpireDeadlines(PDO $crad): void
 {
     try {
         $crad->exec("
-            UPDATE grant_opportunities
+            UPDATE crad_grant_opportunities
                SET status    = 'Expired',
                    updated_at = NOW()
              WHERE application_deadline < CURDATE()
@@ -923,8 +923,8 @@ function grantGetOpportunities(PDO $crad): array
             go.created_at,
             go.updated_at,
             COUNT(ga.id) AS application_count
-        FROM grant_opportunities go
-        LEFT JOIN grant_applications ga ON ga.grant_opportunity_id = go.id
+        FROM crad_grant_opportunities go
+        LEFT JOIN crad_grant_applications ga ON ga.grant_opportunity_id = go.id
         GROUP BY go.id
         ORDER BY go.created_at DESC, go.id DESC
     ");
@@ -969,7 +969,7 @@ function grantGetApplications(PDO $crad, ?int $opportunityId = null): array
         $colStmt = $crad->prepare(
             "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
               WHERE TABLE_SCHEMA = DATABASE()
-                AND TABLE_NAME   = 'grant_applications'"
+                AND TABLE_NAME   = 'crad_grant_applications'"
         );
         $colStmt->execute();
         foreach ($colStmt->fetchAll(PDO::FETCH_COLUMN) as $colName) {
@@ -1005,8 +1005,8 @@ function grantGetApplications(PDO $crad, ?int $opportunityId = null): array
             ga.application_notes,
             ga.submitted_at,
             ga.updated_at
-        FROM grant_applications ga
-        INNER JOIN grant_opportunities go ON go.id = ga.grant_opportunity_id
+        FROM crad_grant_applications ga
+        INNER JOIN crad_grant_opportunities go ON go.id = ga.grant_opportunity_id
     ";
 
     if ($opportunityId !== null && $opportunityId > 0) {
@@ -1076,7 +1076,7 @@ function grantDashboardStats(PDO $crad): array
                 SUM(status = 'Open for Application')                      AS open,
                 SUM(status = 'Closed')                                    AS closed,
                 SUM(status = 'Expired')                                   AS expired
-            FROM grant_opportunities
+            FROM crad_grant_opportunities
         ");
         $opp = $oppStmt ? ($oppStmt->fetch(PDO::FETCH_ASSOC) ?: []) : [];
 
@@ -1086,7 +1086,7 @@ function grantDashboardStats(PDO $crad): array
                 SUM(status = 'Under Review')            AS under_review,
                 SUM(status = 'Approved')                AS approved,
                 SUM(status IN ('Denied', 'Rejected'))          AS denied
-            FROM grant_applications
+            FROM crad_grant_applications
         ");
         $app = $appStmt ? ($appStmt->fetch(PDO::FETCH_ASSOC) ?: []) : [];
 
@@ -1140,7 +1140,7 @@ function grantGetDashboardMetrics(PDO $crad): array
 
     try {
         $defaults['total_grant_calls'] = (int) $crad->query(
-            'SELECT COUNT(*) FROM grant_opportunities'
+            'SELECT COUNT(*) FROM crad_grant_opportunities'
         )->fetchColumn();
 
         $funded = grantStatusApprovedFunded();
@@ -1161,7 +1161,7 @@ function grantGetDashboardMetrics(PDO $crad): array
                     CASE WHEN status IN (?, ?, ?, ?)
                     THEN COALESCE(approved_budget, requested_budget, 0) ELSE 0 END
                 ), 0) AS total_funding
-            FROM grant_applications
+            FROM crad_grant_applications
         ");
         $appStmt->execute([
             $funded,
@@ -1182,7 +1182,7 @@ function grantGetDashboardMetrics(PDO $crad): array
 
         $releasedStmt = $crad->query("
             SELECT COALESCE(SUM(amount_released), 0)
-              FROM grant_funding_disbursements
+              FROM crad_grant_funding_disbursements
              WHERE status = 'Released'
         ");
         $releasedTotal = (float) ($releasedStmt ? $releasedStmt->fetchColumn() : 0);
@@ -1190,14 +1190,14 @@ function grantGetDashboardMetrics(PDO $crad): array
             $defaults['total_funding'] = $releasedTotal;
         }
 
-        $pubTable = $crad->query("SHOW TABLES LIKE 'grant_publications_ip_repository'")->fetchColumn();
+        $pubTable = $crad->query("SHOW TABLES LIKE 'crad_grant_publications_ip_repository'")->fetchColumn();
         if ($pubTable) {
-            $defaults['publications'] = (int) $crad->query(
-                'SELECT COUNT(*) FROM grant_publications_ip_repository'
+            $defaults['crad_publications'] = (int) $crad->query(
+                'SELECT COUNT(*) FROM crad_grant_publications_ip_repository'
             )->fetchColumn();
 
             $defaults['ip_records'] = (int) $crad->query("
-                SELECT COUNT(*) FROM grant_publications_ip_repository
+                SELECT COUNT(*) FROM crad_grant_publications_ip_repository
                  WHERE TRIM(COALESCE(copyright_info, '')) <> ''
                     OR TRIM(COALESCE(patent_info, '')) <> ''
                     OR TRIM(COALESCE(other_ip_info, '')) <> ''
@@ -1228,7 +1228,7 @@ function grantDashboardMetricsDefaults(): array
         'total_funding'              => 0.0,
         'ongoing_research'           => 0,
         'completed_research'         => 0,
-        'publications'               => 0,
+        'crad_publications'               => 0,
         'ip_records'                 => 0,
         'updated_at'                 => '',
     ];
@@ -1249,7 +1249,7 @@ function grantDashboardMetricDefinitions(): array
         ['key' => 'total_funding',            'label' => 'Total Funding',              'icon' => 'fa-peso-sign',        'tone' => 'green',  'format' => 'currency'],
         ['key' => 'ongoing_research',         'label' => 'Ongoing Research',           'icon' => 'fa-flask',            'tone' => 'blue',   'format' => 'int'],
         ['key' => 'completed_research',       'label' => 'Completed Research',         'icon' => 'fa-flag-checkered',   'tone' => 'purple', 'format' => 'int'],
-        ['key' => 'publications',             'label' => 'Publications',               'icon' => 'fa-book-open',        'tone' => 'teal',   'format' => 'int'],
+        ['key' => 'crad_publications',             'label' => 'Publications',               'icon' => 'fa-book-open',        'tone' => 'teal',   'format' => 'int'],
         ['key' => 'ip_records',               'label' => 'IP Records',                 'icon' => 'fa-shield-alt',       'tone' => 'indigo', 'format' => 'int'],
     ];
 }
@@ -1336,7 +1336,7 @@ function grantPublishOpportunity(PDO $crad, array $data): array
 
     try {
         $stmt = $crad->prepare("
-            INSERT INTO grant_opportunities
+            INSERT INTO crad_grant_opportunities
                 (funding_title, max_funding_cap, application_deadline,
                  eligibility, college_program,
                  status, created_by_user_id, created_by_name,
@@ -1445,7 +1445,7 @@ function grantSubmitProposal(PDO $crad, array $data, array $files): array
     try {
         $gStmt = $crad->prepare("
             SELECT id, status, application_deadline, max_funding_cap
-              FROM grant_opportunities
+              FROM crad_grant_opportunities
              WHERE id = ?
              LIMIT 1
         ");
@@ -1466,7 +1466,7 @@ function grantSubmitProposal(PDO $crad, array $data, array $files): array
     if ($deadlineTs !== false && $deadlineTs < mktime(0, 0, 0)) {
         // Auto-flip the row so next page load shows Expired
         try {
-            $crad->prepare("UPDATE grant_opportunities SET status='Expired', updated_at=NOW() WHERE id=?")
+            $crad->prepare("UPDATE crad_grant_opportunities SET status='Expired', updated_at=NOW() WHERE id=?")
                  ->execute([$grantId]);
         } catch (Throwable) { /* non-fatal */ }
         return ['ok' => false, 'error' => 'The application deadline for this grant has passed.'];
@@ -1498,7 +1498,7 @@ function grantSubmitProposal(PDO $crad, array $data, array $files): array
 
     try {
         $stmt = $crad->prepare("
-            INSERT INTO grant_applications
+            INSERT INTO crad_grant_applications
                 (grant_opportunity_id,
                  proposal_reference, current_version,
                  applicant_name, applicant_user_id,

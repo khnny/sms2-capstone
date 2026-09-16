@@ -24,10 +24,10 @@ SET time_zone = "+00:00";
 -- --------------------------------------------------------
 
 --
--- Table structure for table `chapter_evaluations`
+-- Table structure for table `crad_chapter_evaluations`
 --
 
-CREATE TABLE `chapter_evaluations` (
+CREATE TABLE `crad_chapter_evaluations` (
   `id` int(10) UNSIGNED NOT NULL,
   `submission_id` int(10) UNSIGNED NOT NULL,
   `research_group_id` int(10) UNSIGNED NOT NULL,
@@ -49,10 +49,10 @@ CREATE TABLE `chapter_evaluations` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `chapter_evaluations`
+-- Dumping data for table `crad_chapter_evaluations`
 --
 
-INSERT INTO `chapter_evaluations` (`id`, `submission_id`, `research_group_id`, `evaluator_user_id`, `evaluator_name`, `content_score`, `methodology_score`, `references_score`, `format_score`, `content_remarks`, `methodology_remarks`, `references_remarks`, `format_remarks`, `overall_feedback`, `result`, `overall_score`, `evaluated_at`, `created_at`) VALUES
+INSERT INTO `crad_chapter_evaluations` (`id`, `submission_id`, `research_group_id`, `evaluator_user_id`, `evaluator_name`, `content_score`, `methodology_score`, `references_score`, `format_score`, `content_remarks`, `methodology_remarks`, `references_remarks`, `format_remarks`, `overall_feedback`, `result`, `overall_score`, `evaluated_at`, `created_at`) VALUES
 (25, 29, 61, 475, 'Grammarian', 100.00, 100.00, 100.00, 100.00, '', '', '', '', '', 'APPROVED', 100.00, '2026-08-23 04:07:50', '2026-08-23 04:07:50'),
 (26, 30, 61, 475, 'Grammarian', 100.00, 100.00, 100.00, 99.97, '', '', '', '', '', 'APPROVED', 99.99, '2026-08-23 04:07:59', '2026-08-23 04:07:59'),
 (27, 31, 61, 475, 'Grammarian', 100.00, 100.00, 100.00, 100.00, '', '', '', '', '', 'APPROVED', 100.00, '2026-08-23 04:08:08', '2026-08-23 04:08:08'),
@@ -72,10 +72,10 @@ INSERT INTO `chapter_evaluations` (`id`, `submission_id`, `research_group_id`, `
 -- --------------------------------------------------------
 
 --
--- Table structure for table `chapter_evaluation_notifications`
+-- Table structure for table `crad_chapter_evaluation_notifications`
 --
 
-CREATE TABLE `chapter_evaluation_notifications` (
+CREATE TABLE `crad_chapter_evaluation_notifications` (
   `id` int(10) UNSIGNED NOT NULL,
   `event_key` varchar(120) NOT NULL,
   `recipient_user_id` int(10) UNSIGNED DEFAULT NULL,
@@ -91,10 +91,10 @@ CREATE TABLE `chapter_evaluation_notifications` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `chapter_evaluation_notifications`
+-- Dumping data for table `crad_chapter_evaluation_notifications`
 --
 
-INSERT INTO `chapter_evaluation_notifications` (`id`, `event_key`, `recipient_user_id`, `recipient_role`, `recipient_email`, `submission_id`, `type`, `title`, `body`, `url`, `is_read`, `created_at`) VALUES
+INSERT INTO `crad_chapter_evaluation_notifications` (`id`, `event_key`, `recipient_user_id`, `recipient_role`, `recipient_email`, `submission_id`, `type`, `title`, `body`, `url`, `is_read`, `created_at`) VALUES
 (1, 'evaluator:new:1:u475', 475, 'grammarian', 'grammarian@bestlink.edu.ph', 1, 'new_submission', 'New Chapter Submission', 'Group 01 submitted Chapter 1 Version 1 for evaluation.', '/sms2_system/modules/faculty/pages/evaluation-scoring.php?id=1', 0, '2026-08-14 11:24:27'),
 (2, 'evaluator:new:2:u475', 475, 'grammarian', 'grammarian@bestlink.edu.ph', 2, 'new_submission', 'New Chapter Submission', 'Group 01 submitted Chapter 2 Version 1 for evaluation.', '/sms2_system/modules/faculty/pages/evaluation-scoring.php?id=2', 0, '2026-08-14 11:24:31'),
 (3, 'evaluator:new:3:u475', 475, 'grammarian', 'grammarian@bestlink.edu.ph', 3, 'new_submission', 'New Chapter Submission', 'Group 01 submitted Chapter 3 Version 1 for evaluation.', '/sms2_system/modules/faculty/pages/evaluation-scoring.php?id=3', 1, '2026-08-14 11:24:36'),
@@ -224,10 +224,10 @@ INSERT INTO `chapter_evaluation_notifications` (`id`, `event_key`, `recipient_us
 -- --------------------------------------------------------
 
 --
--- Table structure for table `chapter_submissions`
+-- Table structure for table `crad_chapter_submissions`
 --
 
-CREATE TABLE `chapter_submissions` (
+CREATE TABLE `crad_chapter_submissions` (
   `id` int(10) UNSIGNED NOT NULL,
   `research_group_id` int(10) UNSIGNED NOT NULL,
   `research_plan_id` int(10) UNSIGNED DEFAULT NULL,
@@ -251,10 +251,10 @@ CREATE TABLE `chapter_submissions` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `chapter_submissions`
+-- Dumping data for table `crad_chapter_submissions`
 --
 
-INSERT INTO `chapter_submissions` (`id`, `research_group_id`, `research_plan_id`, `chapter_number`, `version_number`, `status`, `submitted_by_user`, `submitted_by_name`, `submitted_by_email`, `submission_notes`, `original_name`, `stored_subdir`, `stored_name`, `file_size`, `file_mime`, `submission_token`, `submitted_at`, `review_started_at`, `reviewed_at`, `updated_at`) VALUES
+INSERT INTO `crad_chapter_submissions` (`id`, `research_group_id`, `research_plan_id`, `chapter_number`, `version_number`, `status`, `submitted_by_user`, `submitted_by_name`, `submitted_by_email`, `submission_notes`, `original_name`, `stored_subdir`, `stored_name`, `file_size`, `file_mime`, `submission_token`, `submitted_at`, `review_started_at`, `reviewed_at`, `updated_at`) VALUES
 (29, 61, 22, 1, 1, 'Accepted', 9, 'Student User', 'kenlangmalakas0308@gmail.com', '', 'OJT_PRACTICUM_1_NARRATIVE_REPORT (1) (1).docx', 'student_chapters/u9', '2c66fe8dbd047f238219412c3277ea73.docx', 236268, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', '60076d809fe68ad03006c78e3eb0cb7e6b713f49381c9be6f5819e132f909dbe', '2026-08-23 03:50:56', '2026-08-23 04:07:45', '2026-08-23 04:07:50', '2026-08-23 04:07:50'),
 (30, 61, 22, 2, 1, 'Accepted', 9, 'Student User', 'kenlangmalakas0308@gmail.com', '', 'OJT_PRACTICUM_1_NARRATIVE_REPORT (1) (1).docx', 'student_chapters/u9', '74ec1209c457db33489fc036d354b869.docx', 236268, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'e18982e452e6050dd4e2eb8de6f2c350a519c3c31ce46abb5d68cb1ab693bada', '2026-08-23 04:07:26', '2026-08-23 04:07:54', '2026-08-23 04:07:59', '2026-08-23 04:07:59'),
 (31, 61, 22, 3, 1, 'Accepted', 9, 'Student User', 'kenlangmalakas0308@gmail.com', '', 'OJT_PRACTICUM_1_NARRATIVE_REPORT (1) (1).docx', 'student_chapters/u9', 'a23d4492676bde4479582b935f03be6e.docx', 236268, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', '795962d634b938f5a1aa88751bbea1f4771fa7a908a6fc42152dd0b4266b55f5', '2026-08-23 04:07:31', '2026-08-23 04:08:03', '2026-08-23 04:08:08', '2026-08-23 04:08:08'),
@@ -274,10 +274,10 @@ INSERT INTO `chapter_submissions` (`id`, `research_group_id`, `research_plan_id`
 -- --------------------------------------------------------
 
 --
--- Table structure for table `chapter_submission_history`
+-- Table structure for table `crad_chapter_submission_history`
 --
 
-CREATE TABLE `chapter_submission_history` (
+CREATE TABLE `crad_chapter_submission_history` (
   `id` int(10) UNSIGNED NOT NULL,
   `submission_id` int(10) UNSIGNED NOT NULL,
   `research_group_id` int(10) UNSIGNED NOT NULL,
@@ -293,10 +293,10 @@ CREATE TABLE `chapter_submission_history` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `chapter_submission_history`
+-- Dumping data for table `crad_chapter_submission_history`
 --
 
-INSERT INTO `chapter_submission_history` (`id`, `submission_id`, `research_group_id`, `chapter_number`, `version_number`, `status`, `event_type`, `actor_user_id`, `actor_name`, `actor_role`, `detail`, `created_at`) VALUES
+INSERT INTO `crad_chapter_submission_history` (`id`, `submission_id`, `research_group_id`, `chapter_number`, `version_number`, `status`, `event_type`, `actor_user_id`, `actor_name`, `actor_role`, `detail`, `created_at`) VALUES
 (78, 29, 61, 1, 1, 'Submitted', 'submitted', 9, 'Student User', 'student', '', '2026-08-23 03:50:56'),
 (79, 30, 61, 2, 1, 'Submitted', 'submitted', 9, 'Student User', 'student', '', '2026-08-23 04:07:26'),
 (80, 31, 61, 3, 1, 'Submitted', 'submitted', 9, 'Student User', 'student', '', '2026-08-23 04:07:31'),
@@ -346,10 +346,10 @@ INSERT INTO `chapter_submission_history` (`id`, `submission_id`, `research_group
 -- --------------------------------------------------------
 
 --
--- Table structure for table `final_defense_evaluations`
+-- Table structure for table `crad_final_defense_evaluations`
 --
 
-CREATE TABLE `final_defense_evaluations` (
+CREATE TABLE `crad_final_defense_evaluations` (
   `id` int(10) UNSIGNED NOT NULL,
   `defense_schedule_id` int(10) UNSIGNED NOT NULL,
   `research_group_id` int(10) UNSIGNED DEFAULT NULL,
@@ -368,10 +368,10 @@ CREATE TABLE `final_defense_evaluations` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `final_defense_evaluations`
+-- Dumping data for table `crad_final_defense_evaluations`
 --
 
-INSERT INTO `final_defense_evaluations` (`id`, `defense_schedule_id`, `research_group_id`, `panel_user_id`, `panel_name`, `content_score`, `methodology_score`, `references_score`, `format_score`, `remarks`, `result`, `overall_score`, `status`, `submitted_at`, `created_at`) VALUES
+INSERT INTO `crad_final_defense_evaluations` (`id`, `defense_schedule_id`, `research_group_id`, `panel_user_id`, `panel_name`, `content_score`, `methodology_score`, `references_score`, `format_score`, `remarks`, `result`, `overall_score`, `status`, `submitted_at`, `created_at`) VALUES
 (1, 32, 61, 491, 'Dr. Jobert Valentino', 90.00, 90.00, 90.00, 90.00, 'Final Defense evaluation completed.', 'APPROVED', 90.00, 'Submitted', '2026-08-28 08:31:36', '2026-08-28 08:31:36'),
 (2, 32, 61, 492, 'Dr. Jonathan Estrada', 90.00, 88.00, 92.00, 90.00, 'Live demo evaluation test', 'APPROVED', 90.00, 'Submitted', '2026-08-28 13:31:08', '2026-08-28 13:31:08'),
 (3, 32, 61, 493, 'Dr. Michelle Guevarra', 99.00, 99.00, 99.00, 99.00, '99', 'APPROVED', 99.00, 'Submitted', '2026-08-28 13:34:59', '2026-08-28 13:34:59'),
@@ -388,10 +388,10 @@ INSERT INTO `final_defense_evaluations` (`id`, `defense_schedule_id`, `research_
 -- --------------------------------------------------------
 
 --
--- Table structure for table `final_defense_recommendations`
+-- Table structure for table `crad_final_defense_recommendations`
 --
 
-CREATE TABLE `final_defense_recommendations` (
+CREATE TABLE `crad_final_defense_recommendations` (
   `id` int(10) UNSIGNED NOT NULL,
   `research_group_id` int(10) UNSIGNED NOT NULL,
   `group_number` varchar(40) NOT NULL DEFAULT '',
@@ -405,10 +405,10 @@ CREATE TABLE `final_defense_recommendations` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `final_defense_recommendations`
+-- Dumping data for table `crad_final_defense_recommendations`
 --
 
-INSERT INTO `final_defense_recommendations` (`id`, `research_group_id`, `group_number`, `adviser_user_id`, `adviser_name`, `status`, `remarks`, `recommended_at`, `created_at`, `updated_at`) VALUES
+INSERT INTO `crad_final_defense_recommendations` (`id`, `research_group_id`, `group_number`, `adviser_user_id`, `adviser_name`, `status`, `remarks`, `recommended_at`, `created_at`, `updated_at`) VALUES
 (1, 61, 'RG-2026-001', 54, 'Dr. Roberto M. Santos', 'Recommended', '', '2026-08-28 15:41:00', '2026-08-28 08:00:15', '2026-08-28 15:41:00'),
 (2, 62, 'RG-2026-001', 54, 'Dr. Roberto M. Santos', 'Recommended', '', '2026-08-28 15:45:21', '2026-08-28 15:44:31', '2026-08-28 15:45:21'),
 (4, 63, 'RG-2026-001', 54, 'Dr. Roberto M. Santos', 'Recommended', '', '2026-08-28 16:34:27', '2026-08-28 16:34:27', '2026-08-28 16:34:27'),
@@ -417,10 +417,10 @@ INSERT INTO `final_defense_recommendations` (`id`, `research_group_id`, `group_n
 -- --------------------------------------------------------
 
 --
--- Table structure for table `final_manuscript_approvals`
+-- Table structure for table `crad_final_manuscript_approvals`
 --
 
-CREATE TABLE `final_manuscript_approvals` (
+CREATE TABLE `crad_final_manuscript_approvals` (
   `id` int(10) UNSIGNED NOT NULL,
   `research_group_id` int(10) UNSIGNED NOT NULL,
   `defense_schedule_id` int(10) UNSIGNED DEFAULT NULL,
@@ -434,10 +434,10 @@ CREATE TABLE `final_manuscript_approvals` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `final_manuscript_approvals`
+-- Dumping data for table `crad_final_manuscript_approvals`
 --
 
-INSERT INTO `final_manuscript_approvals` (`id`, `research_group_id`, `defense_schedule_id`, `approved_by_user`, `approved_by_name`, `status`, `remarks`, `approved_at`, `created_at`, `updated_at`) VALUES
+INSERT INTO `crad_final_manuscript_approvals` (`id`, `research_group_id`, `defense_schedule_id`, `approved_by_user`, `approved_by_name`, `status`, `remarks`, `approved_at`, `created_at`, `updated_at`) VALUES
 (1, 61, 32, 3, '', 'Approved', 'Final Defense evaluations completed and approved.', '2026-08-28 13:41:26', '2026-08-28 13:41:26', '2026-08-28 13:41:26'),
 (2, 62, 38, 3, '', 'Approved', 'done', '2026-08-28 15:55:07', '2026-08-28 15:55:07', '2026-08-28 15:55:07'),
 (3, 63, 44, 3, '', 'Approved', 'done', '2026-08-28 16:39:02', '2026-08-28 16:39:02', '2026-08-28 16:39:02'),
@@ -446,10 +446,10 @@ INSERT INTO `final_manuscript_approvals` (`id`, `research_group_id`, `defense_sc
 -- --------------------------------------------------------
 
 --
--- Table structure for table `grant_applications`
+-- Table structure for table `crad_grant_applications`
 --
 
-CREATE TABLE `grant_applications` (
+CREATE TABLE `crad_grant_applications` (
   `id` int(10) UNSIGNED NOT NULL,
   `proposal_reference` varchar(30) DEFAULT NULL COMMENT 'Stable proposal ID e.g. GR-2026-001',
   `current_version` int(10) UNSIGNED NOT NULL DEFAULT 1 COMMENT 'Active proposal document version',
@@ -477,19 +477,19 @@ CREATE TABLE `grant_applications` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `grant_applications`
+-- Dumping data for table `crad_grant_applications`
 --
 
-INSERT INTO `grant_applications` (`id`, `proposal_reference`, `current_version`, `grant_opportunity_id`, `research_group_id`, `group_number`, `research_title`, `applicant_name`, `college_dept`, `requested_budget`, `abstract`, `objectives`, `proposal_pdf`, `proposal_pdf_original`, `supporting_docs`, `supporting_docs_original`, `ethics_doc`, `ethics_doc_original`, `applicant_user_id`, `application_notes`, `status`, `submission_token`, `submitted_at`, `updated_at`) VALUES
+INSERT INTO `crad_grant_applications` (`id`, `proposal_reference`, `current_version`, `grant_opportunity_id`, `research_group_id`, `group_number`, `research_title`, `applicant_name`, `college_dept`, `requested_budget`, `abstract`, `objectives`, `proposal_pdf`, `proposal_pdf_original`, `supporting_docs`, `supporting_docs_original`, `ethics_doc`, `ethics_doc_original`, `applicant_user_id`, `application_notes`, `status`, `submission_token`, `submitted_at`, `updated_at`) VALUES
 (2, 'GR-2026-001', 2, 1, NULL, NULL, 'AI ANALYSIS', 'Student User', 'College of Studies', 2900.00, 'dsada', 'asdas', 'f3f3ec4b05c99f1fbbe58278c60d4afe.pdf', 'OLIVEROS CV.pdf', 'e411ba015c79a77a27013c4206313257.pdf', 'OLIVEROS CV.pdf', '95ae712a926e7a6e5ceef81ed3ba0f14.pdf', 'OLIVEROS CV.pdf', 9, NULL, 'Under Review', 'c595e3d94db3cd0f42199da922185f07', '2026-08-31 08:46:40', '2026-08-31 08:47:21');
 
 -- --------------------------------------------------------
 
 --
--- Table structure for table `grant_opportunities`
+-- Table structure for table `crad_grant_opportunities`
 --
 
-CREATE TABLE `grant_opportunities` (
+CREATE TABLE `crad_grant_opportunities` (
   `id` int(10) UNSIGNED NOT NULL,
   `funding_title` varchar(300) NOT NULL,
   `max_funding_cap` decimal(14,2) NOT NULL DEFAULT 0.00,
@@ -504,19 +504,19 @@ CREATE TABLE `grant_opportunities` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `grant_opportunities`
+-- Dumping data for table `crad_grant_opportunities`
 --
 
-INSERT INTO `grant_opportunities` (`id`, `funding_title`, `max_funding_cap`, `application_deadline`, `eligibility`, `college_program`, `status`, `created_by_user_id`, `created_by_name`, `created_at`, `updated_at`) VALUES
+INSERT INTO `crad_grant_opportunities` (`id`, `funding_title`, `max_funding_cap`, `application_deadline`, `eligibility`, `college_program`, `status`, `created_by_user_id`, `created_by_name`, `created_at`, `updated_at`) VALUES
 (1, 'BESTLINK Faculty Seed Grant Call 2026', 350000.00, '2026-09-01', 'Faculty & Student', NULL, 'Open for Application', 3, 'CRAD Officer', '2026-08-31 06:44:48', '2026-08-31 06:44:48');
 
 -- --------------------------------------------------------
 
 --
--- Table structure for table `grant_proposal_approval_steps`
+-- Table structure for table `crad_grant_proposal_approval_steps`
 --
 
-CREATE TABLE `grant_proposal_approval_steps` (
+CREATE TABLE `crad_grant_proposal_approval_steps` (
   `id` int(10) UNSIGNED NOT NULL,
   `workflow_id` int(10) UNSIGNED NOT NULL,
   `grant_application_id` int(10) UNSIGNED NOT NULL,
@@ -535,10 +535,10 @@ CREATE TABLE `grant_proposal_approval_steps` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `grant_proposal_approval_steps`
+-- Dumping data for table `crad_grant_proposal_approval_steps`
 --
 
-INSERT INTO `grant_proposal_approval_steps` (`id`, `workflow_id`, `grant_application_id`, `step_key`, `step_order`, `step_label`, `approver_role_key`, `status`, `approver_user_id`, `approver_name`, `remarks`, `signature_data`, `acted_at`, `created_at`, `updated_at`) VALUES
+INSERT INTO `crad_grant_proposal_approval_steps` (`id`, `workflow_id`, `grant_application_id`, `step_key`, `step_order`, `step_label`, `approver_role_key`, `status`, `approver_user_id`, `approver_name`, `remarks`, `signature_data`, `acted_at`, `created_at`, `updated_at`) VALUES
 (1, 1, 2, 'adviser', 1, 'Academic Adviser', 'adviser', 'Pending', NULL, NULL, NULL, NULL, NULL, '2026-08-31 08:47:21', '2026-08-31 08:47:21'),
 (2, 1, 2, 'department_chair', 2, 'Dept. Chair', 'research_coordinator', 'Queued', NULL, NULL, NULL, NULL, NULL, '2026-08-31 08:47:21', '2026-08-31 08:47:21'),
 (3, 1, 2, 'dean', 3, 'College Dean', 'hr', 'Queued', NULL, NULL, NULL, NULL, NULL, '2026-08-31 08:47:21', '2026-08-31 08:47:21'),
@@ -548,10 +548,10 @@ INSERT INTO `grant_proposal_approval_steps` (`id`, `workflow_id`, `grant_applica
 -- --------------------------------------------------------
 
 --
--- Table structure for table `grant_proposal_approval_workflows`
+-- Table structure for table `crad_grant_proposal_approval_workflows`
 --
 
-CREATE TABLE `grant_proposal_approval_workflows` (
+CREATE TABLE `crad_grant_proposal_approval_workflows` (
   `id` int(10) UNSIGNED NOT NULL,
   `grant_application_id` int(10) UNSIGNED NOT NULL,
   `current_step_key` varchar(40) NOT NULL DEFAULT 'adviser',
@@ -562,19 +562,19 @@ CREATE TABLE `grant_proposal_approval_workflows` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `grant_proposal_approval_workflows`
+-- Dumping data for table `crad_grant_proposal_approval_workflows`
 --
 
-INSERT INTO `grant_proposal_approval_workflows` (`id`, `grant_application_id`, `current_step_key`, `workflow_status`, `started_at`, `completed_at`, `updated_at`) VALUES
+INSERT INTO `crad_grant_proposal_approval_workflows` (`id`, `grant_application_id`, `current_step_key`, `workflow_status`, `started_at`, `completed_at`, `updated_at`) VALUES
 (1, 2, 'adviser', 'In Progress', '2026-08-31 08:47:21', NULL, '2026-08-31 08:47:21');
 
 -- --------------------------------------------------------
 
 --
--- Table structure for table `grant_proposal_evaluations`
+-- Table structure for table `crad_grant_proposal_evaluations`
 --
 
-CREATE TABLE `grant_proposal_evaluations` (
+CREATE TABLE `crad_grant_proposal_evaluations` (
   `id` int(10) UNSIGNED NOT NULL,
   `grant_application_id` int(10) UNSIGNED NOT NULL,
   `proposal_version` int(10) UNSIGNED NOT NULL DEFAULT 1 COMMENT 'Proposal version evaluated',
@@ -597,10 +597,10 @@ CREATE TABLE `grant_proposal_evaluations` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `grant_proposal_evaluations`
+-- Dumping data for table `crad_grant_proposal_evaluations`
 --
 
-INSERT INTO `grant_proposal_evaluations` (`id`, `grant_application_id`, `proposal_version`, `evaluator_user_id`, `evaluator_name`, `evaluation_type`, `score_rationale`, `score_methodology`, `score_budget`, `score_team_capability`, `score_compliance`, `total_score`, `comments`, `recommendations`, `required_corrections`, `recommendation`, `revision_reason`, `submitted_at`, `updated_at`) VALUES
+INSERT INTO `crad_grant_proposal_evaluations` (`id`, `grant_application_id`, `proposal_version`, `evaluator_user_id`, `evaluator_name`, `evaluation_type`, `score_rationale`, `score_methodology`, `score_budget`, `score_team_capability`, `score_compliance`, `total_score`, `comments`, `recommendations`, `required_corrections`, `recommendation`, `revision_reason`, `submitted_at`, `updated_at`) VALUES
 (1, 1, 1, 766, 'Review Committee Member', 'committee', 25.00, 30.00, 19.00, 10.00, 5.00, 89.00, 'asdsa', 'asdas', 'asdas', NULL, NULL, '2026-08-31 07:27:00', '2026-08-31 07:27:00'),
 (2, 2, 1, 766, 'Review Committee Member', 'committee', 13.00, 13.00, 13.00, 13.00, 1.00, 53.00, 'sadas', 'asdsa', 'asdas', 'require_revisions', 'sadas', '2026-08-31 08:09:44', '2026-08-31 08:09:44'),
 (3, 2, 2, 766, 'Review Committee Member', 'committee', 25.00, 25.00, 20.00, 15.00, 10.00, 95.00, 'sadas', 'asdsa', 'adsaa', 'recommend', NULL, '2026-08-31 08:47:21', '2026-08-31 08:47:21');
@@ -608,10 +608,10 @@ INSERT INTO `grant_proposal_evaluations` (`id`, `grant_application_id`, `proposa
 -- --------------------------------------------------------
 
 --
--- Table structure for table `grant_proposal_notifications`
+-- Table structure for table `crad_grant_proposal_notifications`
 --
 
-CREATE TABLE `grant_proposal_notifications` (
+CREATE TABLE `crad_grant_proposal_notifications` (
   `id` int(10) UNSIGNED NOT NULL,
   `event_key` varchar(120) NOT NULL,
   `recipient_user_id` int(10) UNSIGNED DEFAULT NULL,
@@ -627,19 +627,19 @@ CREATE TABLE `grant_proposal_notifications` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `grant_proposal_notifications`
+-- Dumping data for table `crad_grant_proposal_notifications`
 --
 
-INSERT INTO `grant_proposal_notifications` (`id`, `event_key`, `recipient_user_id`, `recipient_role`, `recipient_email`, `grant_application_id`, `type`, `title`, `body`, `url`, `is_read`, `created_at`) VALUES
+INSERT INTO `crad_grant_proposal_notifications` (`id`, `event_key`, `recipient_user_id`, `recipient_role`, `recipient_email`, `grant_application_id`, `type`, `title`, `body`, `url`, `is_read`, `created_at`) VALUES
 (1, 'grant-proposal:grant_revision_required:2:v1:u9', 9, '', '', 2, 'grant_revision_required', 'Revise Grant Proposal', 'GR-2026-001 requires revisions. sadas Tap to revise and resubmit.', '/sms2_system/modules/crad/pages/revise-proposal.php?id=2', 1, '2026-08-31 08:46:38');
 
 -- --------------------------------------------------------
 
 --
--- Table structure for table `grant_proposal_versions`
+-- Table structure for table `crad_grant_proposal_versions`
 --
 
-CREATE TABLE `grant_proposal_versions` (
+CREATE TABLE `crad_grant_proposal_versions` (
   `id` int(10) UNSIGNED NOT NULL,
   `grant_application_id` int(10) UNSIGNED NOT NULL,
   `version_number` int(10) UNSIGNED NOT NULL,
@@ -658,10 +658,10 @@ CREATE TABLE `grant_proposal_versions` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `grant_proposal_versions`
+-- Dumping data for table `crad_grant_proposal_versions`
 --
 
-INSERT INTO `grant_proposal_versions` (`id`, `grant_application_id`, `version_number`, `version_label`, `proposal_pdf`, `proposal_pdf_original`, `supporting_docs`, `supporting_docs_original`, `ethics_doc`, `ethics_doc_original`, `abstract`, `objectives`, `researcher_notes`, `submitted_by_user_id`, `submitted_at`) VALUES
+INSERT INTO `crad_grant_proposal_versions` (`id`, `grant_application_id`, `version_number`, `version_label`, `proposal_pdf`, `proposal_pdf_original`, `supporting_docs`, `supporting_docs_original`, `ethics_doc`, `ethics_doc_original`, `abstract`, `objectives`, `researcher_notes`, `submitted_by_user_id`, `submitted_at`) VALUES
 (1, 1, 1, 'Original', '53ac796ed0ad7af6ca74703f6e4a5b41.pdf', 'OLIVEROS CV.pdf', '72706d8b5bfd82f1135557fa92faf84a.pdf', 'OLIVEROS CV.pdf', '3b1bf340d2db787753a7f77efb0fcdaf.pdf', 'OLIVEROS CV.pdf', 'adsadas', 'adsadas', NULL, 9, '2026-08-31 07:42:38'),
 (2, 2, 1, 'Original', 'b594409c59e3ba6839050c9dd63f50a6.pdf', 'OLIVEROS CV.pdf', '6a9719b97b1c60266f543bba2f313c38.pdf', 'OLIVEROS CV.pdf', '757f2e0bf3a62bd565b415570d7df5e8.pdf', 'OLIVEROS CV.pdf', 'dsada', 'asdas', NULL, 9, '2026-08-31 08:46:40'),
 (4, 2, 2, 'Revised', 'f3f3ec4b05c99f1fbbe58278c60d4afe.pdf', 'OLIVEROS CV.pdf', 'e411ba015c79a77a27013c4206313257.pdf', 'OLIVEROS CV.pdf', '95ae712a926e7a6e5ceef81ed3ba0f14.pdf', 'OLIVEROS CV.pdf', 'dsada', 'asdas', 'sada', 9, '2026-08-31 08:46:40');
@@ -669,10 +669,10 @@ INSERT INTO `grant_proposal_versions` (`id`, `grant_application_id`, `version_nu
 -- --------------------------------------------------------
 
 --
--- Table structure for table `manuscript_evaluations`
+-- Table structure for table `crad_manuscript_evaluations`
 --
 
-CREATE TABLE `manuscript_evaluations` (
+CREATE TABLE `crad_manuscript_evaluations` (
   `id` int(10) UNSIGNED NOT NULL,
   `submission_id` int(10) UNSIGNED NOT NULL,
   `research_group_id` int(10) UNSIGNED NOT NULL,
@@ -694,10 +694,10 @@ CREATE TABLE `manuscript_evaluations` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `manuscript_evaluations`
+-- Dumping data for table `crad_manuscript_evaluations`
 --
 
-INSERT INTO `manuscript_evaluations` (`id`, `submission_id`, `research_group_id`, `evaluator_user_id`, `evaluator_name`, `content_score`, `methodology_score`, `results_score`, `conclusions_score`, `recommendations_score`, `references_score`, `formatting_score`, `compliance_score`, `remarks`, `result`, `overall_score`, `evaluated_at`, `created_at`) VALUES
+INSERT INTO `crad_manuscript_evaluations` (`id`, `submission_id`, `research_group_id`, `evaluator_user_id`, `evaluator_name`, `content_score`, `methodology_score`, `results_score`, `conclusions_score`, `recommendations_score`, `references_score`, `formatting_score`, `compliance_score`, `remarks`, `result`, `overall_score`, `evaluated_at`, `created_at`) VALUES
 (1, 0, 61, 3, '', 99.00, 99.00, 99.00, 99.00, 99.00, 99.00, 99.00, 99.00, '99', 'APPROVED', 99.00, '2026-08-28 08:03:48', '2026-08-28 08:03:48'),
 (2, 2, 62, 3, '', 100.00, 100.00, 100.00, 100.00, 100.00, 100.00, 100.00, 100.00, '100', 'APPROVED', 100.00, '2026-08-28 15:45:48', '2026-08-28 15:45:48'),
 (3, 3, 63, 3, '', 100.00, 100.00, 100.00, 100.00, 100.00, 100.00, 100.00, 100.00, '100', 'APPROVED', 100.00, '2026-08-28 16:35:30', '2026-08-28 16:35:30'),
@@ -706,10 +706,10 @@ INSERT INTO `manuscript_evaluations` (`id`, `submission_id`, `research_group_id`
 -- --------------------------------------------------------
 
 --
--- Table structure for table `manuscript_submissions`
+-- Table structure for table `crad_manuscript_submissions`
 --
 
-CREATE TABLE `manuscript_submissions` (
+CREATE TABLE `crad_manuscript_submissions` (
   `id` int(10) UNSIGNED NOT NULL,
   `research_group_id` int(10) UNSIGNED NOT NULL,
   `version_number` int(10) UNSIGNED NOT NULL,
@@ -730,10 +730,10 @@ CREATE TABLE `manuscript_submissions` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `manuscript_submissions`
+-- Dumping data for table `crad_manuscript_submissions`
 --
 
-INSERT INTO `manuscript_submissions` (`id`, `research_group_id`, `version_number`, `status`, `submitted_by_user`, `submitted_by_name`, `submitted_by_email`, `submission_notes`, `original_name`, `stored_subdir`, `stored_name`, `file_size`, `file_mime`, `submission_token`, `submitted_at`, `reviewed_at`, `updated_at`) VALUES
+INSERT INTO `crad_manuscript_submissions` (`id`, `research_group_id`, `version_number`, `status`, `submitted_by_user`, `submitted_by_name`, `submitted_by_email`, `submission_notes`, `original_name`, `stored_subdir`, `stored_name`, `file_size`, `file_mime`, `submission_token`, `submitted_at`, `reviewed_at`, `updated_at`) VALUES
 (1, 61, 1, 'Approved', 9, '', 'kenlangmalakas0308@gmail.com', '', 'CRAD_Chapter_1_TO_4 (1).docx', 'manuscripts/g61', '059624a21b3ee3e8c9d5d6d6cae4d3d8.docx', 4824980, 'application/octet-stream', 'c0ba01bd7d587e02c4aac89baad005b9817863f67e132d46c53fd5a8e2f202b8', '2026-08-28 08:01:38', '2026-08-28 08:03:48', '2026-08-28 08:03:48'),
 (2, 62, 1, 'Approved', 9, '', 'kenlangmalakas0308@gmail.com', '', 'OJT_PRACTICUM_1_NARRATIVE_REPORT (1) (1).docx', 'manuscripts/g62', 'cd889c4f0fa3737edd9c7075cae72eb5.docx', 302605, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'ac45628a1a25f5f177bbcace7b945c684229993d6462e2d2dba7551d88a01198', '2026-08-28 15:45:09', '2026-08-28 15:45:48', '2026-08-28 15:45:48'),
 (3, 63, 1, 'Approved', 9, '', 'kenlangmalakas0308@gmail.com', '', 'OJT_PRACTICUM_1_NARRATIVE_REPORT (1) (1).docx', 'manuscripts/g63', 'c4d2449c98f39a5604fedf92ac2cc70e.docx', 302605, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', '4be87c933edc484ef2cddf1a86daa6e4521cc149c28b66b278d67db825ffdd44', '2026-08-28 16:34:34', '2026-08-28 16:35:30', '2026-08-28 16:35:30'),
@@ -742,10 +742,10 @@ INSERT INTO `manuscript_submissions` (`id`, `research_group_id`, `version_number
 -- --------------------------------------------------------
 
 --
--- Table structure for table `panel_assignment_notifications`
+-- Table structure for table `crad_panel_assignment_notifications`
 --
 
-CREATE TABLE `panel_assignment_notifications` (
+CREATE TABLE `crad_panel_assignment_notifications` (
   `id` int(10) UNSIGNED NOT NULL,
   `event_key` varchar(140) NOT NULL,
   `recipient_user_id` int(10) UNSIGNED NOT NULL,
@@ -761,10 +761,10 @@ CREATE TABLE `panel_assignment_notifications` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `panel_assignment_notifications`
+-- Dumping data for table `crad_panel_assignment_notifications`
 --
 
-INSERT INTO `panel_assignment_notifications` (`id`, `event_key`, `recipient_user_id`, `recipient_role`, `recipient_email`, `panel_assignment_id`, `research_group_id`, `title`, `body`, `url`, `is_read`, `created_at`) VALUES
+INSERT INTO `crad_panel_assignment_notifications` (`id`, `event_key`, `recipient_user_id`, `recipient_role`, `recipient_email`, `panel_assignment_id`, `research_group_id`, `title`, `body`, `url`, `is_read`, `created_at`) VALUES
 (19, 'preoral-panel-assignment:61:u491', 491, 'panel', 'jobertvalentino@bestlink.edu.ph', 13, 61, 'Pre-Oral Panel Assignment', 'You have been assigned as a Panel Member for Group 01\nDEVELOPMENT OF AI ANALYSIS\nDefense Phase: Pre-Oral Defense', '/sms2_system/modules/faculty/pages/assigned-defenses.php?group=RG-2026-001', 0, '2026-08-23 04:09:43'),
 (20, 'preoral-panel-assignment:61:u492', 492, 'panel', 'jonathanestrada@bestlink.edu.ph', 14, 61, 'Pre-Oral Panel Assignment', 'You have been assigned as a Panel Member for Group 01\nDEVELOPMENT OF AI ANALYSIS\nDefense Phase: Pre-Oral Defense', '/sms2_system/modules/faculty/pages/assigned-defenses.php?group=RG-2026-001', 0, '2026-08-23 04:09:43'),
 (21, 'preoral-panel-assignment:61:u493', 493, 'panel', 'michelleguevarra@bestlink.edu.ph', 15, 61, 'Pre-Oral Panel Assignment', 'You have been assigned as a Panel Member for Group 01\nDEVELOPMENT OF AI ANALYSIS\nDefense Phase: Pre-Oral Defense', '/sms2_system/modules/faculty/pages/assigned-defenses.php?group=RG-2026-001', 0, '2026-08-23 04:09:43'),
@@ -808,10 +808,10 @@ INSERT INTO `panel_assignment_notifications` (`id`, `event_key`, `recipient_user
 -- --------------------------------------------------------
 
 --
--- Table structure for table `panel_member_availability`
+-- Table structure for table `crad_panel_member_availability`
 --
 
-CREATE TABLE `panel_member_availability` (
+CREATE TABLE `crad_panel_member_availability` (
   `id` int(10) UNSIGNED NOT NULL,
   `panel_user_id` int(10) UNSIGNED NOT NULL,
   `availability_status` varchar(40) NOT NULL DEFAULT 'Pending',
@@ -821,10 +821,10 @@ CREATE TABLE `panel_member_availability` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `panel_member_availability`
+-- Dumping data for table `crad_panel_member_availability`
 --
 
-INSERT INTO `panel_member_availability` (`id`, `panel_user_id`, `availability_status`, `notes`, `updated_at`, `created_at`) VALUES
+INSERT INTO `crad_panel_member_availability` (`id`, `panel_user_id`, `availability_status`, `notes`, `updated_at`, `created_at`) VALUES
 (6, 491, 'Available', '', '2026-08-23 04:08:58', '2026-08-23 04:08:58'),
 (7, 492, 'Available', '', '2026-08-23 04:09:10', '2026-08-23 04:09:10'),
 (8, 493, 'Available', '', '2026-08-23 04:09:26', '2026-08-23 04:09:26');
@@ -832,10 +832,10 @@ INSERT INTO `panel_member_availability` (`id`, `panel_user_id`, `availability_st
 -- --------------------------------------------------------
 
 --
--- Table structure for table `preoral_defense_evaluations`
+-- Table structure for table `crad_preoral_defense_evaluations`
 --
 
-CREATE TABLE `preoral_defense_evaluations` (
+CREATE TABLE `crad_preoral_defense_evaluations` (
   `id` int(10) UNSIGNED NOT NULL,
   `defense_schedule_id` int(10) UNSIGNED NOT NULL,
   `research_group_id` int(10) UNSIGNED DEFAULT NULL,
@@ -856,10 +856,10 @@ CREATE TABLE `preoral_defense_evaluations` (
 -- --------------------------------------------------------
 
 --
--- Table structure for table `proposal_documents`
+-- Table structure for table `crad_proposal_documents`
 --
 
-CREATE TABLE `proposal_documents` (
+CREATE TABLE `crad_proposal_documents` (
   `id` int(10) UNSIGNED NOT NULL,
   `proposal_id` int(10) UNSIGNED NOT NULL,
   `doc_key` varchar(60) NOT NULL COMMENT 'Slot key: manuscript, approval, abstract, etc.',
@@ -873,10 +873,10 @@ CREATE TABLE `proposal_documents` (
 -- --------------------------------------------------------
 
 --
--- Table structure for table `proposal_drafts`
+-- Table structure for table `crad_proposal_drafts`
 --
 
-CREATE TABLE `proposal_drafts` (
+CREATE TABLE `crad_proposal_drafts` (
   `id` int(10) UNSIGNED NOT NULL,
   `student_id` varchar(50) NOT NULL,
   `user_id` int(10) UNSIGNED DEFAULT NULL COMMENT 'FK to sms2_db users (optional)',
@@ -891,10 +891,10 @@ CREATE TABLE `proposal_drafts` (
 -- --------------------------------------------------------
 
 --
--- Table structure for table `proposal_members`
+-- Table structure for table `crad_proposal_members`
 --
 
-CREATE TABLE `proposal_members` (
+CREATE TABLE `crad_proposal_members` (
   `id` int(10) UNSIGNED NOT NULL,
   `proposal_id` int(10) UNSIGNED NOT NULL,
   `sort_order` tinyint(3) UNSIGNED NOT NULL DEFAULT 1 COMMENT '1 = lead member',
@@ -907,10 +907,10 @@ CREATE TABLE `proposal_members` (
 -- --------------------------------------------------------
 
 --
--- Table structure for table `proposal_status_logs`
+-- Table structure for table `crad_proposal_status_logs`
 --
 
-CREATE TABLE `proposal_status_logs` (
+CREATE TABLE `crad_proposal_status_logs` (
   `id` int(10) UNSIGNED NOT NULL,
   `proposal_id` int(10) UNSIGNED NOT NULL,
   `old_status` varchar(30) DEFAULT NULL,
@@ -923,10 +923,10 @@ CREATE TABLE `proposal_status_logs` (
 -- --------------------------------------------------------
 
 --
--- Table structure for table `publications`
+-- Table structure for table `crad_publications`
 --
 
-CREATE TABLE `publications` (
+CREATE TABLE `crad_publications` (
   `id` int(10) UNSIGNED NOT NULL,
   `research_group_id` int(10) UNSIGNED NOT NULL,
   `title` varchar(500) NOT NULL DEFAULT '',
@@ -943,10 +943,10 @@ CREATE TABLE `publications` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `publications`
+-- Dumping data for table `crad_publications`
 --
 
-INSERT INTO `publications` (`id`, `research_group_id`, `title`, `authors`, `publication_outlet`, `publication_date`, `doi_link`, `status`, `notes`, `created_by_user`, `created_by_name`, `created_at`, `updated_at`) VALUES
+INSERT INTO `crad_publications` (`id`, `research_group_id`, `title`, `authors`, `publication_outlet`, `publication_date`, `doi_link`, `status`, `notes`, `created_by_user`, `created_by_name`, `created_at`, `updated_at`) VALUES
 (4, 62, 'DEVELOPMENT OF AI ASSISTED DOCUMENT', 'Group 01', '', '2026-08-29', 'i3o213uo1u3oi12', 'Published', '', 3, '', '2026-08-28 16:13:42', '2026-08-28 16:14:09'),
 (5, 63, 'DEVELOPMENT OF AI', 'Group 01', '', NULL, '', 'Draft', NULL, 3, '', '2026-08-28 16:39:18', '2026-08-28 16:39:18'),
 (6, 64, 'DEVELOPMENT OF AI ANALYSIS', 'Group 01', 'crad', '2026-08-31', 'http://localhost/sms2_system/modules/crad/pages/documentation-publication-management.php', 'Published', '', 3, '', '2026-08-31 06:32:29', '2026-08-31 06:33:01');
@@ -954,10 +954,10 @@ INSERT INTO `publications` (`id`, `research_group_id`, `title`, `authors`, `publ
 -- --------------------------------------------------------
 
 --
--- Table structure for table `research_adviser_assignments`
+-- Table structure for table `crad_research_adviser_assignments`
 --
 
-CREATE TABLE `research_adviser_assignments` (
+CREATE TABLE `crad_research_adviser_assignments` (
   `id` int(10) UNSIGNED NOT NULL,
   `research_group_id` int(10) UNSIGNED DEFAULT NULL,
   `proposal_id` int(10) UNSIGNED DEFAULT NULL,
@@ -979,19 +979,19 @@ CREATE TABLE `research_adviser_assignments` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `research_adviser_assignments`
+-- Dumping data for table `crad_research_adviser_assignments`
 --
 
-INSERT INTO `research_adviser_assignments` (`id`, `research_group_id`, `proposal_id`, `proposal_number`, `group_number`, `adviser_name`, `adviser_email`, `adviser_user_id`, `expertise`, `availability_status`, `assignment_status`, `notes`, `assigned_by`, `assigned_at`, `created_at`, `updated_at`, `notification_sent_at`, `notification_sent_by`) VALUES
+INSERT INTO `crad_research_adviser_assignments` (`id`, `research_group_id`, `proposal_id`, `proposal_number`, `group_number`, `adviser_name`, `adviser_email`, `adviser_user_id`, `expertise`, `availability_status`, `assignment_status`, `notes`, `assigned_by`, `assigned_at`, `created_at`, `updated_at`, `notification_sent_at`, `notification_sent_by`) VALUES
 (107, 65, NULL, 'TAP-2026-00054', 'RG-2026-001', 'Dr. Roberto M. Santos', 'rsantos@bestlink.edu.ph', 54, 'Artificial Intelligence / Machine Learning / Data Analytics / Data Analysis', 'Available', 'Assigned', 'Synced from fully approved research record.', 40, '2026-08-31 09:29:05', '2026-08-14 12:45:37', '2026-08-31 09:29:12', '2026-08-31 09:29:05', 40);
 
 -- --------------------------------------------------------
 
 --
--- Table structure for table `research_coordinator_assignments`
+-- Table structure for table `crad_research_coordinator_assignments`
 --
 
-CREATE TABLE `research_coordinator_assignments` (
+CREATE TABLE `crad_research_coordinator_assignments` (
   `id` int(10) UNSIGNED NOT NULL,
   `research_group_id` int(10) UNSIGNED DEFAULT NULL,
   `proposal_id` int(10) UNSIGNED DEFAULT NULL,
@@ -1011,19 +1011,19 @@ CREATE TABLE `research_coordinator_assignments` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `research_coordinator_assignments`
+-- Dumping data for table `crad_research_coordinator_assignments`
 --
 
-INSERT INTO `research_coordinator_assignments` (`id`, `research_group_id`, `proposal_id`, `title_approval_id`, `proposal_number`, `group_number`, `group_name`, `research_title`, `coordinator_user_id`, `coordinator_name`, `coordinator_email`, `status`, `assigned_by`, `assigned_at`, `created_at`, `updated_at`) VALUES
+INSERT INTO `crad_research_coordinator_assignments` (`id`, `research_group_id`, `proposal_id`, `title_approval_id`, `proposal_number`, `group_number`, `group_name`, `research_title`, `coordinator_user_id`, `coordinator_name`, `coordinator_email`, `status`, `assigned_by`, `assigned_at`, `created_at`, `updated_at`) VALUES
 (42, 65, NULL, 54, 'TAP-2026-00054', 'RG-2026-001', 'Group 01', 'DEVELOPMENT OF AI ANALYSIS', 40, 'Mrs. Kris Guevarra', 'researchcoordinator@bestlink.edu.ph', 'Active', 3, '2026-08-31 09:29:54', '2026-08-31 09:29:54', '2026-08-31 09:29:54');
 
 -- --------------------------------------------------------
 
 --
--- Table structure for table `research_defense_schedules`
+-- Table structure for table `crad_research_defense_schedules`
 --
 
-CREATE TABLE `research_defense_schedules` (
+CREATE TABLE `crad_research_defense_schedules` (
   `id` int(10) UNSIGNED NOT NULL,
   `research_group_id` int(10) UNSIGNED DEFAULT NULL,
   `proposal_id` int(10) UNSIGNED DEFAULT NULL,
@@ -1048,10 +1048,10 @@ CREATE TABLE `research_defense_schedules` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `research_defense_schedules`
+-- Dumping data for table `crad_research_defense_schedules`
 --
 
-INSERT INTO `research_defense_schedules` (`id`, `research_group_id`, `proposal_id`, `proposal_number`, `group_number`, `research_group`, `research_title`, `adviser_name`, `panel_members`, `panel_chair`, `venue`, `venue_id`, `defense_datetime`, `defense_end_datetime`, `defense_type`, `status`, `recorded_by`, `finalized_by`, `finalized_at`, `recorded_at`, `updated_at`) VALUES
+INSERT INTO `crad_research_defense_schedules` (`id`, `research_group_id`, `proposal_id`, `proposal_number`, `group_number`, `research_group`, `research_title`, `adviser_name`, `panel_members`, `panel_chair`, `venue`, `venue_id`, `defense_datetime`, `defense_end_datetime`, `defense_type`, `status`, `recorded_by`, `finalized_by`, `finalized_at`, `recorded_at`, `updated_at`) VALUES
 (28, 61, NULL, 'TAP-2026-00050', 'RG-2026-001', 'Group 01', 'DEVELOPMENT OF AI ANALYSIS', 'Dr. Roberto M. Santos', 'Dr. Jobert Valentino\nDr. Jonathan Estrada\nDr. Michelle Guevarra', 'Dr. Jobert Valentino', 'Computer Laboratory 1', 5, '2026-08-25 09:00:00', '2026-08-25 10:00:00', 'Pre-Oral', 'Rejected', 116, NULL, NULL, '2026-08-23 04:10:39', '2026-08-23 04:10:47'),
 (29, 61, NULL, 'TAP-2026-00050', 'RG-2026-001', 'Group 01', 'DEVELOPMENT OF AI ANALYSIS', 'Dr. Roberto M. Santos', 'Dr. Jobert Valentino\nDr. Jonathan Estrada\nDr. Michelle Guevarra', 'Dr. Jobert Valentino', 'Computer Laboratory 1', 5, '2026-08-25 11:00:00', '2026-08-25 12:00:00', 'Pre-Oral', 'Rejected', 116, NULL, NULL, '2026-08-23 04:10:39', '2026-08-23 04:10:47'),
 (30, 61, NULL, 'TAP-2026-00050', 'RG-2026-001', 'Group 01', 'DEVELOPMENT OF AI ANALYSIS', 'Dr. Roberto M. Santos', 'Dr. Jobert Valentino\nDr. Jonathan Estrada\nDr. Michelle Guevarra', 'Dr. Jobert Valentino', 'Computer Laboratory 1', 5, '2026-08-25 13:00:00', '2026-08-25 14:00:00', 'Pre-Oral', 'Finalized', 116, 116, '2026-08-23 04:10:47', '2026-08-23 04:10:39', '2026-08-23 04:10:47'),
@@ -1083,10 +1083,10 @@ INSERT INTO `research_defense_schedules` (`id`, `research_group_id`, `proposal_i
 -- --------------------------------------------------------
 
 --
--- Table structure for table `research_groups`
+-- Table structure for table `crad_research_groups`
 --
 
-CREATE TABLE `research_groups` (
+CREATE TABLE `crad_research_groups` (
   `id` int(10) UNSIGNED NOT NULL,
   `proposal_id` int(10) UNSIGNED DEFAULT NULL,
   `title_approval_id` int(10) UNSIGNED DEFAULT NULL,
@@ -1108,32 +1108,32 @@ CREATE TABLE `research_groups` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `research_groups`
+-- Dumping data for table `crad_research_groups`
 --
 
-INSERT INTO `research_groups` (`id`, `proposal_id`, `title_approval_id`, `proposal_number`, `group_number`, `group_name`, `research_title`, `college_dept`, `adviser`, `academic_year`, `leader_name`, `leader_id`, `leader_email`, `leader_contact`, `status`, `date_assigned`, `created_by`, `created_at`) VALUES
+INSERT INTO `crad_research_groups` (`id`, `proposal_id`, `title_approval_id`, `proposal_number`, `group_number`, `group_name`, `research_title`, `college_dept`, `adviser`, `academic_year`, `leader_name`, `leader_id`, `leader_email`, `leader_contact`, `status`, `date_assigned`, `created_by`, `created_at`) VALUES
 (65, NULL, 54, 'TAP-2026-00054', 'RG-2026-001', 'Group 01', 'DEVELOPMENT OF AI ANALYSIS', 'College of Computer Studies', 'Dr. Roberto M. Santos', '2026-2027', 'Student User', 'S230000001', '', '', 'Approved', '2026-09-01', 3, '2026-08-31 17:28:17');
 
 --
--- Triggers `research_groups`
+-- Triggers `crad_research_groups`
 --
 DELIMITER $$
-CREATE TRIGGER `trg_research_groups_panel_notifications_after_delete` AFTER DELETE ON `research_groups` FOR EACH ROW BEGIN
-                DELETE FROM panel_assignment_notifications
+CREATE TRIGGER `trg_research_groups_panel_notifications_after_delete` AFTER DELETE ON `crad_research_groups` FOR EACH ROW BEGIN
+                DELETE FROM crad_panel_assignment_notifications
                 WHERE research_group_id = OLD.id;
             END
 $$
 DELIMITER ;
 DELIMITER $$
-CREATE TRIGGER `trg_research_groups_preoral_evals_after_delete` AFTER DELETE ON `research_groups` FOR EACH ROW BEGIN
-                DELETE FROM preoral_defense_evaluations
+CREATE TRIGGER `trg_research_groups_preoral_evals_after_delete` AFTER DELETE ON `crad_research_groups` FOR EACH ROW BEGIN
+                DELETE FROM crad_preoral_defense_evaluations
                 WHERE research_group_id = OLD.id;
             END
 $$
 DELIMITER ;
 DELIMITER $$
-CREATE TRIGGER `trg_research_groups_preoral_evaluations_after_delete` AFTER DELETE ON `research_groups` FOR EACH ROW BEGIN
-                DELETE FROM preoral_defense_evaluations
+CREATE TRIGGER `trg_research_groups_preoral_evaluations_after_delete` AFTER DELETE ON `crad_research_groups` FOR EACH ROW BEGIN
+                DELETE FROM crad_preoral_defense_evaluations
                 WHERE research_group_id = OLD.id;
             END
 $$
@@ -1142,10 +1142,10 @@ DELIMITER ;
 -- --------------------------------------------------------
 
 --
--- Table structure for table `research_milestones`
+-- Table structure for table `crad_research_milestones`
 --
 
-CREATE TABLE `research_milestones` (
+CREATE TABLE `crad_research_milestones` (
   `id` int(10) UNSIGNED NOT NULL,
   `research_plan_id` int(10) UNSIGNED NOT NULL,
   `milestone_name` varchar(200) NOT NULL,
@@ -1165,10 +1165,10 @@ CREATE TABLE `research_milestones` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `research_milestones`
+-- Dumping data for table `crad_research_milestones`
 --
 
-INSERT INTO `research_milestones` (`id`, `research_plan_id`, `milestone_name`, `description`, `milestone_order`, `progress_percentage`, `weight`, `status`, `start_date`, `target_date`, `completed_at`, `researcher_notes`, `adviser_remarks`, `panel_remarks`, `created_at`, `updated_at`) VALUES
+INSERT INTO `crad_research_milestones` (`id`, `research_plan_id`, `milestone_name`, `description`, `milestone_order`, `progress_percentage`, `weight`, `status`, `start_date`, `target_date`, `completed_at`, `researcher_notes`, `adviser_remarks`, `panel_remarks`, `created_at`, `updated_at`) VALUES
 (175, 21, 'Chapter 4', 'Results / System Design and Development', 4, 0.00, 1.00, 'Not Started', NULL, NULL, NULL, NULL, NULL, NULL, '2026-08-23 03:47:51', '2026-08-23 03:47:51'),
 (176, 21, 'Chapter 5', 'Summary, Conclusions and Recommendations', 5, 0.00, 1.00, 'Not Started', NULL, NULL, NULL, NULL, NULL, NULL, '2026-08-23 03:47:51', '2026-08-23 03:47:51'),
 (177, 22, 'Chapter 1', 'Introduction and Background', 1, 100.00, 1.00, 'Approved', NULL, NULL, '2026-08-23 04:11:53', NULL, 'Progress approved.', 'Approved by Panel.', '2026-08-23 03:49:51', '2026-08-23 04:11:53'),
@@ -1215,10 +1215,10 @@ INSERT INTO `research_milestones` (`id`, `research_plan_id`, `milestone_name`, `
 -- --------------------------------------------------------
 
 --
--- Table structure for table `research_panel_assignments`
+-- Table structure for table `crad_research_panel_assignments`
 --
 
-CREATE TABLE `research_panel_assignments` (
+CREATE TABLE `crad_research_panel_assignments` (
   `id` int(10) UNSIGNED NOT NULL,
   `research_group_id` int(10) UNSIGNED NOT NULL,
   `defense_schedule_id` int(10) UNSIGNED DEFAULT NULL,
@@ -1241,10 +1241,10 @@ CREATE TABLE `research_panel_assignments` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `research_panel_assignments`
+-- Dumping data for table `crad_research_panel_assignments`
 --
 
-INSERT INTO `research_panel_assignments` (`id`, `research_group_id`, `defense_schedule_id`, `proposal_id`, `title_approval_id`, `proposal_number`, `group_number`, `research_title`, `panel_user_id`, `panel_name`, `panel_email`, `expertise`, `availability_status`, `assignment_status`, `defense_phase`, `assigned_by`, `assigned_at`, `created_at`, `updated_at`) VALUES
+INSERT INTO `crad_research_panel_assignments` (`id`, `research_group_id`, `defense_schedule_id`, `proposal_id`, `title_approval_id`, `proposal_number`, `group_number`, `research_title`, `panel_user_id`, `panel_name`, `panel_email`, `expertise`, `availability_status`, `assignment_status`, `defense_phase`, `assigned_by`, `assigned_at`, `created_at`, `updated_at`) VALUES
 (1, 52, NULL, NULL, 35, 'TAP-2026-00035', 'RG-2026-001', 'DEVELOPMENT OF AI ASSISTED OPEN AI GPT 5,5', 491, 'Dr. Jobert Valentino', 'jobertvalentino@bestlink.edu.ph', '', 'Available', 'Assigned', 'Pre-Oral Defense', 116, '2026-08-15 18:28:32', '2026-08-15 18:28:32', '2026-08-15 18:28:32'),
 (2, 52, NULL, NULL, 35, 'TAP-2026-00035', 'RG-2026-001', 'DEVELOPMENT OF AI ASSISTED OPEN AI GPT 5,5', 492, 'Dr. Jonathan Estrada', 'jonathanestrada@bestlink.edu.ph', '', 'Available', 'Assigned', 'Pre-Oral Defense', 116, '2026-08-15 18:28:32', '2026-08-15 18:28:32', '2026-08-15 18:28:32'),
 (3, 52, NULL, NULL, 35, 'TAP-2026-00035', 'RG-2026-001', 'DEVELOPMENT OF AI ASSISTED OPEN AI GPT 5,5', 493, 'Dr. Michelle Guevarra', 'michelleguevarra@bestlink.edu.ph', '', 'Available', 'Assigned', 'Pre-Oral Defense', 116, '2026-08-15 18:28:32', '2026-08-15 18:28:32', '2026-08-15 18:28:32'),
@@ -1288,10 +1288,10 @@ INSERT INTO `research_panel_assignments` (`id`, `research_group_id`, `defense_sc
 -- --------------------------------------------------------
 
 --
--- Table structure for table `research_plans`
+-- Table structure for table `crad_research_plans`
 --
 
-CREATE TABLE `research_plans` (
+CREATE TABLE `crad_research_plans` (
   `id` int(10) UNSIGNED NOT NULL,
   `research_group_id` int(10) UNSIGNED DEFAULT NULL COMMENT 'FK to research_groups; nullable to preserve history if group is removed',
   `research_title` varchar(500) NOT NULL DEFAULT '',
@@ -1314,10 +1314,10 @@ CREATE TABLE `research_plans` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `research_plans`
+-- Dumping data for table `crad_research_plans`
 --
 
-INSERT INTO `research_plans` (`id`, `research_group_id`, `research_title`, `group_number`, `adviser_id`, `adviser_name`, `adviser_email`, `start_date`, `target_completion_date`, `current_stage`, `overall_progress`, `status`, `created_at`, `updated_at`, `final_defense_recommended`, `final_defense_recommended_by`, `final_defense_recommended_by_name`, `final_defense_recommended_at`, `final_defense_recommendation_remarks`) VALUES
+INSERT INTO `crad_research_plans` (`id`, `research_group_id`, `research_title`, `group_number`, `adviser_id`, `adviser_name`, `adviser_email`, `start_date`, `target_completion_date`, `current_stage`, `overall_progress`, `status`, `created_at`, `updated_at`, `final_defense_recommended`, `final_defense_recommended_by`, `final_defense_recommended_by_name`, `final_defense_recommended_at`, `final_defense_recommendation_remarks`) VALUES
 (21, NULL, 'DEVELOPMENT OF AI ASSISTED', 'RG-2026-001', 54, 'Dr. Roberto M. Santos', '', '2026-08-23', NULL, 'Planning', 0.00, 'Active', '2026-08-23 03:16:21', '2026-08-23 03:46:14', 0, NULL, NULL, NULL, NULL),
 (22, NULL, 'DEVELOPMENT OF AI ANALYSIS', 'RG-2026-001', 54, 'Dr. Roberto M. Santos', '', '2026-08-23', NULL, 'Pre-Oral Defense', 100.00, 'Active', '2026-08-23 03:49:51', '2026-08-28 08:00:25', 0, NULL, NULL, NULL, NULL),
 (23, NULL, 'DEVELOPMENT OF AI ASSISTED DOCUMENT', 'RG-2026-001', 54, 'Dr. Roberto M. Santos', '', '2026-08-28', NULL, 'Pre-Oral Defense', 100.00, 'Active', '2026-08-28 15:30:09', '2026-08-28 16:05:34', 1, 54, 'Dr. Roberto M. Santos', '2026-08-28 15:45:21', ''),
@@ -1328,10 +1328,10 @@ INSERT INTO `research_plans` (`id`, `research_group_id`, `research_title`, `grou
 -- --------------------------------------------------------
 
 --
--- Table structure for table `research_progress_activity_logs`
+-- Table structure for table `crad_research_progress_activity_logs`
 --
 
-CREATE TABLE `research_progress_activity_logs` (
+CREATE TABLE `crad_research_progress_activity_logs` (
   `id` int(10) UNSIGNED NOT NULL,
   `research_plan_id` int(10) UNSIGNED NOT NULL,
   `user_id` int(10) UNSIGNED DEFAULT NULL COMMENT 'FK to sms2_db users',
@@ -1347,10 +1347,10 @@ CREATE TABLE `research_progress_activity_logs` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `research_progress_activity_logs`
+-- Dumping data for table `crad_research_progress_activity_logs`
 --
 
-INSERT INTO `research_progress_activity_logs` (`id`, `research_plan_id`, `user_id`, `user_name`, `user_role`, `action`, `entity_type`, `entity_id`, `old_value`, `new_value`, `description`, `created_at`) VALUES
+INSERT INTO `crad_research_progress_activity_logs` (`id`, `research_plan_id`, `user_id`, `user_name`, `user_role`, `action`, `entity_type`, `entity_id`, `old_value`, `new_value`, `description`, `created_at`) VALUES
 (79, 21, 9, 'Student User', 'student', 'progress_updated', 'progress_update', 43, NULL, NULL, 'Progress updated to 0%', '2026-08-23 03:16:35'),
 (90, 22, 9, 'Student User', 'student', 'progress_updated', 'progress_update', 53, NULL, NULL, 'Progress updated to 0%', '2026-08-23 03:49:58'),
 (91, 22, 9, 'Student User', 'student', 'progress_updated', 'progress_update', 54, NULL, NULL, 'Progress updated to 0%', '2026-08-23 03:50:08'),
@@ -1433,10 +1433,10 @@ INSERT INTO `research_progress_activity_logs` (`id`, `research_plan_id`, `user_i
 -- --------------------------------------------------------
 
 --
--- Table structure for table `research_progress_attachments`
+-- Table structure for table `crad_research_progress_attachments`
 --
 
-CREATE TABLE `research_progress_attachments` (
+CREATE TABLE `crad_research_progress_attachments` (
   `id` int(10) UNSIGNED NOT NULL,
   `progress_update_id` int(10) UNSIGNED NOT NULL,
   `file_name` varchar(300) NOT NULL,
@@ -1448,10 +1448,10 @@ CREATE TABLE `research_progress_attachments` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `research_progress_attachments`
+-- Dumping data for table `crad_research_progress_attachments`
 --
 
-INSERT INTO `research_progress_attachments` (`id`, `progress_update_id`, `file_name`, `file_path`, `file_type`, `file_size`, `uploaded_by`, `created_at`) VALUES
+INSERT INTO `crad_research_progress_attachments` (`id`, `progress_update_id`, `file_name`, `file_path`, `file_type`, `file_size`, `uploaded_by`, `created_at`) VALUES
 (34, 43, 'CRAD_Chapter_1_TO_4_KULANG-PA.docx', 'F:\\xampp\\htdocs\\SMS2_system/storage/uploads/research_progress/g60/u9/09a62b2daa1cce84684a82782b95b7df.docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 7734354, 9, '2026-08-23 03:16:35'),
 (41, 53, 'OJT_PRACTICUM_1_NARRATIVE_REPORT (1) (1).docx', 'F:\\xampp\\htdocs\\SMS2_system/storage/uploads/research_progress/g61/u9/df3f82b96645757c73e791012ab36dc4.docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 236268, 9, '2026-08-23 03:49:58'),
 (42, 54, 'OJT_PRACTICUM_1_NARRATIVE_REPORT (1) (1).docx', 'F:\\xampp\\htdocs\\SMS2_system/storage/uploads/research_progress/g61/u9/c17c49e54baa55cad91e60bd58bcad92.docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 236268, 9, '2026-08-23 03:50:08'),
@@ -1496,10 +1496,10 @@ INSERT INTO `research_progress_attachments` (`id`, `progress_update_id`, `file_n
 -- --------------------------------------------------------
 
 --
--- Table structure for table `research_progress_feedback`
+-- Table structure for table `crad_research_progress_feedback`
 --
 
-CREATE TABLE `research_progress_feedback` (
+CREATE TABLE `crad_research_progress_feedback` (
   `id` int(10) UNSIGNED NOT NULL,
   `progress_update_id` int(10) UNSIGNED DEFAULT NULL COMMENT 'Can be NULL for general milestone feedback',
   `milestone_id` int(10) UNSIGNED DEFAULT NULL,
@@ -1515,10 +1515,10 @@ CREATE TABLE `research_progress_feedback` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `research_progress_feedback`
+-- Dumping data for table `crad_research_progress_feedback`
 --
 
-INSERT INTO `research_progress_feedback` (`id`, `progress_update_id`, `milestone_id`, `research_plan_id`, `adviser_user_id`, `adviser_name`, `feedback_text`, `new_milestone_status`, `submission_token`, `feedback_type`, `created_at`, `updated_at`) VALUES
+INSERT INTO `crad_research_progress_feedback` (`id`, `progress_update_id`, `milestone_id`, `research_plan_id`, `adviser_user_id`, `adviser_name`, `feedback_text`, `new_milestone_status`, `submission_token`, `feedback_type`, `created_at`, `updated_at`) VALUES
 (36, 53, 177, 22, 54, 'Dr. Roberto M. Santos', 'Progress approved.', 'Approved', 'cbab7e8bb4297eed5707494db5aca072', 'Progress Approved', '2026-08-23 03:50:29', '2026-08-23 03:50:29'),
 (37, 54, 178, 22, 54, 'Dr. Roberto M. Santos', 'Progress approved.', 'Approved', '3db8eccb296ff187522dda8d89406e2e', 'Progress Approved', '2026-08-23 03:50:36', '2026-08-23 03:50:36'),
 (38, 55, 179, 22, 54, 'Dr. Roberto M. Santos', 'Progress approved.', 'Approved', '2e9d9355eb6a72370d738e70531d8dbb', 'Progress Approved', '2026-08-23 03:50:45', '2026-08-23 03:50:45'),
@@ -1559,12 +1559,12 @@ INSERT INTO `research_progress_feedback` (`id`, `progress_update_id`, `milestone
 -- --------------------------------------------------------
 
 --
--- Table structure for table `research_progress_notifications`
+-- Table structure for table `crad_research_progress_notifications`
 --
 
-CREATE TABLE `research_progress_notifications` (
+CREATE TABLE `crad_research_progress_notifications` (
   `id` int(10) UNSIGNED NOT NULL,
-  `recipient_user_id` int(10) UNSIGNED DEFAULT NULL COMMENT 'FK to sms2_db.users.id (NULL = role-based)',
+  `recipient_user_id` int(10) UNSIGNED DEFAULT NULL COMMENT 'FK to sms_users.id (NULL = role-based)',
   `recipient_email` varchar(200) NOT NULL DEFAULT '',
   `recipient_role` varchar(40) NOT NULL DEFAULT '',
   `batch_key` varchar(100) NOT NULL DEFAULT '' COMMENT 'Unique key per event for deduplication',
@@ -1580,10 +1580,10 @@ CREATE TABLE `research_progress_notifications` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `research_progress_notifications`
+-- Dumping data for table `crad_research_progress_notifications`
 --
 
-INSERT INTO `research_progress_notifications` (`id`, `recipient_user_id`, `recipient_email`, `recipient_role`, `batch_key`, `notification_type`, `title`, `body`, `related_entity_type`, `related_entity_id`, `action_url`, `status`, `created_at`, `read_at`) VALUES
+INSERT INTO `crad_research_progress_notifications` (`id`, `recipient_user_id`, `recipient_email`, `recipient_role`, `batch_key`, `notification_type`, `title`, `body`, `related_entity_type`, `related_entity_id`, `action_url`, `status`, `created_at`, `read_at`) VALUES
 (50, 54, 'rsantos@bestlink.edu.ph', 'adviser', 'progress_update:53', 'progress_update', 'New Progress Update', 'RG-2026-001 submitted a progress update for Chapter 1', 'progress_update', 53, '/sms2_system/modules/crad/modules/faculty/pages/research-progress.php?group=RG-2026-001', 'unread', '2026-08-23 03:49:58', NULL),
 (51, 54, 'rsantos@bestlink.edu.ph', 'adviser', 'progress_update:54', 'progress_update', 'New Progress Update', 'RG-2026-001 submitted a progress update for Chapter 2', 'progress_update', 54, '/sms2_system/modules/crad/modules/faculty/pages/research-progress.php?group=RG-2026-001', 'unread', '2026-08-23 03:50:08', NULL),
 (52, 54, 'rsantos@bestlink.edu.ph', 'adviser', 'progress_update:55', 'progress_update', 'New Progress Update', 'RG-2026-001 submitted a progress update for Chapter 3', 'progress_update', 55, '/sms2_system/modules/crad/modules/faculty/pages/research-progress.php?group=RG-2026-001', 'unread', '2026-08-23 03:50:18', NULL),
@@ -1665,10 +1665,10 @@ INSERT INTO `research_progress_notifications` (`id`, `recipient_user_id`, `recip
 -- --------------------------------------------------------
 
 --
--- Table structure for table `research_progress_updates`
+-- Table structure for table `crad_research_progress_updates`
 --
 
-CREATE TABLE `research_progress_updates` (
+CREATE TABLE `crad_research_progress_updates` (
   `id` int(10) UNSIGNED NOT NULL,
   `research_plan_id` int(10) UNSIGNED NOT NULL,
   `research_group_id` int(10) UNSIGNED NOT NULL,
@@ -1690,10 +1690,10 @@ CREATE TABLE `research_progress_updates` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `research_progress_updates`
+-- Dumping data for table `crad_research_progress_updates`
 --
 
-INSERT INTO `research_progress_updates` (`id`, `research_plan_id`, `research_group_id`, `milestone_id`, `submitted_by_user_id`, `submitted_by_name`, `update_title`, `accomplishments`, `problems_blockers`, `next_planned_activity`, `attachment_path`, `attachment_original_name`, `submission_token`, `previous_progress`, `new_progress`, `milestone_status`, `submitted_at`, `updated_at`) VALUES
+INSERT INTO `crad_research_progress_updates` (`id`, `research_plan_id`, `research_group_id`, `milestone_id`, `submitted_by_user_id`, `submitted_by_name`, `update_title`, `accomplishments`, `problems_blockers`, `next_planned_activity`, `attachment_path`, `attachment_original_name`, `submission_token`, `previous_progress`, `new_progress`, `milestone_status`, `submitted_at`, `updated_at`) VALUES
 (43, 21, 60, NULL, 9, 'Student User', 'DEVELOPMENT OF AI ASSISTED', 'sadas', '', 'asdas', 'F:\\xampp\\htdocs\\SMS2_system/storage/uploads/research_progress/g60/u9/09a62b2daa1cce84684a82782b95b7df.docx', 'CRAD_Chapter_1_TO_4_KULANG-PA.docx', '8f3692e45ee0853f66293b2ec969314d', 0.00, 0.00, 'Submitted for Review', '2026-08-23 03:16:35', '2026-08-23 03:16:35'),
 (53, 22, 61, 177, 9, 'Student User', 'DEVELOPMENT OF AI ANALYSIS', 'SADAS', '', 'ASDA', 'F:\\xampp\\htdocs\\SMS2_system/storage/uploads/research_progress/g61/u9/df3f82b96645757c73e791012ab36dc4.docx', 'OJT_PRACTICUM_1_NARRATIVE_REPORT (1) (1).docx', 'e90bcc3cc197bb965809cb9c2e0e3080', 0.00, 0.00, 'Approved', '2026-08-23 03:49:58', '2026-08-23 03:50:29'),
 (54, 22, 61, 178, 9, 'Student User', 'DEVELOPMENT OF AI ANALYSIS', 'ADSAD', '', 'ASDAS', 'F:\\xampp\\htdocs\\SMS2_system/storage/uploads/research_progress/g61/u9/c17c49e54baa55cad91e60bd58bcad92.docx', 'OJT_PRACTICUM_1_NARRATIVE_REPORT (1) (1).docx', '7972c30afb20aa7a048bbb0f1d2c3da3', 0.00, 0.00, 'Approved', '2026-08-23 03:50:08', '2026-08-23 03:50:36'),
@@ -1740,10 +1740,10 @@ INSERT INTO `research_progress_updates` (`id`, `research_plan_id`, `research_gro
 -- --------------------------------------------------------
 
 --
--- Table structure for table `research_proposals`
+-- Table structure for table `crad_research_proposals`
 --
 
-CREATE TABLE `research_proposals` (
+CREATE TABLE `crad_research_proposals` (
   `id` int(10) UNSIGNED NOT NULL,
   `ref_code` varchar(30) NOT NULL COMMENT 'Auto-generated reference e.g. CRD-2026-00001',
   `proposal_number` varchar(30) DEFAULT NULL COMMENT 'Official number generated after approved proposal registration',
@@ -1773,10 +1773,10 @@ CREATE TABLE `research_proposals` (
 -- --------------------------------------------------------
 
 --
--- Table structure for table `research_revision_cycles`
+-- Table structure for table `crad_research_revision_cycles`
 --
 
-CREATE TABLE `research_revision_cycles` (
+CREATE TABLE `crad_research_revision_cycles` (
   `id` int(10) UNSIGNED NOT NULL,
   `research_group_id` int(10) UNSIGNED NOT NULL,
   `defense_schedule_id` int(10) UNSIGNED NOT NULL,
@@ -1797,10 +1797,10 @@ CREATE TABLE `research_revision_cycles` (
 -- --------------------------------------------------------
 
 --
--- Table structure for table `research_venues`
+-- Table structure for table `crad_research_venues`
 --
 
-CREATE TABLE `research_venues` (
+CREATE TABLE `crad_research_venues` (
   `id` int(10) UNSIGNED NOT NULL,
   `venue_name` varchar(160) NOT NULL,
   `capacity` int(10) UNSIGNED NOT NULL DEFAULT 0,
@@ -1812,10 +1812,10 @@ CREATE TABLE `research_venues` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `research_venues`
+-- Dumping data for table `crad_research_venues`
 --
 
-INSERT INTO `research_venues` (`id`, `venue_name`, `capacity`, `venue_type`, `status`, `created_by`, `created_at`, `updated_at`) VALUES
+INSERT INTO `crad_research_venues` (`id`, `venue_name`, `capacity`, `venue_type`, `status`, `created_by`, `created_at`, `updated_at`) VALUES
 (1, 'CRAD Conference Room', 30, 'Conference Room', 'Available', NULL, '2026-08-10 13:50:31', '2026-08-10 13:50:31'),
 (2, 'Research Room 1', 25, 'Research Room', 'Available', NULL, '2026-08-10 13:50:31', '2026-08-10 13:50:31'),
 (3, 'Research Room 2', 25, 'Research Room', 'Available', NULL, '2026-08-10 13:50:31', '2026-08-10 13:50:31'),
@@ -1825,10 +1825,10 @@ INSERT INTO `research_venues` (`id`, `venue_name`, `capacity`, `venue_type`, `st
 -- --------------------------------------------------------
 
 --
--- Table structure for table `title_approvals`
+-- Table structure for table `crad_title_approvals`
 --
 
-CREATE TABLE `title_approvals` (
+CREATE TABLE `crad_title_approvals` (
   `id` int(10) UNSIGNED NOT NULL,
   `student_id` varchar(50) NOT NULL DEFAULT '',
   `student_user_id` int(10) UNSIGNED DEFAULT NULL,
@@ -1863,18 +1863,18 @@ CREATE TABLE `title_approvals` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `title_approvals`
+-- Dumping data for table `crad_title_approvals`
 --
 
-INSERT INTO `title_approvals` (`id`, `student_id`, `student_user_id`, `student_name`, `submission_date`, `department`, `proposed_title`, `discipline_cluster`, `primary_sdg`, `research_agenda`, `sdg_justification`, `members_json`, `adviser_name`, `adviser_email`, `coordinator_name`, `proposal_number`, `status`, `adviser_remarks`, `adviser_signature_data`, `coordinator_status`, `coordinator_remarks`, `coordinator_screening_json`, `coordinator_signature_data`, `coordinator_reviewed_at`, `crad_status`, `crad_signature_data`, `crad_reviewed_at`, `sent_at`, `reviewed_at`, `created_at`, `updated_at`) VALUES
+INSERT INTO `crad_title_approvals` (`id`, `student_id`, `student_user_id`, `student_name`, `submission_date`, `department`, `proposed_title`, `discipline_cluster`, `primary_sdg`, `research_agenda`, `sdg_justification`, `members_json`, `adviser_name`, `adviser_email`, `coordinator_name`, `proposal_number`, `status`, `adviser_remarks`, `adviser_signature_data`, `coordinator_status`, `coordinator_remarks`, `coordinator_screening_json`, `coordinator_signature_data`, `coordinator_reviewed_at`, `crad_status`, `crad_signature_data`, `crad_reviewed_at`, `sent_at`, `reviewed_at`, `created_at`, `updated_at`) VALUES
 (54, 'S230000001', 9, 'Student User', '2026-09-01', 'College of Computer Studies', 'DEVELOPMENT OF AI ANALYSIS', 'Engineering, Information Technology, and Computing', 'SDG 9 — Industry, Innovation and Infrastructure', 'Science, Technology, Digital Transformation, and Innovation', 'adadsadasdasda', '[[\"User, Student A.\",\"BSIT 4101\",\"OR-2646376\"]]', 'Dr. Roberto M. Santos', 'rsantos@bestlink.edu.ph', 'Mrs. Kris Guevarra', 'TAP-2026-00054', 'Approved', NULL, 'data:image/png;base64,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', 'Approved', NULL, '{\"agenda_alignment\":\"yes\",\"feasible_original\":\"yes\",\"ethical_sdg\":\"yes\"}', 'data:image/png;base64,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', '2026-08-31 09:27:29', 'Approved', 'data:image/png;base64,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', '2026-08-31 09:28:12', '2026-08-31 09:26:24', '2026-08-31 09:26:37', '2026-08-31 09:26:24', '2026-08-31 09:28:17');
 
 --
--- Triggers `title_approvals`
+-- Triggers `crad_title_approvals`
 --
 DELIMITER $$
-CREATE TRIGGER `trg_title_approvals_after_delete` AFTER DELETE ON `title_approvals` FOR EACH ROW BEGIN
-            UPDATE research_adviser_assignments a
+CREATE TRIGGER `trg_title_approvals_after_delete` AFTER DELETE ON `crad_title_approvals` FOR EACH ROW BEGIN
+            UPDATE crad_research_adviser_assignments a
                SET a.assignment_status = 'Pending'
              WHERE a.assignment_status = 'Assigned'
                AND (
@@ -1884,14 +1884,14 @@ CREATE TRIGGER `trg_title_approvals_after_delete` AFTER DELETE ON `title_approva
                  OR (a.research_group_id IS NOT NULL
                      AND a.research_group_id IN (
                         SELECT g.id
-                        FROM research_groups g
+                        FROM crad_research_groups g
                         WHERE g.title_approval_id = OLD.id
                      ))
                  OR (a.group_number IS NOT NULL
                      AND a.group_number <> ''
                      AND a.group_number IN (
                         SELECT g2.group_number
-                        FROM research_groups g2
+                        FROM crad_research_groups g2
                         WHERE g2.title_approval_id = OLD.id
                      ))
                );
@@ -1904,9 +1904,9 @@ DELIMITER ;
 --
 
 --
--- Indexes for table `chapter_evaluations`
+-- Indexes for table `crad_chapter_evaluations`
 --
-ALTER TABLE `chapter_evaluations`
+ALTER TABLE `crad_chapter_evaluations`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_chapter_evaluation_submission` (`submission_id`),
   ADD KEY `idx_chapter_eval_evaluator` (`evaluator_user_id`),
@@ -1914,9 +1914,9 @@ ALTER TABLE `chapter_evaluations`
   ADD KEY `idx_chapter_eval_created` (`created_at`);
 
 --
--- Indexes for table `chapter_evaluation_notifications`
+-- Indexes for table `crad_chapter_evaluation_notifications`
 --
-ALTER TABLE `chapter_evaluation_notifications`
+ALTER TABLE `crad_chapter_evaluation_notifications`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_chapter_notification_event` (`event_key`),
   ADD KEY `idx_chapter_notification_recipient` (`recipient_user_id`,`recipient_role`,`recipient_email`),
@@ -1924,9 +1924,9 @@ ALTER TABLE `chapter_evaluation_notifications`
   ADD KEY `idx_chapter_notification_created` (`created_at`);
 
 --
--- Indexes for table `chapter_submissions`
+-- Indexes for table `crad_chapter_submissions`
 --
-ALTER TABLE `chapter_submissions`
+ALTER TABLE `crad_chapter_submissions`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_chapter_version` (`research_group_id`,`chapter_number`,`version_number`),
   ADD UNIQUE KEY `uniq_chapter_token` (`submission_token`),
@@ -1936,18 +1936,18 @@ ALTER TABLE `chapter_submissions`
   ADD KEY `idx_chapter_updated` (`updated_at`);
 
 --
--- Indexes for table `chapter_submission_history`
+-- Indexes for table `crad_chapter_submission_history`
 --
-ALTER TABLE `chapter_submission_history`
+ALTER TABLE `crad_chapter_submission_history`
   ADD PRIMARY KEY (`id`),
   ADD KEY `idx_chapter_history_submission` (`submission_id`),
   ADD KEY `idx_chapter_history_group` (`research_group_id`),
   ADD KEY `idx_chapter_history_created` (`created_at`);
 
 --
--- Indexes for table `final_defense_evaluations`
+-- Indexes for table `crad_final_defense_evaluations`
 --
-ALTER TABLE `final_defense_evaluations`
+ALTER TABLE `crad_final_defense_evaluations`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_final_panel_submission` (`defense_schedule_id`,`panel_user_id`),
   ADD KEY `idx_final_group` (`research_group_id`),
@@ -1955,24 +1955,24 @@ ALTER TABLE `final_defense_evaluations`
   ADD KEY `idx_final_status` (`status`);
 
 --
--- Indexes for table `final_defense_recommendations`
+-- Indexes for table `crad_final_defense_recommendations`
 --
-ALTER TABLE `final_defense_recommendations`
+ALTER TABLE `crad_final_defense_recommendations`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_fdr_group` (`research_group_id`),
   ADD KEY `idx_fdr_status` (`status`);
 
 --
--- Indexes for table `final_manuscript_approvals`
+-- Indexes for table `crad_final_manuscript_approvals`
 --
-ALTER TABLE `final_manuscript_approvals`
+ALTER TABLE `crad_final_manuscript_approvals`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_fma_group` (`research_group_id`);
 
 --
--- Indexes for table `grant_applications`
+-- Indexes for table `crad_grant_applications`
 --
-ALTER TABLE `grant_applications`
+ALTER TABLE `crad_grant_applications`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_ga_token` (`submission_token`),
   ADD KEY `idx_ga_opportunity` (`grant_opportunity_id`),
@@ -1981,18 +1981,18 @@ ALTER TABLE `grant_applications`
   ADD KEY `idx_ga_submitted` (`submitted_at`);
 
 --
--- Indexes for table `grant_opportunities`
+-- Indexes for table `crad_grant_opportunities`
 --
-ALTER TABLE `grant_opportunities`
+ALTER TABLE `crad_grant_opportunities`
   ADD PRIMARY KEY (`id`),
   ADD KEY `idx_go_status` (`status`),
   ADD KEY `idx_go_deadline` (`application_deadline`),
   ADD KEY `idx_go_created_by` (`created_by_user_id`);
 
 --
--- Indexes for table `grant_proposal_approval_steps`
+-- Indexes for table `crad_grant_proposal_approval_steps`
 --
-ALTER TABLE `grant_proposal_approval_steps`
+ALTER TABLE `crad_grant_proposal_approval_steps`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_gpas_workflow_step` (`workflow_id`,`step_key`),
   ADD KEY `idx_gpas_application` (`grant_application_id`),
@@ -2000,18 +2000,18 @@ ALTER TABLE `grant_proposal_approval_steps`
   ADD KEY `idx_gpas_role` (`approver_role_key`);
 
 --
--- Indexes for table `grant_proposal_approval_workflows`
+-- Indexes for table `crad_grant_proposal_approval_workflows`
 --
-ALTER TABLE `grant_proposal_approval_workflows`
+ALTER TABLE `crad_grant_proposal_approval_workflows`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_gpaw_application` (`grant_application_id`),
   ADD KEY `idx_gpaw_status` (`workflow_status`),
   ADD KEY `idx_gpaw_current_step` (`current_step_key`);
 
 --
--- Indexes for table `grant_proposal_evaluations`
+-- Indexes for table `crad_grant_proposal_evaluations`
 --
-ALTER TABLE `grant_proposal_evaluations`
+ALTER TABLE `crad_grant_proposal_evaluations`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_gpe_app_eval_ver` (`grant_application_id`,`evaluator_user_id`,`proposal_version`),
   ADD KEY `idx_gpe_application` (`grant_application_id`),
@@ -2019,9 +2019,9 @@ ALTER TABLE `grant_proposal_evaluations`
   ADD KEY `idx_gpe_submitted` (`submitted_at`);
 
 --
--- Indexes for table `grant_proposal_notifications`
+-- Indexes for table `crad_grant_proposal_notifications`
 --
-ALTER TABLE `grant_proposal_notifications`
+ALTER TABLE `crad_grant_proposal_notifications`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_gpn_event` (`event_key`),
   ADD KEY `idx_gpn_recipient_user` (`recipient_user_id`),
@@ -2029,26 +2029,26 @@ ALTER TABLE `grant_proposal_notifications`
   ADD KEY `idx_gpn_created` (`created_at`);
 
 --
--- Indexes for table `grant_proposal_versions`
+-- Indexes for table `crad_grant_proposal_versions`
 --
-ALTER TABLE `grant_proposal_versions`
+ALTER TABLE `crad_grant_proposal_versions`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_gpv_app_ver` (`grant_application_id`,`version_number`),
   ADD KEY `idx_gpv_application` (`grant_application_id`),
   ADD KEY `idx_gpv_submitted` (`submitted_at`);
 
 --
--- Indexes for table `manuscript_evaluations`
+-- Indexes for table `crad_manuscript_evaluations`
 --
-ALTER TABLE `manuscript_evaluations`
+ALTER TABLE `crad_manuscript_evaluations`
   ADD PRIMARY KEY (`id`),
   ADD KEY `idx_meval_submission` (`submission_id`),
   ADD KEY `idx_meval_group` (`research_group_id`);
 
 --
--- Indexes for table `manuscript_submissions`
+-- Indexes for table `crad_manuscript_submissions`
 --
-ALTER TABLE `manuscript_submissions`
+ALTER TABLE `crad_manuscript_submissions`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_manuscript_version` (`research_group_id`,`version_number`),
   ADD UNIQUE KEY `uniq_manuscript_token` (`submission_token`),
@@ -2056,26 +2056,26 @@ ALTER TABLE `manuscript_submissions`
   ADD KEY `idx_manuscript_group` (`research_group_id`);
 
 --
--- Indexes for table `panel_assignment_notifications`
+-- Indexes for table `crad_panel_assignment_notifications`
 --
-ALTER TABLE `panel_assignment_notifications`
+ALTER TABLE `crad_panel_assignment_notifications`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_panel_assignment_notification` (`event_key`),
   ADD KEY `idx_panel_notification_recipient` (`recipient_user_id`,`recipient_role`,`recipient_email`),
   ADD KEY `idx_panel_notification_created` (`created_at`);
 
 --
--- Indexes for table `panel_member_availability`
+-- Indexes for table `crad_panel_member_availability`
 --
-ALTER TABLE `panel_member_availability`
+ALTER TABLE `crad_panel_member_availability`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_panel_availability_user` (`panel_user_id`),
   ADD KEY `idx_panel_availability_status` (`availability_status`);
 
 --
--- Indexes for table `preoral_defense_evaluations`
+-- Indexes for table `crad_preoral_defense_evaluations`
 --
-ALTER TABLE `preoral_defense_evaluations`
+ALTER TABLE `crad_preoral_defense_evaluations`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_preoral_panel_submission` (`defense_schedule_id`,`panel_user_id`),
   ADD KEY `idx_preoral_group` (`research_group_id`),
@@ -2083,45 +2083,45 @@ ALTER TABLE `preoral_defense_evaluations`
   ADD KEY `idx_preoral_status` (`status`);
 
 --
--- Indexes for table `proposal_documents`
+-- Indexes for table `crad_proposal_documents`
 --
-ALTER TABLE `proposal_documents`
+ALTER TABLE `crad_proposal_documents`
   ADD PRIMARY KEY (`id`),
   ADD KEY `idx_pd_proposal` (`proposal_id`);
 
 --
--- Indexes for table `proposal_drafts`
+-- Indexes for table `crad_proposal_drafts`
 --
-ALTER TABLE `proposal_drafts`
+ALTER TABLE `crad_proposal_drafts`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_proposal_draft_student_type` (`student_id`,`form_type`);
 
 --
--- Indexes for table `proposal_members`
+-- Indexes for table `crad_proposal_members`
 --
-ALTER TABLE `proposal_members`
+ALTER TABLE `crad_proposal_members`
   ADD PRIMARY KEY (`id`),
   ADD KEY `idx_proposal` (`proposal_id`);
 
 --
--- Indexes for table `proposal_status_logs`
+-- Indexes for table `crad_proposal_status_logs`
 --
-ALTER TABLE `proposal_status_logs`
+ALTER TABLE `crad_proposal_status_logs`
   ADD PRIMARY KEY (`id`),
   ADD KEY `idx_psl_proposal` (`proposal_id`);
 
 --
--- Indexes for table `publications`
+-- Indexes for table `crad_publications`
 --
-ALTER TABLE `publications`
+ALTER TABLE `crad_publications`
   ADD PRIMARY KEY (`id`),
   ADD KEY `idx_pub_group` (`research_group_id`),
   ADD KEY `idx_pub_status` (`status`);
 
 --
--- Indexes for table `research_adviser_assignments`
+-- Indexes for table `crad_research_adviser_assignments`
 --
-ALTER TABLE `research_adviser_assignments`
+ALTER TABLE `crad_research_adviser_assignments`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_raa_adviser_identity` (`adviser_email`,`adviser_name`),
   ADD KEY `idx_raa_group` (`research_group_id`),
@@ -2131,9 +2131,9 @@ ALTER TABLE `research_adviser_assignments`
   ADD KEY `idx_raa_user` (`adviser_user_id`);
 
 --
--- Indexes for table `research_coordinator_assignments`
+-- Indexes for table `crad_research_coordinator_assignments`
 --
-ALTER TABLE `research_coordinator_assignments`
+ALTER TABLE `crad_research_coordinator_assignments`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_rca_group_number` (`group_number`),
   ADD UNIQUE KEY `uniq_rca_group_coordinator` (`research_group_id`,`coordinator_user_id`),
@@ -2142,9 +2142,9 @@ ALTER TABLE `research_coordinator_assignments`
   ADD KEY `idx_rca_status` (`status`);
 
 --
--- Indexes for table `research_defense_schedules`
+-- Indexes for table `crad_research_defense_schedules`
 --
-ALTER TABLE `research_defense_schedules`
+ALTER TABLE `crad_research_defense_schedules`
   ADD PRIMARY KEY (`id`),
   ADD KEY `idx_rds_proposal_number` (`proposal_number`),
   ADD KEY `idx_rds_status` (`status`),
@@ -2154,9 +2154,9 @@ ALTER TABLE `research_defense_schedules`
   ADD KEY `idx_rds_group_number` (`group_number`);
 
 --
--- Indexes for table `research_groups`
+-- Indexes for table `crad_research_groups`
 --
-ALTER TABLE `research_groups`
+ALTER TABLE `crad_research_groups`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `group_number` (`group_number`),
   ADD UNIQUE KEY `proposal_id` (`proposal_id`),
@@ -2164,9 +2164,9 @@ ALTER TABLE `research_groups`
   ADD KEY `idx_rg_proposal_number` (`proposal_number`);
 
 --
--- Indexes for table `research_milestones`
+-- Indexes for table `crad_research_milestones`
 --
-ALTER TABLE `research_milestones`
+ALTER TABLE `crad_research_milestones`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_rm_plan_name` (`research_plan_id`,`milestone_name`),
   ADD KEY `idx_rm_plan` (`research_plan_id`),
@@ -2174,9 +2174,9 @@ ALTER TABLE `research_milestones`
   ADD KEY `idx_rm_sequence` (`research_plan_id`,`milestone_order`);
 
 --
--- Indexes for table `research_panel_assignments`
+-- Indexes for table `crad_research_panel_assignments`
 --
-ALTER TABLE `research_panel_assignments`
+ALTER TABLE `crad_research_panel_assignments`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_panel_assignment_phase` (`research_group_id`,`panel_user_id`,`defense_phase`),
   ADD KEY `idx_panel_assignment_group` (`research_group_id`),
@@ -2185,9 +2185,9 @@ ALTER TABLE `research_panel_assignments`
   ADD KEY `idx_panel_assignment_schedule` (`defense_schedule_id`);
 
 --
--- Indexes for table `research_plans`
+-- Indexes for table `crad_research_plans`
 --
-ALTER TABLE `research_plans`
+ALTER TABLE `crad_research_plans`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_rp_group` (`research_group_id`),
   ADD KEY `idx_rp_group_number` (`group_number`),
@@ -2195,9 +2195,9 @@ ALTER TABLE `research_plans`
   ADD KEY `idx_rp_status` (`status`);
 
 --
--- Indexes for table `research_progress_activity_logs`
+-- Indexes for table `crad_research_progress_activity_logs`
 --
-ALTER TABLE `research_progress_activity_logs`
+ALTER TABLE `crad_research_progress_activity_logs`
   ADD PRIMARY KEY (`id`),
   ADD KEY `idx_rpal_plan` (`research_plan_id`),
   ADD KEY `idx_rpal_user` (`user_id`),
@@ -2206,17 +2206,17 @@ ALTER TABLE `research_progress_activity_logs`
   ADD KEY `idx_rpal_created` (`created_at`);
 
 --
--- Indexes for table `research_progress_attachments`
+-- Indexes for table `crad_research_progress_attachments`
 --
-ALTER TABLE `research_progress_attachments`
+ALTER TABLE `crad_research_progress_attachments`
   ADD PRIMARY KEY (`id`),
   ADD KEY `idx_rpa_update` (`progress_update_id`),
   ADD KEY `idx_rpa_uploaded` (`uploaded_by`);
 
 --
--- Indexes for table `research_progress_feedback`
+-- Indexes for table `crad_research_progress_feedback`
 --
-ALTER TABLE `research_progress_feedback`
+ALTER TABLE `crad_research_progress_feedback`
   ADD PRIMARY KEY (`id`),
   ADD KEY `idx_rpf_update` (`progress_update_id`),
   ADD KEY `idx_rpf_milestone` (`milestone_id`),
@@ -2228,9 +2228,9 @@ ALTER TABLE `research_progress_feedback`
   ADD KEY `idx_rpf_plan_type` (`research_plan_id`,`feedback_type`);
 
 --
--- Indexes for table `research_progress_notifications`
+-- Indexes for table `crad_research_progress_notifications`
 --
-ALTER TABLE `research_progress_notifications`
+ALTER TABLE `crad_research_progress_notifications`
   ADD PRIMARY KEY (`id`),
   ADD KEY `idx_rpn_recipient_user` (`recipient_user_id`),
   ADD KEY `idx_rpn_recipient_email` (`recipient_email`),
@@ -2240,9 +2240,9 @@ ALTER TABLE `research_progress_notifications`
   ADD KEY `idx_rpn_created` (`created_at`);
 
 --
--- Indexes for table `research_progress_updates`
+-- Indexes for table `crad_research_progress_updates`
 --
-ALTER TABLE `research_progress_updates`
+ALTER TABLE `crad_research_progress_updates`
   ADD PRIMARY KEY (`id`),
   ADD KEY `idx_rpu_plan` (`research_plan_id`),
   ADD KEY `idx_rpu_milestone` (`milestone_id`),
@@ -2254,9 +2254,9 @@ ALTER TABLE `research_progress_updates`
   ADD KEY `idx_rpu_plan_submitted` (`research_plan_id`,`submitted_at`);
 
 --
--- Indexes for table `research_proposals`
+-- Indexes for table `crad_research_proposals`
 --
-ALTER TABLE `research_proposals`
+ALTER TABLE `crad_research_proposals`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `ref_code` (`ref_code`),
   ADD UNIQUE KEY `proposal_number` (`proposal_number`),
@@ -2265,26 +2265,26 @@ ALTER TABLE `research_proposals`
   ADD KEY `idx_submitted` (`date_submitted`);
 
 --
--- Indexes for table `research_revision_cycles`
+-- Indexes for table `crad_research_revision_cycles`
 --
-ALTER TABLE `research_revision_cycles`
+ALTER TABLE `crad_research_revision_cycles`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_rrc_schedule` (`defense_schedule_id`),
   ADD KEY `idx_rrc_group` (`research_group_id`),
   ADD KEY `idx_rrc_status` (`revision_status`);
 
 --
--- Indexes for table `research_venues`
+-- Indexes for table `crad_research_venues`
 --
-ALTER TABLE `research_venues`
+ALTER TABLE `crad_research_venues`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_research_venue_name` (`venue_name`),
   ADD KEY `idx_research_venues_status` (`status`);
 
 --
--- Indexes for table `title_approvals`
+-- Indexes for table `crad_title_approvals`
 --
-ALTER TABLE `title_approvals`
+ALTER TABLE `crad_title_approvals`
   ADD PRIMARY KEY (`id`),
   ADD KEY `idx_ta_student_id` (`student_id`),
   ADD KEY `idx_ta_adviser_email` (`adviser_email`(100)),
@@ -2297,243 +2297,243 @@ ALTER TABLE `title_approvals`
 --
 
 --
--- AUTO_INCREMENT for table `chapter_evaluations`
+-- AUTO_INCREMENT for table `crad_chapter_evaluations`
 --
-ALTER TABLE `chapter_evaluations`
+ALTER TABLE `crad_chapter_evaluations`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=40;
 
 --
--- AUTO_INCREMENT for table `chapter_evaluation_notifications`
+-- AUTO_INCREMENT for table `crad_chapter_evaluation_notifications`
 --
-ALTER TABLE `chapter_evaluation_notifications`
+ALTER TABLE `crad_chapter_evaluation_notifications`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=126;
 
 --
--- AUTO_INCREMENT for table `chapter_submissions`
+-- AUTO_INCREMENT for table `crad_chapter_submissions`
 --
-ALTER TABLE `chapter_submissions`
+ALTER TABLE `crad_chapter_submissions`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=44;
 
 --
--- AUTO_INCREMENT for table `chapter_submission_history`
+-- AUTO_INCREMENT for table `crad_chapter_submission_history`
 --
-ALTER TABLE `chapter_submission_history`
+ALTER TABLE `crad_chapter_submission_history`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=123;
 
 --
--- AUTO_INCREMENT for table `final_defense_evaluations`
+-- AUTO_INCREMENT for table `crad_final_defense_evaluations`
 --
-ALTER TABLE `final_defense_evaluations`
+ALTER TABLE `crad_final_defense_evaluations`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
 
 --
--- AUTO_INCREMENT for table `final_defense_recommendations`
+-- AUTO_INCREMENT for table `crad_final_defense_recommendations`
 --
-ALTER TABLE `final_defense_recommendations`
+ALTER TABLE `crad_final_defense_recommendations`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
--- AUTO_INCREMENT for table `final_manuscript_approvals`
+-- AUTO_INCREMENT for table `crad_final_manuscript_approvals`
 --
-ALTER TABLE `final_manuscript_approvals`
+ALTER TABLE `crad_final_manuscript_approvals`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
--- AUTO_INCREMENT for table `grant_applications`
+-- AUTO_INCREMENT for table `crad_grant_applications`
 --
-ALTER TABLE `grant_applications`
+ALTER TABLE `crad_grant_applications`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
--- AUTO_INCREMENT for table `grant_opportunities`
+-- AUTO_INCREMENT for table `crad_grant_opportunities`
 --
-ALTER TABLE `grant_opportunities`
+ALTER TABLE `crad_grant_opportunities`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
--- AUTO_INCREMENT for table `grant_proposal_approval_steps`
+-- AUTO_INCREMENT for table `crad_grant_proposal_approval_steps`
 --
-ALTER TABLE `grant_proposal_approval_steps`
+ALTER TABLE `crad_grant_proposal_approval_steps`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
--- AUTO_INCREMENT for table `grant_proposal_approval_workflows`
+-- AUTO_INCREMENT for table `crad_grant_proposal_approval_workflows`
 --
-ALTER TABLE `grant_proposal_approval_workflows`
+ALTER TABLE `crad_grant_proposal_approval_workflows`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
--- AUTO_INCREMENT for table `grant_proposal_evaluations`
+-- AUTO_INCREMENT for table `crad_grant_proposal_evaluations`
 --
-ALTER TABLE `grant_proposal_evaluations`
+ALTER TABLE `crad_grant_proposal_evaluations`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
--- AUTO_INCREMENT for table `grant_proposal_notifications`
+-- AUTO_INCREMENT for table `crad_grant_proposal_notifications`
 --
-ALTER TABLE `grant_proposal_notifications`
+ALTER TABLE `crad_grant_proposal_notifications`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=79;
 
 --
--- AUTO_INCREMENT for table `grant_proposal_versions`
+-- AUTO_INCREMENT for table `crad_grant_proposal_versions`
 --
-ALTER TABLE `grant_proposal_versions`
+ALTER TABLE `crad_grant_proposal_versions`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
--- AUTO_INCREMENT for table `manuscript_evaluations`
+-- AUTO_INCREMENT for table `crad_manuscript_evaluations`
 --
-ALTER TABLE `manuscript_evaluations`
+ALTER TABLE `crad_manuscript_evaluations`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
--- AUTO_INCREMENT for table `manuscript_submissions`
+-- AUTO_INCREMENT for table `crad_manuscript_submissions`
 --
-ALTER TABLE `manuscript_submissions`
+ALTER TABLE `crad_manuscript_submissions`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
--- AUTO_INCREMENT for table `panel_assignment_notifications`
+-- AUTO_INCREMENT for table `crad_panel_assignment_notifications`
 --
-ALTER TABLE `panel_assignment_notifications`
+ALTER TABLE `crad_panel_assignment_notifications`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=61;
 
 --
--- AUTO_INCREMENT for table `panel_member_availability`
+-- AUTO_INCREMENT for table `crad_panel_member_availability`
 --
-ALTER TABLE `panel_member_availability`
+ALTER TABLE `crad_panel_member_availability`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
 
 --
--- AUTO_INCREMENT for table `preoral_defense_evaluations`
+-- AUTO_INCREMENT for table `crad_preoral_defense_evaluations`
 --
-ALTER TABLE `preoral_defense_evaluations`
+ALTER TABLE `crad_preoral_defense_evaluations`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=37;
 
 --
--- AUTO_INCREMENT for table `proposal_documents`
+-- AUTO_INCREMENT for table `crad_proposal_documents`
 --
-ALTER TABLE `proposal_documents`
+ALTER TABLE `crad_proposal_documents`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=204;
 
 --
--- AUTO_INCREMENT for table `proposal_drafts`
+-- AUTO_INCREMENT for table `crad_proposal_drafts`
 --
-ALTER TABLE `proposal_drafts`
+ALTER TABLE `crad_proposal_drafts`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=23;
 
 --
--- AUTO_INCREMENT for table `proposal_members`
+-- AUTO_INCREMENT for table `crad_proposal_members`
 --
-ALTER TABLE `proposal_members`
+ALTER TABLE `crad_proposal_members`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=38;
 
 --
--- AUTO_INCREMENT for table `proposal_status_logs`
+-- AUTO_INCREMENT for table `crad_proposal_status_logs`
 --
-ALTER TABLE `proposal_status_logs`
+ALTER TABLE `crad_proposal_status_logs`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=148;
 
 --
--- AUTO_INCREMENT for table `publications`
+-- AUTO_INCREMENT for table `crad_publications`
 --
-ALTER TABLE `publications`
+ALTER TABLE `crad_publications`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
--- AUTO_INCREMENT for table `research_adviser_assignments`
+-- AUTO_INCREMENT for table `crad_research_adviser_assignments`
 --
-ALTER TABLE `research_adviser_assignments`
+ALTER TABLE `crad_research_adviser_assignments`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=108;
 
 --
--- AUTO_INCREMENT for table `research_coordinator_assignments`
+-- AUTO_INCREMENT for table `crad_research_coordinator_assignments`
 --
-ALTER TABLE `research_coordinator_assignments`
+ALTER TABLE `crad_research_coordinator_assignments`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=43;
 
 --
--- AUTO_INCREMENT for table `research_defense_schedules`
+-- AUTO_INCREMENT for table `crad_research_defense_schedules`
 --
-ALTER TABLE `research_defense_schedules`
+ALTER TABLE `crad_research_defense_schedules`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=55;
 
 --
--- AUTO_INCREMENT for table `research_groups`
+-- AUTO_INCREMENT for table `crad_research_groups`
 --
-ALTER TABLE `research_groups`
+ALTER TABLE `crad_research_groups`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=66;
 
 --
--- AUTO_INCREMENT for table `research_milestones`
+-- AUTO_INCREMENT for table `crad_research_milestones`
 --
-ALTER TABLE `research_milestones`
+ALTER TABLE `crad_research_milestones`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=217;
 
 --
--- AUTO_INCREMENT for table `research_panel_assignments`
+-- AUTO_INCREMENT for table `crad_research_panel_assignments`
 --
-ALTER TABLE `research_panel_assignments`
+ALTER TABLE `crad_research_panel_assignments`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=40;
 
 --
--- AUTO_INCREMENT for table `research_plans`
+-- AUTO_INCREMENT for table `crad_research_plans`
 --
-ALTER TABLE `research_plans`
+ALTER TABLE `crad_research_plans`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=27;
 
 --
--- AUTO_INCREMENT for table `research_progress_activity_logs`
+-- AUTO_INCREMENT for table `crad_research_progress_activity_logs`
 --
-ALTER TABLE `research_progress_activity_logs`
+ALTER TABLE `crad_research_progress_activity_logs`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=167;
 
 --
--- AUTO_INCREMENT for table `research_progress_attachments`
+-- AUTO_INCREMENT for table `crad_research_progress_attachments`
 --
-ALTER TABLE `research_progress_attachments`
+ALTER TABLE `crad_research_progress_attachments`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=80;
 
 --
--- AUTO_INCREMENT for table `research_progress_feedback`
+-- AUTO_INCREMENT for table `crad_research_progress_feedback`
 --
-ALTER TABLE `research_progress_feedback`
+ALTER TABLE `crad_research_progress_feedback`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=72;
 
 --
--- AUTO_INCREMENT for table `research_progress_notifications`
+-- AUTO_INCREMENT for table `crad_research_progress_notifications`
 --
-ALTER TABLE `research_progress_notifications`
+ALTER TABLE `crad_research_progress_notifications`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=127;
 
 --
--- AUTO_INCREMENT for table `research_progress_updates`
+-- AUTO_INCREMENT for table `crad_research_progress_updates`
 --
-ALTER TABLE `research_progress_updates`
+ALTER TABLE `crad_research_progress_updates`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=94;
 
 --
--- AUTO_INCREMENT for table `research_proposals`
+-- AUTO_INCREMENT for table `crad_research_proposals`
 --
-ALTER TABLE `research_proposals`
+ALTER TABLE `crad_research_proposals`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=28;
 
 --
--- AUTO_INCREMENT for table `research_revision_cycles`
+-- AUTO_INCREMENT for table `crad_research_revision_cycles`
 --
-ALTER TABLE `research_revision_cycles`
+ALTER TABLE `crad_research_revision_cycles`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
--- AUTO_INCREMENT for table `research_venues`
+-- AUTO_INCREMENT for table `crad_research_venues`
 --
-ALTER TABLE `research_venues`
+ALTER TABLE `crad_research_venues`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13772;
 
 --
--- AUTO_INCREMENT for table `title_approvals`
+-- AUTO_INCREMENT for table `crad_title_approvals`
 --
-ALTER TABLE `title_approvals`
+ALTER TABLE `crad_title_approvals`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=55;
 
 --
@@ -2541,85 +2541,85 @@ ALTER TABLE `title_approvals`
 --
 
 --
--- Constraints for table `proposal_documents`
+-- Constraints for table `crad_proposal_documents`
 --
-ALTER TABLE `proposal_documents`
-  ADD CONSTRAINT `fk_pd_proposal` FOREIGN KEY (`proposal_id`) REFERENCES `research_proposals` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `crad_proposal_documents`
+  ADD CONSTRAINT `fk_pd_proposal` FOREIGN KEY (`proposal_id`) REFERENCES `crad_research_proposals` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 --
--- Constraints for table `proposal_members`
+-- Constraints for table `crad_proposal_members`
 --
-ALTER TABLE `proposal_members`
-  ADD CONSTRAINT `fk_pm_proposal` FOREIGN KEY (`proposal_id`) REFERENCES `research_proposals` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `crad_proposal_members`
+  ADD CONSTRAINT `fk_pm_proposal` FOREIGN KEY (`proposal_id`) REFERENCES `crad_research_proposals` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 --
--- Constraints for table `proposal_status_logs`
+-- Constraints for table `crad_proposal_status_logs`
 --
-ALTER TABLE `proposal_status_logs`
-  ADD CONSTRAINT `fk_psl_proposal` FOREIGN KEY (`proposal_id`) REFERENCES `research_proposals` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `crad_proposal_status_logs`
+  ADD CONSTRAINT `fk_psl_proposal` FOREIGN KEY (`proposal_id`) REFERENCES `crad_research_proposals` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 --
--- Constraints for table `research_adviser_assignments`
+-- Constraints for table `crad_research_adviser_assignments`
 --
-ALTER TABLE `research_adviser_assignments`
-  ADD CONSTRAINT `fk_raa_proposal` FOREIGN KEY (`proposal_id`) REFERENCES `research_proposals` (`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE `crad_research_adviser_assignments`
+  ADD CONSTRAINT `fk_raa_proposal` FOREIGN KEY (`proposal_id`) REFERENCES `crad_research_proposals` (`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 --
--- Constraints for table `research_coordinator_assignments`
+-- Constraints for table `crad_research_coordinator_assignments`
 --
-ALTER TABLE `research_coordinator_assignments`
-  ADD CONSTRAINT `fk_rca_title_approval` FOREIGN KEY (`title_approval_id`) REFERENCES `title_approvals` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `crad_research_coordinator_assignments`
+  ADD CONSTRAINT `fk_rca_title_approval` FOREIGN KEY (`title_approval_id`) REFERENCES `crad_title_approvals` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 --
--- Constraints for table `research_defense_schedules`
+-- Constraints for table `crad_research_defense_schedules`
 --
-ALTER TABLE `research_defense_schedules`
-  ADD CONSTRAINT `fk_rds_proposal` FOREIGN KEY (`proposal_id`) REFERENCES `research_proposals` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `crad_research_defense_schedules`
+  ADD CONSTRAINT `fk_rds_proposal` FOREIGN KEY (`proposal_id`) REFERENCES `crad_research_proposals` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 --
--- Constraints for table `research_groups`
+-- Constraints for table `crad_research_groups`
 --
-ALTER TABLE `research_groups`
-  ADD CONSTRAINT `fk_rg_title_approval` FOREIGN KEY (`title_approval_id`) REFERENCES `title_approvals` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `crad_research_groups`
+  ADD CONSTRAINT `fk_rg_title_approval` FOREIGN KEY (`title_approval_id`) REFERENCES `crad_title_approvals` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 --
--- Constraints for table `research_milestones`
+-- Constraints for table `crad_research_milestones`
 --
-ALTER TABLE `research_milestones`
-  ADD CONSTRAINT `fk_rm_research_plan` FOREIGN KEY (`research_plan_id`) REFERENCES `research_plans` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `crad_research_milestones`
+  ADD CONSTRAINT `fk_rm_research_plan` FOREIGN KEY (`research_plan_id`) REFERENCES `crad_research_plans` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 --
--- Constraints for table `research_plans`
+-- Constraints for table `crad_research_plans`
 --
-ALTER TABLE `research_plans`
-  ADD CONSTRAINT `fk_rp_research_group` FOREIGN KEY (`research_group_id`) REFERENCES `research_groups` (`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE `crad_research_plans`
+  ADD CONSTRAINT `fk_rp_research_group` FOREIGN KEY (`research_group_id`) REFERENCES `crad_research_groups` (`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 --
--- Constraints for table `research_progress_activity_logs`
+-- Constraints for table `crad_research_progress_activity_logs`
 --
-ALTER TABLE `research_progress_activity_logs`
-  ADD CONSTRAINT `fk_rpal_research_plan` FOREIGN KEY (`research_plan_id`) REFERENCES `research_plans` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `crad_research_progress_activity_logs`
+  ADD CONSTRAINT `fk_rpal_research_plan` FOREIGN KEY (`research_plan_id`) REFERENCES `crad_research_plans` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 --
--- Constraints for table `research_progress_attachments`
+-- Constraints for table `crad_research_progress_attachments`
 --
-ALTER TABLE `research_progress_attachments`
-  ADD CONSTRAINT `fk_rpa_progress_update` FOREIGN KEY (`progress_update_id`) REFERENCES `research_progress_updates` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `crad_research_progress_attachments`
+  ADD CONSTRAINT `fk_rpa_progress_update` FOREIGN KEY (`progress_update_id`) REFERENCES `crad_research_progress_updates` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 --
--- Constraints for table `research_progress_feedback`
+-- Constraints for table `crad_research_progress_feedback`
 --
-ALTER TABLE `research_progress_feedback`
-  ADD CONSTRAINT `fk_rpf_milestone` FOREIGN KEY (`milestone_id`) REFERENCES `research_milestones` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
-  ADD CONSTRAINT `fk_rpf_progress_update` FOREIGN KEY (`progress_update_id`) REFERENCES `research_progress_updates` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
-  ADD CONSTRAINT `fk_rpf_research_plan` FOREIGN KEY (`research_plan_id`) REFERENCES `research_plans` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `crad_research_progress_feedback`
+  ADD CONSTRAINT `fk_rpf_milestone` FOREIGN KEY (`milestone_id`) REFERENCES `crad_research_milestones` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  ADD CONSTRAINT `fk_rpf_progress_update` FOREIGN KEY (`progress_update_id`) REFERENCES `crad_research_progress_updates` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  ADD CONSTRAINT `fk_rpf_research_plan` FOREIGN KEY (`research_plan_id`) REFERENCES `crad_research_plans` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 --
--- Constraints for table `research_progress_updates`
+-- Constraints for table `crad_research_progress_updates`
 --
-ALTER TABLE `research_progress_updates`
-  ADD CONSTRAINT `fk_rpu_milestone` FOREIGN KEY (`milestone_id`) REFERENCES `research_milestones` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
-  ADD CONSTRAINT `fk_rpu_research_plan` FOREIGN KEY (`research_plan_id`) REFERENCES `research_plans` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `crad_research_progress_updates`
+  ADD CONSTRAINT `fk_rpu_milestone` FOREIGN KEY (`milestone_id`) REFERENCES `crad_research_milestones` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  ADD CONSTRAINT `fk_rpu_research_plan` FOREIGN KEY (`research_plan_id`) REFERENCES `crad_research_plans` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

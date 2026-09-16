@@ -107,36 +107,36 @@ function rdPanelReadySql(): string
                     COALESCE(ch3.updated_at, '1000-01-01 00:00:00'),
                     COALESCE(MAX(rpa.updated_at), '1000-01-01 00:00:00')
                 ) AS updated_at
-             FROM research_groups rg
-             INNER JOIN chapter_submissions ch1 ON ch1.id = (
-                SELECT cs1.id FROM chapter_submissions cs1
+             FROM crad_research_groups rg
+             INNER JOIN crad_chapter_submissions ch1 ON ch1.id = (
+                SELECT cs1.id FROM crad_chapter_submissions cs1
                 WHERE cs1.research_group_id = rg.id AND cs1.chapter_number = 1
                 ORDER BY cs1.version_number DESC, cs1.id DESC LIMIT 1
              )
-             INNER JOIN chapter_evaluations ce1 ON ce1.submission_id = ch1.id
-             INNER JOIN chapter_submissions ch2 ON ch2.id = (
-                SELECT cs2.id FROM chapter_submissions cs2
+             INNER JOIN crad_chapter_evaluations ce1 ON ce1.submission_id = ch1.id
+             INNER JOIN crad_chapter_submissions ch2 ON ch2.id = (
+                SELECT cs2.id FROM crad_chapter_submissions cs2
                 WHERE cs2.research_group_id = rg.id AND cs2.chapter_number = 2
                 ORDER BY cs2.version_number DESC, cs2.id DESC LIMIT 1
              )
-             INNER JOIN chapter_evaluations ce2 ON ce2.submission_id = ch2.id
-             INNER JOIN chapter_submissions ch3 ON ch3.id = (
-                SELECT cs3.id FROM chapter_submissions cs3
+             INNER JOIN crad_chapter_evaluations ce2 ON ce2.submission_id = ch2.id
+             INNER JOIN crad_chapter_submissions ch3 ON ch3.id = (
+                SELECT cs3.id FROM crad_chapter_submissions cs3
                 WHERE cs3.research_group_id = rg.id AND cs3.chapter_number = 3
                 ORDER BY cs3.version_number DESC, cs3.id DESC LIMIT 1
              )
-             INNER JOIN chapter_evaluations ce3 ON ce3.submission_id = ch3.id
-             LEFT JOIN research_adviser_assignments raa ON raa.id = (
-                SELECT raa2.id FROM research_adviser_assignments raa2
+             INNER JOIN crad_chapter_evaluations ce3 ON ce3.submission_id = ch3.id
+             LEFT JOIN crad_research_adviser_assignments raa ON raa.id = (
+                SELECT raa2.id FROM crad_research_adviser_assignments raa2
                 WHERE raa2.assignment_status IN ('Assigned', 'Confirmed')
                   AND ((raa2.research_group_id IS NOT NULL AND raa2.research_group_id = rg.id)
                     OR (raa2.group_number IS NOT NULL AND raa2.group_number <> '' AND raa2.group_number = rg.group_number))
                 ORDER BY (raa2.assignment_status = 'Confirmed') DESC, raa2.updated_at DESC, raa2.id DESC LIMIT 1
              )
-             LEFT JOIN research_panel_assignments rpa
+             LEFT JOIN crad_research_panel_assignments rpa
                ON rpa.research_group_id = rg.id
               AND " . rdPanelActiveAssignmentSql('rpa') . "
-             LEFT JOIN sms2_db.users u ON u.id = rpa.panel_user_id
+             LEFT JOIN sms_users u ON u.id = rpa.panel_user_id
              WHERE ch1.status = 'Accepted'
                AND ch2.status = 'Accepted'
                AND ch3.status = 'Accepted'
@@ -211,7 +211,7 @@ function rdPanelFacultyRows(): array
 
     $rows = $sms->query(
         "SELECT id, full_name, username, email
-         FROM users
+         FROM sms_users
          WHERE role_key = 'panel'
            AND status = 'active'
          ORDER BY full_name ASC"
@@ -221,9 +221,9 @@ function rdPanelFacultyRows(): array
         return $rows;
     }
 
-    $availabilityStmt = $crad->prepare("SELECT availability_status, notes FROM panel_member_availability WHERE panel_user_id = ?");
+    $availabilityStmt = $crad->prepare("SELECT availability_status, notes FROM crad_panel_member_availability WHERE panel_user_id = ?");
     $loadStmt = $crad->prepare(
-        "SELECT COUNT(*) FROM research_panel_assignments
+        "SELECT COUNT(*) FROM crad_research_panel_assignments
          WHERE panel_user_id = ? AND assignment_status = 'Assigned' AND defense_phase = 'Pre-Oral Defense'"
     );
     foreach ($rows as &$row) {
@@ -418,9 +418,9 @@ function rdPanelAssignedRows(int $groupId): array
                     COALESCE(NULLIF(pma.availability_status, ''), NULLIF(rpa.availability_status, ''), 'Assigned') AS availability_status,
                     rpa.assignment_status,
                     rpa.assigned_at
-             FROM research_panel_assignments rpa
-             LEFT JOIN sms2_db.users u ON u.id = rpa.panel_user_id
-             LEFT JOIN panel_member_availability pma ON pma.panel_user_id = rpa.panel_user_id
+             FROM crad_research_panel_assignments rpa
+             LEFT JOIN sms_users u ON u.id = rpa.panel_user_id
+             LEFT JOIN crad_panel_member_availability pma ON pma.panel_user_id = rpa.panel_user_id
              WHERE rpa.research_group_id = ?
                AND " . rdPanelActiveAssignmentSql('rpa') . "
              ORDER BY rpa.assigned_at ASC, rpa.id ASC"
@@ -471,7 +471,7 @@ function rdPanelAssign(array $data): array
     try {
         $crad->beginTransaction();
         $deactivate = $crad->prepare(
-            "UPDATE research_panel_assignments
+            "UPDATE crad_research_panel_assignments
              SET assignment_status = 'Removed', updated_at = NOW()
              WHERE research_group_id = ?
                AND defense_phase = 'Pre-Oral Defense'
@@ -482,7 +482,7 @@ function rdPanelAssign(array $data): array
 
         $findAssignment = $crad->prepare(
             "SELECT id
-             FROM research_panel_assignments
+             FROM crad_research_panel_assignments
              WHERE research_group_id = ?
                AND panel_user_id = ?
                AND defense_phase = 'Pre-Oral Defense'
@@ -490,7 +490,7 @@ function rdPanelAssign(array $data): array
              LIMIT 1"
         );
         $removeDuplicates = $crad->prepare(
-            "UPDATE research_panel_assignments
+            "UPDATE crad_research_panel_assignments
              SET assignment_status = 'Removed', updated_at = NOW()
              WHERE research_group_id = ?
                AND panel_user_id = ?
@@ -498,7 +498,7 @@ function rdPanelAssign(array $data): array
                AND id <> ?"
         );
         $updateAssignment = $crad->prepare(
-            "UPDATE research_panel_assignments
+            "UPDATE crad_research_panel_assignments
              SET proposal_id = :proposal_id,
                  title_approval_id = :title_approval_id,
                  proposal_number = :proposal_number,
@@ -515,7 +515,7 @@ function rdPanelAssign(array $data): array
              WHERE id = :id"
         );
         $insert = $crad->prepare(
-            "INSERT INTO research_panel_assignments
+            "INSERT INTO crad_research_panel_assignments
                 (research_group_id, defense_schedule_id, proposal_id, title_approval_id, proposal_number,
                  group_number, research_title, panel_user_id, panel_name, panel_email, expertise,
                  availability_status, assignment_status, defense_phase, assigned_by, assigned_at, created_at, updated_at)
@@ -525,7 +525,7 @@ function rdPanelAssign(array $data): array
                  :availability_status, 'Assigned', 'Pre-Oral Defense', :assigned_by, NOW(), NOW(), NOW())"
         );
         $notify = $crad->prepare(
-            "INSERT IGNORE INTO panel_assignment_notifications
+            "INSERT IGNORE INTO crad_panel_assignment_notifications
                 (event_key, recipient_user_id, recipient_role, recipient_email, panel_assignment_id,
                  research_group_id, title, body, url, is_read, created_at)
              VALUES

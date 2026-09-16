@@ -182,8 +182,8 @@ function handleGetGroupProgress(PDO $crad, int $adviserUserId, string $adviserEm
         SELECT 
             rpu.*,
             rm.milestone_name
-        FROM research_progress_updates rpu
-        LEFT JOIN research_milestones rm ON rm.id = rpu.milestone_id
+        FROM crad_research_progress_updates rpu
+        LEFT JOIN crad_research_milestones rm ON rm.id = rpu.milestone_id
         WHERE rpu.research_group_id = ?
         ORDER BY rpu.submitted_at DESC
         LIMIT 20
@@ -199,9 +199,9 @@ function handleGetGroupProgress(PDO $crad, int $adviserUserId, string $adviserEm
                 rpf.*,
                 rm.milestone_name,
                 rpu.update_title
-            FROM research_progress_feedback rpf
-            INNER JOIN research_progress_updates rpu ON rpu.id = rpf.progress_update_id
-            LEFT JOIN research_milestones rm ON rm.id = rpf.milestone_id
+            FROM crad_research_progress_feedback rpf
+            INNER JOIN crad_research_progress_updates rpu ON rpu.id = rpf.progress_update_id
+            LEFT JOIN crad_research_milestones rm ON rm.id = rpf.milestone_id
             WHERE rpf.research_plan_id = ?
             ORDER BY rpf.created_at DESC
             LIMIT 20
@@ -240,12 +240,12 @@ function handleGetProgressUpdates(PDO $crad, int $adviserUserId, string $adviser
             rg.research_title,
             rpa.id AS attachment_id,
             rpa.file_name AS attachment_name,
-            (SELECT COUNT(*) FROM research_progress_feedback WHERE progress_update_id = rpu.id) as feedback_count
-        FROM research_progress_updates rpu
-        INNER JOIN research_groups rg ON rg.id = rpu.research_group_id
-        INNER JOIN research_adviser_assignments raa ON raa.id = (
+            (SELECT COUNT(*) FROM crad_research_progress_feedback WHERE progress_update_id = rpu.id) as feedback_count
+        FROM crad_research_progress_updates rpu
+        INNER JOIN crad_research_groups rg ON rg.id = rpu.research_group_id
+        INNER JOIN crad_research_adviser_assignments raa ON raa.id = (
             SELECT raa2.id
-            FROM research_adviser_assignments raa2
+            FROM crad_research_adviser_assignments raa2
             WHERE {$assignmentMatch}
               AND {$identitySql}
               AND {$statusSql}
@@ -255,10 +255,10 @@ function handleGetProgressUpdates(PDO $crad, int $adviserUserId, string $adviser
                      raa2.id DESC
             LIMIT 1
         )
-        LEFT JOIN research_milestones rm ON rm.id = rpu.milestone_id
-        LEFT JOIN research_progress_attachments rpa ON rpa.id = (
+        LEFT JOIN crad_research_milestones rm ON rm.id = rpu.milestone_id
+        LEFT JOIN crad_research_progress_attachments rpa ON rpa.id = (
             SELECT rpa2.id
-            FROM research_progress_attachments rpa2
+            FROM crad_research_progress_attachments rpa2
             WHERE rpa2.progress_update_id = rpu.id
             ORDER BY rpa2.id DESC
             LIMIT 1
@@ -300,7 +300,7 @@ function handleSubmitFeedback(PDO $crad, int $adviserUserId, string $adviserEmai
     }
     
     // Check for duplicate token usage
-    if (rpIsTokenRecentlyUsed($crad, 'research_progress_feedback', $submissionToken, 5)) {
+    if (rpIsTokenRecentlyUsed($crad, 'crad_research_progress_feedback', $submissionToken, 5)) {
         http_response_code(409);
         echo json_encode([
             'success' => false, 
@@ -324,7 +324,7 @@ function handleSubmitFeedback(PDO $crad, int $adviserUserId, string $adviserEmai
         
         // Insert feedback
         $insertStmt = $crad->prepare("
-            INSERT INTO research_progress_feedback (
+            INSERT INTO crad_research_progress_feedback (
                 progress_update_id, research_plan_id, milestone_id,
                 adviser_user_id, adviser_name, feedback_type, feedback_text,
                 submission_token
@@ -403,7 +403,7 @@ function handleRequestRevision(PDO $crad, int $adviserUserId, string $adviserEma
     
     // Token validation
     $submissionToken = $input['submission_token'] ?? '';
-    if (empty($submissionToken) || rpIsTokenRecentlyUsed($crad, 'research_progress_feedback', $submissionToken, 5)) {
+    if (empty($submissionToken) || rpIsTokenRecentlyUsed($crad, 'crad_research_progress_feedback', $submissionToken, 5)) {
         http_response_code(409);
         echo json_encode(['success' => false, 'message' => 'Duplicate or invalid submission']);
         return;
@@ -423,7 +423,7 @@ function handleRequestRevision(PDO $crad, int $adviserUserId, string $adviserEma
         
         // Insert revision request feedback
         $insertStmt = $crad->prepare("
-            INSERT INTO research_progress_feedback (
+            INSERT INTO crad_research_progress_feedback (
                 progress_update_id, research_plan_id, milestone_id,
                 adviser_user_id, adviser_name, feedback_type, feedback_text,
                 new_milestone_status, submission_token
@@ -442,12 +442,12 @@ function handleRequestRevision(PDO $crad, int $adviserUserId, string $adviserEma
         
         $feedbackId = (int) $crad->lastInsertId();
 
-        $crad->prepare("UPDATE research_progress_updates SET milestone_status = 'Revision Requested', updated_at = NOW() WHERE id = ?")
+        $crad->prepare("UPDATE crad_research_progress_updates SET milestone_status = 'Revision Requested', updated_at = NOW() WHERE id = ?")
             ->execute([$updateId]);
         
         if (!empty($update['milestone_id'])) {
             $updateMilestone = $crad->prepare("
-                UPDATE research_milestones 
+                UPDATE crad_research_milestones 
                 SET status = 'Revision Requested',
                     adviser_remarks = ?,
                     updated_at = NOW()
@@ -514,7 +514,7 @@ function handleApproveProgress(PDO $crad, int $adviserUserId, string $adviserEma
     
     // Token validation
     $submissionToken = $input['submission_token'] ?? '';
-    if (empty($submissionToken) || rpIsTokenRecentlyUsed($crad, 'research_progress_feedback', $submissionToken, 5)) {
+    if (empty($submissionToken) || rpIsTokenRecentlyUsed($crad, 'crad_research_progress_feedback', $submissionToken, 5)) {
         http_response_code(409);
         echo json_encode(['success' => false, 'message' => 'Duplicate or invalid submission']);
         return;
@@ -537,7 +537,7 @@ function handleApproveProgress(PDO $crad, int $adviserUserId, string $adviserEma
 
     $latestStmt = $crad->prepare(
         "SELECT id
-         FROM research_progress_updates
+         FROM crad_research_progress_updates
          WHERE research_group_id = ?
            AND milestone_id <=> ?
          ORDER BY submitted_at DESC, id DESC
@@ -555,7 +555,7 @@ function handleApproveProgress(PDO $crad, int $adviserUserId, string $adviserEma
         
         // Insert approval feedback
         $insertStmt = $crad->prepare("
-            INSERT INTO research_progress_feedback (
+            INSERT INTO crad_research_progress_feedback (
                 progress_update_id, research_plan_id, milestone_id,
                 adviser_user_id, adviser_name, feedback_type, feedback_text,
                 new_milestone_status, submission_token
@@ -574,7 +574,7 @@ function handleApproveProgress(PDO $crad, int $adviserUserId, string $adviserEma
         
         $feedbackId = (int) $crad->lastInsertId();
 
-        $crad->prepare("UPDATE research_progress_updates SET milestone_status = 'Approved', updated_at = NOW() WHERE id = ?")
+        $crad->prepare("UPDATE crad_research_progress_updates SET milestone_status = 'Approved', updated_at = NOW() WHERE id = ?")
             ->execute([$updateId]);
         
         if (!empty($update['milestone_id'])) {
@@ -585,7 +585,7 @@ function handleApproveProgress(PDO $crad, int $adviserUserId, string $adviserEma
             // both portals always show the adviser's feedback.
             $milestoneRowStmt = $crad->prepare(
                 "SELECT milestone_order, milestone_name
-                 FROM research_milestones
+                 FROM crad_research_milestones
                  WHERE id = ? AND research_plan_id = ?
                  LIMIT 1"
             );
@@ -606,7 +606,7 @@ function handleApproveProgress(PDO $crad, int $adviserUserId, string $adviserEma
                     // Chapter 1-3 batch; we still update this individual row here for
                     // immediate consistency, then let the batch sync handle the others.
                     $updateMilestone = $crad->prepare("
-                        UPDATE research_milestones
+                        UPDATE crad_research_milestones
                         SET progress_percentage = 100,
                             status              = 'Approved',
                             completed_at        = COALESCE(completed_at, NOW()),
@@ -628,7 +628,7 @@ function handleApproveProgress(PDO $crad, int $adviserUserId, string $adviserEma
                     // by rpSyncChapterMilestonesFromPanelApproval() as soon as the
                     // panel submits all evaluations with result = APPROVED.
                     $updateMilestone = $crad->prepare("
-                        UPDATE research_milestones
+                        UPDATE crad_research_milestones
                         SET adviser_remarks = ?,
                             updated_at      = NOW()
                         WHERE id = ?
@@ -644,7 +644,7 @@ function handleApproveProgress(PDO $crad, int $adviserUserId, string $adviserEma
                 // Non-chapter milestone (Chapter 4, 5, System Dev, Testing, etc.) —
                 // existing behaviour unchanged: Adviser approval immediately finalises it.
                 $updateMilestone = $crad->prepare("
-                    UPDATE research_milestones
+                    UPDATE crad_research_milestones
                     SET progress_percentage = 100,
                         status              = 'Approved',
                         completed_at        = COALESCE(completed_at, NOW()),

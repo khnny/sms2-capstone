@@ -39,7 +39,7 @@ function logActivity(
 
     try {
         $stmt = $pdo->prepare(
-            'INSERT INTO activity_logs
+            'INSERT INTO sms_activity_logs
                 (user_id, user_name, role_key, action, module_key, detail, ip_address, user_agent)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
         );

@@ -140,7 +140,7 @@ function handleGetResearchPlan(PDO $crad, int $groupId, array $researchGroup): v
     
     // Get latest progress update
     $latestUpdateStmt = $crad->prepare("
-        SELECT * FROM research_progress_updates 
+        SELECT * FROM crad_research_progress_updates 
         WHERE research_group_id = ?
         ORDER BY submitted_at DESC
         LIMIT 1
@@ -168,7 +168,7 @@ function handleGetResearchPlan(PDO $crad, int $groupId, array $researchGroup): v
 function handleGetMilestones(PDO $crad, int $groupId): void
 {
     // Get plan first. Read-only polling must not create a plan.
-    $planStmt = $crad->prepare("SELECT id FROM research_plans WHERE research_group_id = ? LIMIT 1");
+    $planStmt = $crad->prepare("SELECT id FROM crad_research_plans WHERE research_group_id = ? LIMIT 1");
     $planStmt->execute([$groupId]);
     $plan = $planStmt->fetch(PDO::FETCH_ASSOC);
     
@@ -209,7 +209,7 @@ function handleSubmitProgress(PDO $crad, int $groupId, array $researchGroup, int
     }
     
     // Check for duplicate token usage
-    if (rpIsTokenRecentlyUsed($crad, 'research_progress_updates', $submissionToken, 5)) {
+    if (rpIsTokenRecentlyUsed($crad, 'crad_research_progress_updates', $submissionToken, 5)) {
         http_response_code(409);
         echo json_encode([
             'success' => false, 
@@ -220,7 +220,7 @@ function handleSubmitProgress(PDO $crad, int $groupId, array $researchGroup, int
     }
     
     // Get research plan
-    $planStmt = $crad->prepare("SELECT * FROM research_plans WHERE research_group_id = ? LIMIT 1");
+    $planStmt = $crad->prepare("SELECT * FROM crad_research_plans WHERE research_group_id = ? LIMIT 1");
     $planStmt->execute([$groupId]);
     $plan = $planStmt->fetch(PDO::FETCH_ASSOC);
     
@@ -232,7 +232,7 @@ function handleSubmitProgress(PDO $crad, int $groupId, array $researchGroup, int
     
     // Get milestone to update
     $milestoneStmt = $crad->prepare("
-        SELECT * FROM research_milestones 
+        SELECT * FROM crad_research_milestones 
         WHERE id = ? AND research_plan_id = ?
         LIMIT 1
     ");
@@ -386,8 +386,8 @@ function handleGetProgressHistory(PDO $crad, int $groupId): void
             rpu.*,
             rm.milestone_name,
             rm.milestone_order
-        FROM research_progress_updates rpu
-        LEFT JOIN research_milestones rm ON rm.id = rpu.milestone_id
+        FROM crad_research_progress_updates rpu
+        LEFT JOIN crad_research_milestones rm ON rm.id = rpu.milestone_id
         WHERE rpu.research_group_id = ?
         ORDER BY rpu.submitted_at DESC
         LIMIT 50
@@ -412,9 +412,9 @@ function handleGetAdviserFeedback(PDO $crad, int $groupId): void
             rm.milestone_name,
             rpu.update_title,
             rpu.submitted_at as update_submitted_at
-        FROM research_progress_feedback rpf
-        INNER JOIN research_progress_updates rpu ON rpu.id = rpf.progress_update_id
-        LEFT JOIN research_milestones rm ON rm.id = rpf.milestone_id
+        FROM crad_research_progress_feedback rpf
+        INNER JOIN crad_research_progress_updates rpu ON rpu.id = rpf.progress_update_id
+        LEFT JOIN crad_research_milestones rm ON rm.id = rpf.milestone_id
         WHERE rpu.research_group_id = ?
         ORDER BY rpf.created_at DESC
         LIMIT 50

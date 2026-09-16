@@ -27,8 +27,8 @@ try {
     grantEnsureMilestoneTables($crad);
     $stmt = $crad->prepare("
         SELECT m.*, ga.applicant_user_id, ga.status AS application_status
-          FROM grant_funded_project_milestones m
-         INNER JOIN grant_applications ga ON ga.id = m.grant_application_id
+          FROM crad_grant_funded_project_milestones m
+         INNER JOIN crad_grant_applications ga ON ga.id = m.grant_application_id
          WHERE m.id = ?
          LIMIT 1
     ");

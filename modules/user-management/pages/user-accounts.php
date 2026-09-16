@@ -32,7 +32,7 @@ $pdo = db();
 if ($pdo) {
     try {
         $pdo->prepare(
-            "INSERT IGNORE INTO roles (role_key, label, description, is_system)
+            "INSERT IGNORE INTO sms_roles (role_key, label, description, is_system)
              VALUES
                 ('superadmin', 'Super Admin', 'Full system access', 1),
                 ('admin', 'Super Admin', 'Legacy super admin access', 1),
@@ -49,55 +49,55 @@ if ($pdo) {
                 ('review_committee', 'Review Committee', 'Grant proposal review and rubric evaluation', 1)"
         )->execute();
         $pdo->prepare(
-            "INSERT INTO role_permissions (role_key, module_key, granted)
+            "INSERT INTO sms_role_permissions (role_key, module_key, granted)
              VALUES ('department_chair', 'crad', 1)
              ON DUPLICATE KEY UPDATE granted = VALUES(granted)"
         )->execute();
         $pdo->prepare(
-            "INSERT INTO role_permissions (role_key, module_key, granted)
+            "INSERT INTO sms_role_permissions (role_key, module_key, granted)
              VALUES ('research_office', 'crad', 1)
              ON DUPLICATE KEY UPDATE granted = VALUES(granted)"
         )->execute();
         $pdo->prepare(
-            "INSERT INTO role_permissions (role_key, module_key, granted)
+            "INSERT INTO sms_role_permissions (role_key, module_key, granted)
              VALUES ('vpaa', 'accreditation', 1)
              ON DUPLICATE KEY UPDATE granted = VALUES(granted)"
         )->execute();
         $pdo->prepare(
-            "UPDATE users SET role_key = 'department_chair' WHERE username = 'deptchair' LIMIT 1"
+            "UPDATE sms_users SET role_key = 'department_chair' WHERE username = 'deptchair' LIMIT 1"
         )->execute();
         $pdo->prepare(
-            "UPDATE users SET role_key = 'research_office' WHERE username = 'researchoffice' LIMIT 1"
+            "UPDATE sms_users SET role_key = 'research_office' WHERE username = 'researchoffice' LIMIT 1"
         )->execute();
         $pdo->prepare(
-            "UPDATE users SET role_key = 'vpaa' WHERE username = 'vpaa' LIMIT 1"
+            "UPDATE sms_users SET role_key = 'vpaa' WHERE username = 'vpaa' LIMIT 1"
         )->execute();
         $pdo->prepare(
-            "UPDATE roles
+            "UPDATE sms_roles
              SET label = 'Super Admin', description = 'Legacy super admin access'
              WHERE role_key = 'admin'"
         )->execute();
         $pdo->prepare(
-            "UPDATE users
+            "UPDATE sms_users
              SET role_key = 'superadmin'
              WHERE username = 'superadmin'
                AND role_key = 'admin'"
         )->execute();
         $pdo->prepare(
-            "UPDATE users
+            "UPDATE sms_users
              SET full_name = 'Dean', username = 'dean', email = 'dean@bestlink.edu.ph'
              WHERE role_key = 'hr'
                AND username IN ('hr', 'faculty', 'dean')"
         )->execute();
         $adminHash = password_hash('@admin123', PASSWORD_DEFAULT);
         $pdo->prepare(
-            "INSERT IGNORE INTO users
+            "INSERT IGNORE INTO sms_users
                 (username, email, password_hash, full_name, role_key, student_id, status, password_changed_at, must_change_password, failed_login_attempts, locked_until)
              VALUES
                 ('admin', 'admin@bestlink.edu.ph', ?, 'Admin', 'sms_admin', NULL, 'active', NOW(), 1, 0, NULL)"
         )->execute([$adminHash]);
         $insAdminPerm = $pdo->prepare(
-            "INSERT INTO role_permissions (role_key, module_key, granted)
+            "INSERT INTO sms_role_permissions (role_key, module_key, granted)
              VALUES ('sms_admin', ?, 1)
              ON DUPLICATE KEY UPDATE granted = VALUES(granted)"
         );
@@ -106,7 +106,7 @@ if ($pdo) {
         }
         $facultyHash = password_hash('@faculty123', PASSWORD_DEFAULT);
         $seedFaculty = $pdo->prepare(
-            "INSERT IGNORE INTO users
+            "INSERT IGNORE INTO sms_users
                 (username, email, password_hash, full_name, role_key, student_id, status, notes, password_changed_at, must_change_password, failed_login_attempts, locked_until)
              VALUES
                 (?, ?, ?, ?, ?, NULL, 'active', ?, NOW(), 1, 0, NULL)"
@@ -118,7 +118,7 @@ if ($pdo) {
         $seedFaculty->execute(['jonathanestrada', 'jonathanestrada@bestlink.edu.ph', password_hash('@Adviser123', PASSWORD_DEFAULT), 'Dr. Jonathan Estrada', 'panel', 'Panel Member']);
         $seedFaculty->execute(['michelleguevarra', 'michelleguevarra@bestlink.edu.ph', password_hash('@Adviser123', PASSWORD_DEFAULT), 'Dr. Michelle Guevarra', 'panel', 'Panel Member']);
         $insFacultyPerm = $pdo->prepare(
-            "INSERT INTO role_permissions (role_key, module_key, granted)
+            "INSERT INTO sms_role_permissions (role_key, module_key, granted)
              VALUES (?, 'faculty', 1)
              ON DUPLICATE KEY UPDATE granted = VALUES(granted)"
         );
@@ -129,13 +129,13 @@ if ($pdo) {
         // Research Grant account (CRAD Officer role)
         $rgHash = password_hash('@Grant123', PASSWORD_DEFAULT);
         $pdo->prepare(
-            "INSERT IGNORE INTO users
+            "INSERT IGNORE INTO sms_users
                 (username, email, password_hash, full_name, role_key, student_id, status, password_changed_at, must_change_password, failed_login_attempts, locked_until)
              VALUES
                 ('researchgrant', 'researchgrant@bestlink.edu.ph', ?, 'Research Grant', 'research_grant', NULL, 'active', NOW(), 1, 0, NULL)"
         )->execute([$rgHash]);
         $pdo->prepare(
-            "INSERT INTO role_permissions (role_key, module_key, granted)
+            "INSERT INTO sms_role_permissions (role_key, module_key, granted)
              VALUES ('research_grant', 'crad_grant', 1)
              ON DUPLICATE KEY UPDATE granted = VALUES(granted)"
         )->execute();
@@ -143,13 +143,13 @@ if ($pdo) {
         // Review Committee account (grant proposal evaluator)
         $rcHash = password_hash('@Committee123', PASSWORD_DEFAULT);
         $pdo->prepare(
-            "INSERT IGNORE INTO users
+            "INSERT IGNORE INTO sms_users
                 (username, email, password_hash, full_name, role_key, student_id, status, password_changed_at, must_change_password, failed_login_attempts, locked_until)
              VALUES
                 ('reviewcommittee', 'reviewcommittee@bestlink.edu.ph', ?, 'Review Committee Member', 'review_committee', NULL, 'active', NOW(), 1, 0, NULL)"
         )->execute([$rcHash]);
         $pdo->prepare(
-            "INSERT INTO role_permissions (role_key, module_key, granted)
+            "INSERT INTO sms_role_permissions (role_key, module_key, granted)
              VALUES ('review_committee', 'crad_grant', 1)
              ON DUPLICATE KEY UPDATE granted = VALUES(granted)"
         )->execute();
@@ -163,15 +163,15 @@ if ($pdo) {
                     r.label AS roleLabel, u.status,
                     DATE_FORMAT(u.created_at, "%b %e, %Y") AS created,
                     IFNULL(DATE_FORMAT(u.last_login_at, "%b %e, %Y %H:%i"), "—") AS last_login
-             FROM users u
-             INNER JOIN roles r ON r.role_key = u.role_key
+             FROM sms_users u
+             INNER JOIN sms_roles r ON r.role_key = u.role_key
              WHERE u.status IN (\'inactive\', \'suspended\')
              ORDER BY u.full_name ASC'
         );
         $users = $stmt->fetchAll() ?: [];
         $archivedCount = count($users);
         $activeCount = (int) $pdo->query(
-            'SELECT COUNT(*) FROM users WHERE status NOT IN (\'inactive\', \'suspended\')'
+            'SELECT COUNT(*) FROM sms_users WHERE status NOT IN (\'inactive\', \'suspended\')'
         )->fetchColumn();
     } else {
         $stmt = $pdo->query(
@@ -179,14 +179,14 @@ if ($pdo) {
                     r.label AS roleLabel, u.status,
                     DATE_FORMAT(u.created_at, "%b %e, %Y") AS created,
                     IFNULL(DATE_FORMAT(u.last_login_at, "%b %e, %Y %H:%i"), "—") AS last_login
-             FROM users u
-             INNER JOIN roles r ON r.role_key = u.role_key
+             FROM sms_users u
+             INNER JOIN sms_roles r ON r.role_key = u.role_key
              WHERE u.status NOT IN (\'inactive\', \'suspended\')
              ORDER BY u.id ASC'
         );
         $users = $stmt->fetchAll() ?: [];
         $archivedCount = (int) $pdo->query(
-            'SELECT COUNT(*) FROM users WHERE status IN (\'inactive\', \'suspended\')'
+            'SELECT COUNT(*) FROM sms_users WHERE status IN (\'inactive\', \'suspended\')'
         )->fetchColumn();
     }
 }

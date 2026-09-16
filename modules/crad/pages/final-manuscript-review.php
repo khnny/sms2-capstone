@@ -15,7 +15,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!csrfVerify()) $error = 'Security check failed. Please refresh and try again.';
     else {
         $submissionId = (int) ($_POST['submission_id'] ?? 0); $action = (string) ($_POST['review_action'] ?? '');
-        $stmt = $crad->prepare("SELECT ms.*, rg.research_title, rg.group_name, rg.group_number FROM manuscript_submissions ms INNER JOIN research_groups rg ON rg.id = ms.research_group_id WHERE ms.id = ? LIMIT 1"); $stmt->execute([$submissionId]); $submission = $stmt->fetch(PDO::FETCH_ASSOC);
+        $stmt = $crad->prepare("SELECT ms.*, rg.research_title, rg.group_name, rg.group_number FROM crad_manuscript_submissions ms INNER JOIN crad_research_groups rg ON rg.id = ms.research_group_id WHERE ms.id = ? LIMIT 1"); $stmt->execute([$submissionId]); $submission = $stmt->fetch(PDO::FETCH_ASSOC);
         if (!$submission) $error = 'Manuscript submission not found.';
         elseif ($role === 'adviser' && !fpIsAssignedAdviser($crad, (int) $submission['research_group_id'], (int) ($_SESSION['user_id'] ?? 0), (string) ($_SESSION['user_email'] ?? ''))) $error = 'You are not assigned to this research group.';
         elseif (!in_array($action, ['approve','revision'], true)) $error = 'Invalid review action.';
@@ -25,18 +25,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $result = $action === 'approve' ? 'APPROVED' : 'FOR REVISION'; $status = $action === 'approve' ? 'Approved' : 'For Revision'; $remarks = trim((string) ($_POST['remarks'] ?? '')); $overall = round(array_sum($scores) / 8, 2);
                 $crad->beginTransaction();
                 try {
-                    $crad->prepare('UPDATE manuscript_submissions SET status = ?, reviewed_at = NOW() WHERE id = ?')->execute([$status, $submissionId]);
-                    $crad->prepare("INSERT INTO manuscript_evaluations (submission_id, research_group_id, evaluator_user_id, evaluator_name, content_score, methodology_score, results_score, conclusions_score, recommendations_score, references_score, formatting_score, compliance_score, remarks, result, overall_score) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")->execute([$submissionId, $submission['research_group_id'], (int) $_SESSION['user_id'], (string) ($_SESSION['full_name'] ?? $_SESSION['username'] ?? ''), $scores['content'], $scores['methodology'], $scores['results'], $scores['conclusions'], $scores['recommendations'], $scores['references'], $scores['formatting'], $scores['compliance'], $remarks, $result, $overall]);
+                    $crad->prepare('UPDATE crad_manuscript_submissions SET status = ?, reviewed_at = NOW() WHERE id = ?')->execute([$status, $submissionId]);
+                    $crad->prepare("INSERT INTO crad_manuscript_evaluations (submission_id, research_group_id, evaluator_user_id, evaluator_name, content_score, methodology_score, results_score, conclusions_score, recommendations_score, references_score, formatting_score, compliance_score, remarks, result, overall_score) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")->execute([$submissionId, $submission['research_group_id'], (int) $_SESSION['user_id'], (string) ($_SESSION['full_name'] ?? $_SESSION['username'] ?? ''), $scores['content'], $scores['methodology'], $scores['results'], $scores['conclusions'], $scores['recommendations'], $scores['references'], $scores['formatting'], $scores['compliance'], $remarks, $result, $overall]);
                     $crad->commit(); logActivity('update', ($action === 'approve' ? 'Approved' : 'Returned') . ' final manuscript submission #' . $submissionId, 'crad'); $message = 'Manuscript review saved.';
                 } catch (Throwable $e) { if ($crad->inTransaction()) $crad->rollBack(); error_log('Final manuscript review failed: ' . $e->getMessage()); $error = 'Unable to save manuscript review.'; }
             }
         }
     }
 }
-$listSql = "SELECT ms.*, rg.group_number, rg.group_name, rg.research_title FROM manuscript_submissions ms INNER JOIN research_groups rg ON rg.id = ms.research_group_id INNER JOIN (SELECT research_group_id, MAX(version_number) version_number FROM manuscript_submissions GROUP BY research_group_id) latest ON latest.research_group_id = ms.research_group_id AND latest.version_number = ms.version_number";
+$listSql = "SELECT ms.*, rg.group_number, rg.group_name, rg.research_title FROM crad_manuscript_submissions ms INNER JOIN crad_research_groups rg ON rg.id = ms.research_group_id INNER JOIN (SELECT research_group_id, MAX(version_number) version_number FROM crad_manuscript_submissions GROUP BY research_group_id) latest ON latest.research_group_id = ms.research_group_id AND latest.version_number = ms.version_number";
 $listParams = [];
 if ($role === 'adviser') {
-    $listSql .= " WHERE EXISTS (SELECT 1 FROM research_adviser_assignments raa WHERE raa.research_group_id = ms.research_group_id AND raa.assignment_status IN ('Assigned', 'Confirmed') AND ((raa.adviser_user_id IS NOT NULL AND raa.adviser_user_id = ?) OR (? <> '' AND LOWER(TRIM(COALESCE(raa.adviser_email, ''))) = LOWER(?))))";
+    $listSql .= " WHERE EXISTS (SELECT 1 FROM crad_research_adviser_assignments raa WHERE raa.research_group_id = ms.research_group_id AND raa.assignment_status IN ('Assigned', 'Confirmed') AND ((raa.adviser_user_id IS NOT NULL AND raa.adviser_user_id = ?) OR (? <> '' AND LOWER(TRIM(COALESCE(raa.adviser_email, ''))) = LOWER(?))))";
     $listParams = [(int) ($_SESSION['user_id'] ?? 0), (string) ($_SESSION['user_email'] ?? ''), (string) ($_SESSION['user_email'] ?? '')];
 }
 $listSql .= ' ORDER BY ms.submitted_at DESC';

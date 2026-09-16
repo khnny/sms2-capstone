@@ -39,7 +39,7 @@ try {
     $cradPdoEarly = getCradDatabaseConnection();
     if ($requestedResubmitId > 0) {
         $exStmt = $cradPdoEarly->prepare(
-            "SELECT * FROM title_approvals
+            "SELECT * FROM crad_title_approvals
              WHERE student_id = :sid AND id = :id
              LIMIT 1"
         );
@@ -47,7 +47,7 @@ try {
         $resubmitSubmission = $exStmt->fetch(PDO::FETCH_ASSOC) ?: null;
     } else {
         $exStmt = $cradPdoEarly->prepare(
-            "SELECT * FROM title_approvals
+            "SELECT * FROM crad_title_approvals
              WHERE student_id = :sid
              ORDER BY id DESC
              LIMIT 1"
@@ -151,8 +151,8 @@ if ($submitted && $assignedAdviserName === '') {
         // most recent research group this student leads.
         $advStmt = $cradPdo->prepare(
             "SELECT a.adviser_name, a.adviser_email
-             FROM research_groups g
-             JOIN research_adviser_assignments a
+             FROM crad_research_groups g
+             JOIN crad_research_adviser_assignments a
                ON (
                     a.research_group_id = g.id
                  OR (a.group_number IS NOT NULL AND a.group_number <> '' AND a.group_number = g.group_number)
@@ -174,8 +174,8 @@ if ($submitted && $assignedAdviserName === '') {
         if ($assignedAdviserName === '') {
             $advStmt2 = $cradPdo->prepare(
                 "SELECT a.adviser_name, a.adviser_email
-                 FROM research_groups g
-                 JOIN research_adviser_assignments a
+                 FROM crad_research_groups g
+                 JOIN crad_research_adviser_assignments a
                    ON (
                         a.research_group_id = g.id
                      OR (a.group_number IS NOT NULL AND a.group_number <> '' AND a.group_number = g.group_number)
@@ -197,7 +197,7 @@ if ($submitted && $assignedAdviserName === '') {
         try {
             $mainPdo  = db();
             $coordRow = $mainPdo?->query(
-                "SELECT full_name FROM users WHERE role_key = 'research_coordinator' LIMIT 1"
+                "SELECT full_name FROM sms_users WHERE role_key = 'research_coordinator' LIMIT 1"
             )?->fetch();
             $assignedCoordName = $coordRow ? (string) $coordRow['full_name'] : $defaultCoordinatorName;
         } catch (Throwable) {

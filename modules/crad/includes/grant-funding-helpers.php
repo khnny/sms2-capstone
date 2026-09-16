@@ -66,11 +66,11 @@ function grantEnsureFundingTables(PDO $crad): void
     }
     $done = true;
 
-    _grantAddColumnIfMissing($crad, 'grant_applications', 'approved_budget',
+    _grantAddColumnIfMissing($crad, 'crad_grant_applications', 'approved_budget',
         'DECIMAL(14,2) NULL DEFAULT NULL AFTER requested_budget');
 
     $crad->exec("
-        CREATE TABLE IF NOT EXISTS grant_funding_disbursements (
+        CREATE TABLE IF NOT EXISTS crad_grant_funding_disbursements (
             id                    INT UNSIGNED NOT NULL AUTO_INCREMENT,
             grant_application_id  INT UNSIGNED NOT NULL,
             tranche_number        TINYINT UNSIGNED NOT NULL DEFAULT 1,
@@ -102,8 +102,8 @@ function grantInitializeFundingDisbursementPlan(PDO $crad, int $applicationId): 
 
     $stmt = $crad->prepare("
         SELECT ga.*, go.max_funding_cap
-          FROM grant_applications ga
-         INNER JOIN grant_opportunities go ON go.id = ga.grant_opportunity_id
+          FROM crad_grant_applications ga
+         INNER JOIN crad_grant_opportunities go ON go.id = ga.grant_opportunity_id
          WHERE ga.id = ?
            AND ga.status = ?
          LIMIT 1
@@ -114,7 +114,7 @@ function grantInitializeFundingDisbursementPlan(PDO $crad, int $applicationId): 
         return ['ok' => false, 'error' => 'Approved & Funded application not found.'];
     }
 
-    $existing = $crad->prepare('SELECT COUNT(*) FROM grant_funding_disbursements WHERE grant_application_id = ?');
+    $existing = $crad->prepare('SELECT COUNT(*) FROM crad_grant_funding_disbursements WHERE grant_application_id = ?');
     $existing->execute([$applicationId]);
     if ((int) $existing->fetchColumn() > 0) {
         return ['ok' => true];
@@ -130,7 +130,7 @@ function grantInitializeFundingDisbursementPlan(PDO $crad, int $applicationId): 
     }
 
     if ($approved > 0 && (float) ($application['approved_budget'] ?? 0) <= 0) {
-        $crad->prepare('UPDATE grant_applications SET approved_budget = ?, updated_at = NOW() WHERE id = ?')
+        $crad->prepare('UPDATE crad_grant_applications SET approved_budget = ?, updated_at = NOW() WHERE id = ?')
             ->execute([$approved, $applicationId]);
     }
 
@@ -139,7 +139,7 @@ function grantInitializeFundingDisbursementPlan(PDO $crad, int $applicationId): 
     try {
         $crad->beginTransaction();
         $insert = $crad->prepare("
-            INSERT INTO grant_funding_disbursements
+            INSERT INTO crad_grant_funding_disbursements
                 (grant_application_id, tranche_number, tranche_label, approved_budget,
                  amount_released, status, created_at, updated_at)
             VALUES (?, ?, ?, ?, ?, 'Pending', NOW(), NOW())
@@ -188,7 +188,7 @@ function grantBackfillFundingDisbursementPlans(PDO $crad): void
 {
     grantEnsureFundingTables($crad);
 
-    $stmt = $crad->prepare('SELECT id FROM grant_applications WHERE status = ? ORDER BY id ASC');
+    $stmt = $crad->prepare('SELECT id FROM crad_grant_applications WHERE status = ? ORDER BY id ASC');
     $stmt->execute([grantStatusApprovedFunded()]);
 
     foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) ?: [] as $applicationId) {
@@ -218,8 +218,8 @@ function grantGetFundedDisbursementOverview(PDO $crad): array
                COALESCE(ga.approved_budget, ga.requested_budget, 0) AS approved_budget,
                ga.updated_at AS funded_at,
                go.funding_title
-          FROM grant_applications ga
-         INNER JOIN grant_opportunities go ON go.id = ga.grant_opportunity_id
+          FROM crad_grant_applications ga
+         INNER JOIN crad_grant_opportunities go ON go.id = ga.grant_opportunity_id
          WHERE ga.status = ?
     ";
     $params = [grantStatusApprovedFunded()];
@@ -252,7 +252,7 @@ function grantGetFundedDisbursementOverview(PDO $crad): array
                SUM(CASE WHEN status = 'Pending' THEN 1 ELSE 0 END) AS pending_count,
                COALESCE(SUM(CASE WHEN status = 'Released' THEN amount_released ELSE 0 END), 0) AS total_released,
                MAX(updated_at) AS disbursement_updated_at
-          FROM grant_funding_disbursements
+          FROM crad_grant_funding_disbursements
          WHERE grant_application_id IN ({$placeholders})
          GROUP BY grant_application_id
     ");
@@ -321,7 +321,7 @@ function grantGetFundingDisbursementDetail(PDO $crad, int $applicationId): ?arra
 
     $stmt = $crad->prepare("
         SELECT *
-          FROM grant_funding_disbursements
+          FROM crad_grant_funding_disbursements
          WHERE grant_application_id = ?
          ORDER BY tranche_number ASC
     ");
@@ -430,8 +430,8 @@ function grantReleaseFundingTranche(
 
     $stmt = $crad->prepare("
         SELECT d.*, ga.proposal_reference, ga.research_title, ga.applicant_user_id, ga.status AS application_status
-          FROM grant_funding_disbursements d
-         INNER JOIN grant_applications ga ON ga.id = d.grant_application_id
+          FROM crad_grant_funding_disbursements d
+         INNER JOIN crad_grant_applications ga ON ga.id = d.grant_application_id
          WHERE d.id = ?
          LIMIT 1
     ");
@@ -474,7 +474,7 @@ function grantReleaseFundingTranche(
 
     $releasedStmt = $crad->prepare(
         "SELECT COALESCE(SUM(amount_released), 0)
-           FROM grant_funding_disbursements
+           FROM crad_grant_funding_disbursements
           WHERE grant_application_id = ?
             AND status = 'Released'
             AND id <> ?"
@@ -506,7 +506,7 @@ function grantReleaseFundingTranche(
 
     try {
         $update = $crad->prepare("
-            UPDATE grant_funding_disbursements
+            UPDATE crad_grant_funding_disbursements
                SET amount_released = ?,
                    release_date = ?,
                    reference_number = ?,
@@ -561,7 +561,7 @@ function grantNotifyApplicantFundReleased(
 ): void {
     require_once __DIR__ . '/grant-evaluation-helpers.php';
 
-    $stmt = $crad->prepare('SELECT * FROM grant_applications WHERE id = ? LIMIT 1');
+    $stmt = $crad->prepare('SELECT * FROM crad_grant_applications WHERE id = ? LIMIT 1');
     $stmt->execute([$applicationId]);
     $application = $stmt->fetch(PDO::FETCH_ASSOC);
     if (!$application) {
@@ -592,7 +592,7 @@ function grantNotifyApplicantFundReleased(
     if (function_exists('db')) {
         $mainDb = db();
         if ($mainDb) {
-            $userStmt = $mainDb->prepare('SELECT role_key FROM users WHERE id = ? LIMIT 1');
+            $userStmt = $mainDb->prepare('SELECT role_key FROM sms_users WHERE id = ? LIMIT 1');
             $userStmt->execute([$recipientUserId]);
             $recipientRole = (string) ($userStmt->fetchColumn() ?: 'student');
         }

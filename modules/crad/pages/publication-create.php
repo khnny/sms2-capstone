@@ -15,17 +15,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!csrfVerify()) $error = 'Security check failed.';
     else {
         $groupId = (int) ($_POST['research_group_id'] ?? 0);
-        $stmt = $crad->prepare("SELECT rg.research_title, rg.group_name FROM research_groups rg INNER JOIN title_approvals ta ON ta.id = rg.title_approval_id AND {$validTitleApprovalSql} INNER JOIN final_manuscript_approvals fma ON fma.research_group_id = rg.id AND fma.status = 'Approved' WHERE rg.id = ? AND NOT EXISTS (SELECT 1 FROM publications p WHERE p.research_group_id = rg.id) LIMIT 1");
+        $stmt = $crad->prepare("SELECT rg.research_title, rg.group_name FROM crad_research_groups rg INNER JOIN crad_title_approvals ta ON ta.id = rg.title_approval_id AND {$validTitleApprovalSql} INNER JOIN crad_final_manuscript_approvals fma ON fma.research_group_id = rg.id AND fma.status = 'Approved' WHERE rg.id = ? AND NOT EXISTS (SELECT 1 FROM crad_publications p WHERE p.research_group_id = rg.id) LIMIT 1");
         $stmt->execute([$groupId]); $group = $stmt->fetch(PDO::FETCH_ASSOC);
         if (!$group) $error = 'Only approved groups without an existing publication record may be selected.';
         else {
-            $insert = $crad->prepare("INSERT INTO publications (research_group_id, title, authors, status, created_by_user, created_by_name) VALUES (?, ?, ?, 'Draft', ?, ?)");
+            $insert = $crad->prepare("INSERT INTO crad_publications (research_group_id, title, authors, status, created_by_user, created_by_name) VALUES (?, ?, ?, 'Draft', ?, ?)");
             $insert->execute([$groupId, $group['research_title'], $group['group_name'], (int) ($_SESSION['user_id'] ?? 0), (string) ($_SESSION['full_name'] ?? $_SESSION['username'] ?? '')]);
             logActivity('create', 'Created publication record for research group #' . $groupId, 'crad'); $message = 'Publication record created.';
         }
     }
 }
-$groups = $crad->query("SELECT rg.id, rg.group_number, rg.research_title FROM research_groups rg INNER JOIN title_approvals ta ON ta.id = rg.title_approval_id AND {$validTitleApprovalSql} INNER JOIN final_manuscript_approvals fma ON fma.research_group_id = rg.id AND fma.status = 'Approved' WHERE NOT EXISTS (SELECT 1 FROM publications p WHERE p.research_group_id = rg.id) ORDER BY rg.group_number")->fetchAll(PDO::FETCH_ASSOC) ?: [];
+$groups = $crad->query("SELECT rg.id, rg.group_number, rg.research_title FROM crad_research_groups rg INNER JOIN crad_title_approvals ta ON ta.id = rg.title_approval_id AND {$validTitleApprovalSql} INNER JOIN crad_final_manuscript_approvals fma ON fma.research_group_id = rg.id AND fma.status = 'Approved' WHERE NOT EXISTS (SELECT 1 FROM crad_publications p WHERE p.research_group_id = rg.id) ORDER BY rg.group_number")->fetchAll(PDO::FETCH_ASSOC) ?: [];
 $breadcrumbs = [['label' => 'CRAD', 'url' => BASE_URL . '/modules/crad/index.php'], ['label' => 'New Publication Record', 'url' => null]];
 require_once ROOT_PATH . '/includes/layout-start.php'; renderBreadcrumbs($breadcrumbs);
 ?>

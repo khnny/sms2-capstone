@@ -19,12 +19,12 @@ function smsEnsurePasskeyTable(): void
     }
     $idType = smsUsersIdSqlType($pdo);
     $pkFk = smsUsersTableExists($pdo)
-        ? ",\n            CONSTRAINT fk_passkey_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
+        ? ",\n            CONSTRAINT fk_passkey_user FOREIGN KEY (user_id) REFERENCES sms_users(id) ON DELETE CASCADE"
         : '';
     try {
         smsCreateTableIfNeeded(
             $pdo,
-            "CREATE TABLE IF NOT EXISTS user_passkeys (
+            "CREATE TABLE IF NOT EXISTS sms_user_passkeys (
                 id INT UNSIGNED NOT NULL AUTO_INCREMENT,
                 user_id {$idType} NOT NULL,
                 credential_id VARCHAR(255) NOT NULL,
@@ -126,7 +126,7 @@ function smsPasskeysForUser(int $userId): array
     }
     $stmt = $pdo->prepare(
         'SELECT id, credential_id, device_name, sign_count, created_at, last_used_at
-         FROM user_passkeys WHERE user_id = ? ORDER BY id DESC'
+         FROM sms_user_passkeys WHERE user_id = ? ORDER BY id DESC'
     );
     $stmt->execute([$userId]);
     return $stmt->fetchAll() ?: [];
@@ -139,7 +139,7 @@ function smsPasskeyCount(int $userId): int
     if (!$pdo || $userId <= 0) {
         return 0;
     }
-    $stmt = $pdo->prepare('SELECT COUNT(*) FROM user_passkeys WHERE user_id = ?');
+    $stmt = $pdo->prepare('SELECT COUNT(*) FROM sms_user_passkeys WHERE user_id = ?');
     $stmt->execute([$userId]);
     return (int) $stmt->fetchColumn();
 }
@@ -152,7 +152,7 @@ function smsPasskeyDelete(int $userId, int $passkeyId): bool
         return false;
     }
     // Always delete exactly one row by id + owner — never wipe all passkeys.
-    $stmt = $pdo->prepare('DELETE FROM user_passkeys WHERE id = ? AND user_id = ? LIMIT 1');
+    $stmt = $pdo->prepare('DELETE FROM sms_user_passkeys WHERE id = ? AND user_id = ? LIMIT 1');
     $stmt->execute([$passkeyId, $userId]);
     return $stmt->rowCount() > 0;
 }
@@ -166,7 +166,7 @@ function smsPasskeyRegisterOptions(int $userId): array
     $pdo = db();
     $user = null;
     if ($pdo) {
-        $st = $pdo->prepare('SELECT id, email, full_name, username FROM users WHERE id = ? LIMIT 1');
+        $st = $pdo->prepare('SELECT id, email, full_name, username FROM sms_users WHERE id = ? LIMIT 1');
         $st->execute([$userId]);
         $user = $st->fetch() ?: null;
     }
@@ -275,7 +275,7 @@ function smsPasskeyRegisterVerify(int $userId, array $cred, string $deviceName =
     $name = trim($deviceName) !== '' ? substr(trim($deviceName), 0, 120) : 'Passkey';
     try {
         $pdo->prepare(
-            'INSERT INTO user_passkeys (user_id, credential_id, public_key, sign_count, device_name)
+            'INSERT INTO sms_user_passkeys (user_id, credential_id, public_key, sign_count, device_name)
              VALUES (?, ?, ?, 0, ?)'
         )->execute([$userId, $credId, $pem, $name]);
     } catch (Throwable $e) {
@@ -358,7 +358,7 @@ function smsPasskeyLoginVerify(array $cred): array
     if (!$pdo) {
         return ['ok' => false, 'error' => 'Database unavailable.'];
     }
-    $stmt = $pdo->prepare('SELECT * FROM user_passkeys WHERE credential_id = ? LIMIT 1');
+    $stmt = $pdo->prepare('SELECT * FROM sms_user_passkeys WHERE credential_id = ? LIMIT 1');
     $stmt->execute([$credId]);
     $pk = $stmt->fetch() ?: null;
     if (!$pk) {
@@ -432,13 +432,13 @@ function smsPasskeyLoginVerify(array $cred): array
     }
 
     $pdo->prepare(
-        'UPDATE user_passkeys SET sign_count = ?, last_used_at = NOW() WHERE id = ?'
+        'UPDATE sms_user_passkeys SET sign_count = ?, last_used_at = NOW() WHERE id = ?'
     )->execute([max($newCount, $oldCount), (int) $pk['id']]);
 
     $ust = $pdo->prepare(
         'SELECT u.*, r.label AS role_label
-         FROM users u
-         INNER JOIN roles r ON r.role_key = u.role_key
+         FROM sms_users u
+         INNER JOIN sms_roles r ON r.role_key = u.role_key
          WHERE u.id = ? LIMIT 1'
     );
     $ust->execute([(int) $pk['user_id']]);
@@ -505,7 +505,7 @@ function smsPasskeyRemoveMethod(int $userId): array
     $pdo = db();
     $email = '';
     if ($pdo && $userId > 0) {
-        $stmt = $pdo->prepare('SELECT email FROM users WHERE id = ? LIMIT 1');
+        $stmt = $pdo->prepare('SELECT email FROM sms_users WHERE id = ? LIMIT 1');
         $stmt->execute([$userId]);
         $email = trim((string) ($stmt->fetchColumn() ?: ''));
     }
@@ -578,7 +578,7 @@ function smsPasskeyVerifyRemoveProof(int $userId, string $method, array $body): 
     if (!$pdo || $userId <= 0 || $password === '') {
         return ['ok' => false, 'error' => 'Enter your password to continue.'];
     }
-    $stmt = $pdo->prepare('SELECT password_hash FROM users WHERE id = ? LIMIT 1');
+    $stmt = $pdo->prepare('SELECT password_hash FROM sms_users WHERE id = ? LIMIT 1');
     $stmt->execute([$userId]);
     $hash = (string) ($stmt->fetchColumn() ?: '');
     if ($hash === '' || !password_verify($password, $hash)) {
