@@ -269,7 +269,9 @@ function sms2MigrateOneDatabase(array $target, array $options, ?callable $sink =
 
     $targetTables = sms2MigrateSqlCreateTables($target['sql_file']);
     $existingNames = sms2MigrateExistingTableNames($pdo);
-    $usersPresent = in_array('users', $existingNames, true);
+    // Unified schema uses sms_users; accept legacy `users` during transitional dumps.
+    $usersPresent = in_array('sms_users', $existingNames, true)
+        || in_array('users', $existingNames, true);
 
     if (!empty($options['force'])) {
         sms2MigrateOut('Force re-import: dropping dump tables in ' . $database . '...', $sink);
@@ -290,9 +292,9 @@ function sms2MigrateOneDatabase(array $target, array $options, ?callable $sink =
             return;
         }
 
-        // HostForge often has only login_throttles (created by failed logins) and no users.
+        // HostForge often has only login_throttles (created by failed logins) and no users table.
         if ($existingTargetTables > 0 && !$usersPresent) {
-            sms2MigrateOut('Incomplete schema (users missing). Clearing leftover tables before import...', $sink);
+            sms2MigrateOut('Incomplete schema (sms_users missing). Clearing leftover tables before import...', $sink);
             sms2MigrateDropTables($pdo, array_values(array_unique(array_merge(
                 $targetTables,
                 sms2MigrateLeftoverOnlyTables()
