@@ -1913,7 +1913,7 @@ require_once ROOT_PATH . '/includes/layout-start.php';
             showNotice('<strong>Document Packet Sent</strong><br>Current status: Document Packet Sent. This status is shown on your dashboard.', 'success');
 
             /* Replace the URL so refresh / back still shows the submitted view
-               (PHP will load the data from title_approvals — no GET params needed) */
+               (PHP will load the data from crad_title_approvals — no GET params needed) */
             try {
                 var cleanUrl = window.location.pathname + '?process=submit-proposal';
                 history.replaceState(null, '', cleanUrl);

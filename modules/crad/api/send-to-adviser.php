@@ -5,7 +5,7 @@
  * POST /modules/crad/api/send-to-adviser.php
  * 1. Validates the adviser exists in sms_users
  * 2. Returns {ok:false, no_account:true} when adviser has no account
- * 3. Inserts into crad_db.title_approvals when all is well
+ * 3. Inserts into crad_title_approvals when all is well
  */
 declare(strict_types=1);
 

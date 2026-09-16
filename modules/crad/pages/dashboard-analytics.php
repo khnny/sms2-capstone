@@ -4,8 +4,8 @@
  * Module: CRAD
  *
  * Real-time grant management analytics for the CRAD Officer.
- * All counts and chart data come from grant_opportunities and
- * grant_applications in crad_db — no hardcoded values.
+ * All counts and chart data come from crad_grant_opportunities and
+ * crad_grant_applications — no hardcoded values.
  */
 require_once __DIR__ . '/../../../config/config.php';
 require_once __DIR__ . '/../config/config.php';

@@ -1159,7 +1159,7 @@ function smsLoginAttempt(string $username, string $password): array
     if (!smsUsersTableExists(db())) {
         return $pack(
             'schema_missing',
-            'The attached database has no users table. Import database/sms2_db.sql into '
+            'The attached database has no sms_users table. Import database/sms2_db.sql into '
             . DB_NAME
             . ' (HostForge DB_DATABASE), then try again.',
             'danger'

@@ -96,9 +96,9 @@ header('Content-Type: text/html; charset=utf-8');
             </label>
             <label>
                 <input type="checkbox" name="include_crad" value="1">
-                <span>Also import CRAD (<code>crad_db.sql</code>) — leave unchecked until CRAD_DB_HOST resolves</span>
+                <span>Also import legacy separate <code>crad_db.sql</code> (only if <code>CRAD_DB_NAME</code> ≠ <code>DB_NAME</code>)</span>
             </label>
-            <button type="submit">Import sms2_db.sql now</button>
+            <button type="submit">Import unified sms2_db.sql now</button>
         </form>
     </div>
 
