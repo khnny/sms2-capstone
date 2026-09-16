@@ -255,6 +255,25 @@ $checks[] = [
         : 'disabled',
 ];
 
+// #region agent log
+$checks[] = [
+    'label' => 'CRAD vs SMS2 target (debug)',
+    'ok' => true,
+    'blocking' => false,
+    'detail' => 'CRAD=' . CRAD_DB_HOST . '/' . CRAD_DB_NAME
+        . ' | SMS2=' . DB_HOST . '/' . DB_NAME
+        . ' | nameSame=' . (strcasecmp((string) CRAD_DB_NAME, (string) DB_NAME) === 0 ? '1' : '0')
+        . ' | hostSame=' . (strcasecmp((string) CRAD_DB_HOST, (string) DB_HOST) === 0 ? '1' : '0'),
+];
+$agentDebugLogPath = ROOT_PATH . '/debug-4aceee.log';
+$agentDebugLogTail = '';
+if (is_readable($agentDebugLogPath)) {
+    $rawLog = (string) file_get_contents($agentDebugLogPath);
+    $lines = array_values(array_filter(preg_split("/\r\n|\n|\r/", $rawLog) ?: []));
+    $agentDebugLogTail = implode("\n", array_slice($lines, -12));
+}
+// #endregion
+
 $allOk = true;
 foreach ($checks as $check) {
     $blocking = $check['blocking'] ?? true;
@@ -322,6 +341,13 @@ header('Content-Type: text/html; charset=utf-8');
             <?php endforeach; ?>
         </tbody>
     </table>
+
+    <?php if ($agentDebugLogTail !== ''): ?>
+        <!-- #region agent log -->
+        <h2 style="font-size:1rem;margin-top:1.25rem">CRAD debug log (tail)</h2>
+        <pre style="background:#0f172a;color:#e2e8f0;padding:1rem;border-radius:8px;font-size:.75rem;overflow:auto;white-space:pre-wrap;word-break:break-word"><?= htmlspecialchars($agentDebugLogTail) ?></pre>
+        <!-- #endregion -->
+    <?php endif; ?>
 
     <?php if ($pdo instanceof PDO): ?>
         <div class="actions">
