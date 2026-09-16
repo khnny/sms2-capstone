@@ -166,24 +166,39 @@ function getCradDatabaseConnection(): PDO
         }
     }
 
-    // Legacy CRAD_DB_NAME=crad_db on HostForge → fall back to main SMS2 database.
-    $legacyCradName = strcasecmp((string) CRAD_DB_NAME, 'crad_db') === 0;
+    // After a failed separate CRAD DSN, fall back to the main SMS2 database.
+    // Covers legacy CRAD_DB_NAME=crad_db and stale HostForge CRAD_DB_* pointing at
+    // a dead MariaDB (e.g. mariadb-edee97zl / hf_db_edee97zl) while the app uses
+    // the attached unified DB_DATABASE.
     // #region agent log
-    $sms2AgentDebugLog('C', 'Legacy crad_db-name fallback gate', [
-        'legacyCradNameMatch' => $legacyCradName,
-        'willAttemptMainFallback' => $legacyCradName,
+    $sms2AgentDebugLog('C', 'Attempting main-DB fallback after separate DSN failed', [
+        'willAttemptMainFallback' => true,
+        'fallbackDbHost' => (string) DB_HOST,
+        'fallbackDbName' => (string) DB_NAME,
     ]);
     // #endregion
-    if ($legacyCradName) {
-        try {
-            $pdo = getDatabaseConnection();
-            cradEnsurePanelNotificationDeleteTrigger($pdo);
-            cradCleanupPreoralEvaluationsForInvalidRegistry($pdo);
-            error_log('CRAD fell back to main DB_NAME=' . DB_NAME . ' after crad_db connection failed.');
-            return $pdo;
-        } catch (Throwable $fallbackError) {
-            error_log('CRAD main-DB fallback failed: ' . $fallbackError->getMessage());
-        }
+    try {
+        $pdo = getDatabaseConnection();
+        cradEnsurePanelNotificationDeleteTrigger($pdo);
+        cradCleanupPreoralEvaluationsForInvalidRegistry($pdo);
+        // #region agent log
+        $sms2AgentDebugLog('E', 'Main-DB fallback succeeded', [
+            'path' => 'fallback_main_pdo',
+            'dbName' => (string) DB_NAME,
+        ]);
+        // #endregion
+        error_log(
+            'CRAD fell back to main DB_HOST=' . DB_HOST . ' DB_NAME=' . DB_NAME
+            . ' after separate CRAD target failed (' . CRAD_DB_HOST . '/' . CRAD_DB_NAME . ').'
+        );
+        return $pdo;
+    } catch (Throwable $fallbackError) {
+        // #region agent log
+        $sms2AgentDebugLog('E', 'Main-DB fallback failed', [
+            'error' => $fallbackError->getMessage(),
+        ]);
+        // #endregion
+        error_log('CRAD main-DB fallback failed: ' . $fallbackError->getMessage());
     }
 
     // #region agent log
@@ -195,7 +210,8 @@ function getCradDatabaseConnection(): PDO
 
     throw new RuntimeException(
         'CRAD database unavailable (' . CRAD_DB_HOST . ':' . CRAD_DB_PORT . '/' . CRAD_DB_NAME . '). '
-        . 'Import database/sms2_db.sql into DB_DATABASE and set CRAD_DB_NAME to the same value as DB_DATABASE.',
+        . 'Import database/sms2_db.sql into DB_DATABASE and set CRAD_DB_NAME to the same value as DB_DATABASE '
+        . '(or remove obsolete CRAD_DB_* env vars pointing at a deleted MariaDB).',
         0,
         $lastException
     );
