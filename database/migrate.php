@@ -5,6 +5,7 @@
  * CLI:
  *   php database/migrate.php
  *   php database/migrate.php --fresh
+ *   php database/migrate.php --force --sms2-only
  *
  * Web (InfinityFree / no SSH):
  *   /setup/deploy-db.php?token=YOUR_SMS2_DEPLOY_TOKEN
