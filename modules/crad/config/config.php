@@ -12,26 +12,74 @@ require_once dirname(__DIR__, 3) . '/config/config.php';
 require_once dirname(__DIR__, 3) . '/config/database.php';
 
 if (!defined('CRAD_DB_HOST')) {
-    define('CRAD_DB_HOST', sms2_env_first(['CRAD_DB_HOST', 'SMS2_DB_HOST', 'DB_HOST', 'MYSQL_HOST', 'MARIADB_HOST'], DB_HOST));
+    // Unified default: ignore stale HostForge CRAD_DB_* unless CRAD_FORCE_SEPARATE=1.
+    // Dead hosts like mariadb-edee97zl.internal otherwise force a separate DSN and fatal.
+    $forceSeparate = strtolower((string) sms2_env('CRAD_FORCE_SEPARATE', '0')) === '1';
+    // #region agent log
+    @file_put_contents(
+        dirname(__DIR__, 3) . '/debug-4aceee.log',
+        json_encode([
+            'sessionId' => '4aceee',
+            'runId' => 'post-fix',
+            'hypothesisId' => 'F',
+            'location' => 'modules/crad/config/config.php:defines',
+            'message' => 'CRAD define-time separate-vs-unified',
+            'data' => [
+                'forceSeparate' => $forceSeparate,
+                'cradHostEnv' => (string) (sms2_env_first(['CRAD_DB_HOST'], '') ?? ''),
+                'cradNameEnv' => (string) (sms2_env_first(['CRAD_DB_NAME'], '') ?? ''),
+                'dbHost' => (string) DB_HOST,
+                'dbName' => (string) DB_NAME,
+            ],
+            'timestamp' => (int) round(microtime(true) * 1000),
+        ], JSON_UNESCAPED_SLASHES) . "\n",
+        FILE_APPEND | LOCK_EX
+    );
+    // #endregion
+    if ($forceSeparate) {
+        define('CRAD_DB_HOST', sms2_env_first(['CRAD_DB_HOST', 'SMS2_DB_HOST', 'DB_HOST', 'MYSQL_HOST', 'MARIADB_HOST'], DB_HOST));
+    } else {
+        define('CRAD_DB_HOST', DB_HOST);
+    }
 }
 if (!defined('CRAD_DB_PORT')) {
-    define('CRAD_DB_PORT', sms2_env_first(['CRAD_DB_PORT', 'SMS2_DB_PORT', 'DB_PORT', 'MYSQL_PORT', 'MARIADB_PORT'], DB_PORT));
+    $forceSeparate = strtolower((string) sms2_env('CRAD_FORCE_SEPARATE', '0')) === '1';
+    if ($forceSeparate) {
+        define('CRAD_DB_PORT', sms2_env_first(['CRAD_DB_PORT', 'SMS2_DB_PORT', 'DB_PORT', 'MYSQL_PORT', 'MARIADB_PORT'], DB_PORT));
+    } else {
+        define('CRAD_DB_PORT', DB_PORT);
+    }
 }
 if (!defined('CRAD_DB_NAME')) {
-    // Unified default: same database as SMS2 (DB_NAME / HostForge DB_DATABASE).
-    $cradEnvName = sms2_env_first(['CRAD_DB_NAME'], null);
-    if ($cradEnvName !== null && $cradEnvName !== '' && strcasecmp($cradEnvName, 'crad_db') !== 0) {
-        define('CRAD_DB_NAME', $cradEnvName);
+    $forceSeparate = strtolower((string) sms2_env('CRAD_FORCE_SEPARATE', '0')) === '1';
+    if ($forceSeparate) {
+        $cradEnvName = sms2_env_first(['CRAD_DB_NAME'], null);
+        if ($cradEnvName !== null && $cradEnvName !== '' && strcasecmp($cradEnvName, 'crad_db') !== 0) {
+            define('CRAD_DB_NAME', $cradEnvName);
+        } else {
+            define('CRAD_DB_NAME', DB_NAME);
+        }
     } else {
+        // Always share DB_DATABASE in unified mode (ignore stale CRAD_DB_NAME=hf_db_edee97zl).
         define('CRAD_DB_NAME', DB_NAME);
     }
 }
 if (!defined('CRAD_DB_USER')) {
-    define('CRAD_DB_USER', sms2_env_first(['CRAD_DB_USER', 'SMS2_DB_USER', 'DB_USERNAME', 'DB_USER', 'MYSQL_USER', 'MARIADB_USER'], DB_USER));
+    $forceSeparate = strtolower((string) sms2_env('CRAD_FORCE_SEPARATE', '0')) === '1';
+    if ($forceSeparate) {
+        define('CRAD_DB_USER', sms2_env_first(['CRAD_DB_USER', 'SMS2_DB_USER', 'DB_USERNAME', 'DB_USER', 'MYSQL_USER', 'MARIADB_USER'], DB_USER));
+    } else {
+        define('CRAD_DB_USER', DB_USER);
+    }
 }
 if (!defined('CRAD_DB_PASS')) {
-    $cradPass = sms2_env_first(['CRAD_DB_PASS', 'SMS2_DB_PASS', 'DB_PASSWORD', 'DB_PASS', 'MYSQL_PASSWORD', 'MARIADB_PASSWORD'], null);
-    define('CRAD_DB_PASS', $cradPass !== null ? $cradPass : DB_PASS);
+    $forceSeparate = strtolower((string) sms2_env('CRAD_FORCE_SEPARATE', '0')) === '1';
+    if ($forceSeparate) {
+        $cradPass = sms2_env_first(['CRAD_DB_PASS', 'SMS2_DB_PASS', 'DB_PASSWORD', 'DB_PASS', 'MYSQL_PASSWORD', 'MARIADB_PASSWORD'], null);
+        define('CRAD_DB_PASS', $cradPass !== null ? $cradPass : DB_PASS);
+    } else {
+        define('CRAD_DB_PASS', DB_PASS);
+    }
 }
 if (!defined('CRAD_DB_CHARSET')) {
     define('CRAD_DB_CHARSET', sms2_env_first(['CRAD_DB_CHARSET', 'SMS2_DB_CHARSET', 'DB_CHARSET'], DB_CHARSET));
