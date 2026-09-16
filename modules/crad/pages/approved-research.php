@@ -8,12 +8,20 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../../config/config.php';
 require_once __DIR__ . '/../config/config.php';
 require_once ROOT_PATH . '/includes/authentication.php';
+require_once ROOT_PATH . '/includes/security.php';
 require_once ROOT_PATH . '/includes/breadcrumbs.php';
 
 requireAuth();
+requireModuleAccess('crad');
 
 $roleKey = getCurrentUserRoleKey();
-if (!in_array($roleKey, ['research_coordinator', 'superadmin'], true)) {
+if (!smsRoleAllowedForModule(['research_coordinator', 'superadmin', 'sms_admin'], 'crad')) {
+    if (isset($_GET['ajax'])) {
+        http_response_code(403);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['ok' => false, 'error' => 'Access denied.']);
+        exit;
+    }
     header('Location: ' . BASE_URL . '/dashboard/index.php');
     exit;
 }
@@ -227,15 +235,32 @@ if (($_GET['ajax'] ?? '') === 'title-approvals') {
 if (($_GET['ajax'] ?? '') === 'title-approval-status' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     header('Content-Type: application/json; charset=utf-8');
     $body = json_decode((string) file_get_contents('php://input'), true) ?: [];
-    echo json_encode([
-        'ok' => rcTitleApprovalUpdate(
-            (int) ($body['id'] ?? 0),
-            (string) ($body['status'] ?? ''),
-            trim((string) ($body['remarks'] ?? '')),
-            trim((string) ($body['coordinator_signature_data'] ?? '')),
-            is_array($body['coordinator_screening'] ?? null) ? $body['coordinator_screening'] : []
-        ),
-    ]);
+    try {
+        smsRequireMutatingCsrf($body);
+        // #region agent log
+        @file_put_contents(ROOT_PATH . '/debug-4aceee.log', json_encode([
+            'sessionId' => '4aceee',
+            'runId' => 'post-fix',
+            'hypothesisId' => 'D',
+            'location' => 'modules/crad/pages/approved-research.php',
+            'message' => 'coordinator title-approval-status CSRF ok',
+            'data' => ['role' => getCurrentUserRoleKey(), 'id' => (int) ($body['id'] ?? 0)],
+            'timestamp' => (int) round(microtime(true) * 1000),
+        ], JSON_UNESCAPED_SLASHES) . "\n", FILE_APPEND | LOCK_EX);
+        // #endregion
+        echo json_encode([
+            'ok' => rcTitleApprovalUpdate(
+                (int) ($body['id'] ?? 0),
+                (string) ($body['status'] ?? ''),
+                trim((string) ($body['remarks'] ?? '')),
+                trim((string) ($body['coordinator_signature_data'] ?? '')),
+                is_array($body['coordinator_screening'] ?? null) ? $body['coordinator_screening'] : []
+            ),
+        ]);
+    } catch (Throwable $e) {
+        http_response_code(403);
+        echo json_encode(['ok' => false, 'error' => 'Invalid CSRF token']);
+    }
     exit;
 }
 
