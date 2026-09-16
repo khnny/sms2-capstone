@@ -2,9 +2,7 @@
 declare(strict_types=1);
 
 $root = dirname(__DIR__);
-require $root . '/database/apply-table-prefixes.php';
 
-// Re-include only maps by parsing apply script constants — rebuild maps here.
 $smsTables = [
     'password_reset_requests', 'user_authenticators', 'user_passkeys', 'login_throttles',
     'password_resets', 'role_permissions', 'security_otps', 'system_settings',
@@ -29,14 +27,13 @@ $cradTables = [
     'research_progress_ai_analyses',
 ];
 
-$skipDirs = ['vendor', 'node_modules', '.git', 'database'];
+$skipDirs = ['vendor', 'node_modules', '.git'];
 $skipFiles = [
     'apply-table-prefixes.php',
     'build-unified-sms2-sql.php',
     '_sweep_unprefixed.php',
 ];
 
-$keywords = ['FROM', 'INTO', 'JOIN', 'UPDATE', 'TABLE', 'REFERENCES', 'ON'];
 $hits = [];
 
 $it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root));
@@ -64,26 +61,19 @@ foreach ($it as $file) {
     }
 
     foreach (array_merge($smsTables, $cradTables) as $table) {
-        $prefixed = (in_array($table, $smsTables, true) ? 'sms_' : 'crad_') . $table;
-        // Match SQL-ish uses of bare table name (not already prefixed).
         $patterns = [
             "/(?:FROM|INTO|JOIN|UPDATE|TABLE|REFERENCES)\\s+`{$table}`/i",
             "/(?:FROM|INTO|JOIN|UPDATE|TABLE|REFERENCES)\\s+{$table}\\b/i",
             "/SHOW TABLES LIKE '{$table}'/i",
-            "/AFTER DELETE ON {$table}\\b/i",
-            "/AFTER INSERT ON {$table}\\b/i",
-            "/AFTER UPDATE ON {$table}\\b/i",
+            "/AFTER (?:DELETE|INSERT|UPDATE) ON {$table}\\b/i",
             "/sms2_db\\.{$table}\\b/i",
+            "/crad_db\\.{$table}\\b/i",
         ];
         foreach ($patterns as $p) {
             if (preg_match_all($p, $raw, $m, PREG_OFFSET_CAPTURE)) {
                 foreach ($m[0] as $match) {
                     $line = substr_count(substr($raw, 0, $match[1]), "\n") + 1;
                     $snippet = trim(preg_replace('/\\s+/', ' ', $match[0]));
-                    // Ignore if already looking at prefixed sibling nearby is hard; filter false positives:
-                    if (str_contains($snippet, $prefixed)) {
-                        continue;
-                    }
                     $hits[] = "{$rel}:{$line}: {$snippet}";
                 }
             }
@@ -91,7 +81,7 @@ foreach ($it as $file) {
     }
 }
 
-$hits = array_unique($hits);
+$hits = array_values(array_unique($hits));
 sort($hits);
 echo count($hits) . " leftover hit(s)\n";
 foreach ($hits as $h) {
