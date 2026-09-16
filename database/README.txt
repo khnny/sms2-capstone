@@ -52,7 +52,7 @@ Step-by-step
 2. Do NOT upload config/local.php with XAMPP localhost settings. When DB_* env
    vars are present, the app skips local.php automatically.
 3. Verify which database has your tables. On the Databases page, open the
-   ATTACHED database console (the name in DB_DATABASE, e.g. hf_db_xxxx) and run:
+   ATTACHED database console (the name in DB_DATABASE, e.g. hf_db_5yxohe3e) and run:
      SHOW TABLES;
    You need tables like users, roles, system_settings. If empty or users is
    missing, import database/sms2_db.sql INTO THIS DATABASE. Do not create a

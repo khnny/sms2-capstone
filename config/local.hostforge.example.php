@@ -21,15 +21,18 @@
  * HostForge injects DB_* for the attached database. Use the INTERNAL values
  * that work from the app container (often port 3306 even if the UI shows another port).
  *
- * DB_HOST=mariadb-XXXX.internal
+ * Current provisioned sms2_db (HostForge):
+ * DB_HOST=mariadb-5yxohe3e.internal
  * DB_PORT=3306
- * DB_DATABASE=hf_db_XXXX
- * DB_USERNAME=hf_XXXX
- * DB_PASSWORD=<from HostForge Databases → the attached DB>
+ * DB_DATABASE=hf_db_5yxohe3e
+ * DB_USERNAME=hf_etho0gcrm7
+ * DB_PASSWORD=<from HostForge Databases → sms2_db / attached DB>
  * DB_CONNECTION=mysql
  * DB_CHARSET=utf8mb4
+ * DATABASE_URL=mysql://…@mariadb-5yxohe3e.internal:3306/hf_db_5yxohe3e
  *
- * Import database/sms2_db.sql into DB_DATABASE (hf_db_XXXX), not into a
+ * Paste those into HostForge Environment Variables (or a local gitignored .env).
+ * Import database/sms2_db.sql into DB_DATABASE (hf_db_5yxohe3e), not into a
  * newly created database named sms2_db.
  */
 
