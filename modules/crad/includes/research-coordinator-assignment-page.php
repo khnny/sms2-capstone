@@ -18,6 +18,41 @@ if (!in_array($roleKey, ['research_coordinator', 'superadmin'], true)) {
     exit;
 }
 
+/**
+ * Legacy registered-proposal eligibility bypasses the full title-approval chain.
+ * Off by default; set CRAD_ALLOW_LEGACY_REGISTERED_ASSIGN=1 for historical data.
+ */
+function cradAllowLegacyRegisteredAssignment(): bool
+{
+    return strtolower((string) (function_exists('sms2_env') ? sms2_env('CRAD_ALLOW_LEGACY_REGISTERED_ASSIGN', '0') : '0')) === '1';
+}
+
+/**
+ * SQL predicate: title fully signed, optionally OR legacy registered proposal.
+ */
+function cradAssignmentEligibilitySql(string $p = 'p', string $t = 't'): string
+{
+    $titleChain = "(
+                    {$t}.id IS NOT NULL
+                    AND {$t}.status = 'Approved'
+                    AND {$t}.coordinator_status = 'Approved'
+                    AND {$t}.crad_status = 'Approved'
+                    AND {$t}.adviser_signature_data IS NOT NULL
+                    AND {$t}.adviser_signature_data <> ''
+                    AND {$t}.coordinator_signature_data IS NOT NULL
+                    AND {$t}.coordinator_signature_data <> ''
+                    AND {$t}.crad_signature_data IS NOT NULL
+                    AND {$t}.crad_signature_data <> ''
+                 )";
+
+    if (!cradAllowLegacyRegisteredAssignment()) {
+        return $titleChain;
+    }
+
+    $legacy = "({$p}.id IS NOT NULL AND {$p}.status = 'Approved' AND {$p}.registration_status = 'Registered' AND {$p}.proposal_number IS NOT NULL)";
+    return '(' . $legacy . ' OR ' . $titleChain . ')';
+}
+
 $rcAssignmentKind = $rcAssignmentKind ?? 'adviser';
 $rcPageSlug = $rcPageSlug ?? 'find-contact-adviser';
 
@@ -435,21 +470,7 @@ function rcAssignmentRows(PDO $pdo, string $kind): array
                 OR CONVERT(g.group_number USING utf8mb4) COLLATE utf8mb4_unicode_ci = CONVERT(a.group_number USING utf8mb4) COLLATE utf8mb4_unicode_ci
              LEFT JOIN crad_research_proposals p ON p.id = COALESCE(a.proposal_id, g.proposal_id)
              LEFT JOIN crad_title_approvals t ON t.id = g.title_approval_id
-             WHERE (
-                    (p.id IS NOT NULL AND p.status = 'Approved' AND p.registration_status = 'Registered' AND p.proposal_number IS NOT NULL)
-                 OR (
-                    t.id IS NOT NULL
-                    AND t.status = 'Approved'
-                    AND t.coordinator_status = 'Approved'
-                    AND t.crad_status = 'Approved'
-                    AND t.adviser_signature_data IS NOT NULL
-                    AND t.adviser_signature_data <> ''
-                    AND t.coordinator_signature_data IS NOT NULL
-                    AND t.coordinator_signature_data <> ''
-                    AND t.crad_signature_data IS NOT NULL
-                    AND t.crad_signature_data <> ''
-                 )
-               )
+             WHERE " . cradAssignmentEligibilitySql('p', 't') . "
                AND g.group_number IS NOT NULL
                AND g.group_number <> ''
         ";

@@ -737,15 +737,34 @@ function smsLockRemainingSeconds(array $user): int
     return max(1, $until - time());
 }
 
+function smsLoginThrottleIpKey(): string
+{
+    return hash('sha256', 'ip|' . smsClientIp());
+}
+
 function smsLoginThrottleKey(string $loginInput = ''): string
 {
     $ip = smsClientIp();
     $norm = strtolower(trim($loginInput));
-    // IP-wide key (anti-spam for random emails) — primary gate
     if ($norm === '') {
-        return hash('sha256', 'ip|' . $ip);
+        return smsLoginThrottleIpKey();
     }
-    return hash('sha256', 'ip|' . $ip);
+    return hash('sha256', 'ipuser|' . $ip . '|' . $norm);
+}
+
+/**
+ * Dual keys: IP aggregate (credential stuffing) + IP+username (account lockout).
+ *
+ * @return list<string>
+ */
+function smsLoginThrottleKeys(string $loginInput = ''): array
+{
+    $keys = [smsLoginThrottleIpKey()];
+    $norm = strtolower(trim($loginInput));
+    if ($norm !== '') {
+        $keys[] = smsLoginThrottleKey($loginInput);
+    }
+    return array_values(array_unique($keys));
 }
 
 function smsEnsureLoginThrottleTables(): void
