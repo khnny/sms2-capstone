@@ -72,6 +72,57 @@ if (!function_exists('sms2_env_first')) {
     }
 }
 
+if (!function_exists('sms2_load_dotenv')) {
+    /**
+     * Load KEY=VALUE pairs from a .env file into the process environment.
+     * Existing getenv / $_ENV / $_SERVER values win (HostForge injects those).
+     */
+    function sms2_load_dotenv(string $path): void
+    {
+        if (!is_readable($path)) {
+            return;
+        }
+
+        $lines = file($path, FILE_IGNORE_NEW_LINES);
+        if ($lines === false) {
+            return;
+        }
+
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if ($line === '' || str_starts_with($line, '#')) {
+                continue;
+            }
+
+            if (!str_contains($line, '=')) {
+                continue;
+            }
+
+            [$key, $value] = explode('=', $line, 2);
+            $key = trim($key);
+            $value = trim($value);
+            if ($key === '' || !preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $key)) {
+                continue;
+            }
+
+            if (sms2_env_raw($key) !== false) {
+                continue;
+            }
+
+            if (
+                (str_starts_with($value, '"') && str_ends_with($value, '"'))
+                || (str_starts_with($value, "'") && str_ends_with($value, "'"))
+            ) {
+                $value = substr($value, 1, -1);
+            }
+
+            putenv($key . '=' . $value);
+            $_ENV[$key] = $value;
+            $_SERVER[$key] = $value;
+        }
+    }
+}
+
 if (!function_exists('sms2_has_cloud_db_env')) {
     function sms2_has_cloud_db_env(): bool
     {
@@ -85,6 +136,9 @@ if (!function_exists('sms2_has_cloud_db_env')) {
         return false;
     }
 }
+
+// Optional .env (gitignored). HostForge Environment Variables still take priority.
+sms2_load_dotenv(ROOT_PATH . DIRECTORY_SEPARATOR . '.env');
 
 // Optional machine-specific overrides. Copy config/local.example.php to
 // config/local.php on another computer if its MySQL settings are different.

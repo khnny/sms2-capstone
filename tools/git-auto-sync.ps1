@@ -17,7 +17,10 @@ $IgnorePatterns = @(
     '\\storage\\backups\\',
     '\\storage\\keys\\',
     '\\sms2_system\\',
-    '\.git-sync\.'
+    '\.git-sync\.',
+    '\\.env$',
+    '\\.env\.local$',
+    '\\.env\..+\.local$'
 )
 
 function Write-SyncLog {
