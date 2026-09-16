@@ -948,25 +948,29 @@ function smsForceLoginThrottleLock(string $loginInput = '', ?int $lockSeconds = 
     }
     $seconds = max(1, $lockSeconds ?? smsLockoutSeconds());
     $attempts = max(1, $minAttempts ?? max(1, (int) smsSetting('max_failed_logins', '3')));
-    $key = smsLoginThrottleKey($loginInput);
-    try {
-        $pdo->prepare(
-            'INSERT INTO sms_login_throttles (throttle_key, ip_address, attempts, locked_until)
-             VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL ? SECOND))
-             ON DUPLICATE KEY UPDATE
-                attempts = GREATEST(attempts, VALUES(attempts)),
-                locked_until = DATE_ADD(NOW(), INTERVAL ? SECOND),
-                ip_address = VALUES(ip_address)'
-        )->execute([$key, smsClientIp(), $attempts, $seconds, $seconds]);
+    $until = null;
+    foreach (smsLoginThrottleKeys($loginInput) as $key) {
+        try {
+            $pdo->prepare(
+                'INSERT INTO sms_login_throttles (throttle_key, ip_address, attempts, locked_until)
+                 VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL ? SECOND))
+                 ON DUPLICATE KEY UPDATE
+                    attempts = GREATEST(attempts, VALUES(attempts)),
+                    locked_until = DATE_ADD(NOW(), INTERVAL ? SECOND),
+                    ip_address = VALUES(ip_address)'
+            )->execute([$key, smsClientIp(), $attempts, $seconds, $seconds]);
 
-        $stmt = $pdo->prepare('SELECT locked_until FROM sms_login_throttles WHERE throttle_key = ? LIMIT 1');
-        $stmt->execute([$key]);
-        $until = $stmt->fetchColumn();
-        return $until ? (string) $until : null;
-    } catch (Throwable $e) {
-        error_log('SMS2 force login throttle: ' . $e->getMessage());
-        return null;
+            $stmt = $pdo->prepare('SELECT locked_until FROM sms_login_throttles WHERE throttle_key = ? LIMIT 1');
+            $stmt->execute([$key]);
+            $rowUntil = $stmt->fetchColumn();
+            if ($rowUntil) {
+                $until = (string) $rowUntil;
+            }
+        } catch (Throwable $e) {
+            error_log('SMS2 force login throttle: ' . $e->getMessage());
+        }
     }
+    return $until;
 }
 
 function smsLoginGateSet(?string $lockedUntil, string $message, string $alert = 'warning', ?int $lockSeconds = null): void

@@ -1255,21 +1255,20 @@ html[data-theme="dark"] .login-glass .sms-cf-widget.is-verified {
 
         <?php if ($dbUnavailable): ?>
             <div class="alert alert-danger login-alert" role="alert">
-                <?= smsIcon('alert-circle', ['class' => 'me-2']) ?>Database unavailable. The app cannot reach MySQL with the credentials it resolved.
-                <?php if (is_array($dbSummary)): ?>
-                    <div class="mt-2 small">
-                        <div>Cloud env visible to PHP: <strong><?= !empty($dbSummary['cloud_env']) ? 'yes' : 'no' ?></strong></div>
-                        <div>Trying: <code><?= e($dbSummary['host'] . ':' . $dbSummary['port'] . '/' . $dbSummary['database']) ?></code> as <code><?= e($dbSummary['user']) ?></code></div>
-                        <?php if ($dbSummary['error'] !== ''): ?>
-                            <div class="mt-1">MySQL error: <code><?= e($dbSummary['error']) ?></code></div>
-                        <?php endif; ?>
-                        <?php if (empty($dbSummary['cloud_env']) || $dbSummary['host'] === 'localhost'): ?>
-                            <div class="mt-1">HostForge variables are not reaching PHP. Save Environment Variables, <strong>redeploy</strong>, and confirm <code>DB_HOST</code> is <code>mariadb-….internal</code> (not <code>localhost</code>).</div>
-                        <?php endif; ?>
-                    </div>
-                <?php else: ?>
-                    <div class="mt-2 small">Set <code>DB_HOST</code>, <code>DB_PORT</code>, and <code>DB_DATABASE</code> in HostForge Environment Variables, redeploy, then open <code>/setup/health.php</code>.</div>
-                <?php endif; ?>
+                <?= smsIcon('alert-circle', ['class' => 'me-2']) ?>Database unavailable. Please try again later or contact the system administrator.
+                <?php
+                // Log connection details server-side only (SEC-007) — never expose host/user/SQLSTATE to browsers.
+                if (is_array($dbSummary)) {
+                    error_log(
+                        'SMS2 login DB unavailable: cloud_env='
+                        . (!empty($dbSummary['cloud_env']) ? '1' : '0')
+                        . ' host=' . ($dbSummary['host'] ?? '')
+                        . ' db=' . ($dbSummary['database'] ?? '')
+                        . ' user=' . ($dbSummary['user'] ?? '')
+                        . ' err=' . ($dbSummary['error'] ?? '')
+                    );
+                }
+                ?>
             </div>
         <?php endif; ?>
 
