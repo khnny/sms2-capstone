@@ -124,23 +124,6 @@ try {
     $role = getCurrentUserRoleKey();
     $canView = cradFileViewAuthorized($cradPdo, $proposalRow, $proposalId, $sessionUserId, $role);
 
-    // #region agent log
-    @file_put_contents(ROOT_PATH . '/debug-4aceee.log', json_encode([
-        'sessionId' => '4aceee',
-        'runId' => 'post-fix',
-        'hypothesisId' => 'F',
-        'location' => 'modules/crad/file-view.php',
-        'message' => 'file-view authorization decision',
-        'data' => [
-            'pid' => $proposalId,
-            'role' => $role,
-            'canView' => $canView,
-            'isOwner' => ((int) ($proposalRow['submitted_by_user'] ?? 0) === $sessionUserId),
-        ],
-        'timestamp' => (int) round(microtime(true) * 1000),
-    ], JSON_UNESCAPED_SLASHES) . "\n", FILE_APPEND | LOCK_EX);
-    // #endregion
-
     if (!$canView) {
         http_response_code(403);
         exit('Access denied.');

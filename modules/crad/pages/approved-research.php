@@ -237,17 +237,6 @@ if (($_GET['ajax'] ?? '') === 'title-approval-status' && $_SERVER['REQUEST_METHO
     $body = json_decode((string) file_get_contents('php://input'), true) ?: [];
     try {
         smsRequireMutatingCsrf($body);
-        // #region agent log
-        @file_put_contents(ROOT_PATH . '/debug-4aceee.log', json_encode([
-            'sessionId' => '4aceee',
-            'runId' => 'post-fix',
-            'hypothesisId' => 'D',
-            'location' => 'modules/crad/pages/approved-research.php',
-            'message' => 'coordinator title-approval-status CSRF ok',
-            'data' => ['role' => getCurrentUserRoleKey(), 'id' => (int) ($body['id'] ?? 0)],
-            'timestamp' => (int) round(microtime(true) * 1000),
-        ], JSON_UNESCAPED_SLASHES) . "\n", FILE_APPEND | LOCK_EX);
-        // #endregion
         echo json_encode([
             'ok' => rcTitleApprovalUpdate(
                 (int) ($body['id'] ?? 0),

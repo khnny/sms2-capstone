@@ -103,22 +103,6 @@ function facultyAccountDispatchAjax(): void
             echo json_encode(['ok' => false, 'error' => 'Invalid CSRF token']);
             exit;
         }
-        // #region agent log
-        if (defined('ROOT_PATH')) {
-            @file_put_contents(ROOT_PATH . '/debug-4aceee.log', json_encode([
-                'sessionId' => '4aceee',
-                'runId' => 'post-fix',
-                'hypothesisId' => 'E',
-                'location' => 'modules/faculty/includes/faculty-account-page.php',
-                'message' => 'adviser title-status CSRF ok',
-                'data' => [
-                    'role' => function_exists('getCurrentUserRoleKey') ? getCurrentUserRoleKey() : '',
-                    'id' => (int) ($body['id'] ?? 0),
-                ],
-                'timestamp' => (int) round(microtime(true) * 1000),
-            ], JSON_UNESCAPED_SLASHES) . "\n", FILE_APPEND | LOCK_EX);
-        }
-        // #endregion
         $id        = (int) ($body['id'] ?? 0);
         $status    = in_array($body['status'] ?? '', ['Reviewed', 'Approved', 'Returned'], true)
                      ? $body['status'] : null;
