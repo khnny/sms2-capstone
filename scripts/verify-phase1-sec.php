@@ -57,7 +57,7 @@ foreach (['student' => false, 'adviser' => false, 'crad_officer' => true, 'super
 // --- SEC-004/005 CSRF ---
 $_SERVER['REQUEST_METHOD'] = 'POST';
 $_SESSION['user_id'] = 9002;
-$_SESSION['role_key'] = 'crad_officer';
+$_SESSION['user_role_key'] = 'crad_officer';
 $token = csrfToken();
 
 $bodyOk = ['id' => 1, 'csrf_token' => $token];
@@ -124,40 +124,48 @@ if (!preg_match('/function cradFileViewAuthorized\b.*?^}/ms', $fvSource, $m)) {
     $log('F', 'SEC-002 extract failed', ['pass' => false]);
 } else {
     eval($m[0]);
-    try {
-        $pdo = getCradDatabaseConnection();
-        $prop = $pdo->query(
-            'SELECT id, submitted_by_user, proposal_number FROM crad_research_proposals ORDER BY id ASC LIMIT 1'
-        )->fetch(PDO::FETCH_ASSOC);
 
-        if (!$prop) {
-            $log('F', 'SEC-002 no proposals', ['pass' => null]);
-            echo "SKIP SEC-002 no proposals in DB\n";
-        } else {
-            $pid = (int) $prop['id'];
+    // SQLite stub: panel/adviser assignment queries return no rows → deny.
+    $pdo = new PDO('sqlite::memory:');
+    $pdo->exec('CREATE TABLE crad_research_adviser_assignments (
+        adviser_user_id INT, assignment_status TEXT, proposal_id INT, proposal_number TEXT
+    )');
+    $pdo->exec('CREATE TABLE crad_research_panel_assignments (
+        panel_user_id INT, proposal_id INT, proposal_number TEXT, research_group_id INT
+    )');
+    $pdo->exec('CREATE TABLE crad_research_groups (
+        id INT, proposal_id INT, proposal_number TEXT
+    )');
 
-            $deny = cradFileViewAuthorized($pdo, $prop, $pid, 999999, 'panel');
-            $passDeny = $deny === false;
-            $log('F', 'SEC-002 unassigned panel denied', ['pid' => $pid, 'canView' => $deny, 'pass' => $passDeny]);
-            echo ($passDeny ? 'PASS' : 'FAIL') . " SEC-002 unassigned panel denied\n";
+    $prop = ['id' => 42, 'submitted_by_user' => 77, 'proposal_number' => 'P-42'];
+    $pid = 42;
 
-            $allowOfficer = cradFileViewAuthorized($pdo, $prop, $pid, 1, 'crad_officer');
-            $passOfficer = $allowOfficer === true;
-            $log('F', 'SEC-002 crad_officer allowed', ['pid' => $pid, 'canView' => $allowOfficer, 'pass' => $passOfficer]);
-            echo ($passOfficer ? 'PASS' : 'FAIL') . " SEC-002 crad_officer allowed\n";
+    $deny = cradFileViewAuthorized($pdo, $prop, $pid, 999999, 'panel');
+    $passDeny = $deny === false;
+    $log('F', 'SEC-002 unassigned panel denied', ['pid' => $pid, 'canView' => $deny, 'pass' => $passDeny]);
+    echo ($passDeny ? 'PASS' : 'FAIL') . " SEC-002 unassigned panel denied\n";
 
-            $ownerId = (int) ($prop['submitted_by_user'] ?? 0);
-            if ($ownerId > 0) {
-                $allowOwner = cradFileViewAuthorized($pdo, $prop, $pid, $ownerId, 'student');
-                $passOwner = $allowOwner === true;
-                $log('F', 'SEC-002 owner allowed', ['pid' => $pid, 'canView' => $allowOwner, 'pass' => $passOwner]);
-                echo ($passOwner ? 'PASS' : 'FAIL') . " SEC-002 owner allowed\n";
-            }
-        }
-    } catch (Throwable $e) {
-        $log('F', 'SEC-002 error', ['error' => $e->getMessage(), 'pass' => false]);
-        echo 'FAIL SEC-002 ' . $e->getMessage() . "\n";
-    }
+    $denyAdviser = cradFileViewAuthorized($pdo, $prop, $pid, 888888, 'adviser');
+    $passDenyAdviser = $denyAdviser === false;
+    $log('F', 'SEC-002 unassigned adviser denied', ['pid' => $pid, 'canView' => $denyAdviser, 'pass' => $passDenyAdviser]);
+    echo ($passDenyAdviser ? 'PASS' : 'FAIL') . " SEC-002 unassigned adviser denied\n";
+
+    $allowOfficer = cradFileViewAuthorized($pdo, $prop, $pid, 1, 'crad_officer');
+    $passOfficer = $allowOfficer === true;
+    $log('F', 'SEC-002 crad_officer allowed', ['pid' => $pid, 'canView' => $allowOfficer, 'pass' => $passOfficer]);
+    echo ($passOfficer ? 'PASS' : 'FAIL') . " SEC-002 crad_officer allowed\n";
+
+    $allowOwner = cradFileViewAuthorized($pdo, $prop, $pid, 77, 'student');
+    $passOwner = $allowOwner === true;
+    $log('F', 'SEC-002 owner allowed', ['pid' => $pid, 'canView' => $allowOwner, 'pass' => $passOwner]);
+    echo ($passOwner ? 'PASS' : 'FAIL') . " SEC-002 owner allowed\n";
+
+    $pdo->exec("INSERT INTO crad_research_panel_assignments (panel_user_id, proposal_id, proposal_number, research_group_id)
+                VALUES (55, 42, 'P-42', 1)");
+    $allowAssigned = cradFileViewAuthorized($pdo, $prop, $pid, 55, 'panel');
+    $passAssigned = $allowAssigned === true;
+    $log('F', 'SEC-002 assigned panel allowed', ['pid' => $pid, 'canView' => $allowAssigned, 'pass' => $passAssigned]);
+    echo ($passAssigned ? 'PASS' : 'FAIL') . " SEC-002 assigned panel allowed\n";
 }
 
 // --- SEC-003 ---
