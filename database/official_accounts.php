@@ -166,3 +166,80 @@ function smsOfficialAccounts(): array
         ],
     ];
 }
+
+/**
+ * Apply official emails/passwords to matching users (or insert if missing).
+ *
+ * @return array{updated:int,created:int}
+ */
+function smsApplyOfficialAccountCredentials(PDO $pdo): array
+{
+    $accounts = smsOfficialAccounts();
+    $find = $pdo->prepare(
+        'SELECT id FROM users
+         WHERE username = :uname OR LOWER(email) = LOWER(:email)
+         LIMIT 1'
+    );
+    $update = $pdo->prepare(
+        'UPDATE users
+            SET username = :username,
+                email = :email,
+                password_hash = :hash,
+                full_name = :full_name,
+                role_key = :role_key,
+                student_id = :student_id,
+                status = \'active\',
+                password_changed_at = NOW(),
+                must_change_password = 0,
+                failed_login_attempts = 0,
+                locked_until = NULL
+          WHERE id = :id'
+    );
+    $insert = $pdo->prepare(
+        'INSERT INTO users
+            (username, email, password_hash, full_name, role_key, student_id, status, password_changed_at, must_change_password, failed_login_attempts, locked_until)
+         VALUES (?, ?, ?, ?, ?, ?, \'active\', NOW(), 0, 0, NULL)'
+    );
+
+    $updated = 0;
+    $created = 0;
+    foreach ($accounts as $account) {
+        $keys = array_values(array_unique(array_filter(array_merge(
+            [$account['username'], $account['email']],
+            $account['lookup'] ?? []
+        ))));
+        $row = null;
+        foreach ($keys as $key) {
+            $find->execute([':uname' => $key, ':email' => $key]);
+            $row = $find->fetch(PDO::FETCH_ASSOC);
+            if ($row) {
+                break;
+            }
+        }
+        $hash = password_hash((string) $account['password'], PASSWORD_DEFAULT);
+        if ($row) {
+            $update->execute([
+                ':username' => $account['username'],
+                ':email' => $account['email'],
+                ':hash' => $hash,
+                ':full_name' => $account['full_name'],
+                ':role_key' => $account['role_key'],
+                ':student_id' => $account['student_id'],
+                ':id' => (int) $row['id'],
+            ]);
+            $updated++;
+            continue;
+        }
+        $insert->execute([
+            $account['username'],
+            $account['email'],
+            $hash,
+            $account['full_name'],
+            $account['role_key'],
+            $account['student_id'],
+        ]);
+        $created++;
+    }
+
+    return ['updated' => $updated, 'created' => $created];
+}

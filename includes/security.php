@@ -46,9 +46,41 @@ function e(?string $value): string
 
 /**
  * Best-effort client IP.
+ *
+ * HostForge / Cloudflare sit in front of PHP, so REMOTE_ADDR is often a
+ * private container address shared by every visitor. Prefer the edge headers
+ * so failed logins lock one client instead of the whole app.
  */
 function smsClientIp(): string
 {
+    foreach (['HTTP_CF_CONNECTING_IP', 'HTTP_TRUE_CLIENT_IP', 'HTTP_X_REAL_IP'] as $key) {
+        $raw = $_SERVER[$key] ?? '';
+        if (!is_string($raw) || $raw === '') {
+            continue;
+        }
+        $ip = trim($raw);
+        if (filter_var($ip, FILTER_VALIDATE_IP)) {
+            return substr($ip, 0, 45);
+        }
+    }
+
+    $forwarded = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? '';
+    if (is_string($forwarded) && $forwarded !== '') {
+        foreach (explode(',', $forwarded) as $part) {
+            $ip = trim($part);
+            if ($ip === '') {
+                continue;
+            }
+            if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
+                return substr($ip, 0, 45);
+            }
+        }
+        $first = trim(explode(',', $forwarded)[0]);
+        if (filter_var($first, FILTER_VALIDATE_IP)) {
+            return substr($first, 0, 45);
+        }
+    }
+
     $ip = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
     return is_string($ip) ? substr($ip, 0, 45) : '0.0.0.0';
 }
