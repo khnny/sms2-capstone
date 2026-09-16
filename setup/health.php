@@ -264,6 +264,10 @@ header('Content-Type: text/html; charset=utf-8');
         .banner { padding: .75rem 1rem; border-radius: 8px; margin: 1rem 0; }
         .banner.ok { background: #d1fae5; color: #065f46; }
         .banner.fail { background: #fee2e2; color: #991b1b; }
+        .actions { display: flex; flex-wrap: wrap; gap: .6rem; margin: 1rem 0; }
+        button { background: #1d4ed8; color: #fff; border: 0; border-radius: 8px; padding: .55rem .9rem; font-size: .9rem; cursor: pointer; }
+        button.secondary { background: #0f172a; }
+        button:hover { opacity: .92; }
         a { color: #1d4ed8; }
         code { font-size: .85em; }
     </style>
@@ -272,8 +276,12 @@ header('Content-Type: text/html; charset=utf-8');
     <h1>SMS 2 — Deploy Health</h1>
     <p>Verify database connectivity before signing in on HostForge or other cloud hosts.</p>
 
+    <?php if ($actionFlash !== ''): ?>
+        <div class="banner <?= $actionOk ? 'ok' : 'fail' ?>"><?= htmlspecialchars($actionFlash) ?></div>
+    <?php endif; ?>
+
     <div class="banner <?= $allOk ? 'ok' : 'fail' ?>">
-        <?= $allOk ? 'All checks passed. Try logging in at the login page.' : 'Some checks failed. Fix the items marked FAIL before logging in.' ?>
+        <?= $allOk ? 'All blocking checks passed. Try logging in at the login page.' : 'Some checks failed. Fix the items marked FAIL before logging in.' ?>
     </div>
 
     <table>
@@ -294,6 +302,21 @@ header('Content-Type: text/html; charset=utf-8');
             <?php endforeach; ?>
         </tbody>
     </table>
+
+    <?php if ($pdo instanceof PDO): ?>
+        <div class="actions">
+            <form method="post">
+                <input type="hidden" name="token" value="<?= htmlspecialchars($providedToken) ?>">
+                <input type="hidden" name="health_action" value="clear_locks">
+                <button type="submit">Clear login locks</button>
+            </form>
+            <form method="post" onsubmit="return confirm('Reset official account passwords from database/official_accounts.php and clear locks?');">
+                <input type="hidden" name="token" value="<?= htmlspecialchars($providedToken) ?>">
+                <input type="hidden" name="health_action" value="reset_official">
+                <button type="submit" class="secondary">Reset official passwords</button>
+            </form>
+        </div>
+    <?php endif; ?>
 
     <p style="margin-top:1.25rem">
         <a href="<?= htmlspecialchars(BASE_URL) ?>/login/login.php">Go to login</a>
