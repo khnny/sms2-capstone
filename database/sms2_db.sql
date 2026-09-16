@@ -6,10 +6,27 @@
 -- Generation Time: Aug 31, 2026 at 08:18 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.0.30
+--
+-- HostForge: import into the ATTACHED database (DB_DATABASE, e.g. hf_db_xxxx).
+-- Do not create a separate database named sms2_db unless that is DB_DATABASE.
+-- This dump has no USE `sms2_db` so tables land in whatever DB is selected.
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
+SET FOREIGN_KEY_CHECKS=0;
 START TRANSACTION;
 SET time_zone = "+00:00";
+
+DROP TABLE IF EXISTS `activity_logs`;
+DROP TABLE IF EXISTS `login_throttles`;
+DROP TABLE IF EXISTS `password_resets`;
+DROP TABLE IF EXISTS `password_reset_requests`;
+DROP TABLE IF EXISTS `role_permissions`;
+DROP TABLE IF EXISTS `roles`;
+DROP TABLE IF EXISTS `security_otps`;
+DROP TABLE IF EXISTS `system_settings`;
+DROP TABLE IF EXISTS `user_authenticators`;
+DROP TABLE IF EXISTS `user_passkeys`;
+DROP TABLE IF EXISTS `users`;
 
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
@@ -2566,6 +2583,7 @@ ALTER TABLE `role_permissions`
 --
 ALTER TABLE `users`
   ADD CONSTRAINT `fk_users_role` FOREIGN KEY (`role_key`) REFERENCES `roles` (`role_key`) ON UPDATE CASCADE;
+SET FOREIGN_KEY_CHECKS=1;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
