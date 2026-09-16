@@ -844,7 +844,7 @@ function cradEnsureTitleApprovalAdviserAssignmentConsistency(PDO $pdo, bool $rec
     $pdo->exec('DROP TRIGGER IF EXISTS trg_title_approvals_after_delete');
     $pdo->exec("
         CREATE TRIGGER trg_title_approvals_after_delete
-        AFTER DELETE ON title_approvals
+        AFTER DELETE ON crad_title_approvals
         FOR EACH ROW
         BEGIN
             UPDATE crad_research_adviser_assignments a

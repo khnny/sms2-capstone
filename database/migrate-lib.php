@@ -327,8 +327,8 @@ function sms2RunMigrations(array $options = []): array
 
     $targets = [
         [
-            'label' => 'SMS2 main database',
-            'migration_key' => '2026_08_28_sms2_db_dump',
+            'label' => 'SMS2 unified database (sms_* + crad_*)',
+            'migration_key' => '2026_09_16_sms2_unified_prefixed',
             'host' => DB_HOST,
             'port' => DB_PORT,
             'database' => DB_NAME,
@@ -337,9 +337,13 @@ function sms2RunMigrations(array $options = []): array
             'charset' => DB_CHARSET,
             'sql_file' => __DIR__ . '/sms2_db.sql',
         ],
-        [
-            'label' => 'CRAD module database',
-            'migration_key' => '2026_08_28_crad_db_dump',
+    ];
+
+    // Only apply legacy separate crad_db.sql when CRAD still uses a different database.
+    if (strcasecmp((string) DB_NAME, (string) CRAD_DB_NAME) !== 0) {
+        $targets[] = [
+            'label' => 'CRAD module database (legacy separate)',
+            'migration_key' => '2026_09_16_crad_db_prefixed',
             'host' => CRAD_DB_HOST,
             'port' => CRAD_DB_PORT,
             'database' => CRAD_DB_NAME,
@@ -347,8 +351,8 @@ function sms2RunMigrations(array $options = []): array
             'pass' => CRAD_DB_PASS,
             'charset' => CRAD_DB_CHARSET,
             'sql_file' => dirname(__DIR__) . '/modules/crad/database/crad_db.sql',
-        ],
-    ];
+        ];
+    }
 
     $connection = strtolower((string) sms2_env_first(['SMS2_DB_CONNECTION', 'DB_CONNECTION'], 'mysql'));
     if (!in_array($connection, ['mysql', 'mariadb'], true)) {
@@ -358,8 +362,16 @@ function sms2RunMigrations(array $options = []): array
     }
 
     sms2MigrateOut('SMS 2 deployment migration started.', $sink);
+    if (strcasecmp((string) DB_NAME, (string) CRAD_DB_NAME) === 0) {
+        sms2MigrateOut('CRAD tables target the main database (' . DB_NAME . ') — single-DB mode.', $sink);
+    } else {
+        sms2MigrateOut(
+            'CRAD uses a separate database (' . CRAD_DB_NAME . '). Prefer CRAD_DB_NAME=' . DB_NAME . ' unless intentionally split.',
+            $sink
+        );
+    }
     foreach ($targets as $target) {
-        $isCrad = ($target['migration_key'] === '2026_08_28_crad_db_dump');
+        $isCrad = str_contains((string) $target['migration_key'], 'crad_db');
         if ($isCrad && !empty($options['skip_crad'])) {
             sms2MigrateOut('', $sink);
             sms2MigrateOut('Skipped CRAD database (sms2-only import).', $sink);
