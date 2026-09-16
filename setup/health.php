@@ -336,11 +336,19 @@ header('Content-Type: text/html; charset=utf-8');
                 <input type="hidden" name="health_action" value="clear_locks">
                 <button type="submit">Clear login locks</button>
             </form>
+            <?php
+            require_once ROOT_PATH . '/database/official_accounts.php';
+            $officialResetAllowed = smsOfficialCredentialResetAllowed();
+            ?>
+            <?php if ($officialResetAllowed): ?>
             <form method="post" onsubmit="return confirm('Reset official account passwords from database/official_accounts.php and clear locks?');">
                 <input type="hidden" name="token" value="<?= htmlspecialchars($providedToken) ?>">
                 <input type="hidden" name="health_action" value="reset_official">
                 <button type="submit" class="secondary">Reset official passwords</button>
             </form>
+            <?php else: ?>
+            <p class="banner fail" style="margin:0;flex:1;">Official password reset disabled on cloud (SEC-003). Set SMS2_ALLOW_OFFICIAL_RESET=1 only for controlled recovery.</p>
+            <?php endif; ?>
         </div>
     <?php endif; ?>
 
