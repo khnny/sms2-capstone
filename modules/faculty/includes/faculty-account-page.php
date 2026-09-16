@@ -3,53 +3,18 @@
  * Shared Adviser faculty account page.
  */
 require_once __DIR__ . '/../../../config/config.php';
+require_once ROOT_PATH . '/modules/crad/config/config.php';
+require_once ROOT_PATH . '/modules/crad/includes/schema-ensure.php';
 require_once ROOT_PATH . '/includes/breadcrumbs.php';
 require_once ROOT_PATH . '/includes/security.php';
 require_once ROOT_PATH . '/includes/notifications.php';
-/* ── Ensure adviser_signature_data column exists (one-time migration) ── */
-(function () {
-    try {
-        $crad = cradDb();
-        if (!$crad) return;
-        $cols = $crad->query("SHOW COLUMNS FROM crad_title_approvals LIKE 'adviser_signature_data'")->fetchAll();
-        if (!$cols) {
-            $crad->exec("ALTER TABLE crad_title_approvals ADD COLUMN adviser_signature_data MEDIUMTEXT NULL DEFAULT NULL AFTER adviser_remarks");
-        }
-        $coordStatus = $crad->query("SHOW COLUMNS FROM crad_title_approvals LIKE 'coordinator_status'")->fetchAll();
-        if (!$coordStatus) {
-            $crad->exec("ALTER TABLE crad_title_approvals ADD COLUMN coordinator_status VARCHAR(30) NOT NULL DEFAULT 'Not Ready' AFTER adviser_signature_data");
-        }
-        $coordRemarks = $crad->query("SHOW COLUMNS FROM crad_title_approvals LIKE 'coordinator_remarks'")->fetchAll();
-        if (!$coordRemarks) {
-            $crad->exec("ALTER TABLE crad_title_approvals ADD COLUMN coordinator_remarks TEXT NULL DEFAULT NULL AFTER coordinator_status");
-        }
-        $coordScreening = $crad->query("SHOW COLUMNS FROM crad_title_approvals LIKE 'coordinator_screening_json'")->fetchAll();
-        if (!$coordScreening) {
-            $crad->exec("ALTER TABLE crad_title_approvals ADD COLUMN coordinator_screening_json TEXT NULL DEFAULT NULL AFTER coordinator_remarks");
-        }
-        $coordSig = $crad->query("SHOW COLUMNS FROM crad_title_approvals LIKE 'coordinator_signature_data'")->fetchAll();
-        if (!$coordSig) {
-            $crad->exec("ALTER TABLE crad_title_approvals ADD COLUMN coordinator_signature_data MEDIUMTEXT NULL DEFAULT NULL AFTER coordinator_remarks");
-        }
-        $coordReviewed = $crad->query("SHOW COLUMNS FROM crad_title_approvals LIKE 'coordinator_reviewed_at'")->fetchAll();
-        if (!$coordReviewed) {
-            $crad->exec("ALTER TABLE crad_title_approvals ADD COLUMN coordinator_reviewed_at DATETIME NULL DEFAULT NULL AFTER coordinator_signature_data");
-        }
-        $cradStatus = $crad->query("SHOW COLUMNS FROM crad_title_approvals LIKE 'crad_status'")->fetchAll();
-        if (!$cradStatus) {
-            $crad->exec("ALTER TABLE crad_title_approvals ADD COLUMN crad_status VARCHAR(30) NOT NULL DEFAULT 'Not Ready' AFTER coordinator_reviewed_at");
-        }
-        $cradSig = $crad->query("SHOW COLUMNS FROM crad_title_approvals LIKE 'crad_signature_data'")->fetchAll();
-        if (!$cradSig) {
-            $crad->exec("ALTER TABLE crad_title_approvals ADD COLUMN crad_signature_data MEDIUMTEXT NULL DEFAULT NULL AFTER crad_status");
-        }
-        $cradReviewed = $crad->query("SHOW COLUMNS FROM crad_title_approvals LIKE 'crad_reviewed_at'")->fetchAll();
-        if (!$cradReviewed) {
-            $crad->exec("ALTER TABLE crad_title_approvals ADD COLUMN crad_reviewed_at DATETIME NULL DEFAULT NULL AFTER crad_signature_data");
-        }
-    } catch (Throwable) { /* silently ignore */ }
-})();
-
+/* ── Ensure title-approval columns once per request (QA-002) ── */
+try {
+    $crad = cradDb();
+    if ($crad) {
+        cradEnsureTitleApprovalColumns($crad);
+    }
+} catch (Throwable) { /* silently ignore */ }
 /* ── AJAX handlers (must run before any HTML output) ───────────────
  * Call facultyAccountDispatchAjax() early (see modules/faculty/.../approved-research.php)
  * so JSON responses stay clean. The function is safe to call after output too —
