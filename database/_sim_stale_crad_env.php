@@ -28,8 +28,8 @@ $_SERVER['CRAD_DB_NAME'] = getenv('CRAD_DB_NAME');
 $_SERVER['CRAD_DB_USER'] = getenv('CRAD_DB_USER');
 $_SERVER['CRAD_DB_PASS'] = getenv('CRAD_DB_PASS');
 
-require_once __DIR__ . '/config/config.php';
-require_once __DIR__ . '/modules/crad/config/config.php';
+require_once dirname(__DIR__) . '/config/config.php';
+require_once dirname(__DIR__) . '/modules/crad/config/config.php';
 
 echo "CRAD_DB_HOST=" . CRAD_DB_HOST . PHP_EOL;
 echo "CRAD_DB_NAME=" . CRAD_DB_NAME . PHP_EOL;
@@ -43,4 +43,8 @@ try {
     echo "THREW: " . $e->getMessage() . PHP_EOL;
 }
 
-echo "Log exists: " . (is_file(__DIR__ . '/debug-4aceee.log') ? 'yes' : 'no') . PHP_EOL;
+$log = dirname(__DIR__) . '/debug-4aceee.log';
+echo "Log exists: " . (is_file($log) ? 'yes' : 'no') . PHP_EOL;
+if (is_file($log)) {
+    echo file_get_contents($log);
+}
