@@ -4,7 +4,7 @@
  *
  * 1. Set SMS2_DEPLOY_TOKEN in Environment Variables
  * 2. Open /setup/deploy-db.php?token=YOUR_TOKEN
- * 3. Import sms2_db.sql into DB_DATABASE (e.g. hf_db_xxxx)
+ * 3. Import the unified dump (sms_* + crad_*) into DB_DATABASE (e.g. hf_db_xxxx)
  */
 declare(strict_types=1);
 
