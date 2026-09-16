@@ -41,7 +41,7 @@ echo "=== Phase 1 SEC verification ===\n";
 // --- SEC-001 ---
 foreach (['student' => false, 'adviser' => false, 'crad_officer' => true, 'superadmin' => true] as $role => $expectAllow) {
     $_SESSION['user_id'] = 9001;
-    $_SESSION['role_key'] = $role;
+    $_SESSION['user_role_key'] = $role;
     $canManage = smsRoleAllowedForModule(['crad_officer', 'superadmin', 'sms_admin'], 'crad');
     $pass = $canManage === $expectAllow;
     $log('A', 'SEC-001 register-proposal role gate', [
