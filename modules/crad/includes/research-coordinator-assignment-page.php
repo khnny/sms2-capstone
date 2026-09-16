@@ -572,21 +572,7 @@ function rcAssignmentApprovedGroups(PDO $pdo): array
          FROM crad_research_groups g
          LEFT JOIN crad_research_proposals p ON p.id = g.proposal_id
          LEFT JOIN crad_title_approvals t ON t.id = g.title_approval_id
-         WHERE (
-                (p.id IS NOT NULL AND p.status = 'Approved' AND p.registration_status = 'Registered' AND p.proposal_number IS NOT NULL)
-             OR (
-                t.id IS NOT NULL
-                AND t.status = 'Approved'
-                AND t.coordinator_status = 'Approved'
-                AND t.crad_status = 'Approved'
-                AND t.adviser_signature_data IS NOT NULL
-                AND t.adviser_signature_data <> ''
-                AND t.coordinator_signature_data IS NOT NULL
-                AND t.coordinator_signature_data <> ''
-                AND t.crad_signature_data IS NOT NULL
-                AND t.crad_signature_data <> ''
-             )
-           )
+         WHERE " . cradAssignmentEligibilitySql('p', 't') . "
            AND g.group_number IS NOT NULL
            AND g.group_number <> ''
          ORDER BY updated_at DESC, g.id DESC
