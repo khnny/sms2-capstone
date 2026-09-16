@@ -21,14 +21,83 @@ if ($proposalId <= 0 || $docKey === '') {
     exit('Invalid request.');
 }
 
+/**
+ * Whether the current user may view documents for this research proposal.
+ */
+function cradFileViewAuthorized(PDO $cradPdo, array $proposalRow, int $proposalId, int $sessionUserId, string $role): bool
+{
+    $ownerId = (int) ($proposalRow['submitted_by_user'] ?? 0);
+    if ($ownerId > 0 && $ownerId === $sessionUserId) {
+        return true;
+    }
+
+    if (function_exists('smsIsGrantedAdminRole') && smsIsGrantedAdminRole($role)) {
+        return true;
+    }
+
+    // Global CRAD operators may review any proposal packet.
+    $globalRoles = ['crad_officer', 'research_coordinator', 'research_director'];
+    if (in_array($role, $globalRoles, true)) {
+        return true;
+    }
+
+    $proposalNumber = trim((string) ($proposalRow['proposal_number'] ?? ''));
+
+    if ($role === 'adviser') {
+        $stmt = $cradPdo->prepare(
+            "SELECT 1
+             FROM crad_research_adviser_assignments a
+             WHERE a.adviser_user_id = :uid
+               AND a.assignment_status IN ('Assigned', 'Confirmed')
+               AND (
+                    a.proposal_id = :pid
+                 OR (:pnum <> '' AND a.proposal_number = :pnum2)
+               )
+             LIMIT 1"
+        );
+        $stmt->execute([
+            ':uid' => $sessionUserId,
+            ':pid' => $proposalId,
+            ':pnum' => $proposalNumber,
+            ':pnum2' => $proposalNumber,
+        ]);
+        if ($stmt->fetchColumn()) {
+            return true;
+        }
+    }
+
+    if (in_array($role, ['panel', 'grammarian'], true) && $proposalNumber !== '') {
+        $stmt = $cradPdo->prepare(
+            "SELECT 1
+             FROM crad_research_panel_assignments pa
+             INNER JOIN crad_research_groups g ON g.id = pa.research_group_id
+             WHERE pa.panel_user_id = :uid
+               AND g.proposal_number = :pnum
+             LIMIT 1"
+        );
+        $stmt->execute([
+            ':uid' => $sessionUserId,
+            ':pnum' => $proposalNumber,
+        ]);
+        if ($stmt->fetchColumn()) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 try {
     $cradPdo = getCradDatabaseConnection();
 
     $stmtP = $cradPdo->prepare(
-        "SELECT submitted_by_user FROM crad_research_proposals WHERE id = :pid LIMIT 1"
+        "SELECT id, submitted_by_user, proposal_number
+         FROM crad_research_proposals
+         WHERE id = :pid
+         LIMIT 1"
     );
     $stmtP->execute([':pid' => $proposalId]);
-    $proposalRow = $stmtP->fetch();
+    $proposalRow = $stmtP->fetch(PDO::FETCH_ASSOC);
 
     if (!$proposalRow) {
         http_response_code(404);
@@ -36,19 +105,25 @@ try {
     }
 
     $sessionUserId = (int) ($_SESSION['user_id'] ?? 0);
-    $ownerId = (int) ($proposalRow['submitted_by_user'] ?? 0);
     $role = getCurrentUserRoleKey();
-    $staffRoles = [
-        'crad_officer',
-        'research_coordinator',
-        'research_director',
-        'adviser',
-        'panel',
-        'grammarian',
-    ];
-    $canView = ($ownerId > 0 && $ownerId === $sessionUserId)
-        || in_array($role, $staffRoles, true)
-        || smsIsGrantedAdminRole($role);
+    $canView = cradFileViewAuthorized($cradPdo, $proposalRow, $proposalId, $sessionUserId, $role);
+
+    // #region agent log
+    @file_put_contents(ROOT_PATH . '/debug-4aceee.log', json_encode([
+        'sessionId' => '4aceee',
+        'runId' => 'post-fix',
+        'hypothesisId' => 'F',
+        'location' => 'modules/crad/file-view.php',
+        'message' => 'file-view authorization decision',
+        'data' => [
+            'pid' => $proposalId,
+            'role' => $role,
+            'canView' => $canView,
+            'isOwner' => ((int) ($proposalRow['submitted_by_user'] ?? 0) === $sessionUserId),
+        ],
+        'timestamp' => (int) round(microtime(true) * 1000),
+    ], JSON_UNESCAPED_SLASHES) . "\n", FILE_APPEND | LOCK_EX);
+    // #endregion
 
     if (!$canView) {
         http_response_code(403);
