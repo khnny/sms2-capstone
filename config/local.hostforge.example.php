@@ -36,14 +36,12 @@
  * DATABASE_URL=mysql://…@mariadb-5yxohe3e.internal:3306/hf_db_5yxohe3e
  *
  * CRAD reuses the same database by default (CRAD_DB_NAME defaults to DB_NAME).
+ * Stale CRAD_DB_* env vars (e.g. mariadb-edee97zl / hf_db_edee97zl) are IGNORED
+ * unless you set CRAD_FORCE_SEPARATE=1 for a rare intentional split install.
+ *
  * You do NOT need a second MariaDB or CRAD_DB_* pointing at a separate host.
- *
- * Optional explicit same-DB CRAD (redundant but clear):
- * CRAD_DB_NAME=hf_db_5yxohe3e
- * (omit CRAD_DB_HOST / CRAD_DB_USER / CRAD_DB_PASS — they inherit DB_*)
- *
  * Remove obsolete CRAD_DB_* that pointed at a dead separate MariaDB
- * (e.g. mariadb-edee97zl / crad_db) so the app does not try that host.
+ * (e.g. mariadb-edee97zl / crad_db) so the health page stops listing them.
  *
  * Paste DB_* into HostForge Environment Variables (or a local gitignored .env).
  * Import database/sms2_db.sql into DB_DATABASE (hf_db_5yxohe3e), not into a
