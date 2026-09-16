@@ -621,6 +621,7 @@ function grantGetMyRevisionRequiredApplications(PDO $crad): array
               FROM crad_grant_applications ga
              WHERE ga.applicant_user_id = ?
                AND ga.status = 'Revision Required'
+             LIMIT 500
         ");
         $stmt->execute([$userId]);
         $ids = array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN) ?: []);
@@ -628,10 +629,10 @@ function grantGetMyRevisionRequiredApplications(PDO $crad): array
             return [];
         }
 
-        $all = grantGetApplications($crad);
+        $mine = grantGetMyApplications($crad);
         $idSet = array_flip($ids);
         return array_values(array_filter(
-            $all,
+            $mine,
             static fn(array $row): bool => isset($idSet[(int) ($row['id'] ?? 0)])
         ));
     } catch (Throwable $e) {
