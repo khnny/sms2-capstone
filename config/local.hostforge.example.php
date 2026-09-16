@@ -46,4 +46,11 @@
  * Paste DB_* into HostForge Environment Variables (or a local gitignored .env).
  * Import database/sms2_db.sql into DB_DATABASE (hf_db_5yxohe3e), not into a
  * newly created database named sms2_db.
+ *
+ * Optional hardening (after schema is known-good):
+ *   SMS2_SKIP_RUNTIME_SCHEMA=1     — skip web-request ALTER/SHOW COLUMNS patches
+ *   SMS2_ALLOW_DB_IMPORT=1         — temporary only, to allow /setup/deploy-db.php POST
+ *   SMS2_ALLOW_OFFICIAL_RESET=1    — temporary only, official password reset on cloud
+ *   CRAD_ALLOW_LEGACY_REGISTERED_ASSIGN=1 — allow legacy registered-proposal assign path
+ * Remove SMS2_DEPLOY_TOKEN after bootstrap. Prefer display_errors=Off in production.
  */
