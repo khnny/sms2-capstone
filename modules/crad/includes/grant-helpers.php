@@ -900,15 +900,17 @@ function grantExpireDeadlines(PDO $crad): void
 }
 
 /**
- * Fetch all grant opportunities, newest first.
+ * Fetch grant opportunities, newest first (capped for dashboard performance).
  * Also runs the deadline-expiry sweep before returning data.
  *
  * @param  PDO  $crad
+ * @param  int  $limit
  * @return array<int, array<string, mixed>>
  */
-function grantGetOpportunities(PDO $crad): array
+function grantGetOpportunities(PDO $crad, int $limit = 500): array
 {
     grantExpireDeadlines($crad);
+    $limit = max(1, min(2000, $limit));
 
     $stmt = $crad->query("
         SELECT
@@ -927,6 +929,7 @@ function grantGetOpportunities(PDO $crad): array
         LEFT JOIN crad_grant_applications ga ON ga.grant_opportunity_id = go.id
         GROUP BY go.id
         ORDER BY go.created_at DESC, go.id DESC
+        LIMIT {$limit}
     ");
 
     return $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];

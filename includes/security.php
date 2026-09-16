@@ -20,6 +20,10 @@ function smsSendSecurityHeaders(): void
     header('Permissions-Policy: geolocation=(), microphone=(), camera=()');
     header('Cross-Origin-Opener-Policy: same-origin');
 
+    if (function_exists('sms2_request_is_https') && sms2_request_is_https()) {
+        header('Strict-Transport-Security: max-age=31536000; includeSubDomains');
+    }
+
     // Baseline CSP — local assets + Cloudflare Turnstile CAPTCHA + HostForge/CF Insights beacon
     header(
         "Content-Security-Policy: default-src 'self'; " .
