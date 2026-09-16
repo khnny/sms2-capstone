@@ -10,6 +10,47 @@ require_once ROOT_PATH . '/includes/authentication.php';
 require_once ROOT_PATH . '/includes/security.php';
 
 requireAuth();
+requireModuleAccess('crad');
+
+// #region agent log
+$sms2AgentDebugLog = static function (string $hypothesisId, string $message, array $data = []): void {
+    $payload = [
+        'sessionId' => '4aceee',
+        'runId' => 'post-fix',
+        'hypothesisId' => $hypothesisId,
+        'location' => 'modules/crad/pages/register-proposal.php',
+        'message' => $message,
+        'data' => $data,
+        'timestamp' => (int) round(microtime(true) * 1000),
+    ];
+    @file_put_contents(ROOT_PATH . '/debug-4aceee.log', json_encode($payload, JSON_UNESCAPED_SLASHES) . "\n", FILE_APPEND | LOCK_EX);
+};
+// #endregion
+
+$rpAjax = (string) ($_GET['ajax'] ?? '');
+$rpCanManageTitleApprovals = smsRoleAllowedForModule(
+    ['crad_officer', 'superadmin', 'sms_admin'],
+    'crad'
+);
+
+// #region agent log
+$sms2AgentDebugLog('A', 'register-proposal authz gate', [
+    'ajax' => $rpAjax,
+    'role' => getCurrentUserRoleKey(),
+    'canManage' => $rpCanManageTitleApprovals,
+    'method' => (string) ($_SERVER['REQUEST_METHOD'] ?? ''),
+]);
+// #endregion
+
+if ($rpAjax !== '' && !$rpCanManageTitleApprovals) {
+    // #region agent log
+    $sms2AgentDebugLog('A', 'AJAX denied — role not allowed', ['ajax' => $rpAjax]);
+    // #endregion
+    http_response_code(403);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(['ok' => false, 'error' => 'Access denied.']);
+    exit;
+}
 
 $pageTitle    = 'Register Proposal';
 $activeModule = 'crad';
@@ -124,6 +165,9 @@ try {
 }
 
 if (($_GET['ajax'] ?? '') === 'title-approvals') {
+    // #region agent log
+    $sms2AgentDebugLog('B', 'title-approvals list allowed', ['role' => getCurrentUserRoleKey()]);
+    // #endregion
     header('Content-Type: application/json; charset=utf-8');
     echo json_encode(rpTitleApprovalPayload());
     exit;
@@ -133,6 +177,13 @@ if (($_GET['ajax'] ?? '') === 'title-approval-approve' && $_SERVER['REQUEST_METH
     header('Content-Type: application/json; charset=utf-8');
     try {
         $body = json_decode((string) file_get_contents('php://input'), true) ?: [];
+        smsRequireMutatingCsrf($body);
+        // #region agent log
+        $sms2AgentDebugLog('C', 'title-approval-approve CSRF ok', [
+            'role' => getCurrentUserRoleKey(),
+            'id' => (int) ($body['id'] ?? 0),
+        ]);
+        // #endregion
         $ok = rpTitleApprovalApprove(
             (int) ($body['id'] ?? 0),
             trim((string) ($body['crad_signature_data'] ?? ''))
@@ -140,8 +191,14 @@ if (($_GET['ajax'] ?? '') === 'title-approval-approve' && $_SERVER['REQUEST_METH
         echo json_encode(['ok' => $ok]);
     } catch (Throwable $e) {
         error_log('CRAD officer title approval update failed: ' . $e->getMessage());
-        http_response_code(500);
-        echo json_encode(['ok' => false, 'error' => 'Failed to save CRAD officer signature.']);
+        $msg = $e->getMessage();
+        if (stripos($msg, 'csrf') !== false || stripos($msg, 'Forbidden') !== false) {
+            http_response_code(403);
+            echo json_encode(['ok' => false, 'error' => 'Invalid CSRF token']);
+        } else {
+            http_response_code(500);
+            echo json_encode(['ok' => false, 'error' => 'Failed to save CRAD officer signature.']);
+        }
     }
     exit;
 }
