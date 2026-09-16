@@ -68,16 +68,16 @@ header('Content-Type: text/html; charset=utf-8');
     </style>
 </head>
 <body>
-    <h1>SMS 2 — Import login database</h1>
-    <p>Loads <code>database/sms2_db.sql</code> into the database this app is already wired to. That is HostForge <code>DB_DATABASE</code>, not a database named <code>sms2_db</code> unless they are the same.</p>
+    <h1>SMS 2 — Import unified database</h1>
+    <p>Loads <code>database/sms2_db.sql</code> (sms_* + crad_* tables) into the database this app is already wired to. That is HostForge <code>DB_DATABASE</code>, not a database named <code>sms2_db</code> unless they are the same.</p>
 
     <div class="card">
-        <p><strong>Import target (login / users)</strong></p>
+        <p><strong>Import target</strong></p>
         <p>
             <code><?= htmlspecialchars(DB_HOST . ':' . DB_PORT . '/' . DB_NAME) ?></code>
             as <code><?= htmlspecialchars(DB_USER) ?></code>
         </p>
-        <p class="small">If this is not the database you open in HostForge → Databases, the dump will not fix login.</p>
+        <p class="small">If this is not the database you open in HostForge → Databases, the dump will not fix login or CRAD.</p>
     </div>
 
     <?php if ($error !== ''): ?>
