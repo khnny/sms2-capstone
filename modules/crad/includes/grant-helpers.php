@@ -947,9 +947,10 @@ function grantGetOpportunities(PDO $crad, int $limit = 500): array
  *
  * @param  PDO        $crad
  * @param  int|null   $opportunityId  Optional filter by opportunity.
+ * @param  int        $limit
  * @return array<int, array<string, mixed>>
  */
-function grantGetApplications(PDO $crad, ?int $opportunityId = null): array
+function grantGetApplications(PDO $crad, ?int $opportunityId = null, int $limit = 500): array
 {
     // ── Detect which optional proposal columns are actually present ──────────
     $proposalColumns = [
@@ -1012,11 +1013,13 @@ function grantGetApplications(PDO $crad, ?int $opportunityId = null): array
         INNER JOIN crad_grant_opportunities go ON go.id = ga.grant_opportunity_id
     ";
 
+    $limit = max(1, min(2000, $limit));
+
     if ($opportunityId !== null && $opportunityId > 0) {
-        $stmt = $crad->prepare($sql . ' WHERE ga.grant_opportunity_id = ? ORDER BY ga.submitted_at DESC, ga.id DESC');
+        $stmt = $crad->prepare($sql . ' WHERE ga.grant_opportunity_id = ? ORDER BY ga.submitted_at DESC, ga.id DESC LIMIT ' . $limit);
         $stmt->execute([$opportunityId]);
     } else {
-        $stmt = $crad->query($sql . ' ORDER BY ga.submitted_at DESC, ga.id DESC');
+        $stmt = $crad->query($sql . ' ORDER BY ga.submitted_at DESC, ga.id DESC LIMIT ' . $limit);
     }
 
     return $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
@@ -1028,18 +1031,37 @@ function grantGetApplications(PDO $crad, ?int $opportunityId = null): array
  * @param  PDO $crad
  * @return array<int, array<string, mixed>>
  */
-function grantGetMyApplications(PDO $crad): array
+function grantGetMyApplications(PDO $crad, int $limit = 500): array
 {
     $userId = (int) ($_SESSION['user_id'] ?? 0);
     if ($userId <= 0) {
         return [];
     }
 
-    $all = grantGetApplications($crad);
-    return array_values(array_filter(
-        $all,
-        static fn(array $row): bool => (int) ($row['applicant_user_id'] ?? 0) === $userId
-    ));
+    $limit = max(1, min(2000, $limit));
+    $stmt = $crad->prepare(
+        "SELECT
+            ga.id,
+            ga.grant_opportunity_id,
+            go.funding_title,
+            go.max_funding_cap,
+            ga.research_group_id,
+            ga.group_number,
+            ga.research_title,
+            ga.applicant_name,
+            ga.applicant_user_id,
+            ga.status,
+            ga.application_notes,
+            ga.submitted_at,
+            ga.updated_at
+         FROM crad_grant_applications ga
+         INNER JOIN crad_grant_opportunities go ON go.id = ga.grant_opportunity_id
+         WHERE ga.applicant_user_id = ?
+         ORDER BY ga.submitted_at DESC, ga.id DESC
+         LIMIT {$limit}"
+    );
+    $stmt->execute([$userId]);
+    return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
 }
 
 /**

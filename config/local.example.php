@@ -22,7 +22,9 @@ define('DB_CHARSET', 'utf8mb4');
 // Only set a different name if you intentionally keep a separate crad_db.
 define('CRAD_DB_NAME', 'sms2_db');
 
-// Optional module databases. These default to the main DB host/user/password.
-define('STUDENT_PORTAL_DB_NAME', 'student_portal_db');
-define('REPORTS_DB_NAME', 'reports_db');
-define('USERMGMT_DB_NAME', 'user_management_db');
+// Optional: only set these when using separate module databases.
+// By default modules reuse DB_NAME (unified sms2_db).
+// define('STUDENT_PORTAL_DB_NAME', 'student_portal_db');
+// define('REPORTS_DB_NAME', 'reports_db');
+// define('USERMGMT_DB_NAME', 'user_management_db');
+// define('CRAD_ALLOW_LEGACY_REGISTERED_ASSIGN', '1'); // historical adviser assignment path
