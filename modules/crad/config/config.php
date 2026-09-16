@@ -76,7 +76,7 @@ function getCradDatabaseConnection(): PDO
     $sms2AgentDebugLog = static function (string $hypothesisId, string $message, array $data = []): void {
         $payload = [
             'sessionId' => '4aceee',
-            'runId' => 'pre-fix',
+            'runId' => 'post-fix',
             'hypothesisId' => $hypothesisId,
             'location' => 'modules/crad/config/config.php:getCradDatabaseConnection',
             'message' => $message,
