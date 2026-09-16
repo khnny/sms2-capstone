@@ -1,7 +1,7 @@
 <?php
 /**
  * Phase 1 security verification (SEC-001/002/003/004/005).
- * Writes NDJSON to debug-4aceee.log — CLI only.
+ * CLI smoke checks — prints PASS/FAIL to stdout.
  */
 declare(strict_types=1);
 
@@ -16,13 +16,12 @@ require_once ROOT_PATH . '/includes/security.php';
 require_once ROOT_PATH . '/modules/crad/config/config.php';
 require_once ROOT_PATH . '/database/official_accounts.php';
 
-$logPath = ROOT_PATH . '/debug-4aceee.log';
+$logPath = ROOT_PATH . '/scripts/verify-phase1-sec.log';
 @unlink($logPath);
 
 $log = static function (string $hypothesisId, string $message, array $data = []) use ($logPath): void {
     $payload = [
-        'sessionId' => '4aceee',
-        'runId' => 'post-fix',
+        'runId' => 'phase1-sec',
         'hypothesisId' => $hypothesisId,
         'location' => 'scripts/verify-phase1-sec.php',
         'message' => $message,
