@@ -25,9 +25,12 @@
  * DB_PORT=3306
  * DB_DATABASE=hf_db_XXXX
  * DB_USERNAME=hf_XXXX
- * DB_PASSWORD=<from HostForge Databases → sms2_db>
+ * DB_PASSWORD=<from HostForge Databases → the attached DB>
  * DB_CONNECTION=mysql
  * DB_CHARSET=utf8mb4
+ *
+ * Import database/sms2_db.sql into DB_DATABASE (hf_db_XXXX), not into a
+ * newly created database named sms2_db.
  */
 
 /*

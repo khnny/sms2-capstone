@@ -157,12 +157,20 @@ if ($pdo instanceof PDO) {
 
     try {
         $throttleCount = (int) $pdo->query('SELECT COUNT(*) FROM login_throttles')->fetchColumn();
+        $usersMissing = false;
+        try {
+            $pdo->query('SELECT 1 FROM users LIMIT 1');
+        } catch (Throwable) {
+            $usersMissing = true;
+        }
         $checks[] = [
             'label' => 'login_throttles (failed-attempt locks)',
-            'ok' => $throttleCount === 0,
-            'detail' => $throttleCount === 0
-                ? 'No active throttle rows'
-                : $throttleCount . ' row(s) — clear with DELETE FROM login_throttles',
+            'ok' => $usersMissing || $throttleCount === 0,
+            'detail' => $usersMissing
+                ? 'Leftover lockout table from failed logins — import sms2_db.sql into this database'
+                : ($throttleCount === 0
+                    ? 'No active throttle rows'
+                    : $throttleCount . ' row(s) — clear with DELETE FROM login_throttles'),
         ];
     } catch (Throwable $e) {
         $checks[] = [

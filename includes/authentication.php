@@ -1156,6 +1156,16 @@ function smsLoginAttempt(string $username, string $password): array
         );
     }
 
+    if (!smsUsersTableExists(db())) {
+        return $pack(
+            'schema_missing',
+            'The attached database has no users table. Import database/sms2_db.sql into '
+            . DB_NAME
+            . ' (HostForge DB_DATABASE), then try again.',
+            'danger'
+        );
+    }
+
     // IP / login gate first (covers random spam emails too)
     $throttle = smsGetLoginThrottle($username);
     if (!empty($throttle['locked'])) {

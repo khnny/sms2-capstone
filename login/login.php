@@ -7,9 +7,10 @@ require_once ROOT_PATH . '/includes/authentication.php';
 require_once ROOT_PATH . '/includes/captcha.php';
 
 $dbUnavailable = !db();
-$dbSummary = $dbUnavailable && function_exists('sms2_db_connection_summary')
+$dbSummary = function_exists('sms2_db_connection_summary')
     ? sms2_db_connection_summary()
     : null;
+$usersTableMissing = !$dbUnavailable && !smsUsersTableExists(db());
 
 // First-time adoption: no users yet → setup Super Admin
 if (smsNeedsSetup()) {
@@ -1238,6 +1239,17 @@ html[data-theme="dark"] .login-glass .sms-cf-widget.is-verified {
         <?php if ($systemMaintenance && $adminAccess): ?>
             <div class="alert alert-warning login-alert" role="status">
                 <?= smsIcon('exclamation-triangle', ['class' => 'me-2']) ?>System maintenance is on. Only Super Admin can enter.
+            </div>
+        <?php endif; ?>
+
+        <?php if ($usersTableMissing): ?>
+            <div class="alert alert-danger login-alert" role="alert">
+                <?= smsIcon('alert-circle', ['class' => 'me-2']) ?>
+                Login database is wired but empty: table <code>users</code> is missing.
+                Import <code>database/sms2_db.sql</code> into
+                <code><?= e((string) ($dbSummary['database'] ?? DB_NAME)) ?></code>
+                (the attached HostForge database), not a database named <code>sms2_db</code>
+                unless that is the same name.
             </div>
         <?php endif; ?>
 
