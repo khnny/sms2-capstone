@@ -78,6 +78,8 @@ $checks[] = [
 
 $pdo = null;
 $dbError = '';
+$actionFlash = '';
+$actionOk = true;
 try {
     $pdo = getDatabaseConnection();
     $checks[] = [
@@ -92,6 +94,38 @@ try {
         'ok' => false,
         'detail' => $dbError,
     ];
+}
+
+$postedAction = trim((string) ($_POST['health_action'] ?? ''));
+if ($pdo instanceof PDO && $_SERVER['REQUEST_METHOD'] === 'POST' && $postedAction !== '') {
+    try {
+        if ($postedAction === 'clear_locks') {
+            $pdo->exec('DELETE FROM login_throttles');
+            $pdo->exec(
+                "UPDATE users
+                 SET failed_login_attempts = 0,
+                     locked_until = NULL,
+                     status = CASE WHEN status = 'locked' THEN 'active' ELSE status END
+                 WHERE failed_login_attempts > 0
+                    OR locked_until IS NOT NULL
+                    OR status = 'locked'"
+            );
+            $actionFlash = 'Login locks cleared. Try signing in again.';
+        } elseif ($postedAction === 'reset_official') {
+            require_once ROOT_PATH . '/database/official_accounts.php';
+            $pdo->exec('DELETE FROM login_throttles');
+            $result = smsApplyOfficialAccountCredentials($pdo);
+            $actionFlash = 'Official account passwords reset ('
+                . (int) $result['updated'] . ' updated, '
+                . (int) $result['created'] . ' created) and login locks cleared.';
+        } else {
+            $actionOk = false;
+            $actionFlash = 'Unknown health action.';
+        }
+    } catch (Throwable $e) {
+        $actionOk = false;
+        $actionFlash = 'Action failed: ' . $e->getMessage();
+    }
 }
 
 $cradError = '';
@@ -117,8 +151,9 @@ try {
     }
     $checks[] = [
         'label' => 'CRAD database connection',
-        'ok' => false,
-        'detail' => $cradError,
+        'ok' => true,
+        'blocking' => false,
+        'detail' => 'WARN (does not block SMS2 login): ' . $cradError,
     ];
 }
 
@@ -157,6 +192,15 @@ if ($pdo instanceof PDO) {
 
     try {
         $throttleCount = (int) $pdo->query('SELECT COUNT(*) FROM login_throttles')->fetchColumn();
+        $lockedCount = 0;
+        try {
+            $lockedCount = (int) $pdo->query(
+                'SELECT COUNT(*) FROM login_throttles
+                 WHERE locked_until IS NOT NULL AND locked_until > NOW()'
+            )->fetchColumn();
+        } catch (Throwable) {
+            $lockedCount = $throttleCount;
+        }
         $usersMissing = false;
         try {
             $pdo->query('SELECT 1 FROM users LIMIT 1');
@@ -165,12 +209,14 @@ if ($pdo instanceof PDO) {
         }
         $checks[] = [
             'label' => 'login_throttles (failed-attempt locks)',
-            'ok' => $usersMissing || $throttleCount === 0,
+            'ok' => $usersMissing || $lockedCount === 0,
             'detail' => $usersMissing
                 ? 'Leftover lockout table from failed logins — import sms2_db.sql into this database'
-                : ($throttleCount === 0
-                    ? 'No active throttle rows'
-                    : $throttleCount . ' row(s) — clear with DELETE FROM login_throttles'),
+                : ($lockedCount > 0
+                    ? $lockedCount . ' active lock(s) — use Clear login locks below'
+                    : ($throttleCount === 0
+                        ? 'No throttle rows'
+                        : $throttleCount . ' leftover failed attempt(s), not locked')),
         ];
     } catch (Throwable $e) {
         $checks[] = [
@@ -191,7 +237,8 @@ $checks[] = [
 
 $allOk = true;
 foreach ($checks as $check) {
-    if (empty($check['ok'])) {
+    $blocking = $check['blocking'] ?? true;
+    if (empty($check['ok']) && $blocking !== false) {
         $allOk = false;
         break;
     }
