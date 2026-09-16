@@ -795,43 +795,50 @@ function smsGetLoginThrottle(string $loginInput = ''): array
         return $empty;
     }
 
-    $key = smsLoginThrottleKey($loginInput);
-    $stmt = $pdo->prepare('SELECT attempts, locked_until FROM sms_login_throttles WHERE throttle_key = ? LIMIT 1');
-    $stmt->execute([$key]);
-    $row = $stmt->fetch();
-    if (!$row) {
-        return $empty;
-    }
-
-    $lockedUntil = $row['locked_until'] ?? null;
-    if ($lockedUntil) {
-        $untilTs = strtotime((string) $lockedUntil);
-        if ($untilTs !== false && $untilTs <= time()) {
-            $pdo->prepare('UPDATE sms_login_throttles SET attempts = 0, locked_until = NULL WHERE throttle_key = ?')
-                ->execute([$key]);
-            return $empty;
+    $keys = smsLoginThrottleKeys($loginInput);
+    $worst = null;
+    foreach ($keys as $key) {
+        $stmt = $pdo->prepare('SELECT attempts, locked_until FROM sms_login_throttles WHERE throttle_key = ? LIMIT 1');
+        $stmt->execute([$key]);
+        $row = $stmt->fetch();
+        if (!$row) {
+            continue;
         }
-        if ($untilTs !== false && $untilTs > time()) {
-            return [
-                'attempts' => (int) $row['attempts'],
+
+        $lockedUntil = $row['locked_until'] ?? null;
+        if ($lockedUntil) {
+            $untilTs = strtotime((string) $lockedUntil);
+            if ($untilTs !== false && $untilTs <= time()) {
+                $pdo->prepare('UPDATE sms_login_throttles SET attempts = 0, locked_until = NULL WHERE throttle_key = ?')
+                    ->execute([$key]);
+                continue;
+            }
+            if ($untilTs !== false && $untilTs > time()) {
+                return [
+                    'attempts' => (int) $row['attempts'],
+                    'max' => $maxFails,
+                    'remaining' => 0,
+                    'locked' => true,
+                    'lock_seconds' => $lockSeconds,
+                    'locked_until' => (string) $lockedUntil,
+                ];
+            }
+        }
+
+        $attempts = (int) $row['attempts'];
+        if ($worst === null || $attempts > (int) $worst['attempts']) {
+            $worst = [
+                'attempts' => $attempts,
                 'max' => $maxFails,
-                'remaining' => 0,
-                'locked' => true,
+                'remaining' => $maxFails > 0 ? max(0, $maxFails - $attempts) : null,
+                'locked' => false,
                 'lock_seconds' => $lockSeconds,
-                'locked_until' => (string) $lockedUntil,
+                'locked_until' => null,
             ];
         }
     }
 
-    $attempts = (int) $row['attempts'];
-    return [
-        'attempts' => $attempts,
-        'max' => $maxFails,
-        'remaining' => $maxFails > 0 ? max(0, $maxFails - $attempts) : null,
-        'locked' => false,
-        'lock_seconds' => $lockSeconds,
-        'locked_until' => null,
-    ];
+    return $worst ?? $empty;
 }
 
 /**
