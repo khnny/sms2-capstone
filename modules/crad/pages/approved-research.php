@@ -14,6 +14,8 @@ require_once ROOT_PATH . '/includes/breadcrumbs.php';
 requireAuth();
 requireModuleAccess('crad');
 
+require_once __DIR__ . '/../includes/schema-ensure.php';
+
 $roleKey = getCurrentUserRoleKey();
 if (!smsRoleAllowedForModule(['research_coordinator', 'superadmin', 'sms_admin'], 'crad')) {
     if (isset($_GET['ajax'])) {
@@ -28,26 +30,7 @@ if (!smsRoleAllowedForModule(['research_coordinator', 'superadmin', 'sms_admin']
 
 function rcTitleApprovalEnsureSchema(PDO $pdo): void
 {
-    $columns = [
-        'adviser_signature_data' => "ALTER TABLE crad_title_approvals ADD COLUMN adviser_signature_data MEDIUMTEXT NULL DEFAULT NULL AFTER adviser_remarks",
-        'coordinator_status' => "ALTER TABLE crad_title_approvals ADD COLUMN coordinator_status VARCHAR(30) NOT NULL DEFAULT 'Not Ready' AFTER adviser_signature_data",
-        'coordinator_remarks' => "ALTER TABLE crad_title_approvals ADD COLUMN coordinator_remarks TEXT NULL DEFAULT NULL AFTER coordinator_status",
-        'coordinator_screening_json' => "ALTER TABLE crad_title_approvals ADD COLUMN coordinator_screening_json TEXT NULL DEFAULT NULL AFTER coordinator_remarks",
-        'coordinator_signature_data' => "ALTER TABLE crad_title_approvals ADD COLUMN coordinator_signature_data MEDIUMTEXT NULL DEFAULT NULL AFTER coordinator_remarks",
-        'coordinator_reviewed_at' => "ALTER TABLE crad_title_approvals ADD COLUMN coordinator_reviewed_at DATETIME NULL DEFAULT NULL AFTER coordinator_signature_data",
-        'crad_status' => "ALTER TABLE crad_title_approvals ADD COLUMN crad_status VARCHAR(30) NOT NULL DEFAULT 'Not Ready' AFTER coordinator_reviewed_at",
-        'crad_signature_data' => "ALTER TABLE crad_title_approvals ADD COLUMN crad_signature_data MEDIUMTEXT NULL DEFAULT NULL AFTER crad_status",
-        'crad_reviewed_at' => "ALTER TABLE crad_title_approvals ADD COLUMN crad_reviewed_at DATETIME NULL DEFAULT NULL AFTER crad_signature_data",
-    ];
-    foreach ($columns as $name => $sql) {
-        try {
-            if (!$pdo->query("SHOW COLUMNS FROM crad_title_approvals LIKE " . $pdo->quote($name))->fetch()) {
-                $pdo->exec($sql);
-            }
-        } catch (Throwable $e) {
-            error_log('Coordinator title approval schema failed: ' . $e->getMessage());
-        }
-    }
+    cradEnsureTitleApprovalColumns($pdo);
 }
 
 function rcTitleApprovalRows(PDO $pdo): array

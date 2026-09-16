@@ -36,30 +36,11 @@ $pageBannerIcon = 'fa-file-signature';
 $pageBannerDescription = 'Approved proposals appear here first. Click Register to generate the official proposal number.';
 
 require_once __DIR__ . '/../../../includes/breadcrumbs.php';
+require_once __DIR__ . '/../includes/schema-ensure.php';
 
 function rpEnsureTitleApprovalColumns(PDO $pdo): void
 {
-    $columns = [
-        'adviser_signature_data' => "ALTER TABLE crad_title_approvals ADD COLUMN adviser_signature_data MEDIUMTEXT NULL DEFAULT NULL AFTER adviser_remarks",
-        'coordinator_status' => "ALTER TABLE crad_title_approvals ADD COLUMN coordinator_status VARCHAR(30) NOT NULL DEFAULT 'Not Ready' AFTER adviser_signature_data",
-        'coordinator_remarks' => "ALTER TABLE crad_title_approvals ADD COLUMN coordinator_remarks TEXT NULL DEFAULT NULL AFTER coordinator_status",
-        'coordinator_screening_json' => "ALTER TABLE crad_title_approvals ADD COLUMN coordinator_screening_json TEXT NULL DEFAULT NULL AFTER coordinator_remarks",
-        'coordinator_signature_data' => "ALTER TABLE crad_title_approvals ADD COLUMN coordinator_signature_data MEDIUMTEXT NULL DEFAULT NULL AFTER coordinator_remarks",
-        'coordinator_reviewed_at' => "ALTER TABLE crad_title_approvals ADD COLUMN coordinator_reviewed_at DATETIME NULL DEFAULT NULL AFTER coordinator_signature_data",
-        'crad_status' => "ALTER TABLE crad_title_approvals ADD COLUMN crad_status VARCHAR(30) NOT NULL DEFAULT 'Not Ready' AFTER coordinator_reviewed_at",
-        'crad_signature_data' => "ALTER TABLE crad_title_approvals ADD COLUMN crad_signature_data MEDIUMTEXT NULL DEFAULT NULL AFTER crad_status",
-        'crad_reviewed_at' => "ALTER TABLE crad_title_approvals ADD COLUMN crad_reviewed_at DATETIME NULL DEFAULT NULL AFTER crad_signature_data",
-    ];
-
-    foreach ($columns as $column => $sql) {
-        try {
-            if (!$pdo->query("SHOW COLUMNS FROM crad_title_approvals LIKE " . $pdo->quote($column))->fetch()) {
-                $pdo->exec($sql);
-            }
-        } catch (Throwable $e) {
-            error_log('CRAD officer title approval schema failed: ' . $e->getMessage());
-        }
-    }
+    cradEnsureTitleApprovalColumns($pdo);
 }
 
 function rpTitleApprovalRows(PDO $pdo): array
