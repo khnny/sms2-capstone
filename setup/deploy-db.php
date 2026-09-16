@@ -24,6 +24,18 @@ if ($expectedToken === '' || !hash_equals($expectedToken, $providedToken)) {
 
 require_once ROOT_PATH . '/config/database.php';
 
+// SEC-008: destructive import requires an explicit allow flag on cloud hosts.
+$allowImport = strtolower((string) sms2_env('SMS2_ALLOW_DB_IMPORT', '0')) === '1'
+    || !sms2_has_cloud_db_env();
+if (!$allowImport && ($_SERVER['REQUEST_METHOD'] === 'POST' || isset($_GET['run']))) {
+    http_response_code(403);
+    header('Content-Type: text/html; charset=utf-8');
+    echo '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Deploy DB</title></head><body>';
+    echo '<p>Forbidden. On cloud hosts set <code>SMS2_ALLOW_DB_IMPORT=1</code> temporarily to run a DB import, then remove it.</p>';
+    echo '</body></html>';
+    exit;
+}
+
 $force = isset($_GET['force']) || isset($_POST['force']);
 $skipCrad = !isset($_POST['include_crad']);
 if ($_SERVER['REQUEST_METHOD'] !== 'POST' && !isset($_GET['run'])) {
@@ -32,7 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST' && !isset($_GET['run'])) {
 $messages = [];
 $error = '';
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' || isset($_GET['run'])) {
+if ($allowImport && ($_SERVER['REQUEST_METHOD'] === 'POST' || isset($_GET['run']))) {
     try {
         require_once dirname(__DIR__) . '/database/migrate-lib.php';
         $messages = sms2RunMigrations([
@@ -88,6 +100,9 @@ header('Content-Type: text/html; charset=utf-8');
     <?php endif; ?>
 
     <div class="card">
+        <?php if (!$allowImport): ?>
+            <p class="err" style="margin:0">Import is disabled on cloud hosts. Set <code>SMS2_ALLOW_DB_IMPORT=1</code>, redeploy, run the import, then remove the flag.</p>
+        <?php else: ?>
         <form method="post">
             <input type="hidden" name="token" value="<?= htmlspecialchars($providedToken) ?>">
             <label>
@@ -100,6 +115,7 @@ header('Content-Type: text/html; charset=utf-8');
             </label>
             <button type="submit">Import unified sms2_db.sql now</button>
         </form>
+        <?php endif; ?>
     </div>
 
     <p><small>After login works, you can also import the same file from HostForge → Databases → <code><?= htmlspecialchars(DB_NAME) ?></code> → Import.</small></p>

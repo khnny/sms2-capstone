@@ -1245,11 +1245,8 @@ html[data-theme="dark"] .login-glass .sms-cf-widget.is-verified {
         <?php if ($usersTableMissing): ?>
             <div class="alert alert-danger login-alert" role="alert">
                 <?= smsIcon('alert-circle', ['class' => 'me-2']) ?>
-                Login database is wired but empty: table <code>users</code> is missing.
-                Import <code>database/sms2_db.sql</code> into
-                <code><?= e((string) ($dbSummary['database'] ?? DB_NAME)) ?></code>
-                (the attached HostForge database), not a database named <code>sms2_db</code>
-                unless that is the same name.
+                Login database is connected but the user table is missing. Ask an administrator to run
+                <code>database/migrate.php</code> (or import <code>database/sms2_db.sql</code>) into the attached database.
             </div>
         <?php endif; ?>
 
