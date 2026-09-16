@@ -15,71 +15,37 @@ if (!defined('CRAD_DB_HOST')) {
     // Unified default: ignore stale HostForge CRAD_DB_* unless CRAD_FORCE_SEPARATE=1.
     // Dead hosts like mariadb-edee97zl.internal otherwise force a separate DSN and fatal.
     $forceSeparate = strtolower((string) sms2_env('CRAD_FORCE_SEPARATE', '0')) === '1';
-    // #region agent log
-    @file_put_contents(
-        dirname(__DIR__, 3) . '/debug-4aceee.log',
-        json_encode([
-            'sessionId' => '4aceee',
-            'runId' => 'post-fix',
-            'hypothesisId' => 'F',
-            'location' => 'modules/crad/config/config.php:defines',
-            'message' => 'CRAD define-time separate-vs-unified',
-            'data' => [
-                'forceSeparate' => $forceSeparate,
-                'cradHostEnv' => (string) (sms2_env_first(['CRAD_DB_HOST'], '') ?? ''),
-                'cradNameEnv' => (string) (sms2_env_first(['CRAD_DB_NAME'], '') ?? ''),
-                'dbHost' => (string) DB_HOST,
-                'dbName' => (string) DB_NAME,
-            ],
-            'timestamp' => (int) round(microtime(true) * 1000),
-        ], JSON_UNESCAPED_SLASHES) . "\n",
-        FILE_APPEND | LOCK_EX
-    );
-    // #endregion
     if ($forceSeparate) {
         define('CRAD_DB_HOST', sms2_env_first(['CRAD_DB_HOST', 'SMS2_DB_HOST', 'DB_HOST', 'MYSQL_HOST', 'MARIADB_HOST'], DB_HOST));
-    } else {
-        define('CRAD_DB_HOST', DB_HOST);
-    }
-}
-if (!defined('CRAD_DB_PORT')) {
-    $forceSeparate = strtolower((string) sms2_env('CRAD_FORCE_SEPARATE', '0')) === '1';
-    if ($forceSeparate) {
         define('CRAD_DB_PORT', sms2_env_first(['CRAD_DB_PORT', 'SMS2_DB_PORT', 'DB_PORT', 'MYSQL_PORT', 'MARIADB_PORT'], DB_PORT));
-    } else {
-        define('CRAD_DB_PORT', DB_PORT);
-    }
-}
-if (!defined('CRAD_DB_NAME')) {
-    $forceSeparate = strtolower((string) sms2_env('CRAD_FORCE_SEPARATE', '0')) === '1';
-    if ($forceSeparate) {
         $cradEnvName = sms2_env_first(['CRAD_DB_NAME'], null);
         if ($cradEnvName !== null && $cradEnvName !== '' && strcasecmp($cradEnvName, 'crad_db') !== 0) {
             define('CRAD_DB_NAME', $cradEnvName);
         } else {
             define('CRAD_DB_NAME', DB_NAME);
         }
-    } else {
-        // Always share DB_DATABASE in unified mode (ignore stale CRAD_DB_NAME=hf_db_edee97zl).
-        define('CRAD_DB_NAME', DB_NAME);
-    }
-}
-if (!defined('CRAD_DB_USER')) {
-    $forceSeparate = strtolower((string) sms2_env('CRAD_FORCE_SEPARATE', '0')) === '1';
-    if ($forceSeparate) {
         define('CRAD_DB_USER', sms2_env_first(['CRAD_DB_USER', 'SMS2_DB_USER', 'DB_USERNAME', 'DB_USER', 'MYSQL_USER', 'MARIADB_USER'], DB_USER));
-    } else {
-        define('CRAD_DB_USER', DB_USER);
-    }
-}
-if (!defined('CRAD_DB_PASS')) {
-    $forceSeparate = strtolower((string) sms2_env('CRAD_FORCE_SEPARATE', '0')) === '1';
-    if ($forceSeparate) {
         $cradPass = sms2_env_first(['CRAD_DB_PASS', 'SMS2_DB_PASS', 'DB_PASSWORD', 'DB_PASS', 'MYSQL_PASSWORD', 'MARIADB_PASSWORD'], null);
         define('CRAD_DB_PASS', $cradPass !== null ? $cradPass : DB_PASS);
     } else {
+        define('CRAD_DB_HOST', DB_HOST);
+        define('CRAD_DB_PORT', DB_PORT);
+        define('CRAD_DB_NAME', DB_NAME);
+        define('CRAD_DB_USER', DB_USER);
         define('CRAD_DB_PASS', DB_PASS);
     }
+}
+if (!defined('CRAD_DB_PORT')) {
+    define('CRAD_DB_PORT', DB_PORT);
+}
+if (!defined('CRAD_DB_NAME')) {
+    define('CRAD_DB_NAME', DB_NAME);
+}
+if (!defined('CRAD_DB_USER')) {
+    define('CRAD_DB_USER', DB_USER);
+}
+if (!defined('CRAD_DB_PASS')) {
+    define('CRAD_DB_PASS', DB_PASS);
 }
 if (!defined('CRAD_DB_CHARSET')) {
     define('CRAD_DB_CHARSET', sms2_env_first(['CRAD_DB_CHARSET', 'SMS2_DB_CHARSET', 'DB_CHARSET'], DB_CHARSET));
@@ -120,62 +86,20 @@ function getCradDatabaseConnection(): PDO
         return $pdo;
     }
 
-    // #region agent log
-    $sms2AgentDebugLog = static function (string $hypothesisId, string $message, array $data = []): void {
-        $payload = [
-            'sessionId' => '4aceee',
-            'runId' => 'post-fix',
-            'hypothesisId' => $hypothesisId,
-            'location' => 'modules/crad/config/config.php:getCradDatabaseConnection',
-            'message' => $message,
-            'data' => $data,
-            'timestamp' => (int) round(microtime(true) * 1000),
-        ];
-        $line = json_encode($payload, JSON_UNESCAPED_SLASHES) . "\n";
-        @file_put_contents(dirname(__DIR__, 3) . '/debug-4aceee.log', $line, FILE_APPEND | LOCK_EX);
-        error_log('SMS2_DEBUG ' . $line);
-    };
-    // #endregion
-
     if (!in_array(CRAD_DB_CONNECTION, ['mysql', 'mariadb'], true)) {
         throw new RuntimeException(
             'Unsupported CRAD database connection "' . CRAD_DB_CONNECTION . '". Select MySQL/MariaDB on HostForge for SMS 2.'
         );
     }
 
-    $nameSame = strcasecmp((string) CRAD_DB_NAME, (string) DB_NAME) === 0;
-    $hostSame = strcasecmp((string) CRAD_DB_HOST, (string) DB_HOST) === 0;
-
-    // #region agent log
-    $sms2AgentDebugLog('A', 'CRAD connection decision inputs', [
-        'cradHost' => (string) CRAD_DB_HOST,
-        'cradName' => (string) CRAD_DB_NAME,
-        'cradPort' => (string) CRAD_DB_PORT,
-        'dbHost' => (string) DB_HOST,
-        'dbName' => (string) DB_NAME,
-        'nameSame' => $nameSame,
-        'hostSame' => $hostSame,
-        'willReuseMainPdo' => ($nameSame && $hostSame),
-    ]);
-    // #endregion
-
     // Same database as SMS2 → reuse the main PDO (single HostForge DB).
-    if ($nameSame && $hostSame) {
-        // #region agent log
-        $sms2AgentDebugLog('D', 'Taking same-DB reuse path', ['path' => 'reuse_main_pdo']);
-        // #endregion
+    if (strcasecmp((string) CRAD_DB_NAME, (string) DB_NAME) === 0
+        && strcasecmp((string) CRAD_DB_HOST, (string) DB_HOST) === 0) {
         $pdo = getDatabaseConnection();
         cradEnsurePanelNotificationDeleteTrigger($pdo);
         cradCleanupPreoralEvaluationsForInvalidRegistry($pdo);
         return $pdo;
     }
-
-    // #region agent log
-    $sms2AgentDebugLog('B', 'Taking separate CRAD DSN path', [
-        'path' => 'separate_dsn',
-        'reason' => !$nameSame ? 'name_mismatch' : 'host_mismatch',
-    ]);
-    // #endregion
 
     $pdoOptions = [
         PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
@@ -203,63 +127,28 @@ function getCradDatabaseConnection(): PDO
             return $pdo;
         } catch (PDOException $e) {
             $lastException = $e;
-            // #region agent log
-            $sms2AgentDebugLog('A', 'Separate CRAD DSN failed', [
-                'port' => (string) $port,
-                'errorClass' => get_class($e),
-                'error' => $e->getMessage(),
-            ]);
-            // #endregion
             error_log('CRAD DB connection failed on port ' . $port . ': ' . $e->getMessage());
         }
     }
 
-    // After a failed separate CRAD DSN, fall back to the main SMS2 database.
-    // Covers legacy CRAD_DB_NAME=crad_db and stale HostForge CRAD_DB_* pointing at
-    // a dead MariaDB (e.g. mariadb-edee97zl / hf_db_edee97zl) while the app uses
-    // the attached unified DB_DATABASE.
-    // #region agent log
-    $sms2AgentDebugLog('C', 'Attempting main-DB fallback after separate DSN failed', [
-        'willAttemptMainFallback' => true,
-        'fallbackDbHost' => (string) DB_HOST,
-        'fallbackDbName' => (string) DB_NAME,
-    ]);
-    // #endregion
+    // Separate CRAD DSN failed → fall back to the main SMS2 database (unified HostForge).
     try {
         $pdo = getDatabaseConnection();
         cradEnsurePanelNotificationDeleteTrigger($pdo);
         cradCleanupPreoralEvaluationsForInvalidRegistry($pdo);
-        // #region agent log
-        $sms2AgentDebugLog('E', 'Main-DB fallback succeeded', [
-            'path' => 'fallback_main_pdo',
-            'dbName' => (string) DB_NAME,
-        ]);
-        // #endregion
         error_log(
             'CRAD fell back to main DB_HOST=' . DB_HOST . ' DB_NAME=' . DB_NAME
             . ' after separate CRAD target failed (' . CRAD_DB_HOST . '/' . CRAD_DB_NAME . ').'
         );
         return $pdo;
     } catch (Throwable $fallbackError) {
-        // #region agent log
-        $sms2AgentDebugLog('E', 'Main-DB fallback failed', [
-            'error' => $fallbackError->getMessage(),
-        ]);
-        // #endregion
         error_log('CRAD main-DB fallback failed: ' . $fallbackError->getMessage());
     }
 
-    // #region agent log
-    $sms2AgentDebugLog('E', 'Throwing CRAD unavailable (no fallback taken)', [
-        'cradHost' => (string) CRAD_DB_HOST,
-        'cradName' => (string) CRAD_DB_NAME,
-    ]);
-    // #endregion
-
     throw new RuntimeException(
         'CRAD database unavailable (' . CRAD_DB_HOST . ':' . CRAD_DB_PORT . '/' . CRAD_DB_NAME . '). '
-        . 'Import database/sms2_db.sql into DB_DATABASE and set CRAD_DB_NAME to the same value as DB_DATABASE '
-        . '(or remove obsolete CRAD_DB_* env vars pointing at a deleted MariaDB).',
+        . 'Import database/sms2_db.sql into DB_DATABASE and remove obsolete CRAD_DB_* env vars '
+        . '(or set CRAD_FORCE_SEPARATE=1 only for an intentional split install).',
         0,
         $lastException
     );
