@@ -29,6 +29,7 @@ require_once __DIR__ . '/migrate-lib.php';
 $options = [
     'fresh' => in_array('--fresh', $argv ?? [], true),
     'force' => in_array('--force', $argv ?? [], true),
+    'skip_crad' => in_array('--sms2-only', $argv ?? [], true) || in_array('--skip-crad', $argv ?? [], true),
 ];
 
 try {

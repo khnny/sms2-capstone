@@ -295,8 +295,7 @@ function sms2MigrateOneDatabase(array $target, array $options, ?callable $sink =
             sms2MigrateOut('Incomplete schema (users missing). Clearing leftover tables before import...', $sink);
             sms2MigrateDropTables($pdo, array_values(array_unique(array_merge(
                 $targetTables,
-                sms2MigrateLeftoverOnlyTables(),
-                $existingNames
+                sms2MigrateLeftoverOnlyTables()
             ))), $sink);
         } elseif ($existingTargetTables > 0) {
             throw new RuntimeException(
