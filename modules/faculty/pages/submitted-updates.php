@@ -674,6 +674,113 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
+    document.querySelectorAll('[data-ai-generate]').forEach(function (btn) {
+        btn.addEventListener('click', async function () {
+            const updateId = this.getAttribute('data-update-id');
+            const card = this.closest('.rm-update-card');
+            const origHTML = this.innerHTML;
+            this.disabled = true;
+            this.innerHTML = '<?= smsIcon('spinner', ['class' => 'fa-spin me-1']) ?>Analyzing…';
+            try {
+                const resp = await fetch('<?= BASE_URL ?>/modules/crad/api/ai-document-analysis.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'analyze', update_id: parseInt(updateId, 10) })
+                });
+                const result = await resp.json();
+                if (!resp.ok || !result.success || !result.analysis) {
+                    alert(result.message || 'AI analysis failed. Please try again.');
+                    this.disabled = false;
+                    this.innerHTML = origHTML;
+                    return;
+                }
+                renderAiAnalysis(card, result.analysis, result.revision_text || '');
+            } catch (err) {
+                console.error(err);
+                alert('AI analysis could not be completed. Please try again.');
+                this.disabled = false;
+                this.innerHTML = origHTML;
+                return;
+            }
+            this.disabled = false;
+            this.innerHTML = origHTML;
+        });
+    });
+
+    document.querySelectorAll('[data-ai-use-notes]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            const updateId = this.getAttribute('data-update-id');
+            const panel = document.querySelector('[data-ai-panel][data-update-id="' + updateId + '"]');
+            const textarea = document.querySelector('#revisionModal' + updateId + ' textarea[name="feedback_text"]');
+            if (textarea && panel) {
+                textarea.value = panel.getAttribute('data-revision-text') || '';
+            }
+            const modalEl = document.getElementById('revisionModal' + updateId);
+            if (modalEl && window.bootstrap) {
+                window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
+            }
+        });
+    });
+
+    function renderAiAnalysis(card, analysis, revisionText) {
+        if (!card || !analysis) return;
+        const panel = card.querySelector('[data-ai-panel]');
+        if (!panel) return;
+        const verdict = String(analysis.verdict || 'needs_revision');
+        panel.classList.remove('d-none');
+        panel.setAttribute('data-verdict', verdict);
+        panel.setAttribute('data-revision-text', revisionText || '');
+        const pill = panel.querySelector('[data-ai-verdict-pill]');
+        if (pill) {
+            pill.textContent = verdict === 'acceptable' ? 'Acceptable grammar' : 'Needs revision';
+        }
+        const summary = panel.querySelector('[data-ai-summary]');
+        if (summary) {
+            summary.innerHTML = escapeHtml(String(analysis.summary || '')).replace(/\n/g, '<br>');
+        }
+        const list = panel.querySelector('[data-ai-notes]');
+        if (list) {
+            const notes = Array.isArray(analysis.notes) ? analysis.notes : [];
+            list.innerHTML = notes.map(function (note) {
+                const issue = escapeHtml(String(note.issue || ''));
+                const suggestion = note.suggestion ? '<div>' + escapeHtml(String(note.suggestion)) + '</div>' : '';
+                const example = note.example ? '<div class="rm-ai-example">“' + escapeHtml(String(note.example)) + '”</div>' : '';
+                return '<li><strong>' + issue + '</strong>' + suggestion + example + '</li>';
+            }).join('');
+        }
+        card.querySelectorAll('[data-decision-btn]').forEach(function (decisionBtn) {
+            decisionBtn.disabled = false;
+        });
+        const gate = card.querySelector('[data-ai-gate-note]');
+        if (gate) gate.remove();
+        if (!panel.querySelector('[data-ai-use-notes]')) {
+            const useBtn = document.createElement('button');
+            useBtn.type = 'button';
+            useBtn.className = 'btn btn-sm btn-outline-warning';
+            useBtn.setAttribute('data-ai-use-notes', '1');
+            useBtn.setAttribute('data-update-id', card.getAttribute('data-update-id') || '');
+            useBtn.textContent = 'Use notes in Request Revision';
+            useBtn.addEventListener('click', function () {
+                const updateId = this.getAttribute('data-update-id');
+                const textarea = document.querySelector('#revisionModal' + updateId + ' textarea[name="feedback_text"]');
+                if (textarea) textarea.value = panel.getAttribute('data-revision-text') || '';
+                const modalEl = document.getElementById('revisionModal' + updateId);
+                if (modalEl && window.bootstrap) {
+                    window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
+                }
+            });
+            panel.appendChild(useBtn);
+        }
+    }
+
+    function escapeHtml(value) {
+        return value
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
     document.querySelectorAll('.feedback-form').forEach(function (form) {
         form.addEventListener('submit', async function (e) {
             e.preventDefault();
@@ -686,6 +793,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (action !== 'approve' && !feedbackText) {
                 alert('Please provide feedback text.'); return;
+            }
+            if (action === 'approve') {
+                const card = document.querySelector('.rm-update-card[data-update-id="' + updateId + '"]');
+                const panel = card ? card.querySelector('[data-ai-panel]') : null;
+                if (panel && panel.getAttribute('data-verdict') === 'needs_revision') {
+                    const proceed = confirm('AI found grammar issues in this research file. Approve anyway?');
+                    if (!proceed) return;
+                }
             }
 
             submitBtn.disabled = true;

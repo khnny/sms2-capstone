@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Adviser AI document analysis (grammar + research writing notes)
  * before Approve / Request Revision.

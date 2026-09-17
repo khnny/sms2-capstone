@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * One-shot repair for the Review Committee login (CLI only).
  */

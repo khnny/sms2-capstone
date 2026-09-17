@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Adviser AI document analysis for submitted research files.
  */
