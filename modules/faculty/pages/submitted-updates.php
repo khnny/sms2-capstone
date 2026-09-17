@@ -67,6 +67,7 @@ $statusFilter    = $_GET['status'] ?? 'all';
 
 $plan = rpGetResearchPlan($crad, $groupId);
 rpEnsureProgressAttachmentSchema($crad);
+rpEnsureAiAnalysisSchema($crad);
 
 $whereConditions = ["rpu.research_group_id = ?"];
 $params = [$groupId];
@@ -80,6 +81,8 @@ try {
         SELECT rpu.*,
                rm.milestone_name, rm.milestone_order, rm.status AS milestone_current_status,
                rpa.id AS attachment_id, rpa.file_name AS attachment_name,
+               rpai.id AS ai_analysis_id, rpai.verdict AS ai_verdict, rpai.grammar_quality AS ai_grammar_quality,
+               rpai.summary AS ai_summary, rpai.notes_json AS ai_notes_json, rpai.created_at AS ai_analyzed_at,
                (SELECT COUNT(*) FROM crad_research_progress_feedback rpf WHERE rpf.progress_update_id = rpu.id) AS feedback_count
         FROM crad_research_progress_updates rpu
         LEFT JOIN crad_research_milestones rm ON rm.id = rpu.milestone_id
@@ -88,6 +91,13 @@ try {
             FROM crad_research_progress_attachments rpa2
             WHERE rpa2.progress_update_id = rpu.id
             ORDER BY rpa2.id DESC
+            LIMIT 1
+        )
+        LEFT JOIN crad_research_progress_ai_analyses rpai ON rpai.id = (
+            SELECT rpai2.id
+            FROM crad_research_progress_ai_analyses rpai2
+            WHERE rpai2.progress_update_id = rpu.id
+            ORDER BY rpai2.id DESC
             LIMIT 1
         )
         WHERE {$whereClause}
@@ -273,6 +283,22 @@ $statusMeta = [
                     $progressDelta = (float)$update['new_progress'] - (float)$update['previous_progress'];
                     $feedbackCount = (int) $update['feedback_count'];
                     $sc = $statusMeta[$update['milestone_status']] ?? ['color'=>'#64748b','bg'=>'#f1f5f9','accent'=>'#64748b'];
+                    $aiNotes = [];
+                    if (!empty($update['ai_notes_json'])) {
+                        $decodedNotes = json_decode((string) $update['ai_notes_json'], true);
+                        $aiNotes = is_array($decodedNotes) ? $decodedNotes : [];
+                    }
+                    $hasAiAnalysis = !empty($update['ai_analysis_id']);
+                    $aiVerdict = (string) ($update['ai_verdict'] ?? '');
+                    $needsAiBeforeDecision = ($update['milestone_status'] === 'Submitted for Review') && !empty($update['attachment_id']);
+                    $aiRevisionText = $hasAiAnalysis
+                        ? rpFormatAiNotesForRevision([
+                            'milestone_name' => (string) ($update['milestone_name'] ?? ''),
+                            'verdict' => $aiVerdict,
+                            'summary' => (string) ($update['ai_summary'] ?? ''),
+                            'notes' => $aiNotes,
+                        ])
+                        : '';
                 ?>
                     <div class="glass-panel rm-update-card" style="--rm-accent:<?= $sc['accent'] ?>;" data-update-id="<?= $updateId ?>">
                         <div class="glass-panel-body">
@@ -353,7 +379,7 @@ $statusMeta = [
                                     <?php if (!empty($update['attachment_id'])): ?>
                                         <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
                                             <span><?= htmlspecialchars((string) $update['attachment_name']) ?></span>
-                                            <span class="d-flex gap-2">
+                                            <span class="d-flex gap-2 flex-wrap">
                                                 <a class="btn btn-sm btn-outline-primary" target="_blank"
                                                    href="<?= htmlspecialchars(rpProgressAttachmentUrl((int) $update['attachment_id'])) ?>">
                                                     <?= smsIcon('eye', ['class' => 'me-1']) ?>View
@@ -362,6 +388,12 @@ $statusMeta = [
                                                    href="<?= htmlspecialchars(rpProgressAttachmentUrl((int) $update['attachment_id'], true)) ?>">
                                                     <?= smsIcon('download', ['class' => 'me-1']) ?>Download
                                                 </a>
+                                                <button type="button"
+                                                        class="btn btn-sm rm-ai-generate-btn"
+                                                        data-ai-generate
+                                                        data-update-id="<?= $updateId ?>">
+                                                    <?= smsIcon('robot', ['class' => 'me-1']) ?>Generate to AI
+                                                </button>
                                             </span>
                                         </div>
                                     <?php else: ?>
@@ -370,18 +402,62 @@ $statusMeta = [
                                 </div>
                             </div>
 
+                            <div class="rm-ai-panel<?= $hasAiAnalysis ? '' : ' d-none' ?>"
+                                 data-ai-panel
+                                 data-update-id="<?= $updateId ?>"
+                                 data-verdict="<?= htmlspecialchars($aiVerdict) ?>"
+                                 data-revision-text="<?= htmlspecialchars($aiRevisionText) ?>">
+                                <div class="rm-ai-panel-head">
+                                    <div>
+                                        <div class="rm-ai-panel-title"><?= smsIcon('robot') ?>AI Grammar Review</div>
+                                        <div class="rm-ai-panel-sub">Review these notes before you Approve or Request Revision.</div>
+                                    </div>
+                                    <span class="rm-ai-verdict" data-ai-verdict-pill>
+                                        <?= $hasAiAnalysis ? htmlspecialchars($aiVerdict === 'acceptable' ? 'Acceptable grammar' : 'Needs revision') : '' ?>
+                                    </span>
+                                </div>
+                                <div class="rm-ai-summary" data-ai-summary><?= $hasAiAnalysis ? nl2br(htmlspecialchars((string) $update['ai_summary'])) : '' ?></div>
+                                <ul class="rm-ai-notes" data-ai-notes>
+                                    <?php foreach ($aiNotes as $note): ?>
+                                        <li>
+                                            <strong><?= htmlspecialchars((string) ($note['issue'] ?? '')) ?></strong>
+                                            <?php if (!empty($note['suggestion'])): ?>
+                                                <div><?= htmlspecialchars((string) $note['suggestion']) ?></div>
+                                            <?php endif; ?>
+                                            <?php if (!empty($note['example'])): ?>
+                                                <div class="rm-ai-example">“<?= htmlspecialchars((string) $note['example']) ?>”</div>
+                                            <?php endif; ?>
+                                        </li>
+                                    <?php endforeach; ?>
+                                </ul>
+                                <?php if ($needsAiBeforeDecision): ?>
+                                    <button type="button" class="btn btn-sm btn-outline-warning" data-ai-use-notes data-update-id="<?= $updateId ?>">
+                                        <?= smsIcon('redo', ['class' => 'me-1']) ?>Use notes in Request Revision
+                                    </button>
+                                <?php endif; ?>
+                            </div>
+
                             <!-- Action buttons -->
                             <div class="rm-action-row" data-action-controls>
+                                <?php if ($needsAiBeforeDecision && !$hasAiAnalysis): ?>
+                                    <div class="rm-ai-gate-note" data-ai-gate-note>
+                                        <?= smsIcon('info-circle') ?>Run <strong>Generate to AI</strong> first. The AI will check the student’s grammar before you approve or request revision.
+                                    </div>
+                                <?php endif; ?>
                                 <button type="button" class="rm-btn rm-btn-comment"
                                         data-bs-toggle="modal" data-bs-target="#feedbackModal<?= $updateId ?>">
                                     <?= smsIcon('comment') ?>Comment
                                 </button>
                                 <button type="button" class="rm-btn rm-btn-revision"
-                                        data-bs-toggle="modal" data-bs-target="#revisionModal<?= $updateId ?>">
+                                        data-bs-toggle="modal" data-bs-target="#revisionModal<?= $updateId ?>"
+                                        data-decision-btn="revision"
+                                        <?= ($needsAiBeforeDecision && !$hasAiAnalysis) ? 'disabled' : '' ?>>
                                     <?= smsIcon('redo') ?>Request Revision
                                 </button>
                                 <button type="button" class="rm-btn rm-btn-approve"
-                                        data-bs-toggle="modal" data-bs-target="#approveModal<?= $updateId ?>">
+                                        data-bs-toggle="modal" data-bs-target="#approveModal<?= $updateId ?>"
+                                        data-decision-btn="approve"
+                                        <?= ($needsAiBeforeDecision && !$hasAiAnalysis) ? 'disabled' : '' ?>>
                                     <?= smsIcon('check-circle') ?>Approve
                                 </button>
                                 <?php if ($feedbackCount > 0): ?>
