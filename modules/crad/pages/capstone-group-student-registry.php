@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * SMS 2 - Capstone Group/Student Registry
  * Module: CRAD
