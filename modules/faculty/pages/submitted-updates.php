@@ -15,6 +15,7 @@ require_once __DIR__ . '/../../../config/config.php';
 require_once __DIR__ . '/../../../includes/breadcrumbs.php';
 require_once __DIR__ . '/../../../modules/crad/config/config.php';
 require_once __DIR__ . '/../../../modules/crad/includes/research-progress-helpers.php';
+require_once __DIR__ . '/../../../modules/crad/includes/ai-document-analysis.php';
 
 $breadcrumbs = [
     ['label' => 'Faculty',                   'url' => BASE_URL . '/modules/faculty/index.php'],
