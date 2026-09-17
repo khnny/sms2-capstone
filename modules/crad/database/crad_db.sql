@@ -1448,6 +1448,27 @@ CREATE TABLE `crad_research_progress_attachments` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
+-- Table structure for table `crad_research_progress_ai_analyses`
+--
+
+CREATE TABLE `crad_research_progress_ai_analyses` (
+  `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `progress_update_id` int(10) UNSIGNED NOT NULL,
+  `attachment_id` int(10) UNSIGNED NOT NULL DEFAULT 0,
+  `milestone_name` varchar(180) NOT NULL DEFAULT '',
+  `verdict` varchar(40) NOT NULL DEFAULT 'needs_revision',
+  `grammar_quality` varchar(40) NOT NULL DEFAULT 'fair',
+  `summary` text NOT NULL,
+  `notes_json` mediumtext NOT NULL,
+  `source` varchar(40) NOT NULL DEFAULT 'cursor',
+  `analyzed_by` int(10) UNSIGNED NOT NULL DEFAULT 0,
+  `analyzed_by_name` varchar(180) NOT NULL DEFAULT '',
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `idx_rpai_update` (`progress_update_id`, `id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
 -- Dumping data for table `crad_research_progress_attachments`
 --
 
