@@ -87,6 +87,24 @@ function grantBreadcrumbModuleLabel(): string
 }
 
 /**
+ * Absolute URL to a script in modules/crad, even if BASE_URL was
+ * detected from a nested /modules/crad/api/ request.
+ */
+function grantCradScriptUrl(string $script, array $query = []): string
+{
+    $base = rtrim((string) BASE_URL, '/');
+    if (preg_match('#/modules/crad$#i', $base) === 1) {
+        $base = (string) preg_replace('#/modules/crad$#i', '', $base);
+    }
+    $url = $base . '/modules/crad/' . ltrim($script, '/');
+    if ($query !== []) {
+        $url .= '?' . http_build_query($query);
+    }
+
+    return $url;
+}
+
+/**
  * Breadcrumb parent URL on grant pages.
  */
 function grantBreadcrumbModuleUrl(): string

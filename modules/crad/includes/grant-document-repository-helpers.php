@@ -486,7 +486,7 @@ function grantBuildDocumentRepositoryManifest(PDO $crad, int $applicationId): ar
             !empty($ms['supporting_doc']) ? 'file' : 'record',
             !empty($ms['supporting_doc']) ? (string) $ms['supporting_doc'] : null,
             !empty($ms['supporting_doc_original']) ? (string) $ms['supporting_doc_original'] : null,
-            !empty($ms['supporting_doc']) ? BASE_URL . '/modules/crad/grant-milestone-file.php?id=' . (int) ($ms['id'] ?? 0) : null,
+            !empty($ms['supporting_doc']) ? grantCradScriptUrl('grant-milestone-file.php', ['id' => (int) ($ms['id'] ?? 0)]) : null,
             $summary,
             ['milestone_id' => (int) ($ms['id'] ?? 0)],
             $order++
@@ -507,7 +507,7 @@ function grantBuildDocumentRepositoryManifest(PDO $crad, int $applicationId): ar
             !empty($ev['file_path']) ? 'file' : 'record',
             !empty($ev['file_path']) ? (string) $ev['file_path'] : null,
             !empty($ev['file_original']) ? (string) $ev['file_original'] : null,
-            !empty($ev['file_path']) ? BASE_URL . '/modules/crad/grant-funded-research-file.php?id=' . (int) ($ev['id'] ?? 0) : null,
+            !empty($ev['file_path']) ? grantCradScriptUrl('grant-funded-research-file.php', ['id' => (int) ($ev['id'] ?? 0)]) : null,
             (string) ($ev['notes'] ?? ''),
             ['evidence_id' => (int) ($ev['id'] ?? 0)],
             $order++

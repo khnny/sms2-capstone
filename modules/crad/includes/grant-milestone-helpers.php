@@ -312,7 +312,7 @@ function grantMilestoneDocumentUrl(int $milestoneId): string
         return '';
     }
 
-    return BASE_URL . '/modules/crad/grant-milestone-file.php?id=' . $milestoneId;
+    return grantCradScriptUrl('grant-milestone-file.php', ['id' => $milestoneId]);
 }
 
 /**

@@ -187,11 +187,17 @@ if (!function_exists('sms2_detect_base_url')) {
             '/welcome/',
         ];
 
+        // Use the leftmost marker so nested module APIs
+        // (e.g. /modules/crad/api/...) do not treat /api/ as the app root.
+        $bestPos = null;
         foreach ($markers as $marker) {
             $pos = strpos($scriptName, $marker);
-            if ($pos !== false) {
-                return rtrim(substr($scriptName, 0, $pos), '/');
+            if ($pos !== false && ($bestPos === null || $pos < $bestPos)) {
+                $bestPos = $pos;
             }
+        }
+        if ($bestPos !== null) {
+            return rtrim(substr($scriptName, 0, $bestPos), '/');
         }
 
         $dir = str_replace('\\', '/', dirname($scriptName));

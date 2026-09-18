@@ -270,5 +270,5 @@ renderBreadcrumbs($breadcrumbs);
     <?php endif; ?>
 </div>
 
-<script src="<?= BASE_URL ?>/assets/js/grant-milestones-live.js?v=4"></script>
+<script src="<?= BASE_URL ?>/assets/js/grant-milestones-live.js?v=5"></script>
 <?php require_once ROOT_PATH . '/includes/layout-end.php'; ?>

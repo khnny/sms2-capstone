@@ -219,7 +219,7 @@ function grantFundedResearchEvidenceFileUrl(int $evidenceId): string
         return '';
     }
 
-    return BASE_URL . '/modules/crad/grant-funded-research-file.php?id=' . $evidenceId;
+    return grantCradScriptUrl('grant-funded-research-file.php', ['id' => $evidenceId]);
 }
 
 /**
