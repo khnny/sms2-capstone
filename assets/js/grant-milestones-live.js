@@ -44,6 +44,10 @@
             .replace(/"/g, '&quot;');
     }
 
+    function fileHref(url) {
+        return String(url || '').replace(/\/modules\/crad\/modules\/crad\//g, '/modules/crad/');
+    }
+
     function statusClass(status) {
         if (status === 'Completed') return 'completed';
         if (status === 'In Progress') return 'in-progress';
