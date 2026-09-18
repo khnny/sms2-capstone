@@ -70,10 +70,8 @@ function grantEnsureFinalOutputTables(PDO $crad): void
     if ($done) {
         return;
     }
-    $done = true;
 
-    $crad->exec("UPDATE crad_grant_final_output_submissions SET status = 'OUTPUT_VERIFIED' WHERE status = 'VERIFIED'");
-
+    // CREATE first — legacy status remap must not run against a missing table.
     $crad->exec("
         CREATE TABLE IF NOT EXISTS crad_grant_final_output_submissions (
             id                      INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -141,6 +139,14 @@ function grantEnsureFinalOutputTables(PDO $crad): void
             KEY idx_gpip_verified (verified_at)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     ");
+
+    try {
+        $crad->exec("UPDATE crad_grant_final_output_submissions SET status = 'OUTPUT_VERIFIED' WHERE status = 'VERIFIED'");
+    } catch (Throwable $e) {
+        // Ignore: fresh installs never had legacy VERIFIED; ENUM may omit it.
+    }
+
+    $done = true;
 }
 
 /**
