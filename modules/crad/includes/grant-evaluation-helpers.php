@@ -214,7 +214,7 @@ function grantEnsureEvaluationTables(PDO $crad): void
     $done = true;
 
     $crad->exec("
-        CREATE TABLE IF NOT EXISTS grant_proposal_evaluations (
+        CREATE TABLE IF NOT EXISTS crad_grant_proposal_evaluations (
             id                    INT UNSIGNED  NOT NULL AUTO_INCREMENT,
             grant_application_id  INT UNSIGNED  NOT NULL,
             evaluator_user_id     INT UNSIGNED  NOT NULL,
@@ -241,19 +241,19 @@ function grantEnsureEvaluationTables(PDO $crad): void
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     ");
 
-    _grantAddColumnIfMissing($crad, 'grant_proposal_evaluations', 'recommendation',
+    _grantAddColumnIfMissing($crad, 'crad_grant_proposal_evaluations', 'recommendation',
         "VARCHAR(40) DEFAULT NULL COMMENT 'Reviewer decision: disapprove | require_revisions' AFTER required_corrections");
-    _grantAddColumnIfMissing($crad, 'grant_proposal_evaluations', 'revision_reason',
+    _grantAddColumnIfMissing($crad, 'crad_grant_proposal_evaluations', 'revision_reason',
         "TEXT DEFAULT NULL COMMENT 'Reason for required revisions' AFTER recommendation");
-    _grantAddColumnIfMissing($crad, 'grant_proposal_evaluations', 'proposal_version',
+    _grantAddColumnIfMissing($crad, 'crad_grant_proposal_evaluations', 'proposal_version',
         "INT UNSIGNED NOT NULL DEFAULT 1 COMMENT 'Proposal version evaluated' AFTER grant_application_id");
-    _grantAddColumnIfMissing($crad, 'grant_proposal_evaluations', 'evaluation_type',
+    _grantAddColumnIfMissing($crad, 'crad_grant_proposal_evaluations', 'evaluation_type',
         "VARCHAR(20) NOT NULL DEFAULT 'committee' COMMENT 'committee | adviser' AFTER evaluator_name");
 
     _grantEnsureEvaluationVersionIndex($crad);
 
     $crad->exec("
-        CREATE TABLE IF NOT EXISTS grant_proposal_notifications (
+        CREATE TABLE IF NOT EXISTS crad_grant_proposal_notifications (
             id                  INT UNSIGNED  NOT NULL AUTO_INCREMENT,
             event_key           VARCHAR(120)  NOT NULL,
             recipient_user_id   INT UNSIGNED  DEFAULT NULL,
@@ -349,7 +349,7 @@ function grantGetEvaluationByTypeAndApplication(
 
     $stmt = $crad->prepare("
         SELECT *
-          FROM grant_proposal_evaluations
+          FROM crad_grant_proposal_evaluations
          WHERE grant_application_id = ?
            AND evaluation_type = ?
            AND proposal_version = ?
@@ -419,7 +419,7 @@ function grantGetApproverEvaluationByApplication(
 
     $stmt = $crad->prepare("
         SELECT *
-          FROM grant_proposal_evaluations
+          FROM crad_grant_proposal_evaluations
          WHERE grant_application_id = ?
            AND evaluator_user_id = ?
            AND evaluation_type = ?
@@ -458,7 +458,7 @@ function grantApproverEvaluationScoredCount(PDO $crad): int
 
     $stmt = $crad->prepare("
         SELECT COUNT(*)
-          FROM grant_proposal_evaluations
+          FROM crad_grant_proposal_evaluations
          WHERE evaluator_user_id = ?
            AND evaluation_type = ?
     ");
@@ -502,13 +502,13 @@ function grantValidateRubricScoresFromInput(array $input): array
 function _grantEnsureEvaluationVersionIndex(PDO $crad): void
 {
     try {
-        $old = $crad->query("SHOW INDEX FROM grant_proposal_evaluations WHERE Key_name = 'uniq_gpe_app_evaluator'")->fetch();
+        $old = $crad->query("SHOW INDEX FROM crad_grant_proposal_evaluations WHERE Key_name = 'uniq_gpe_app_evaluator'")->fetch();
         if ($old) {
-            $crad->exec('ALTER TABLE grant_proposal_evaluations DROP INDEX uniq_gpe_app_evaluator');
+            $crad->exec('ALTER TABLE crad_grant_proposal_evaluations DROP INDEX uniq_gpe_app_evaluator');
         }
-        $new = $crad->query("SHOW INDEX FROM grant_proposal_evaluations WHERE Key_name = 'uniq_gpe_app_eval_ver'")->fetch();
+        $new = $crad->query("SHOW INDEX FROM crad_grant_proposal_evaluations WHERE Key_name = 'uniq_gpe_app_eval_ver'")->fetch();
         if (!$new) {
-            $crad->exec('ALTER TABLE grant_proposal_evaluations ADD UNIQUE KEY uniq_gpe_app_eval_ver (grant_application_id, evaluator_user_id, proposal_version)');
+            $crad->exec('ALTER TABLE crad_grant_proposal_evaluations ADD UNIQUE KEY uniq_gpe_app_eval_ver (grant_application_id, evaluator_user_id, proposal_version)');
         }
     } catch (Throwable $e) {
         error_log('_grantEnsureEvaluationVersionIndex: ' . $e->getMessage());
@@ -577,21 +577,21 @@ function grantAdviserEvaluationQueue(PDO $crad): array
             my_eval.id AS my_evaluation_id,
             my_eval.total_score AS my_total_score,
             my_eval.submitted_at AS my_evaluated_at
-        FROM grant_proposal_approval_workflows w
-        INNER JOIN grant_applications ga ON ga.id = w.grant_application_id
-        INNER JOIN grant_opportunities go ON go.id = ga.grant_opportunity_id
-        INNER JOIN grant_proposal_approval_steps adviser_step
+        FROM crad_grant_proposal_approval_workflows w
+        INNER JOIN crad_grant_applications ga ON ga.id = w.grant_application_id
+        INNER JOIN crad_grant_opportunities go ON go.id = ga.grant_opportunity_id
+        INNER JOIN crad_grant_proposal_approval_steps adviser_step
                 ON adviser_step.workflow_id = w.id
                AND adviser_step.step_key = 'adviser'
-        LEFT JOIN grant_proposal_evaluations committee_eval
+        LEFT JOIN crad_grant_proposal_evaluations committee_eval
                ON committee_eval.id = (
                     SELECT MAX(e2.id)
-                      FROM grant_proposal_evaluations e2
+                      FROM crad_grant_proposal_evaluations e2
                      WHERE e2.grant_application_id = ga.id
                        AND e2.proposal_version = COALESCE(NULLIF(ga.current_version, 0), 1)
                        AND e2.evaluation_type = ?
                )
-        LEFT JOIN grant_proposal_evaluations my_eval
+        LEFT JOIN crad_grant_proposal_evaluations my_eval
                ON my_eval.grant_application_id = ga.id
               AND my_eval.evaluator_user_id = ?
               AND my_eval.evaluation_type = ?
@@ -634,7 +634,7 @@ function grantApproverEvaluationQueue(PDO $crad): array
     $financeVpaaClause = $stepKey === 'finance'
         ? " AND EXISTS (
                 SELECT 1
-                  FROM grant_proposal_approval_steps vp
+                  FROM crad_grant_proposal_approval_steps vp
                  WHERE vp.workflow_id = w.id
                    AND vp.step_key = 'vpaa'
                    AND vp.status = 'Approved'
@@ -682,29 +682,29 @@ function grantApproverEvaluationQueue(PDO $crad): array
             my_eval.id AS my_evaluation_id,
             my_eval.total_score AS my_total_score,
             my_eval.submitted_at AS my_evaluated_at
-        FROM grant_proposal_approval_workflows w
-        INNER JOIN grant_applications ga ON ga.id = w.grant_application_id
-        INNER JOIN grant_opportunities go ON go.id = ga.grant_opportunity_id
-        INNER JOIN grant_proposal_approval_steps my_step
+        FROM crad_grant_proposal_approval_workflows w
+        INNER JOIN crad_grant_applications ga ON ga.id = w.grant_application_id
+        INNER JOIN crad_grant_opportunities go ON go.id = ga.grant_opportunity_id
+        INNER JOIN crad_grant_proposal_approval_steps my_step
                 ON my_step.workflow_id = w.id
                AND my_step.step_key = ?
-        LEFT JOIN grant_proposal_evaluations committee_eval
+        LEFT JOIN crad_grant_proposal_evaluations committee_eval
                ON committee_eval.id = (
                     SELECT MAX(e2.id)
-                      FROM grant_proposal_evaluations e2
+                      FROM crad_grant_proposal_evaluations e2
                      WHERE e2.grant_application_id = ga.id
                        AND e2.proposal_version = COALESCE(NULLIF(ga.current_version, 0), 1)
                        AND e2.evaluation_type = ?
                )
-        LEFT JOIN grant_proposal_evaluations adviser_eval
+        LEFT JOIN crad_grant_proposal_evaluations adviser_eval
                ON adviser_eval.id = (
                     SELECT MAX(e3.id)
-                      FROM grant_proposal_evaluations e3
+                      FROM crad_grant_proposal_evaluations e3
                      WHERE e3.grant_application_id = ga.id
                        AND e3.proposal_version = COALESCE(NULLIF(ga.current_version, 0), 1)
                        AND e3.evaluation_type = ?
                )
-        LEFT JOIN grant_proposal_evaluations my_eval
+        LEFT JOIN crad_grant_proposal_evaluations my_eval
                ON my_eval.grant_application_id = ga.id
               AND my_eval.evaluator_user_id = ?
               AND my_eval.evaluation_type = ?
@@ -772,23 +772,23 @@ function grantMonitorEvaluationQueue(PDO $crad): array
             adviser_eval.id AS adviser_evaluation_id,
             adviser_eval.total_score AS adviser_total_score,
             adviser_eval.submitted_at AS adviser_evaluated_at
-        FROM grant_proposal_approval_workflows w
-        INNER JOIN grant_applications ga ON ga.id = w.grant_application_id
-        INNER JOIN grant_opportunities go ON go.id = ga.grant_opportunity_id
-        LEFT JOIN grant_proposal_approval_steps cs
+        FROM crad_grant_proposal_approval_workflows w
+        INNER JOIN crad_grant_applications ga ON ga.id = w.grant_application_id
+        INNER JOIN crad_grant_opportunities go ON go.id = ga.grant_opportunity_id
+        LEFT JOIN crad_grant_proposal_approval_steps cs
                ON cs.workflow_id = w.id AND cs.step_key = w.current_step_key
-        LEFT JOIN grant_proposal_evaluations committee_eval
+        LEFT JOIN crad_grant_proposal_evaluations committee_eval
                ON committee_eval.id = (
                     SELECT MAX(e2.id)
-                      FROM grant_proposal_evaluations e2
+                      FROM crad_grant_proposal_evaluations e2
                      WHERE e2.grant_application_id = ga.id
                        AND e2.proposal_version = COALESCE(NULLIF(ga.current_version, 0), 1)
                        AND e2.evaluation_type = ?
                )
-        LEFT JOIN grant_proposal_evaluations adviser_eval
+        LEFT JOIN crad_grant_proposal_evaluations adviser_eval
                ON adviser_eval.id = (
                     SELECT MAX(e3.id)
-                      FROM grant_proposal_evaluations e3
+                      FROM crad_grant_proposal_evaluations e3
                      WHERE e3.grant_application_id = ga.id
                        AND e3.proposal_version = COALESCE(NULLIF(ga.current_version, 0), 1)
                        AND e3.evaluation_type = ?
@@ -807,10 +807,10 @@ function grantMonitorEvaluationCounts(PDO $crad): array
     grantEnsureApprovalTables($crad);
 
     $pending = (int) $crad->query("
-        SELECT COUNT(*) FROM grant_proposal_approval_workflows WHERE workflow_status = 'In Progress'
+        SELECT COUNT(*) FROM crad_grant_proposal_approval_workflows WHERE workflow_status = 'In Progress'
     ")->fetchColumn();
     $scored = (int) $crad->query("
-        SELECT COUNT(*) FROM grant_proposal_approval_workflows WHERE workflow_status = 'Completed'
+        SELECT COUNT(*) FROM crad_grant_proposal_approval_workflows WHERE workflow_status = 'Completed'
     ")->fetchColumn();
 
     return ['pending' => $pending, 'scored' => $scored];
@@ -829,7 +829,7 @@ function grantApproverSignoffCount(PDO $crad): int
 
     $stmt = $crad->prepare("
         SELECT COUNT(*)
-          FROM grant_proposal_approval_steps
+          FROM crad_grant_proposal_approval_steps
          WHERE approver_role_key = ?
            AND approver_user_id = ?
            AND status = 'Approved'
@@ -852,7 +852,7 @@ function grantGetLatestAdviserEvaluationByApplication(PDO $crad, int $applicatio
 
     $stmt = $crad->prepare("
         SELECT *
-          FROM grant_proposal_evaluations
+          FROM crad_grant_proposal_evaluations
          WHERE grant_application_id = ?
            AND evaluation_type = ?
            AND proposal_version = ?
@@ -880,7 +880,7 @@ function grantAdviserEvaluationScoredCount(PDO $crad): int
 
     $stmt = $crad->prepare("
         SELECT COUNT(*)
-          FROM grant_proposal_evaluations
+          FROM crad_grant_proposal_evaluations
          WHERE evaluator_user_id = ?
            AND evaluation_type = ?
     ");
@@ -909,7 +909,7 @@ function grantGetAdviserEvaluationByApplication(
 
     $stmt = $crad->prepare("
         SELECT *
-          FROM grant_proposal_evaluations
+          FROM crad_grant_proposal_evaluations
          WHERE grant_application_id = ?
            AND evaluator_user_id = ?
            AND evaluation_type = ?
@@ -940,7 +940,7 @@ function grantApplicationOpenForEvaluationViewer(PDO $crad, int $applicationId):
 
         $stmt = $crad->prepare("
             SELECT w.id
-              FROM grant_proposal_approval_workflows w
+              FROM crad_grant_proposal_approval_workflows w
              WHERE w.grant_application_id = ?
                AND w.workflow_status = 'In Progress'
                AND w.current_step_key = 'adviser'
@@ -963,7 +963,7 @@ function grantApplicationOpenForEvaluationViewer(PDO $crad, int $applicationId):
 
         $stmt = $crad->prepare("
             SELECT w.id
-              FROM grant_proposal_approval_workflows w
+              FROM crad_grant_proposal_approval_workflows w
              WHERE w.grant_application_id = ?
                AND w.workflow_status = 'In Progress'
                AND w.current_step_key = ?
@@ -1036,9 +1036,9 @@ function grantEvaluationQueue(PDO $crad, ?int $evaluatorUserId = null): array
             ev.id AS my_evaluation_id,
             ev.total_score AS my_total_score,
             ev.submitted_at AS my_evaluated_at
-        FROM grant_applications ga
-        INNER JOIN grant_opportunities go ON go.id = ga.grant_opportunity_id
-        LEFT JOIN grant_proposal_evaluations ev
+        FROM crad_grant_applications ga
+        INNER JOIN crad_grant_opportunities go ON go.id = ga.grant_opportunity_id
+        LEFT JOIN crad_grant_proposal_evaluations ev
                ON ev.grant_application_id = ga.id
               AND ev.evaluator_user_id = ?
               AND ev.evaluation_type = ?
@@ -1062,8 +1062,8 @@ function grantGetApplicationForEvaluation(PDO $crad, int $applicationId): ?array
             go.max_funding_cap,
             go.eligibility,
             go.application_deadline
-        FROM grant_applications ga
-        INNER JOIN grant_opportunities go ON go.id = ga.grant_opportunity_id
+        FROM crad_grant_applications ga
+        INNER JOIN crad_grant_opportunities go ON go.id = ga.grant_opportunity_id
         WHERE ga.id = ?
         LIMIT 1
     ");
@@ -1089,7 +1089,7 @@ function grantGetEvaluationByApplication(PDO $crad, int $applicationId, ?int $ev
 
     $stmt = $crad->prepare("
         SELECT *
-        FROM grant_proposal_evaluations
+        FROM crad_grant_proposal_evaluations
         WHERE grant_application_id = ?
           AND evaluator_user_id = ?
           AND evaluation_type = ?
@@ -1120,12 +1120,12 @@ function grantGetLatestEvaluationsForApplications(PDO $crad, array $applicationI
     $placeholders = implode(',', array_fill(0, count($applicationIds), '?'));
     $stmt = $crad->prepare("
         SELECT e.*
-        FROM grant_proposal_evaluations e
-        INNER JOIN grant_applications ga ON ga.id = e.grant_application_id
+        FROM crad_grant_proposal_evaluations e
+        INNER JOIN crad_grant_applications ga ON ga.id = e.grant_application_id
         INNER JOIN (
             SELECT e2.grant_application_id, MAX(e2.id) AS latest_id
-            FROM grant_proposal_evaluations e2
-            INNER JOIN grant_applications ga2 ON ga2.id = e2.grant_application_id
+            FROM crad_grant_proposal_evaluations e2
+            INNER JOIN crad_grant_applications ga2 ON ga2.id = e2.grant_application_id
             WHERE e2.grant_application_id IN ({$placeholders})
               AND e2.proposal_version = COALESCE(NULLIF(ga2.current_version, 0), 1)
               AND e2.evaluation_type = ?
@@ -1208,7 +1208,7 @@ function grantNotifyApplicantEvaluationDecision(
     if (function_exists('db')) {
         $mainDb = db();
         if ($mainDb) {
-            $userStmt = $mainDb->prepare('SELECT role_key FROM users WHERE id = ? LIMIT 1');
+            $userStmt = $mainDb->prepare('SELECT role_key FROM sms_users WHERE id = ? LIMIT 1');
             $userStmt->execute([$recipientUserId]);
             $recipientRole = (string) ($userStmt->fetchColumn() ?: 'student');
         }
@@ -1218,7 +1218,7 @@ function grantNotifyApplicantEvaluationDecision(
         . ':v' . max(1, (int) ($application['current_version'] ?? 1))
         . ':u' . $recipientUserId;
     $stmt = $crad->prepare("
-        INSERT INTO grant_proposal_notifications
+        INSERT INTO crad_grant_proposal_notifications
             (event_key, recipient_user_id, recipient_role, recipient_email,
              grant_application_id, type, title, body, url)
         VALUES
@@ -1260,7 +1260,7 @@ function grantInsertGrantProposalNotification(
     }
 
     $stmt = $crad->prepare("
-        INSERT INTO grant_proposal_notifications
+        INSERT INTO crad_grant_proposal_notifications
             (event_key, recipient_user_id, recipient_role, recipient_email,
              grant_application_id, type, title, body, url)
         VALUES
@@ -1321,7 +1321,7 @@ function grantNotifyApplicantApprovalReturn(
     if (function_exists('db')) {
         $mainDb = db();
         if ($mainDb) {
-            $userStmt = $mainDb->prepare('SELECT role_key FROM users WHERE id = ? LIMIT 1');
+            $userStmt = $mainDb->prepare('SELECT role_key FROM sms_users WHERE id = ? LIMIT 1');
             $userStmt->execute([$recipientUserId]);
             $recipientRole = (string) ($userStmt->fetchColumn() ?: 'student');
         }
@@ -1370,7 +1370,7 @@ function grantNotifyApplicantApprovedFunded(PDO $crad, array $application, strin
     if (function_exists('db')) {
         $mainDb = db();
         if ($mainDb) {
-            $userStmt = $mainDb->prepare('SELECT role_key FROM users WHERE id = ? LIMIT 1');
+            $userStmt = $mainDb->prepare('SELECT role_key FROM sms_users WHERE id = ? LIMIT 1');
             $userStmt->execute([$recipientUserId]);
             $recipientRole = (string) ($userStmt->fetchColumn() ?: 'student');
         }
@@ -1439,7 +1439,7 @@ function grantApplyPipelineEvaluationRecommendation(
 
     if ($recommendation === 'disapprove') {
         $crad->prepare("
-            UPDATE grant_applications
+            UPDATE crad_grant_applications
                SET status = 'Rejected', updated_at = NOW()
              WHERE id = ?
         ")->execute([$applicationId]);
@@ -1448,7 +1448,7 @@ function grantApplyPipelineEvaluationRecommendation(
         if ($workflow !== null) {
             $workflowId = (int) ($workflow['id'] ?? 0);
             $crad->prepare("
-                UPDATE grant_proposal_approval_workflows
+                UPDATE crad_grant_proposal_approval_workflows
                    SET workflow_status = 'Cancelled', updated_at = NOW()
                  WHERE id = ?
             ")->execute([$workflowId]);
@@ -1482,7 +1482,7 @@ function grantApplyPipelineEvaluationRecommendation(
         if ($currentStep !== null) {
             $returnedByLabel = grantApprovalReturnedByLabel($currentStep);
             $crad->prepare("
-            UPDATE grant_proposal_approval_steps
+            UPDATE crad_grant_proposal_approval_steps
                SET status = 'Returned',
                    approver_user_id = ?,
                    approver_name = ?,
@@ -1499,7 +1499,7 @@ function grantApplyPipelineEvaluationRecommendation(
         ]);
 
             $crad->prepare("
-            UPDATE grant_proposal_approval_workflows
+            UPDATE crad_grant_proposal_approval_workflows
                SET workflow_status = 'Returned', updated_at = NOW()
              WHERE id = ?
         ")->execute([$workflowId]);
@@ -1515,7 +1515,7 @@ function grantApplyPipelineEvaluationRecommendation(
     }
 
     $crad->prepare("
-        UPDATE grant_applications
+        UPDATE crad_grant_applications
            SET status = 'Revision Required', updated_at = NOW()
          WHERE id = ?
     ")->execute([$applicationId]);
@@ -1585,7 +1585,7 @@ function grantSubmitAdviserProposalEvaluation(PDO $crad, int $applicationId, arr
         $crad->beginTransaction();
 
         $stmt = $crad->prepare("
-            INSERT INTO grant_proposal_evaluations
+            INSERT INTO crad_grant_proposal_evaluations
                 (grant_application_id, proposal_version, evaluator_user_id, evaluator_name, evaluation_type,
                  score_rationale, score_methodology, score_budget,
                  score_team_capability, score_compliance, total_score,
@@ -1718,7 +1718,7 @@ function grantSubmitApproverProposalEvaluation(PDO $crad, int $applicationId, ar
         $crad->beginTransaction();
 
         $stmt = $crad->prepare("
-            INSERT INTO grant_proposal_evaluations
+            INSERT INTO crad_grant_proposal_evaluations
                 (grant_application_id, proposal_version, evaluator_user_id, evaluator_name, evaluation_type,
                  score_rationale, score_methodology, score_budget,
                  score_team_capability, score_compliance, total_score,
@@ -1871,7 +1871,7 @@ function grantSubmitProposalEvaluation(PDO $crad, int $applicationId, array $inp
         $crad->beginTransaction();
 
         $stmt = $crad->prepare("
-            INSERT INTO grant_proposal_evaluations
+            INSERT INTO crad_grant_proposal_evaluations
                 (grant_application_id, proposal_version, evaluator_user_id, evaluator_name, evaluation_type,
                  score_rationale, score_methodology, score_budget,
                  score_team_capability, score_compliance, total_score,
@@ -1907,7 +1907,7 @@ function grantSubmitProposalEvaluation(PDO $crad, int $applicationId, array $inp
 
         if ($shouldUpdateStatus && $newStatus !== $currentStatus) {
             $crad->prepare("
-                UPDATE grant_applications
+                UPDATE crad_grant_applications
                    SET status = ?, updated_at = NOW()
                  WHERE id = ?
             ")->execute([$newStatus, $applicationId]);
@@ -1969,7 +1969,7 @@ function grantBackfillApplicantDecisionNotifications(PDO $crad, ?int $userId = n
     try {
         $stmt = $crad->prepare("
             SELECT ga.*
-              FROM grant_applications ga
+              FROM crad_grant_applications ga
              WHERE ga.applicant_user_id = ?
                AND ga.status IN ('Revision Required', 'Rejected')
         ");
@@ -2034,7 +2034,7 @@ function grantProposalNotificationsForCurrentUser(int $limit = 8): array
     }
 
     try {
-        $table = $crad->query("SHOW TABLES LIKE 'grant_proposal_notifications'")->fetchColumn();
+        $table = $crad->query("SHOW TABLES LIKE 'crad_grant_proposal_notifications'")->fetchColumn();
         if (!$table) {
             return [];
         }
@@ -2046,7 +2046,7 @@ function grantProposalNotificationsForCurrentUser(int $limit = 8): array
         $where = smsCurrentUserNotificationWhere();
         $stmt = $crad->prepare("
             SELECT id, event_key, type, title, body, url, is_read, created_at
-            FROM grant_proposal_notifications
+            FROM crad_grant_proposal_notifications
             WHERE {$where['sql']}
             ORDER BY created_at DESC, id DESC
             LIMIT :limit
@@ -2109,7 +2109,7 @@ function grantMarkProposalNotificationRead(int $notificationId): void
         }
         $where = smsCurrentUserNotificationWhere();
         $stmt = $crad->prepare("
-            UPDATE grant_proposal_notifications
+            UPDATE crad_grant_proposal_notifications
                SET is_read = 1
              WHERE id = :notification_id
                AND {$where['sql']}

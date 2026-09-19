@@ -59,7 +59,7 @@ $matrix = $defaultMatrix;
 $pdo = db();
 if ($pdo) {
     try {
-        $rows = $pdo->query('SELECT role_key, module_key, granted FROM role_permissions')->fetchAll();
+        $rows = $pdo->query('SELECT role_key, module_key, granted FROM sms_role_permissions')->fetchAll();
         foreach ($rows as $r) {
             $matrixKey = smsMatrixRoleKey((string) $r['role_key']);
             $mod = (string) $r['module_key'];

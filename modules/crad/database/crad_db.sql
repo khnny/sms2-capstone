@@ -24,10 +24,10 @@ SET time_zone = "+00:00";
 -- --------------------------------------------------------
 
 --
--- Table structure for table `chapter_evaluations`
+-- Table structure for table `crad_chapter_evaluations`
 --
 
-CREATE TABLE `chapter_evaluations` (
+CREATE TABLE `crad_chapter_evaluations` (
   `id` int(10) UNSIGNED NOT NULL,
   `submission_id` int(10) UNSIGNED NOT NULL,
   `research_group_id` int(10) UNSIGNED NOT NULL,
@@ -51,10 +51,10 @@ CREATE TABLE `chapter_evaluations` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `chapter_evaluations`
+-- Dumping data for table `crad_chapter_evaluations`
 --
 
-INSERT INTO `chapter_evaluations` (`id`, `submission_id`, `research_group_id`, `evaluator_user_id`, `evaluator_name`, `content_score`, `methodology_score`, `references_score`, `format_score`, `grammar_score`, `content_remarks`, `methodology_remarks`, `references_remarks`, `format_remarks`, `grammar_remarks`, `overall_feedback`, `result`, `overall_score`, `evaluated_at`, `created_at`) VALUES
+INSERT INTO `crad_chapter_evaluations` (`id`, `submission_id`, `research_group_id`, `evaluator_user_id`, `evaluator_name`, `content_score`, `methodology_score`, `references_score`, `format_score`, `grammar_score`, `content_remarks`, `methodology_remarks`, `references_remarks`, `format_remarks`, `grammar_remarks`, `overall_feedback`, `result`, `overall_score`, `evaluated_at`, `created_at`) VALUES
 (25, 29, 61, 475, 'Grammarian', 100.00, 100.00, 100.00, 100.00, 0.00, '', '', '', '', NULL, '', 'APPROVED', 100.00, '2026-08-23 04:07:50', '2026-08-23 04:07:50'),
 (26, 30, 61, 475, 'Grammarian', 100.00, 100.00, 100.00, 99.97, 0.00, '', '', '', '', NULL, '', 'APPROVED', 99.99, '2026-08-23 04:07:59', '2026-08-23 04:07:59'),
 (27, 31, 61, 475, 'Grammarian', 100.00, 100.00, 100.00, 100.00, 0.00, '', '', '', '', NULL, '', 'APPROVED', 100.00, '2026-08-23 04:08:08', '2026-08-23 04:08:08'),
@@ -86,10 +86,10 @@ INSERT INTO `chapter_evaluations` (`id`, `submission_id`, `research_group_id`, `
 -- --------------------------------------------------------
 
 --
--- Table structure for table `chapter_evaluation_notifications`
+-- Table structure for table `crad_chapter_evaluation_notifications`
 --
 
-CREATE TABLE `chapter_evaluation_notifications` (
+CREATE TABLE `crad_chapter_evaluation_notifications` (
   `id` int(10) UNSIGNED NOT NULL,
   `event_key` varchar(120) NOT NULL,
   `recipient_user_id` int(10) UNSIGNED DEFAULT NULL,
@@ -105,10 +105,10 @@ CREATE TABLE `chapter_evaluation_notifications` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `chapter_evaluation_notifications`
+-- Dumping data for table `crad_chapter_evaluation_notifications`
 --
 
-INSERT INTO `chapter_evaluation_notifications` (`id`, `event_key`, `recipient_user_id`, `recipient_role`, `recipient_email`, `submission_id`, `type`, `title`, `body`, `url`, `is_read`, `created_at`) VALUES
+INSERT INTO `crad_chapter_evaluation_notifications` (`id`, `event_key`, `recipient_user_id`, `recipient_role`, `recipient_email`, `submission_id`, `type`, `title`, `body`, `url`, `is_read`, `created_at`) VALUES
 (126, 'evaluator:new:44:u475', 475, 'grammarian', 'grammarian@bestlink.edu.ph', 44, 'new_submission', 'New Chapter Submission', 'Group 68 submitted Chapter 1 Version 1 for evaluation.', '/sms2_system/modules/faculty/pages/evaluation-scoring.php?id=44', 0, '2026-09-19 00:37:11'),
 (127, 'evaluator:new:45:u475', 475, 'grammarian', 'grammarian@bestlink.edu.ph', 45, 'new_submission', 'New Chapter Submission', 'Group 68 submitted Chapter 2 Version 1 for evaluation.', '/sms2_system/modules/faculty/pages/evaluation-scoring.php?id=45', 0, '2026-09-19 00:37:15'),
 (128, 'evaluator:new:46:u475', 475, 'grammarian', 'grammarian@bestlink.edu.ph', 46, 'new_submission', 'New Chapter Submission', 'Group 68 submitted Chapter 3 Version 1 for evaluation.', '/sms2_system/modules/faculty/pages/evaluation-scoring.php?id=46', 0, '2026-09-19 00:37:19'),
@@ -150,10 +150,10 @@ INSERT INTO `chapter_evaluation_notifications` (`id`, `event_key`, `recipient_us
 -- --------------------------------------------------------
 
 --
--- Table structure for table `chapter_submissions`
+-- Table structure for table `crad_chapter_submissions`
 --
 
-CREATE TABLE `chapter_submissions` (
+CREATE TABLE `crad_chapter_submissions` (
   `id` int(10) UNSIGNED NOT NULL,
   `research_group_id` int(10) UNSIGNED NOT NULL,
   `research_plan_id` int(10) UNSIGNED DEFAULT NULL,
@@ -177,10 +177,10 @@ CREATE TABLE `chapter_submissions` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `chapter_submissions`
+-- Dumping data for table `crad_chapter_submissions`
 --
 
-INSERT INTO `chapter_submissions` (`id`, `research_group_id`, `research_plan_id`, `chapter_number`, `version_number`, `status`, `submitted_by_user`, `submitted_by_name`, `submitted_by_email`, `submission_notes`, `original_name`, `stored_subdir`, `stored_name`, `file_size`, `file_mime`, `submission_token`, `submitted_at`, `review_started_at`, `reviewed_at`, `updated_at`) VALUES
+INSERT INTO `crad_chapter_submissions` (`id`, `research_group_id`, `research_plan_id`, `chapter_number`, `version_number`, `status`, `submitted_by_user`, `submitted_by_name`, `submitted_by_email`, `submission_notes`, `original_name`, `stored_subdir`, `stored_name`, `file_size`, `file_mime`, `submission_token`, `submitted_at`, `review_started_at`, `reviewed_at`, `updated_at`) VALUES
 (29, 61, 22, 1, 1, 'Accepted', 9, 'Student User', 'kenlangmalakas0308@gmail.com', '', 'OJT_PRACTICUM_1_NARRATIVE_REPORT (1) (1).docx', 'student_chapters/u9', '2c66fe8dbd047f238219412c3277ea73.docx', 236268, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', '60076d809fe68ad03006c78e3eb0cb7e6b713f49381c9be6f5819e132f909dbe', '2026-08-23 03:50:56', '2026-08-23 04:07:45', '2026-08-23 04:07:50', '2026-08-23 04:07:50'),
 (30, 61, 22, 2, 1, 'Accepted', 9, 'Student User', 'kenlangmalakas0308@gmail.com', '', 'OJT_PRACTICUM_1_NARRATIVE_REPORT (1) (1).docx', 'student_chapters/u9', '74ec1209c457db33489fc036d354b869.docx', 236268, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'e18982e452e6050dd4e2eb8de6f2c350a519c3c31ce46abb5d68cb1ab693bada', '2026-08-23 04:07:26', '2026-08-23 04:07:54', '2026-08-23 04:07:59', '2026-08-23 04:07:59'),
 (31, 61, 22, 3, 1, 'Accepted', 9, 'Student User', 'kenlangmalakas0308@gmail.com', '', 'OJT_PRACTICUM_1_NARRATIVE_REPORT (1) (1).docx', 'student_chapters/u9', 'a23d4492676bde4479582b935f03be6e.docx', 236268, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', '795962d634b938f5a1aa88751bbea1f4771fa7a908a6fc42152dd0b4266b55f5', '2026-08-23 04:07:31', '2026-08-23 04:08:03', '2026-08-23 04:08:08', '2026-08-23 04:08:08'),
@@ -212,10 +212,10 @@ INSERT INTO `chapter_submissions` (`id`, `research_group_id`, `research_plan_id`
 -- --------------------------------------------------------
 
 --
--- Table structure for table `chapter_submission_history`
+-- Table structure for table `crad_chapter_submission_history`
 --
 
-CREATE TABLE `chapter_submission_history` (
+CREATE TABLE `crad_chapter_submission_history` (
   `id` int(10) UNSIGNED NOT NULL,
   `submission_id` int(10) UNSIGNED NOT NULL,
   `research_group_id` int(10) UNSIGNED NOT NULL,
@@ -231,10 +231,10 @@ CREATE TABLE `chapter_submission_history` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `chapter_submission_history`
+-- Dumping data for table `crad_chapter_submission_history`
 --
 
-INSERT INTO `chapter_submission_history` (`id`, `submission_id`, `research_group_id`, `chapter_number`, `version_number`, `status`, `event_type`, `actor_user_id`, `actor_name`, `actor_role`, `detail`, `created_at`) VALUES
+INSERT INTO `crad_chapter_submission_history` (`id`, `submission_id`, `research_group_id`, `chapter_number`, `version_number`, `status`, `event_type`, `actor_user_id`, `actor_name`, `actor_role`, `detail`, `created_at`) VALUES
 (78, 29, 61, 1, 1, 'Submitted', 'submitted', 9, 'Student User', 'student', '', '2026-08-23 03:50:56'),
 (79, 30, 61, 2, 1, 'Submitted', 'submitted', 9, 'Student User', 'student', '', '2026-08-23 04:07:26'),
 (80, 31, 61, 3, 1, 'Submitted', 'submitted', 9, 'Student User', 'student', '', '2026-08-23 04:07:31'),
@@ -320,10 +320,10 @@ INSERT INTO `chapter_submission_history` (`id`, `submission_id`, `research_group
 -- --------------------------------------------------------
 
 --
--- Table structure for table `final_defense_evaluations`
+-- Table structure for table `crad_final_defense_evaluations`
 --
 
-CREATE TABLE `final_defense_evaluations` (
+CREATE TABLE `crad_final_defense_evaluations` (
   `id` int(10) UNSIGNED NOT NULL,
   `defense_schedule_id` int(10) UNSIGNED NOT NULL,
   `research_group_id` int(10) UNSIGNED DEFAULT NULL,
@@ -343,10 +343,10 @@ CREATE TABLE `final_defense_evaluations` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `final_defense_evaluations`
+-- Dumping data for table `crad_final_defense_evaluations`
 --
 
-INSERT INTO `final_defense_evaluations` (`id`, `defense_schedule_id`, `research_group_id`, `panel_user_id`, `panel_name`, `content_score`, `methodology_score`, `references_score`, `format_score`, `defense_score`, `remarks`, `result`, `overall_score`, `status`, `submitted_at`, `created_at`) VALUES
+INSERT INTO `crad_final_defense_evaluations` (`id`, `defense_schedule_id`, `research_group_id`, `panel_user_id`, `panel_name`, `content_score`, `methodology_score`, `references_score`, `format_score`, `defense_score`, `remarks`, `result`, `overall_score`, `status`, `submitted_at`, `created_at`) VALUES
 (1, 32, 61, 491, 'Dr. Jobert Valentino', 90.00, 90.00, 90.00, 90.00, 0.00, 'Final Defense evaluation completed.', 'APPROVED', 90.00, 'Submitted', '2026-08-28 08:31:36', '2026-08-28 08:31:36'),
 (2, 32, 61, 492, 'Dr. Jonathan Estrada', 90.00, 88.00, 92.00, 90.00, 0.00, 'Live demo evaluation test', 'APPROVED', 90.00, 'Submitted', '2026-08-28 13:31:08', '2026-08-28 13:31:08'),
 (3, 32, 61, 493, 'Dr. Michelle Guevarra', 99.00, 99.00, 99.00, 99.00, 0.00, '99', 'APPROVED', 99.00, 'Submitted', '2026-08-28 13:34:59', '2026-08-28 13:34:59'),
@@ -366,10 +366,10 @@ INSERT INTO `final_defense_evaluations` (`id`, `defense_schedule_id`, `research_
 -- --------------------------------------------------------
 
 --
--- Table structure for table `final_defense_recommendations`
+-- Table structure for table `crad_final_defense_recommendations`
 --
 
-CREATE TABLE `final_defense_recommendations` (
+CREATE TABLE `crad_final_defense_recommendations` (
   `id` int(10) UNSIGNED NOT NULL,
   `research_group_id` int(10) UNSIGNED NOT NULL,
   `group_number` varchar(40) NOT NULL DEFAULT '',
@@ -383,10 +383,10 @@ CREATE TABLE `final_defense_recommendations` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `final_defense_recommendations`
+-- Dumping data for table `crad_final_defense_recommendations`
 --
 
-INSERT INTO `final_defense_recommendations` (`id`, `research_group_id`, `group_number`, `adviser_user_id`, `adviser_name`, `status`, `remarks`, `recommended_at`, `created_at`, `updated_at`) VALUES
+INSERT INTO `crad_final_defense_recommendations` (`id`, `research_group_id`, `group_number`, `adviser_user_id`, `adviser_name`, `status`, `remarks`, `recommended_at`, `created_at`, `updated_at`) VALUES
 (1, 61, 'RG-2026-001', 54, 'Dr. Roberto M. Santos', 'Recommended', '', '2026-08-28 15:41:00', '2026-08-28 08:00:15', '2026-08-28 15:41:00'),
 (2, 62, 'RG-2026-001', 54, 'Dr. Roberto M. Santos', 'Recommended', '', '2026-08-28 15:45:21', '2026-08-28 15:44:31', '2026-08-28 15:45:21'),
 (4, 63, 'RG-2026-001', 54, 'Dr. Roberto M. Santos', 'Recommended', '', '2026-08-28 16:34:27', '2026-08-28 16:34:27', '2026-08-28 16:34:27'),
@@ -397,10 +397,10 @@ INSERT INTO `final_defense_recommendations` (`id`, `research_group_id`, `group_n
 -- --------------------------------------------------------
 
 --
--- Table structure for table `final_manuscript_approvals`
+-- Table structure for table `crad_final_manuscript_approvals`
 --
 
-CREATE TABLE `final_manuscript_approvals` (
+CREATE TABLE `crad_final_manuscript_approvals` (
   `id` int(10) UNSIGNED NOT NULL,
   `research_group_id` int(10) UNSIGNED NOT NULL,
   `defense_schedule_id` int(10) UNSIGNED DEFAULT NULL,
@@ -414,10 +414,10 @@ CREATE TABLE `final_manuscript_approvals` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `final_manuscript_approvals`
+-- Dumping data for table `crad_final_manuscript_approvals`
 --
 
-INSERT INTO `final_manuscript_approvals` (`id`, `research_group_id`, `defense_schedule_id`, `approved_by_user`, `approved_by_name`, `status`, `remarks`, `approved_at`, `created_at`, `updated_at`) VALUES
+INSERT INTO `crad_final_manuscript_approvals` (`id`, `research_group_id`, `defense_schedule_id`, `approved_by_user`, `approved_by_name`, `status`, `remarks`, `approved_at`, `created_at`, `updated_at`) VALUES
 (1, 61, 32, 3, '', 'Approved', 'Final Defense evaluations completed and approved.', '2026-08-28 13:41:26', '2026-08-28 13:41:26', '2026-08-28 13:41:26'),
 (2, 62, 38, 3, '', 'Approved', 'done', '2026-08-28 15:55:07', '2026-08-28 15:55:07', '2026-08-28 15:55:07'),
 (3, 63, 44, 3, '', 'Approved', 'done', '2026-08-28 16:39:02', '2026-08-28 16:39:02', '2026-08-28 16:39:02'),
@@ -427,10 +427,10 @@ INSERT INTO `final_manuscript_approvals` (`id`, `research_group_id`, `defense_sc
 -- --------------------------------------------------------
 
 --
--- Table structure for table `grant_applications`
+-- Table structure for table `crad_grant_applications`
 --
 
-CREATE TABLE `grant_applications` (
+CREATE TABLE `crad_grant_applications` (
   `id` int(10) UNSIGNED NOT NULL,
   `proposal_reference` varchar(30) DEFAULT NULL COMMENT 'Stable proposal ID e.g. GR-2026-001',
   `current_version` int(10) UNSIGNED NOT NULL DEFAULT 1 COMMENT 'Active proposal document version',
@@ -461,10 +461,10 @@ CREATE TABLE `grant_applications` (
 -- --------------------------------------------------------
 
 --
--- Table structure for table `grant_document_repository`
+-- Table structure for table `crad_grant_document_repository`
 --
 
-CREATE TABLE `grant_document_repository` (
+CREATE TABLE `crad_grant_document_repository` (
   `id` int(10) UNSIGNED NOT NULL,
   `grant_application_id` int(10) UNSIGNED NOT NULL,
   `archive_reference` varchar(40) NOT NULL DEFAULT '',
@@ -477,19 +477,19 @@ CREATE TABLE `grant_document_repository` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `grant_document_repository`
+-- Dumping data for table `crad_grant_document_repository`
 --
 
-INSERT INTO `grant_document_repository` (`id`, `grant_application_id`, `archive_reference`, `status`, `item_count`, `archived_by_user_id`, `archived_by_name`, `archived_at`, `updated_at`) VALUES
+INSERT INTO `crad_grant_document_repository` (`id`, `grant_application_id`, `archive_reference`, `status`, `item_count`, `archived_by_user_id`, `archived_by_name`, `archived_at`, `updated_at`) VALUES
 (1, 8, 'DAR-2026-001', 'ARCHIVED', 32, 3, 'User', '2026-09-18 03:33:53', '2026-09-18 03:33:53');
 
 -- --------------------------------------------------------
 
 --
--- Table structure for table `grant_document_repository_items`
+-- Table structure for table `crad_grant_document_repository_items`
 --
 
-CREATE TABLE `grant_document_repository_items` (
+CREATE TABLE `crad_grant_document_repository_items` (
   `id` int(10) UNSIGNED NOT NULL,
   `repository_id` int(10) UNSIGNED NOT NULL,
   `grant_application_id` int(10) UNSIGNED NOT NULL,
@@ -506,10 +506,10 @@ CREATE TABLE `grant_document_repository_items` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `grant_document_repository_items`
+-- Dumping data for table `crad_grant_document_repository_items`
 --
 
-INSERT INTO `grant_document_repository_items` (`id`, `repository_id`, `grant_application_id`, `category`, `item_label`, `item_type`, `file_path`, `file_original`, `download_url`, `summary_text`, `metadata_json`, `sort_order`, `created_at`) VALUES
+INSERT INTO `crad_grant_document_repository_items` (`id`, `repository_id`, `grant_application_id`, `category`, `item_label`, `item_type`, `file_path`, `file_original`, `download_url`, `summary_text`, `metadata_json`, `sort_order`, `created_at`) VALUES
 (1, 1, 8, 'proposal', 'Proposal PDF', 'file', '764440cbeb67f86f451e1e85d88081ec.docx', 'OJT_PRACTICUM_1_NARRATIVE_REPORT (1) (1).docx', '/sms2_system/modules/crad/grant-proposal-file.php?id=8&field=proposal', NULL, '{\"field\":\"proposal\"}', 0, '2026-09-18 03:33:53'),
 (2, 1, 8, 'proposal', 'Supporting Documents', 'file', 'b579a21b6b589636d32fc62cb87212cb.docx', 'OJT_PRACTICUM_1_NARRATIVE_REPORT (1) (1).docx', '/sms2_system/modules/crad/grant-proposal-file.php?id=8&field=supporting', NULL, '{\"field\":\"supporting\"}', 1, '2026-09-18 03:33:53'),
 (3, 1, 8, 'proposal', 'Ethics Clearance', 'file', 'efb7d05d2e9f4954fba0cdabf98259ec.docx', 'OJT_PRACTICUM_1_NARRATIVE_REPORT (1) (1).docx', '/sms2_system/modules/crad/grant-proposal-file.php?id=8&field=ethics', NULL, '{\"field\":\"ethics\"}', 2, '2026-09-18 03:33:53'),
@@ -546,10 +546,10 @@ INSERT INTO `grant_document_repository_items` (`id`, `repository_id`, `grant_app
 -- --------------------------------------------------------
 
 --
--- Table structure for table `grant_final_output_submissions`
+-- Table structure for table `crad_grant_final_output_submissions`
 --
 
-CREATE TABLE `grant_final_output_submissions` (
+CREATE TABLE `crad_grant_final_output_submissions` (
   `id` int(10) UNSIGNED NOT NULL,
   `grant_application_id` int(10) UNSIGNED NOT NULL,
   `version_number` int(10) UNSIGNED NOT NULL DEFAULT 1,
@@ -581,10 +581,10 @@ CREATE TABLE `grant_final_output_submissions` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `grant_final_output_submissions`
+-- Dumping data for table `crad_grant_final_output_submissions`
 --
 
-INSERT INTO `grant_final_output_submissions` (`id`, `grant_application_id`, `version_number`, `final_research_title`, `authors`, `abstract`, `publication_type`, `journal_conference`, `doi`, `publication_url`, `ip_information`, `copyright_info`, `patent_info`, `other_ip_info`, `final_pdf_path`, `final_pdf_original`, `supporting_files_json`, `status`, `return_reason`, `verification_notes`, `submitted_by_user_id`, `submitted_by_name`, `submitted_at`, `reviewed_by_user_id`, `reviewed_by_name`, `reviewed_at`, `created_at`, `updated_at`) VALUES
+INSERT INTO `crad_grant_final_output_submissions` (`id`, `grant_application_id`, `version_number`, `final_research_title`, `authors`, `abstract`, `publication_type`, `journal_conference`, `doi`, `publication_url`, `ip_information`, `copyright_info`, `patent_info`, `other_ip_info`, `final_pdf_path`, `final_pdf_original`, `supporting_files_json`, `status`, `return_reason`, `verification_notes`, `submitted_by_user_id`, `submitted_by_name`, `submitted_at`, `reviewed_by_user_id`, `reviewed_by_name`, `reviewed_at`, `created_at`, `updated_at`) VALUES
 (1, 5, 1, 'ai analysis', 'Student User', 'adasdsada', 'Journal', 'asdsa', '', 'http://localhost/sms2_system/modules/crad/pages/publications-ip.php', 'sadas', NULL, NULL, NULL, 'C:\\xampp\\htdocs\\sms2_system/storage/uploads/grant_final_output/20fbebfce55289306d6bfbb63c4e3777.pdf', 'OLIVEROS CV.pdf', '[{\"path\":\"C:\\\\xampp\\\\htdocs\\\\sms2_system\\/storage\\/uploads\\/grant_final_output_supporting\\/39c7dccbc6b58439374010ce48077be1.pdf\",\"original_name\":\"Diaz CV.pdf_20260813_105004_0000.pdf\",\"stored_name\":\"39c7dccbc6b58439374010ce48077be1.pdf\"}]', '', NULL, NULL, 9, 'User', '2026-08-31 16:38:45', 3, 'User', '2026-08-31 16:40:51', '2026-08-31 16:38:45', '2026-08-31 16:40:51'),
 (2, 7, 1, 'Ai Driven Data Analytics', 'Student User', 'dasdasdas', 'Journal', 'dsadas', '', 'http://localhost/sms2_system/modules/crad/pages/publications-ip.php', 'sadas', 'asd', 'asdas', 'asdas', 'F:\\xampp\\htdocs\\sms2_system/storage/uploads/grant_final_output/64c266a836d68bc4468d4c06689b6aa8.pdf', 'file-sample_150kB.pdf', '[{\"path\":\"F:\\\\xampp\\\\htdocs\\\\sms2_system\\/storage\\/uploads\\/grant_final_output_supporting\\/ae998301f6ce05be4836133a88d19de9.docx\",\"original_name\":\"OJT_PRACTICUM_1_NARRATIVE_REPORT (1) (1).docx\",\"stored_name\":\"ae998301f6ce05be4836133a88d19de9.docx\"}]', '', NULL, NULL, 9, 'User', '2026-09-18 03:22:08', 3, 'User', '2026-09-18 03:22:29', '2026-09-18 03:22:08', '2026-09-18 03:22:29'),
 (3, 8, 1, 'Ai Driven Data Analytics', 'Student User', 'asdasdas', 'Journal', 'asdas', '', 'http://localhost/sms2_system/modules/crad/pages/publications-ip.php', 'asdasd', NULL, NULL, NULL, 'F:\\xampp\\htdocs\\sms2_system/storage/uploads/grant_final_output/23adf38391ef58c27b1a14ff52e79263.pdf', 'file-sample_150kB.pdf', '[{\"path\":\"F:\\\\xampp\\\\htdocs\\\\sms2_system\\/storage\\/uploads\\/grant_final_output_supporting\\/12c8f013bad6a439c5187808f9a772fc.docx\",\"original_name\":\"OJT_PRACTICUM_1_NARRATIVE_REPORT (1) (1).docx\",\"stored_name\":\"12c8f013bad6a439c5187808f9a772fc.docx\"}]', '', NULL, NULL, 9, 'User', '2026-09-18 03:33:23', 3, 'User', '2026-09-18 03:33:30', '2026-09-18 03:33:23', '2026-09-18 03:33:30');
@@ -592,10 +592,10 @@ INSERT INTO `grant_final_output_submissions` (`id`, `grant_application_id`, `ver
 -- --------------------------------------------------------
 
 --
--- Table structure for table `grant_funded_progress_evidence`
+-- Table structure for table `crad_grant_funded_progress_evidence`
 --
 
-CREATE TABLE `grant_funded_progress_evidence` (
+CREATE TABLE `crad_grant_funded_progress_evidence` (
   `id` int(10) UNSIGNED NOT NULL,
   `grant_application_id` int(10) UNSIGNED NOT NULL,
   `milestone_id` int(10) UNSIGNED DEFAULT NULL,
@@ -611,10 +611,10 @@ CREATE TABLE `grant_funded_progress_evidence` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `grant_funded_progress_evidence`
+-- Dumping data for table `crad_grant_funded_progress_evidence`
 --
 
-INSERT INTO `grant_funded_progress_evidence` (`id`, `grant_application_id`, `milestone_id`, `evidence_title`, `notes`, `file_path`, `file_original`, `submitted_by_user_id`, `submitted_by_name`, `status`, `created_at`, `updated_at`) VALUES
+INSERT INTO `crad_grant_funded_progress_evidence` (`id`, `grant_application_id`, `milestone_id`, `evidence_title`, `notes`, `file_path`, `file_original`, `submitted_by_user_id`, `submitted_by_name`, `status`, `created_at`, `updated_at`) VALUES
 (1, 5, 2, 'done', NULL, '08d2da99a1015997444d899fa46a0d1f.pdf', 'OLIVEROS CV.pdf', 9, 'User', 'Submitted', '2026-08-31 16:04:10', '2026-08-31 16:04:10'),
 (2, 5, 3, 'done', NULL, '90d52a0e2d826deae5c328f9eac04e51.pdf', 'OLIVEROS CV.pdf', 9, 'User', 'Submitted', '2026-08-31 16:08:47', '2026-08-31 16:08:47'),
 (3, 5, 4, 'week 2', NULL, '32d641db454454bc0a71d67ecae8d3d0.pdf', 'OLIVEROS CV.pdf', 9, 'User', 'Submitted', '2026-08-31 16:08:59', '2026-08-31 16:08:59'),
@@ -631,10 +631,10 @@ INSERT INTO `grant_funded_progress_evidence` (`id`, `grant_application_id`, `mil
 -- --------------------------------------------------------
 
 --
--- Table structure for table `grant_funded_project_milestones`
+-- Table structure for table `crad_grant_funded_project_milestones`
 --
 
-CREATE TABLE `grant_funded_project_milestones` (
+CREATE TABLE `crad_grant_funded_project_milestones` (
   `id` int(10) UNSIGNED NOT NULL,
   `grant_application_id` int(10) UNSIGNED NOT NULL,
   `milestone_order` tinyint(3) UNSIGNED NOT NULL DEFAULT 1,
@@ -652,10 +652,10 @@ CREATE TABLE `grant_funded_project_milestones` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `grant_funded_project_milestones`
+-- Dumping data for table `crad_grant_funded_project_milestones`
 --
 
-INSERT INTO `grant_funded_project_milestones` (`id`, `grant_application_id`, `milestone_order`, `milestone_name`, `due_date`, `completion_pct`, `status`, `supporting_doc`, `supporting_doc_original`, `remarks`, `updated_by_user_id`, `updated_by_name`, `created_at`, `updated_at`) VALUES
+INSERT INTO `crad_grant_funded_project_milestones` (`id`, `grant_application_id`, `milestone_order`, `milestone_name`, `due_date`, `completion_pct`, `status`, `supporting_doc`, `supporting_doc_original`, `remarks`, `updated_by_user_id`, `updated_by_name`, `created_at`, `updated_at`) VALUES
 (1, 5, 1, 'Project Start', NULL, 100.00, 'Completed', NULL, NULL, NULL, NULL, NULL, '2026-08-31 14:41:26', '2026-08-31 14:41:26'),
 (2, 5, 2, 'Data Gathering', NULL, 100.00, 'Completed', '2a7227d63dad821917cea9db255ebc76.pdf', 'OLIVEROS CV.pdf', 'sdasda', 3, 'User', '2026-08-31 14:41:26', '2026-08-31 16:08:16'),
 (3, 5, 3, 'Analysis', '2026-08-31', 100.00, 'Completed', 'e33fc0e55fc37f7549946bd53fce56a3.pdf', 'OLIVEROS CV.pdf', NULL, 3, 'User', '2026-08-31 14:41:26', '2026-08-31 16:09:47'),
@@ -675,10 +675,10 @@ INSERT INTO `grant_funded_project_milestones` (`id`, `grant_application_id`, `mi
 -- --------------------------------------------------------
 
 --
--- Table structure for table `grant_funding_disbursements`
+-- Table structure for table `crad_grant_funding_disbursements`
 --
 
-CREATE TABLE `grant_funding_disbursements` (
+CREATE TABLE `crad_grant_funding_disbursements` (
   `id` int(10) UNSIGNED NOT NULL,
   `grant_application_id` int(10) UNSIGNED NOT NULL,
   `tranche_number` tinyint(3) UNSIGNED NOT NULL DEFAULT 1,
@@ -696,10 +696,10 @@ CREATE TABLE `grant_funding_disbursements` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `grant_funding_disbursements`
+-- Dumping data for table `crad_grant_funding_disbursements`
 --
 
-INSERT INTO `grant_funding_disbursements` (`id`, `grant_application_id`, `tranche_number`, `tranche_label`, `approved_budget`, `amount_released`, `release_date`, `reference_number`, `status`, `released_by_user_id`, `released_by_name`, `remarks`, `created_at`, `updated_at`) VALUES
+INSERT INTO `crad_grant_funding_disbursements` (`id`, `grant_application_id`, `tranche_number`, `tranche_label`, `approved_budget`, `amount_released`, `release_date`, `reference_number`, `status`, `released_by_user_id`, `released_by_name`, `remarks`, `created_at`, `updated_at`) VALUES
 (1, 5, 1, 'Tranche 1', 15000.00, 7500.00, '2026-08-31', 'DISB-GR-2026-001-T1', 'Released', 3, 'User', NULL, '2026-08-31 14:35:24', '2026-08-31 14:57:57'),
 (2, 5, 2, 'Tranche 2', 15000.00, 7500.00, '2026-08-31', 'DISB-GR-2026-001-T2', 'Released', 3, 'User', NULL, '2026-08-31 14:35:24', '2026-08-31 14:59:27'),
 (3, 7, 1, 'Tranche 1', 2500.00, 1250.00, '2026-09-18', 'DISB-GR-2026-001-T1', 'Released', 3, 'User', NULL, '2026-09-18 03:09:55', '2026-09-18 03:10:45'),
@@ -710,10 +710,10 @@ INSERT INTO `grant_funding_disbursements` (`id`, `grant_application_id`, `tranch
 -- --------------------------------------------------------
 
 --
--- Table structure for table `grant_opportunities`
+-- Table structure for table `crad_grant_opportunities`
 --
 
-CREATE TABLE `grant_opportunities` (
+CREATE TABLE `crad_grant_opportunities` (
   `id` int(10) UNSIGNED NOT NULL,
   `funding_title` varchar(300) NOT NULL,
   `max_funding_cap` decimal(14,2) NOT NULL DEFAULT 0.00,
@@ -730,10 +730,10 @@ CREATE TABLE `grant_opportunities` (
 -- --------------------------------------------------------
 
 --
--- Table structure for table `grant_proposal_approval_steps`
+-- Table structure for table `crad_grant_proposal_approval_steps`
 --
 
-CREATE TABLE `grant_proposal_approval_steps` (
+CREATE TABLE `crad_grant_proposal_approval_steps` (
   `id` int(10) UNSIGNED NOT NULL,
   `workflow_id` int(10) UNSIGNED NOT NULL,
   `grant_application_id` int(10) UNSIGNED NOT NULL,
@@ -752,15 +752,15 @@ CREATE TABLE `grant_proposal_approval_steps` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `grant_proposal_approval_steps`
+-- Dumping data for table `crad_grant_proposal_approval_steps`
 --
 
-INSERT INTO `grant_proposal_approval_steps` (`id`, `workflow_id`, `grant_application_id`, `step_key`, `step_order`, `step_label`, `approver_role_key`, `status`, `approver_user_id`, `approver_name`, `remarks`, `signature_data`, `acted_at`, `created_at`, `updated_at`) VALUES
+INSERT INTO `crad_grant_proposal_approval_steps` (`id`, `workflow_id`, `grant_application_id`, `step_key`, `step_order`, `step_label`, `approver_role_key`, `status`, `approver_user_id`, `approver_name`, `remarks`, `signature_data`, `acted_at`, `created_at`, `updated_at`) VALUES
 (1, 1, 2, 'adviser', 1, 'Academic Adviser', 'adviser', 'Approved', 54, 'User', NULL, 'data:image/png;base64,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', '2026-08-31 11:03:47', '2026-08-31 08:47:21', '2026-08-31 11:03:47'),
 (2, 1, 2, 'department_chair', 2, 'Dept. Chair', 'research_coordinator', 'Approved', 990, 'User', NULL, 'data:image/png;base64,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sWqfl+spRujK11PbIiACIiAC2yewhmFuv1J1LdENzE0tm/pr2bSu7VC9REAEREAEzk9Ahnl+ZjpDBERABESggwRkmA3vdFVfBERABERgOwRkmNvhrFJEQAREQAQaTkCG2fAOVPXrTEB1EwERaBMBGWabelNtEQEREAERqIyADLMytMpYBESgzgRUNxE4LwEZ5nmJ6XgREAEREIFOEpBhdrLb1WgREAERqDOBetZNhlnPflGtREAEREAEakZAhlmzDlF1REAEREAE6klAhnnSL3oWAREQAREQgVMJyDBPxaMXRUAEREAEROCEgAzzhIOe60xAdRMBERCBGhCQYdagE1QFERABERCB+hOQYda/j1RDEagzAdVNBDpDQIbZma5WQ0VABERABC5CQIZ5EXo6VwREQATqTEB1K5WADLNUnMpMBERABESgrQRkmG3tWbVLBERABESgVAIlG2apdVNmIiACIiACIlAbAjLM2nSFKiICIiACIlBnAjLMOvdOyXVTdiIgAiIgApsTkGFuzk5nioAIiIAIdIiADLNDna2m1pmA6iYCIlB3AjLMuveQ6icCIiACIlALAjLMWnSDKiECIlBnAqqbCEBAhgkFSQREQAREQATOICDDPAOQXhYBERABEagzge3VTYa5PdYqSQREQAREoMEEZJgN7jxVXQREQAREYHsEvgYAAP//hLmJggAAAAZJREFUAwDYHo5F4Ix0uAAAAABJRU5ErkJggg==', '2026-08-31 11:04:41', '2026-08-31 08:47:21', '2026-08-31 11:04:41'),
 (3, 1, 2, 'dean', 3, 'College Dean', 'hr', 'Approved', 8, 'User', NULL, 'data:image/png;base64,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', '2026-08-31 11:05:45', '2026-08-31 08:47:21', '2026-08-31 11:05:45'),
 (4, 1, 2, 'research_office', 4, 'Research Office', 'crad_officer', 'Approved', 991, 'User', NULL, 'data:image/png;base64,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', '2026-08-31 11:06:34', '2026-08-31 08:47:21', '2026-08-31 11:06:34');
-INSERT INTO `grant_proposal_approval_steps` (`id`, `workflow_id`, `grant_application_id`, `step_key`, `step_order`, `step_label`, `approver_role_key`, `status`, `approver_user_id`, `approver_name`, `remarks`, `signature_data`, `acted_at`, `created_at`, `updated_at`) VALUES
+INSERT INTO `crad_grant_proposal_approval_steps` (`id`, `workflow_id`, `grant_application_id`, `step_key`, `step_order`, `step_label`, `approver_role_key`, `status`, `approver_user_id`, `approver_name`, `remarks`, `signature_data`, `acted_at`, `created_at`, `updated_at`) VALUES
 (5, 1, 2, 'vpaa', 5, 'VPAA Sign-off', 'qa', 'Approved', 992, 'User', NULL, 'data:image/png;base64,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', '2026-08-31 11:07:08', '2026-08-31 08:47:21', '2026-09-19 13:48:19'),
 (7, 1, 2, 'finance', 6, 'Finance Office', 'finance', 'Approved', NULL, NULL, NULL, NULL, NULL, '2026-08-31 11:35:22', '2026-09-19 13:48:19'),
 (8, 2, 3, 'adviser', 1, 'Academic Adviser', 'adviser', 'Approved', 54, 'User', NULL, 'data:image/png;base64,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', '2026-08-31 12:03:28', '2026-08-31 11:44:23', '2026-08-31 12:03:28'),
@@ -769,7 +769,7 @@ INSERT INTO `grant_proposal_approval_steps` (`id`, `workflow_id`, `grant_applica
 (11, 2, 3, 'research_office', 4, 'Research Office', 'research_office', 'Approved', 991, 'User', NULL, 'data:image/png;base64,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', '2026-08-31 12:08:11', '2026-08-31 11:44:23', '2026-08-31 12:08:11'),
 (12, 2, 3, 'vpaa', 5, 'VPAA Sign-off', 'vpaa', 'Approved', 992, 'User', NULL, 'data:image/png;base64,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', '2026-08-31 12:08:34', '2026-08-31 11:44:23', '2026-09-19 13:48:19'),
 (13, 2, 3, 'finance', 6, 'Finance Office', 'finance', 'Approved', 4, 'User', NULL, 'data:image/png;base64,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', '2026-08-31 12:13:46', '2026-08-31 11:44:23', '2026-09-19 13:48:19');
-INSERT INTO `grant_proposal_approval_steps` (`id`, `workflow_id`, `grant_application_id`, `step_key`, `step_order`, `step_label`, `approver_role_key`, `status`, `approver_user_id`, `approver_name`, `remarks`, `signature_data`, `acted_at`, `created_at`, `updated_at`) VALUES
+INSERT INTO `crad_grant_proposal_approval_steps` (`id`, `workflow_id`, `grant_application_id`, `step_key`, `step_order`, `step_label`, `approver_role_key`, `status`, `approver_user_id`, `approver_name`, `remarks`, `signature_data`, `acted_at`, `created_at`, `updated_at`) VALUES
 (14, 3, 4, 'adviser', 1, 'Academic Adviser', 'adviser', 'Approved', 54, 'User', NULL, 'data:image/png;base64,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', '2026-08-31 13:44:23', '2026-08-31 13:34:26', '2026-08-31 13:44:23'),
 (15, 3, 4, 'department_chair', 2, 'Dept. Chair', 'department_chair', 'Approved', 990, 'User', NULL, 'data:image/png;base64,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', '2026-08-31 13:56:44', '2026-08-31 13:34:26', '2026-08-31 13:56:44'),
 (16, 3, 4, 'dean', 3, 'College Dean', 'hr', 'Approved', 8, 'User', NULL, 'data:image/png;base64,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', '2026-08-31 13:57:33', '2026-08-31 13:34:26', '2026-08-31 13:57:33'),
@@ -782,29 +782,29 @@ INSERT INTO `grant_proposal_approval_steps` (`id`, `workflow_id`, `grant_applica
 (23, 4, 5, 'research_office', 4, 'Research Office', 'research_office', 'Approved', 991, 'User', NULL, 'data:image/png;base64,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', '2026-08-31 14:22:13', '2026-08-31 14:15:58', '2026-08-31 14:22:13'),
 (24, 4, 5, 'vpaa', 5, 'VPAA Sign-off', 'vpaa', 'Approved', 992, 'User', NULL, 'data:image/png;base64,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', '2026-08-31 14:23:03', '2026-08-31 14:15:58', '2026-09-19 13:48:19'),
 (25, 4, 5, 'finance', 6, 'Finance Office', 'finance', 'Approved', 4, 'User', NULL, 'data:image/png;base64,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', '2026-08-31 14:30:05', '2026-08-31 14:15:58', '2026-09-19 13:48:19');
-INSERT INTO `grant_proposal_approval_steps` (`id`, `workflow_id`, `grant_application_id`, `step_key`, `step_order`, `step_label`, `approver_role_key`, `status`, `approver_user_id`, `approver_name`, `remarks`, `signature_data`, `acted_at`, `created_at`, `updated_at`) VALUES
+INSERT INTO `crad_grant_proposal_approval_steps` (`id`, `workflow_id`, `grant_application_id`, `step_key`, `step_order`, `step_label`, `approver_role_key`, `status`, `approver_user_id`, `approver_name`, `remarks`, `signature_data`, `acted_at`, `created_at`, `updated_at`) VALUES
 (26, 5, 7, 'adviser', 1, 'Academic Adviser', 'adviser', 'Approved', 54, 'User', NULL, 'data:image/png;base64,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', '2026-09-18 03:06:12', '2026-09-18 03:04:26', '2026-09-18 03:06:12'),
 (27, 5, 7, 'department_chair', 2, 'Dept. Chair', 'department_chair', 'Approved', 990, 'User', NULL, 'data:image/png;base64,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', '2026-09-18 03:06:51', '2026-09-18 03:04:26', '2026-09-18 03:06:51'),
 (28, 5, 7, 'dean', 3, 'College Dean', 'hr', 'Approved', 8, 'User', NULL, 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAcwAAACMCAYAAADx9JleAAAQAElEQVR4AeydTYwkyVXHI3JmZ72w092GnepeOCCBEN01giOntXxBHJEvCHHDBzgARx9BHEDixA2EhC8cfUBCiBMHJAubg6/2dvVYsn3wwTtVs/J29Yx3vTvbFX6RWVkVlZWVlR/x8SLyn6qoysqMjHjv917GPyOrujoTWPoRkP0Ow1EgAAIgAAJxEoBg9o2b6nsgjgMBEAABEIiRAASTc9Q82RbtZDlawz0F1lo3AG0NJRqKmgAEM+rw2THe9WTZ2XDr2nA7eBNoBaATCCJcWBMYMh5BMNcQd19KpOXr7t7O7yw107lfJgckOtwyoQszYiUw8mHBe9hK3kPGIyuCWRrinYCzDkuk5evAjiw1M9AKHA4CIMCIgJdhIb3BuXcEbfC2Ipg2DOlNAQeCAAiAQJUA3hcEMDgXHCw9WxFMS7Zsm8FV0ZYFtzXEhltE3NuDmLtnjB6iIMBTMBlfFY1+7NiJzehpRHGSDzZyJ+aDW0MDIBAtAZ6CyRgnxg4zOKBh0gi5jkuXkPTH2fcYcw6COc5cN7weY9ob7jNd7RoVXLr0DWRX0n37Se84HjnnN36jEMz0UtWmR01p7zcZbXoVe1tNUYndN172gzSveGhruow7fuMHwdTxQTlAQCdjl+Q90Aw2gwArAshpVuHYM0aPO3sbWWyAYLIIA2cjXCcvZ99hW5oEkNNpxtW9VxBM94zRAwiAAAiAQAIEIJgJBBEugIArAmgXBEBgSwCCuWWBNRYE8PkSizC4NqIxzI07c8uO18ir4QkErBKAYFrFicaGE8DnS8MZRtBCY5gbd+bOHa+RV2P21Efmm45h5t4IzIFgjiDIcBEEQIADgT4y3+cYDr6maQMEM824wqvYCGAiEVvEYO8ICXQRzBHigcsgMIRABxUMNZHoYOIQEjgWBPwQcJvQEEybUXQbK5uWptuWlRh0bORg9VAq2CG8EZjYwRtUZUHg4AnhwTq3CR2dYIYMxdFou41Vc/fYWxAYGIMivzo20rF6YSieQSBVAumeENEJZrqhSOzkKZRngFODG+jVN/KrFzYcBAKjIBCdYI4iKik4Was8XUSwtoFYyaRltxlGcz0tL+ENCOwRgGDuIcEGdwQggu7Y2m65QQnNMJrrtk1AeyDAjAAEk1lAYE4AAg3aEMAaJl0yVEJXcQpFPDV/QnH02C8E0yNsdMWUAENtYEpqbVagkT61OKXmzzo77L0EyrMGByCYgl9QGuKFXSDAgICFkR6nHYM4cjchzzNWRkIwBb+gsMoQGAMCLgjgtHNBFW06JgDBdAwYzYMACMROANPh2CNoy34IZoUk3oIACIDALgFMh3d5jPcdBHO8sYfnIAACrQjwm2Hys6gVyOgrQTC9hBDpbQczWgGBEAT4zTD5WRQiLv77hGB6YV5Jb+inF+roBASSI4CxI2hIIZgh8Ff0M4QJ6BMEbBNw0l6DQDTscmIKi0YxdrQKg73c2G2pm2DuHtvK8Ngrvf3O73x+OrlSupxMrlZFuVwN9WuEKIciw/FjJNAgEA27xkgKPhsE7OXGbkvdBHP3WMM83qtDxOkBLUJSC1TkZsnk6flU7ZRJIapaWNsUEl7Vph7qtOd6Mhl+IcM7k2EdCPQlgONsEOgmmDZ6DNDGEJ2/p0XRItSRVmQhqqW44tU/j7vFs1Hkc4BTCF2CAAgQgVEMMDR0k6sHHo07hXj14fcf3i1usuWLG7mcz3YKaem9Uiull1xQtahGWsgHEZUPlXDq2FQ24S0IgAAIWCXgSjCtGjm0sca5YeNOo+eaeoWYPstyQV2QoEZcyAe5rNqvLxKq2xi8v1+pz43ICIilScPD+pGLTA8WoIucQIhADOtz2NG500GfkhTM2IMSNCPMzmsuEkRguG+/c/n6wYPsYWkmxLIk4fG1Li9cdB8411y4ZLdNX4EwrR7Wp4o8pkkK5rCQmsmR6PoQtwLChVgOCVyExwbMNU60IteYXZSRxzRJwdyNEN7FTuBkcrXS30jGzDL2SML+PgQi15g+LrM9BoLpODRJXR3aZtUAh2aTn+V/UnM+VZKWTddKOfrMssGYTedeVtAJCNQTQIrWc/G4FYLpGDauDhsA18AphZJmk28IaYwQa6HUX0xqaHHArhpjBrSGQ0HAOgGkqHWkXRuEYHYlFk19Q2wisPlkclnedt0RSkWL/mJPP6GMiAEDUxmY4C1Te/uaWzjs6LwJPEVJAIIZZdjaGM3/cpRmk59ub7tm21GIZpP396vXWijvFjcDcjQMg60jbeK0rhPG1HXnxQsDEwpDPDwP83XY0R7cQxeOCAwYjBxZhGbDEug12rc32RRJuu366NBt11cfPnvUvlVeNbkNp45Dygs+rBkzAee+QzCtI458eHIw2h8TSZpNfqZnk/1uu1oPYHINOghpD0aRnxc9PMYh6RGAYFqPKY/hybpbHRvsIpI0m3yzY/OoHh0BG+cFRDe6sCdmMARzQEBx6C6BYyKp1EqVM0mI5C47vGtDwIbotukncJ3RXxe4AzC0ZQhm4HMjhe7LL+7sfCapxzalhKKlFEn8N5EUog0fnBPQ547zTjh34A7A0JadCuZQNecc0rHb9vaTy5+XQrnzxR0NhoRyuZjJ5eJGDvuWq26sb8FxIAACBwlgcD6IpmmHU8EcquZNho95X6hcN0XyQZa9uSOUWiTLf39GQjnm+MB3EACBNAk4Fcw0kVW98i9fvi9EcqE8n6o6kbxfrT4tb7lWyeA9CBwigO2BCVQHEfNXtQKbxrl7CObg6FQzb3CDLBrIRXJypfIfPdezScMq+lhy++WdF8++YOzCKgiAQIwE6A5RjGa7sLlpCgTBdEE84jbLzyXrZpP5TJJuu0b3uWTTGRA8VqyNC04HBoQgMO4+m6ZAEMxx50buvTmbrH4uqYw/Bckrx/jUdAYE94e1ccHpwAAQ4EQAgskpGh5tIZH85OhscqG/5foMOeIxLuhqPARwbyG+WHMYDOOjFqnFFZH8QnU2eb8a+AUejACRZgZ/s+2llr2WhlKzfW+Bj2dDyfA9HoLJNzZWLGsUSepB0ZJ/NkmzyVdDv8BjewQg+/AAAU3AXmq1byk2AWrvmSZqocQGyILLEEwLELk10SiSyvj1nTZf4PHm3AjPPitsOXPjbNtx+N4F6LhJvGqMEFCNYMad5Lwyyp81rUWSZpI8v+Ua8OyLOuUDcjua3pxtO2o8KoDAHoEawbSV5HoU0mWvT2ywRIBE8mPjizt7n0nS3dbN30vyFElLIIY2YyvlD9rh7Dw42CN2gAAI2CdQI5i2OtGjkC622kM7JoGTyeXqQZa9Vf3ijjL+DMSOSGKwN7n3W8d50I8bjgIBXgQcCiYvR1OxJp9Vnk+VlNlGyRQt5Rd37P9HEAz2qeQO/PBMAN0lRwCCGVFI9e3XfFZZ2qyU0ELZaSa5kdmyEbyCAAiAAAi0IQDBbEMpcJ1yVimMH0jWQqn/fVZn0zBh7IwMB4CAHQK4WrXD0UorvRqBYPbC5u+g6qxSrT+j9GcBegKBXQIY9nd5CNGWCK5WReQLBJNxAE8mVytRzio3t1/xU3WMQzYK0zDsV8MMIlUiqb5vL5htL6JSJTXQrz6HS1r0cYqWXrdf9cGdCwLdGRkOAAEQSIPAkeGvvWB2vog60nMaeA96YdP7Tl/qOWhR2x2dA922YdQDARAAAd4Ejgx/7QWzs5tHeu7cXlwHDPU+vx0bl8sRWwvT4yFg81I0Hq9ZWzqikDgUTNYhZm/cSolP2BsJA0HAO4Ghl6LeDU6/wxGFBILJNJ1fvbj55dK0pGebEVydRmBimSpJvsKpBAl4O6nsdgTB5JyLqrh0k7Scnk9VksJZuGghCnZPDNMgayaajWIdBFoTcJfbrU2wXdHbSWW3Iwim7USw2B7dlv2ZWIumbpZ0U2rh1H+b+fjJ1Z3ehlISsHtilK3iFQTCE+Cc2+Hp+LQAgumTdse+Xr64eVv/OclqpV4qWjaHSymyTD7W4pnkrFNgAQEQiIlAgnPgWvwQzFosvDaScJ7oPy3RP4enxdO0TtKihTMvkyu6bXu5MvdzXR/LCcaVP+wCAZsExjIHjk0wbcY4yra0eG6E07hdmyeslELKrLhty/wzz9zeKCMAo8dFQI7LXXjbSACC2YiH785cOBc3ci2eS/qsc0+DJC35zJPEU3/ueTKJY/bJlzosayYQSlxc9ls5rVx21QwXexkQYCqYx7PyeA0GdD2ZQOJ5Vt6yLQWUPvLcPdOlFLIy+9QC+vjJ9KfWzERDIyewm3IlDFmuOHut79dJdx67cmI/Gh1EgKlgHs/K4zUGcdk52P0Jv9Pd4DemgNJnnss98aQeZL5kMsvEF4tZ6FNVvBZ/vgIxJUh4WCHg81y1YjDrRmIbjVjD7GxceMGMIP4xn/CmeB6cfeZps/Uy11KajW7FdLonplpQ88PwFAsB2JkEge15moQ7kTkRXjARf68pUxXQQkTFR6uV+EjPRHVpMqgUU/P27u7M9GqlxfTxZPqiqZ3D+yK4gjpsPPb4IoA08UUa/RgEwgumYQxWwxB4+WL2K7roz0F10SJaFi2kuii1UnppsrAQU/1Mt3qleKcUUvP1ZKIFVZfLVb2o2ruCwpjaFK3I99lLEx4gYEUUBCCYUYQpnJFaSHW5WzzLhohp6YGW06JsRfVEf4vXKIWoXuYz1fK4Pq8YU/tQwzFxEsDloY+4QTB9UE60Dy2kutSJqZ6hrpScr5T4UK1np4qWOhTVU70U1LrbvvlsdaJ/oOGKBFWXy9Xj86fP69oNv63qWXiLYEFJILXY4PKwjKyD102TEMwNCqzYJvBycX3xcjF7Ugrq3eIm00JqFi2ouqi1qArjxxgO2iOlkJuFZqpCnedCasxSzffFjPWKBLaYtT6e+BLY7SAmDzrDe4dpt7nO2+o21m1j06Y26sRDwGWeQjDjyYMkLdWCqkspqvq3c01B1etaUHXpJKo5reLU2WirzGiVBFY2COxm9lqIa96MhadYh2fTbnPdAhI0AQJOCLjMUwimk5BVGy0G7urWQ++xfZeAFlRdmkS1EFZ9C1jOC2HVX1LSpc2U1ehPyvXstRBXc6ZarhczVruCalgwvlXZ3eUeh3TvBEe0IzCiYEAw26VEba32eeLymqfWtFFufJnfAr6+KIS1+JLSXc1tYC2uuqzyz1hLgVX50uaWsMyXZkEdZQD6Ot3j9OhxSF/reB7XfvBxb/+IgjEuwaxJsppNrRNsRHnSmklMFV/uCOxN8S3g9e/zakEtCwnrT9T6M1aljs9YtZ6Ws9H1b/jex8QFtnYgMGQA6dDNXlUMPntIfGwYl2DWJFnNJh/cw/UR6gQP5/HgnklYf72Yta5FdT7Lf/S+laBKSbd4s8wUUC2ig40K0IAM0Cf7LqMZQBA9G7k0LsG0QSz2NqI5weMBXSeoSsgfK1r2vCABJQXd2xzDBhWBkTDxEAFE7xCZLtshmF1ooS4ItCRwN7/+hEcbNAAAB+VJREFUjTvj81NFAtryUFQDARBgSgCCyTQwMCstAjSxXJQe0cTzdbmOVxAYD4H4PYVgxh9Dph7E+5mJa8up/TeYBg1mgQAINBCAYDbASW4XjdT+fFL+urLckwvLpRKfbv5khaab+ZeAJlcuurJMA82BAAiUBFIWTOFVH0qinF8xPAeLzu38+j39K0ZSyP/fGLEWzpPJFf7sZAMFKyDAl0DSggl9oMSTVKw9rDZmzaqYGsqFcz6T9DnmJj2llMWfnWDGGVMoYatDAlxHmqQF02E842l6MyzbMNliYzbMibgN/Q1aKeT/knCuNm5IKcpbtacX0w832wetyEFH4+DhBMYQAds+DhppbBtjpAAE04CBVRDwSYBmm39AwvlA1ginUOJXc/E8n6qTyfR1fwEdNPT4xJFsX7sRkEn6ueujOxdb0XNoDATTXWzRMgi0InBQONdH08TzoT0BXTfa/IK9zgg4HM2d2cyn4dD0IJh8cgGWjJxAKZxL+oxTFynkfyslPq9iqRPQs/PpT6r18B4EQMAugbgFU9qFgdZAgBOB2/n1H90tZm8sWwgoXXm/u7mFez79FALKKZKWbUFzwQjELZg0SgQjh45BoAMBG9d2t20FVIhHdGrsCGgHU/1VtQHFn7XoCQRE3IKJAIJAJARIwKxbWhVQIeQ3qJ/PRGUhXXpUzj71K5vZJxlbMRVvQYA1gRaCydp+GAcCILAmsJxf/+ndfPbmkm7hChJPXUiT9gSUtm1mn6eTK3V2/vSHAgsIgMBRAmkIJl1CH/UUFUBgRAS0eOpiCiidJh9sfp6vZCGlUEL9pp55GuXj0/On/1ZWwSsIgEBBgJ9g0lldmNbhmS6ZO9ROqiqcAYE2BLR43s5nv6Z/nq+cgdJpszf7XLf1lhDqz0/Pp2pdPsYsdE0GL6MmYEEw+yhcA3M6ixv2YhcIgIAFAkvj9u1aQL8uhfwRNf0JlerjreoslAT0u9VKLN9LllbBqEgJWBBMKFyksYfZzgnE0wEJ6F/czq9/azmf/RIVqYsQ8utCiDoB1bdxf3c9+9Sz0BWt37IUUQxPFEI8bBGwIJi2TGloB1eJDXBs7QJkWyRTaUeLKAlnGwHVyXNKs9BSRPkKaCrBgR92COjM7dCSF8HsaNO++bhK3GdifQsgW0eaWIN7AiqzfxK6CLEkV80E0qe8KaDFLPTianHy7tO/obosHjACBOhWSScIXgTTPJM6WYfKIAACbAksn7//tbzMZ2c0E82oyAMCqn2QQskncqX+nm7fagG9p9cPzi6m39I7UUAgBgJeBLMNCNmmUkR1UvMnIvQwNSCBOgGVQn5P7P8mrh57LpQS75FwagHVhUT06n8Cmo+u2RDgYYismKGTtrIpzNvUZqGp+eMtK6oZ6q1jdOSCgBbQ2/n17y2N38RVmfxb6us5le3/AqU39KDxSP6hFtCz86vbs/Ppf9I2Jg8kJpNA7JnhMjLVcZwSdK9/bACBcASqGRrOkqh6djlo2AZx98H1Pyzns3epPKAitYBKKb6dCaW/kZtngBKSPgMVXynF07YN3dtT7Q6JKRDHPIrEl5aROeZtq/0QzAITnkEgagI+Bw3boLSA3j6ffemj+Y3+Rm4mZPaX1MdrKvlDkXhq4aTy2enF9Dtnk6f/nO/g+KQ4GtXTJq6+BBTyrCdKHNZAoEs8u9Rt6HI8uwAs+Vgvn7//rzTzfJQLp5LfJ4fLofsNocTvK6n+isRTf+a5Op1MX9P68vTi6TeonqcHktAT6Ppuymyo3+t0q1fBHEuadYlnl7pOM4Fz46ZtAGbSSHo9F87F9SWJZ2aI5ysSzc/XjkshxUNaPxFK/QkJ5+uzi+k3v/ju9D3a5vAROAmlQ9fQdCOBrHGv5Z2B08yyN2guJQIYg3hH0xDPx+UXiISUfyyV/BcS0P8j6++oPFRKfHm1Et/S4nl6Mf0abfP28JZDGEi9xbTakVfBrHaO9yDAhQDGoN6RCHbg8vn1f9wurv96uZh9mWahp1kmvkTG/ICKfjwkIf1HmnH+mX7joyCHfFAO24d9waxcZlXehvWWc+8pg0rZN845tWNb+kH46IPZt0k4f1sLJ3n7X+S+nnH+Hb3iAQJWCNgXzMplVuWtFaMPNkJnycF93Hd4BeUZRsq+eUbZv7vxBEEL5+189hUpxVelzL7an1kCR8IFqwTsC6ZV8zo2Np4xoSMYVAeB8RG4fT7799vn739zfJ7DY1cE0hJMV5TQLgiAAAh0JRDzHa+uvo6kfiGY1gJrUHPRptE8VkEgCgI4D6IIkxMjccfLCVbdaKjTqhBMF4F10aYmhQICMRHAedAxWqGGwo5mjrY6j/iEOq0KwRxt8MM77jP9wnvrxoJ+DPsd5cYDtLolEGoo3FqAtSYC444PW8Ecy3A27vRrOjHb7+vHsN9R7a1CTRAAAb4E+ikMW8HEcMY31WCZCwJoEwRAwB+BfgrDVjD9gYu8p34XSlE6PSJXo4wPjAaB1An0EkwMXIzSot+FEiMH2psyIlfbQ0FNLwTQCQhoAr0E89DABSHVSFsUgGoBCVVAAARAgBeBXoJ5yIVDQnqovp/tDNWJJyg/4UAv/QgwTON+juCofQII7j6TLlv81bUqmP7MbtdTkYZQp3a0AtcqghXYCMbdI40ZB2eoaTEEFyeojnLSghlDGuogoBABBIsg4JEqgfjlBieozs1fAAAA///FKwG0AAAABklEQVQDAHDXx6Fw8TqwAAAAAElFTkSuQmCC', '2026-09-18 03:07:42', '2026-09-18 03:04:26', '2026-09-18 03:07:42'),
 (29, 5, 7, 'research_office', 4, 'Research Office', 'research_office', 'Approved', 991, 'User', NULL, 'data:image/png;base64,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', '2026-09-18 03:08:27', '2026-09-18 03:04:26', '2026-09-18 03:08:27'),
 (30, 5, 7, 'vpaa', 5, 'VPAA Sign-off', 'vpaa', 'Approved', 992, 'User', NULL, 'data:image/png;base64,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', '2026-09-18 03:09:28', '2026-09-18 03:04:26', '2026-09-19 13:48:19');
-INSERT INTO `grant_proposal_approval_steps` (`id`, `workflow_id`, `grant_application_id`, `step_key`, `step_order`, `step_label`, `approver_role_key`, `status`, `approver_user_id`, `approver_name`, `remarks`, `signature_data`, `acted_at`, `created_at`, `updated_at`) VALUES
+INSERT INTO `crad_grant_proposal_approval_steps` (`id`, `workflow_id`, `grant_application_id`, `step_key`, `step_order`, `step_label`, `approver_role_key`, `status`, `approver_user_id`, `approver_name`, `remarks`, `signature_data`, `acted_at`, `created_at`, `updated_at`) VALUES
 (31, 5, 7, 'finance', 6, 'Finance Office', 'finance', 'Approved', 4, 'User', NULL, 'data:image/png;base64,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', '2026-09-18 03:09:55', '2026-09-18 03:04:26', '2026-09-19 13:48:19'),
 (32, 6, 8, 'adviser', 1, 'Academic Adviser', 'adviser', 'Approved', 54, 'User', NULL, 'data:image/png;base64,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', '2026-09-18 03:27:16', '2026-09-18 03:26:45', '2026-09-18 03:27:16'),
 (33, 6, 8, 'department_chair', 2, 'Dept. Chair', 'department_chair', 'Approved', 990, 'User', NULL, 'data:image/png;base64,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', '2026-09-18 03:28:20', '2026-09-18 03:26:45', '2026-09-18 03:28:20'),
 (34, 6, 8, 'dean', 3, 'College Dean', 'hr', 'Approved', 8, 'User', NULL, 'data:image/png;base64,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', '2026-09-18 03:28:58', '2026-09-18 03:26:45', '2026-09-18 03:28:58'),
 (35, 6, 8, 'research_office', 4, 'Research Office', 'research_office', 'Approved', 991, 'User', NULL, 'data:image/png;base64,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', '2026-09-18 03:29:36', '2026-09-18 03:26:45', '2026-09-18 03:29:36'),
 (36, 6, 8, 'vpaa', 5, 'VPAA Sign-off', 'vpaa', 'Approved', 992, 'User', NULL, 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAcwAAACMCAYAAADx9JleAAAQAElEQVR4AeycO2wkSRnHq2bvDu7Ysy3B2T4CkI6AXRuIeEmACCAFQUBAiJAIgAzIIIIQJAIQAQkhARIIEgKQEA8JBBFg715wCAg42yDh2Xtxj53m+3qmZ3tmuruquh5dj781tdOP6qrv+31f1b9qxt6ZwA8IgAAIgAAIgICSAARTichHBemjUbQJAiAAAiDgkQAE0yPc/qar/lvtOxEdQ+IjCsa2KQjONhGcg4AXAhBML1jzazQ9ic8vBr0eITi9aHAjdwJhV4sQzNzzCf75IoB2QQAEJicQdrUYTDD9rgP8tj55TsAAJQFkgBKRUQXwNMJlXxnA7RkGaCGYYPpdB/htPUAcouwipTGMDDBIIY3A2vLU6MLA4BFVU3vEFnhq/iZqbzDBTJRP0WZjDGca/gCBDdBFpsFJ3K3MV0oQzMTzE+aDQHoEMp9V0wuIO4v1Vkru+gvcEgTTJXDMAy5poq1sCfTNqhhA2YY8E8cgmC4D2TcPuOwDbYFAtgSmH0CQ7GyTy4ljRQimE1IuG8GodEkTbYGAMwLTS7YzV9CQBwIQTA9QlU1iVCoRoUKMBLDSizEq1jYhrNoIIZjaqCaqmH0yT8QV3Y4ggJXeCGjxP4KwascoPsGEQGwGz0syA/ImZJzZEJBIJxt8eDYhAvEJpheBSCgiQUwF5CCYM+hEx4UK6aSDCXUyIBCfYGYAFS64J4BNjHumaDFhAhgQO8ELgQSCuYO9fSFECNr9hTxOyzdsYprcSCtujdV4d0ygHhCO20y8uRBIIJiDSRIiBIMGeLwZu28Qhu7gRx43hK07bLiaBQEIpvcwRjKD2Jph+7wx58iFwdifQh5A2AoJdJlumghmmYSsvfYxg4xQL1szbJ9vOI4wvXkU7/YEgN+eYbEt4NehRQGCmeMUMUa9IuEwxnSHM1QkFDY8CmnTxPg3/M7mJGQAp4SGX4cuQTALmSKUAwkcGFGMFGK0iVmhaBJAADVBpV8tvx1m52qv82LS0cvPo6TDAeNBAAQKIJCfYHau9jovBg2va4Gb3qOg+FLvDPaDAAhkQCA/wfQalCHZG7onBATOa2CKb3w4+4rHkwUAxHj6MEIwjWIwJHtD94w6QeWkCMQxjSH7LJImkUcR4+kDBcGcPgawIGkCmMaSDh+MBwEDAhBMJaw4dhBKM1EBBEAABPIjEJVHEExlOLCDUCJCBRAAARAogAAEs4Agw0UQAAEQAAF7AhDMLYY4BQEQAAEQAIEuAhDMLiq4Zk4AX/WaM8MTIAACSRGAYCYVrpWxMYpTkK96V/7jDQRAICkCMU5ZZgCXHkAwzajFURviFEccYAUIhCawnLetenXQhHH/6U9ZSw/MBXMK2sbhwQMgAAKhCaC/AASW87ZVRw6asOo/5YfNBdMHbYhwyjlUhO1I0SLCDCeR6IM5YC6Yg82NvOlDhEeaEuIx5GQIyugDBEDgAQHNo8LmYk0q62pxCObanDIOkJPpxdl3zOJYRMVhRXrZAYtLIQDBLCXSA35imhyAE+iWb0HWcyMOK/RsRS0QCE/Ag2DW0294Twrv0YZ6NtOkDYQx+RO6vzE24hmBMCEJXBHwIJgBpl+MgJ34B6C+02d0F0JDCN2fMXAMFEbmJExAySiLLx4EMwBTJyMggJ3BujAczcHsct9ROZ66YIeB4oJi3UaiKDFe6ug5+ydNwXTmfi4NpTWabQZxWp6GzS8brmEtRW+hCGC8EGmHAwOCSTzxCksAg3iQ9+ib4DoaHR7MmYDDgQHBzDlR4BsIgAAIgIAzAqME0+EO15kjaAgEQAAErAjoTGxWHeDh1AmMEkyHO9zU+cF+EACByAiM1j1MbJFEcnQEvdtvLpjx+uIdFjoAARCInwB0L/4YDVs4OoLDzTq4ay6Y8friAAeaAAEQ0CeA1bM+K9TMgYC5YEbiNYZqJIGAGQUTwOp5J/iYmHaQ5HQhWcGMYahOnggYnJOHAAaAwAYBTEwbOHI7SVYwcwvEKH8wOFvYsHpowcAhCICABwIQTA9Q0eQUBLZXD1PYgD5LIYDlWSmR3vQTgrnJA2cgAAIgoCSA5ZkSUZYVIJhZhhVO6RLQ3yno19Ttu+R68L0kAvmMHQhmSXkLX3cI6O8U9GvudJLEhXwmtSRwR2ikvwzIZ+xAMCNMXJgEAuEJ5DOphWeXR48PMiAPf3x4AcH0QRVtOiLgb83ryEA0AwLTEMDQmIQ7BHMS7OhUjwDWvHqcUKs4Ahgak4Q8BsGcxHF0GpBA4NVw4O4CgkRXIAACUxLIQzAxQ06ZQ+q+A6+GA3e39v/xJ25ft8ve4a3Fg3Kbjpdl//B2FaI8fnh6sTYOByAAAtYE8hDMqWbIXvwZKXivj2nfIGG7x2UpaLcXLGB7bSE7Oqn2DctsJvfbRcqZfFDocPUSkvIjQHnu6uw4zSgRnzQNh9WZE8hDMKMLUnQK7p/QRHMciR7v6nbEjwWwLj2iR8L2OBdZixqpV/0iJ+hdcPFJrKL8cFEGbJxfnpMzAxX4lroG15qgEJ8JekWXILBJYHeAdAjmbqXNRnAGAh0EHMxxJH7Pc9lbf5S53PnVwse7vw7xI9HjXd2O+NWiZyp8LRGrNn4WdLYsi0U1bwqL0qhydUfOR5aFmP2rpr/0rT7c+Id8YJs2rvWdVH03cB0EQECI3QHSIZi7lXrRQVt70ZR8g0WvKUvxUwsff/xJ4vcGLrLe9fHHmaQK9BJN0YVKoiFWhZSOXmuxe47FpLe0ROze1Z3Zg3KXjpfluX/fOWiKrjku6tWLBlowzGT15ppHu1Hyde0T+dC+pTzOeAxLIZXuowIImBDoEEyDxw201aBVVI2QwM0nbr/AZe+wJX40gbPQbRcWvabIWvxI8eglmmLiH4mBsfiRaDQ7uKXorcVuz6TrqevuHZ3+oxHKml3bIOIyWiQ32mmf5HVcdewQgnqIzrIjYCeY2eEo1yEWQy59gnhjJh/jIumnnrzliNU7TfIsfrTlo9d61/fCeuKn7912jjMRP93MaoukFNVbatbNw8RvzYe4NJft3kfE0a5DPA0CyRLYEEwMnWTjqDScxZCLE0GkifuB8JH2VYuKvtd7gct6Qh8Qv61d302l8ZlXUIlkJeQ/a67ORLINtGqf4BgESiEwys8NwcTQaTFMcPVw84lbL+4d3qr/RKL5KK/5uJR3h1wk/dS7Fjng4FoQF6SGi6qerNsCSBM3f+S5FD7+ru/ujL7Xu8mlRRCHCgKNUHbtJCtagtTcifW9y7O3KprCbRAAgdEEBubCrTY3BHPrnrPTLnO6rjnr0EVDpquHgA5tCGPre8Qbs9mjkr4zFCyGXPo4aAvi3fqXXfqawXVzAo1I8kKmSyjXInl194Z56zE8EXAgxOAubMiAgP5kvxJMyyRXPN5lTte1pMkrHBrrG4njS7u7xZYwdjUMQRSKlOyi5u0aieQzTQx7RZJ38LSb9GZEsIY9DYRg9qMjewJTjz5//a8E0zLJLR+3D1BeLTSTK+9CaNf4etG3W2wJY70z4UmXC028y49MLXeI/vLOe8CmTMm2QHIMSSSf2oghxa3y+r2kd7xZdJBwekfOv1rZNxXhpv+VGQ7fVoLpsEU0ZUSgnVI333TrZZ5gNybXrdYq+rlPP7VAtoRxq5qbU39558Y+Z63YNaQUSG6eRZJi18QN30sylGmL2/Ruj+Rp/Yqnd7eEY/ALgjlxFJqUoo9e/3fjxuwRlTmSfmjXmej3Wyrv0rivK5D8m8S1QK52/fxLUml4CCvNCTQj2fxJfgJyyxTiL/ELZiGZNJPiEZ5gdcr9xeJ+/KmVj4V7x6d32x+T73zEyq7SDpJj1xZI/licb6HYESjhaTu5LYFQHD7O4jBjwIpCMune1d0ZT7A65fn/PP3QALFybnleTDVCKavq7Tsfk0Mgy8kzeJoHAQfzRfyC6SpUDmC5MiWldqLG5mkx1SuUJJLYQaaUvbDVP4H4euidsxzMF+UIpgNY8aWGf4tKwtYnlJWUT9dCeXWndyz6jwR6sCOA0NnxS+dpn3OWUjCRZukkCiwdR0AllPcuzm6Zt4yRY87M5xOKaRTh8gl/orbdB1UpmIo08w9i02f//fX1EIsdffbhujEBP0LZmDH5yGkMwbsOgejChQlHJ2zDddwHVSmYwwYFuOve53FGx2LHOOvxVIuAX6FsdZTEISbmOMOECccmLr6yOn7BtKGGZ8MSiLy3/ePTP/Ofh2z81mtVieY7ynEfvUbutNI8TMxKRCVW8KE4PtrsiY2vrI5HMAPC7GGMyxkT2Du8vRBV9c71n4c0Qnl1R5YplIbBxvg0BNaqniI7H4rjo80W5hCH8QhmBjBDBAx9mBGod5VHJ7SJlOtpi06e5r93LUwozcBt18b43CaidV4nXWHsap+16KRXKR7BTI8dLI6cwHpX2dhJu0r+8xAIZQME774JFKaVNc6cfYZg1iHGPzkRoF3lH/k/sZf00/jFQsm7yuYc7yAQFQEYEz8B2jo7EExqRcNVvVoaDaGKHoGSgS8W715DWu0q1+cFHpScCgWGGy77IkBbZweCSa1oGKhXS6OhAquMmvAAXAgWyyv87zyhUmFUno56qMBJAC5PSWDdtwPBXLeFA08EQk14nsxHs4ME8lGMUXk66qFBoMXdzCeD4g8dBDP+GMHCrAlAMbIObwDnkEEBIK+6gGCuQMT0BlscEZBYezsiiWZAAASIAASTIOCVGYHZ7E+NR/w/+zTHeAcBPwSwMPPDNb5WIZhdMUH+d1FJ5tr84uw9ZOyLVAT/zz77RycvCGc/aMg/gdQGID4U9Z8TY3twm0sQzK44IP+7qCR1bX55/gb+LdmV0Y8dHJ3+dnWc4ZvMzCcMwMwCOqE7bnMJgjlhKNG1IwI9eiHl7HdND5WoPkA7zYqE8xfNtUnfe2weZ5PbSWGcDXE8BSucJhZwbhEIIpgI4Rb1Ek5DBr1HL64vzz4ohfxda6cpSDg/EoVw9tjcpIZsDvAOAkYEFIll1BYqbxMIIpjphhDT1nbCaJ9HEnQWTf4v8aSQv+wSThLP/2r7FLBiJPgCeoyu8ieQvocWginT917pAaYtJaJEKpBwfrRLOMn8AxLNin+bdv/45D90jhcIgAAIdBKwEEyIyS7REhYRu16ndKVXOPlvNivxxkY86bvOnw77hVgP88FdEMiPgIVgRg9jAgOxiOiEHqG2NMI5vzwnqZQ/27CbrtB3nR9j8dw7PHl14976BLFeo8ABCBRCAIJZSKAndTNybbm+PPv4fCWcVSVea7Mi7XyIhZNLv3i2n1AfR7h+UBsdZQ2QjDIsGRsFwcw4uFG7Nqlx3RPtNQnnvavzh+d64vnKWBeW64duG8a2GfS5aExfkgzqOzrLmIA6sT0KprrzjMmHdQ2oDXmrJ9prtXg+zLvOphwcnfzLzAi1DWbtBaydsOkBKaGr5AioE9ujYKo7T45nrAYDtdfIqMSTO6cQPNmI5/7h7cpcQLmVw7yhJQAABuxJREFUaAoMAQEQ6CBgJZjxbGzisaSDMS5lRKAtnkLIH1LmPdv++07BP/TFZ1tA945OXoaAMhgUEEibgJVg0qQQiffxWBIJkDTMILVJw9BuK+eXZ5++vjx/M/9955y+9xQkoJSJO99tkpuP0PX1DpQE9KWDo9NnBH6iIUAxisYWpSGxVCgQmpVgxhI32BE7gZ6RRSoSu+Um9s1JQO9dnr+OxZOL6BfQ11eiemr9Ee7RSbU6fhFCKib5STUVe0ZWGIapQtOk08UWgqkJD9VsCGQ+snrQ6Apo6/FHO4QUItoChMNNAmWOrE0Gvs662GoIpi9z0C4I6BHoWunpPRlXrW0BXe1Cv09WvkSl79UlorwjhZD2EcN1EPBEAILpCSyadUega6XnrvVpWyIR/RwJ52NUZFOEkN+XQv5NCGEqpC/SR7vX9LHun+lZvGwISJuHE3vWsa+Om4sKJgQzqnCYG6P3RNopnLb1ehFq12IRvb48e9v88nxHSKkeiygXOtx5PUpX9ulj3XeScPIutCkLOq+FdP/4Hd+kOnipCOS8Stv23bGvjpvbtnbScwjmpPhDdZ52CqdtvbsYs5CuRHQtpIJ2o8syuBvlNUctpKJafInEsy2kazEVE/2wcRN1jW5BwIgABNMIlxAY3GLCn9ToL1H5tHopome7H+vK2bcEFyHmZAWXrnUHm8alFtOWkLKgLvYPT16la88eHJ/8Zu/J069SO15eXYZ56Yg99dIwGi2FQH6C6XlQBBvcHjPQMyKPlqdJfwqr5xd//XJdLs8PaFfKZUbv9fektZDqiKkUD1Ewj6tKfFAuqq+TeLKQNuU+nT/LhQWV6sX/miIQ8VOBhQYE8hNMDApl+Kt0FVPpGyqoCdRCyoLaI6ZSyL9QK82udEHHXS+eO47pRi2oJJyNkPI7i+lr+8cnzxwcnfyY6kT5glEDBOTAvYJvcdJbug+ylgDDP45FRXjmifTIYnp9efau+VJMeVd6g47rnWk1k1/jQq5crMqQmN4QlXiKUu0TKzFd0Psr+4end7MQ0WSmvZGGUuAoxkW+hog5EMwwZIecKDKqcBoEAhO49+zZN7iQgD65KmsxpXPJYiql+C2ZxYJ6n97bkwMP4YeFrN5OF9MXUXKC/EvgNdZQDlcA93q7CdB3TxdDxBwIZk+vji8POeG4q4HmIoxuy1pt67QrthrHIQgoCLCYXl+cf4jEkwX1IXrnHaoUcvZ5Ucmn6yLEq61mJB13i+jxyR8ODk+/w4Xq2L+4J/tWCmoh0IwbqBtXgRsWTCTZFue4o6ttnXbFLfdxCgIjCMwv/vq9+dXZrbpcnj9CQipZRKUQP+kV0Uq8t5LVF7jQR7n8vSh/pMtlTudcfn9wfPKrg6PTbwudH5c5T4brdIk6jgjIeIAPC6bLJHPEzlMzaBYEQCAgARbR68vzTw6I6POiEq+RSc0sxLMmlz26xuV9VSU+XInqs3Qe9tVYFLbXcnujQPt2nhNLp49hwdRpAXVAwJiAbnoaN4wHEiawJaKPz6/OH6bd6OpjXfkpWcnvkoj+ui5C/KF2tRI/r9+j+wc5Hl1IBgzSXQNBMAcg4pYvArrpueofb8UTmF+c/ej66uyL86vzD9fl8vz99EndZ+Rs8RV/cGxEDznuLy7TtQzBnI49eo6cgM10GblrWZh3fXH+g+uLu38f74wqwhC98WzzfDItwVTld54xStir2AJmZg+mS63US7gSItwXPLOR0tdKftfTEkzkd2IZaBow38PU1J7EcMNcEHBEACOlG+R0gul7buz2F1ejJoBhGnV4yDgMW4KQ0gu2OiUwXjBtR47zudHWIKdc0RgIZEnA+bDdooRRvAUEpwEJqLNvvGD6HjnGmKIzyNgDPDBAQJ3LAw/jFhNIASFGMUcKZQwB+/xWZ994wez0CBdBwBMBdS576jifZoEwn1jCk10CIfIbgrnLPbor9iun6FzK0iDEKYawIgoxRCFXG8IJZsA8DthVkLxwtXIKYuzITpYxW/47sonJHyshTpNDVhqAKCgRpVghkqnBQjANPQiYxwG7SjH1orR5GbPlv1EaGNgow9EV2LoYutMhpFMnBl9gg5JAJFODhWCyB7YJafu8EjMqZEkgx7zZDBSPrs0rONskoENIp85mqzjrIpD/eOvyuuuahWByc7YJafs824BiSyC94YC8sY05ngcBfQIYbw0rS8FsmsF7ygQwHFKOHmwPQQB9xEgg/FJ/WDDD2xNjVGATCIAACIBAdATCL/WHBTO8PeFDgkVBeOboEQRAAAScEQjX0LBghrNjup5KWBRMRzfLnnfXWLtXsnQcToFA4QQgmIUnANw3J7C7xtq9Yt4qnkiJAJZIKUXLna3/BwAA///Aws5CAAAABklEQVQDAMMjJ5IsVZIyAAAAAElFTkSuQmCC', '2026-09-18 03:30:02', '2026-09-18 03:26:45', '2026-09-19 13:48:19');
-INSERT INTO `grant_proposal_approval_steps` (`id`, `workflow_id`, `grant_application_id`, `step_key`, `step_order`, `step_label`, `approver_role_key`, `status`, `approver_user_id`, `approver_name`, `remarks`, `signature_data`, `acted_at`, `created_at`, `updated_at`) VALUES
+INSERT INTO `crad_grant_proposal_approval_steps` (`id`, `workflow_id`, `grant_application_id`, `step_key`, `step_order`, `step_label`, `approver_role_key`, `status`, `approver_user_id`, `approver_name`, `remarks`, `signature_data`, `acted_at`, `created_at`, `updated_at`) VALUES
 (37, 6, 8, 'finance', 6, 'Finance Office', 'finance', 'Approved', 4, 'User', NULL, 'data:image/png;base64,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', '2026-09-18 03:30:29', '2026-09-18 03:26:45', '2026-09-19 13:48:19');
 
 -- --------------------------------------------------------
 
 --
--- Table structure for table `grant_proposal_approval_workflows`
+-- Table structure for table `crad_grant_proposal_approval_workflows`
 --
 
-CREATE TABLE `grant_proposal_approval_workflows` (
+CREATE TABLE `crad_grant_proposal_approval_workflows` (
   `id` int(10) UNSIGNED NOT NULL,
   `grant_application_id` int(10) UNSIGNED NOT NULL,
   `current_step_key` varchar(40) NOT NULL DEFAULT 'adviser',
@@ -815,10 +815,10 @@ CREATE TABLE `grant_proposal_approval_workflows` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `grant_proposal_approval_workflows`
+-- Dumping data for table `crad_grant_proposal_approval_workflows`
 --
 
-INSERT INTO `grant_proposal_approval_workflows` (`id`, `grant_application_id`, `current_step_key`, `workflow_status`, `started_at`, `completed_at`, `updated_at`) VALUES
+INSERT INTO `crad_grant_proposal_approval_workflows` (`id`, `grant_application_id`, `current_step_key`, `workflow_status`, `started_at`, `completed_at`, `updated_at`) VALUES
 (1, 2, 'vpaa', 'Completed', '2026-08-31 08:47:21', '2026-08-31 11:07:08', '2026-08-31 11:07:08'),
 (2, 3, 'finance', 'Completed', '2026-08-31 11:44:23', '2026-08-31 12:13:46', '2026-08-31 12:13:46'),
 (3, 4, 'finance', 'In Progress', '2026-08-31 13:34:26', NULL, '2026-08-31 13:59:06'),
@@ -829,10 +829,10 @@ INSERT INTO `grant_proposal_approval_workflows` (`id`, `grant_application_id`, `
 -- --------------------------------------------------------
 
 --
--- Table structure for table `grant_proposal_evaluations`
+-- Table structure for table `crad_grant_proposal_evaluations`
 --
 
-CREATE TABLE `grant_proposal_evaluations` (
+CREATE TABLE `crad_grant_proposal_evaluations` (
   `id` int(10) UNSIGNED NOT NULL,
   `grant_application_id` int(10) UNSIGNED NOT NULL,
   `proposal_version` int(10) UNSIGNED NOT NULL DEFAULT 1 COMMENT 'Proposal version evaluated',
@@ -855,10 +855,10 @@ CREATE TABLE `grant_proposal_evaluations` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `grant_proposal_evaluations`
+-- Dumping data for table `crad_grant_proposal_evaluations`
 --
 
-INSERT INTO `grant_proposal_evaluations` (`id`, `grant_application_id`, `proposal_version`, `evaluator_user_id`, `evaluator_name`, `evaluation_type`, `score_rationale`, `score_methodology`, `score_budget`, `score_team_capability`, `score_compliance`, `total_score`, `comments`, `recommendations`, `required_corrections`, `recommendation`, `revision_reason`, `submitted_at`, `updated_at`) VALUES
+INSERT INTO `crad_grant_proposal_evaluations` (`id`, `grant_application_id`, `proposal_version`, `evaluator_user_id`, `evaluator_name`, `evaluation_type`, `score_rationale`, `score_methodology`, `score_budget`, `score_team_capability`, `score_compliance`, `total_score`, `comments`, `recommendations`, `required_corrections`, `recommendation`, `revision_reason`, `submitted_at`, `updated_at`) VALUES
 (1, 1, 1, 766, 'Review Committee Member', 'committee', 25.00, 30.00, 19.00, 10.00, 5.00, 89.00, 'asdsa', 'asdas', 'asdas', NULL, NULL, '2026-08-31 07:27:00', '2026-08-31 07:27:00'),
 (2, 2, 1, 766, 'Review Committee Member', 'committee', 13.00, 13.00, 13.00, 13.00, 1.00, 53.00, 'sadas', 'asdsa', 'asdas', 'require_revisions', 'sadas', '2026-08-31 08:09:44', '2026-08-31 08:09:44'),
 (3, 2, 2, 766, 'Review Committee Member', 'committee', 25.00, 25.00, 20.00, 15.00, 10.00, 95.00, 'sadas', 'asdsa', 'adsaa', 'recommend', NULL, '2026-08-31 08:47:21', '2026-08-31 08:47:21'),
@@ -896,10 +896,10 @@ INSERT INTO `grant_proposal_evaluations` (`id`, `grant_application_id`, `proposa
 -- --------------------------------------------------------
 
 --
--- Table structure for table `grant_proposal_notifications`
+-- Table structure for table `crad_grant_proposal_notifications`
 --
 
-CREATE TABLE `grant_proposal_notifications` (
+CREATE TABLE `crad_grant_proposal_notifications` (
   `id` int(10) UNSIGNED NOT NULL,
   `event_key` varchar(120) NOT NULL,
   `recipient_user_id` int(10) UNSIGNED DEFAULT NULL,
@@ -915,10 +915,10 @@ CREATE TABLE `grant_proposal_notifications` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `grant_proposal_notifications`
+-- Dumping data for table `crad_grant_proposal_notifications`
 --
 
-INSERT INTO `grant_proposal_notifications` (`id`, `event_key`, `recipient_user_id`, `recipient_role`, `recipient_email`, `grant_application_id`, `type`, `title`, `body`, `url`, `is_read`, `created_at`) VALUES
+INSERT INTO `crad_grant_proposal_notifications` (`id`, `event_key`, `recipient_user_id`, `recipient_role`, `recipient_email`, `grant_application_id`, `type`, `title`, `body`, `url`, `is_read`, `created_at`) VALUES
 (111, 'grant-proposal:finance_pending:8:u4', 4, 'finance', '', 8, 'grant_finance_pending', 'Pending Finance Approval', 'GR-2026-001 is pending Finance Office final approval after VPAA sign-off. Review it under Payment Management → Approval Workflows. Title: Ai Driven Data Analytics', '/sms2_system/modules/payment/pages/approval-workflows.php?id=8', 0, '2026-09-18 03:30:02'),
 (112, 'grant-proposal:grant_approved_funded:8:v1:u9', 9, 'student', '', 8, 'grant_approved_funded', 'Approved & Funded', 'GR-2026-001 (Ai Driven Data Analytics) is APPROVED & FUNDED after all six institutional sign-offs. Finance Office recorded the final approval.', '/sms2_system/modules/crad/pages/budget-disbursement.php?id=8', 1, '2026-09-18 03:30:29'),
 (113, 'grant-proposal:grant_fund_release:8:t1:d5', 9, 'student', '', 8, 'grant_fund_release', 'Fund Tranche Released', 'GR-2026-001 — Tranche 1 released ₱1,300 (Ref: DISB-GR-2026-001-T1). Recorded by User. View Budget & Disbursement for tranche status.', '/sms2_system/modules/crad/pages/budget-disbursement.php?id=8', 1, '2026-09-18 03:31:22'),
@@ -933,10 +933,10 @@ INSERT INTO `grant_proposal_notifications` (`id`, `event_key`, `recipient_user_i
 -- --------------------------------------------------------
 
 --
--- Table structure for table `grant_proposal_versions`
+-- Table structure for table `crad_grant_proposal_versions`
 --
 
-CREATE TABLE `grant_proposal_versions` (
+CREATE TABLE `crad_grant_proposal_versions` (
   `id` int(10) UNSIGNED NOT NULL,
   `grant_application_id` int(10) UNSIGNED NOT NULL,
   `version_number` int(10) UNSIGNED NOT NULL,
@@ -955,10 +955,10 @@ CREATE TABLE `grant_proposal_versions` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `grant_proposal_versions`
+-- Dumping data for table `crad_grant_proposal_versions`
 --
 
-INSERT INTO `grant_proposal_versions` (`id`, `grant_application_id`, `version_number`, `version_label`, `proposal_pdf`, `proposal_pdf_original`, `supporting_docs`, `supporting_docs_original`, `ethics_doc`, `ethics_doc_original`, `abstract`, `objectives`, `researcher_notes`, `submitted_by_user_id`, `submitted_at`) VALUES
+INSERT INTO `crad_grant_proposal_versions` (`id`, `grant_application_id`, `version_number`, `version_label`, `proposal_pdf`, `proposal_pdf_original`, `supporting_docs`, `supporting_docs_original`, `ethics_doc`, `ethics_doc_original`, `abstract`, `objectives`, `researcher_notes`, `submitted_by_user_id`, `submitted_at`) VALUES
 (1, 1, 1, 'Original', '53ac796ed0ad7af6ca74703f6e4a5b41.pdf', 'OLIVEROS CV.pdf', '72706d8b5bfd82f1135557fa92faf84a.pdf', 'OLIVEROS CV.pdf', '3b1bf340d2db787753a7f77efb0fcdaf.pdf', 'OLIVEROS CV.pdf', 'adsadas', 'adsadas', NULL, 9, '2026-08-31 07:42:38'),
 (2, 2, 1, 'Original', 'b594409c59e3ba6839050c9dd63f50a6.pdf', 'OLIVEROS CV.pdf', '6a9719b97b1c60266f543bba2f313c38.pdf', 'OLIVEROS CV.pdf', '757f2e0bf3a62bd565b415570d7df5e8.pdf', 'OLIVEROS CV.pdf', 'dsada', 'asdas', NULL, 9, '2026-08-31 08:46:40'),
 (4, 2, 2, 'Revised', 'f3f3ec4b05c99f1fbbe58278c60d4afe.pdf', 'OLIVEROS CV.pdf', 'e411ba015c79a77a27013c4206313257.pdf', 'OLIVEROS CV.pdf', '95ae712a926e7a6e5ceef81ed3ba0f14.pdf', 'OLIVEROS CV.pdf', 'dsada', 'asdas', 'sada', 9, '2026-08-31 08:46:40'),
@@ -972,10 +972,10 @@ INSERT INTO `grant_proposal_versions` (`id`, `grant_application_id`, `version_nu
 -- --------------------------------------------------------
 
 --
--- Table structure for table `grant_publications_ip_repository`
+-- Table structure for table `crad_grant_publications_ip_repository`
 --
 
-CREATE TABLE `grant_publications_ip_repository` (
+CREATE TABLE `crad_grant_publications_ip_repository` (
   `id` int(10) UNSIGNED NOT NULL,
   `grant_application_id` int(10) UNSIGNED NOT NULL,
   `submission_id` int(10) UNSIGNED NOT NULL,
@@ -1001,10 +1001,10 @@ CREATE TABLE `grant_publications_ip_repository` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `grant_publications_ip_repository`
+-- Dumping data for table `crad_grant_publications_ip_repository`
 --
 
-INSERT INTO `grant_publications_ip_repository` (`id`, `grant_application_id`, `submission_id`, `repository_reference`, `final_research_title`, `authors`, `abstract`, `publication_type`, `journal_conference`, `doi`, `publication_url`, `ip_information`, `copyright_info`, `patent_info`, `other_ip_info`, `final_pdf_path`, `final_pdf_original`, `supporting_files_json`, `verified_by_user_id`, `verified_by_name`, `verified_at`, `created_at`) VALUES
+INSERT INTO `crad_grant_publications_ip_repository` (`id`, `grant_application_id`, `submission_id`, `repository_reference`, `final_research_title`, `authors`, `abstract`, `publication_type`, `journal_conference`, `doi`, `publication_url`, `ip_information`, `copyright_info`, `patent_info`, `other_ip_info`, `final_pdf_path`, `final_pdf_original`, `supporting_files_json`, `verified_by_user_id`, `verified_by_name`, `verified_at`, `created_at`) VALUES
 (1, 5, 1, 'PIP-2026-001', 'ai analysis', 'Student User', 'adasdsada', 'Journal', 'asdsa', '', 'http://localhost/sms2_system/modules/crad/pages/publications-ip.php', 'sadas', NULL, NULL, NULL, 'C:\\xampp\\htdocs\\sms2_system/storage/uploads/grant_final_output/20fbebfce55289306d6bfbb63c4e3777.pdf', 'OLIVEROS CV.pdf', '[{\"path\":\"C:\\\\xampp\\\\htdocs\\\\sms2_system\\/storage\\/uploads\\/grant_final_output_supporting\\/39c7dccbc6b58439374010ce48077be1.pdf\",\"original_name\":\"Diaz CV.pdf_20260813_105004_0000.pdf\",\"stored_name\":\"39c7dccbc6b58439374010ce48077be1.pdf\"}]', 3, 'User', '2026-08-31 16:40:51', '2026-08-31 16:40:51'),
 (2, 7, 2, 'PIP-2026-002', 'Ai Driven Data Analytics', 'Student User', 'dasdasdas', 'Journal', 'dsadas', '', 'http://localhost/sms2_system/modules/crad/pages/publications-ip.php', 'sadas', 'asd', 'asdas', 'asdas', 'F:\\xampp\\htdocs\\sms2_system/storage/uploads/grant_final_output/64c266a836d68bc4468d4c06689b6aa8.pdf', 'file-sample_150kB.pdf', '[{\"path\":\"F:\\\\xampp\\\\htdocs\\\\sms2_system\\/storage\\/uploads\\/grant_final_output_supporting\\/ae998301f6ce05be4836133a88d19de9.docx\",\"original_name\":\"OJT_PRACTICUM_1_NARRATIVE_REPORT (1) (1).docx\",\"stored_name\":\"ae998301f6ce05be4836133a88d19de9.docx\"}]', 3, 'User', '2026-09-18 03:22:29', '2026-09-18 03:22:29'),
 (3, 8, 3, 'PIP-2026-003', 'Ai Driven Data Analytics', 'Student User', 'asdasdas', 'Journal', 'asdas', '', 'http://localhost/sms2_system/modules/crad/pages/publications-ip.php', 'asdasd', NULL, NULL, NULL, 'F:\\xampp\\htdocs\\sms2_system/storage/uploads/grant_final_output/23adf38391ef58c27b1a14ff52e79263.pdf', 'file-sample_150kB.pdf', '[{\"path\":\"F:\\\\xampp\\\\htdocs\\\\sms2_system\\/storage\\/uploads\\/grant_final_output_supporting\\/12c8f013bad6a439c5187808f9a772fc.docx\",\"original_name\":\"OJT_PRACTICUM_1_NARRATIVE_REPORT (1) (1).docx\",\"stored_name\":\"12c8f013bad6a439c5187808f9a772fc.docx\"}]', 3, 'User', '2026-09-18 03:33:30', '2026-09-18 03:33:30');
@@ -1012,10 +1012,10 @@ INSERT INTO `grant_publications_ip_repository` (`id`, `grant_application_id`, `s
 -- --------------------------------------------------------
 
 --
--- Table structure for table `manuscript_evaluations`
+-- Table structure for table `crad_manuscript_evaluations`
 --
 
-CREATE TABLE `manuscript_evaluations` (
+CREATE TABLE `crad_manuscript_evaluations` (
   `id` int(10) UNSIGNED NOT NULL,
   `submission_id` int(10) UNSIGNED NOT NULL,
   `research_group_id` int(10) UNSIGNED NOT NULL,
@@ -1037,10 +1037,10 @@ CREATE TABLE `manuscript_evaluations` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `manuscript_evaluations`
+-- Dumping data for table `crad_manuscript_evaluations`
 --
 
-INSERT INTO `manuscript_evaluations` (`id`, `submission_id`, `research_group_id`, `evaluator_user_id`, `evaluator_name`, `content_score`, `methodology_score`, `results_score`, `conclusions_score`, `recommendations_score`, `references_score`, `formatting_score`, `compliance_score`, `remarks`, `result`, `overall_score`, `evaluated_at`, `created_at`) VALUES
+INSERT INTO `crad_manuscript_evaluations` (`id`, `submission_id`, `research_group_id`, `evaluator_user_id`, `evaluator_name`, `content_score`, `methodology_score`, `results_score`, `conclusions_score`, `recommendations_score`, `references_score`, `formatting_score`, `compliance_score`, `remarks`, `result`, `overall_score`, `evaluated_at`, `created_at`) VALUES
 (1, 0, 61, 3, '', 99.00, 99.00, 99.00, 99.00, 99.00, 99.00, 99.00, 99.00, '99', 'APPROVED', 99.00, '2026-08-28 08:03:48', '2026-08-28 08:03:48'),
 (2, 2, 62, 3, '', 100.00, 100.00, 100.00, 100.00, 100.00, 100.00, 100.00, 100.00, '100', 'APPROVED', 100.00, '2026-08-28 15:45:48', '2026-08-28 15:45:48'),
 (3, 3, 63, 3, '', 100.00, 100.00, 100.00, 100.00, 100.00, 100.00, 100.00, 100.00, '100', 'APPROVED', 100.00, '2026-08-28 16:35:30', '2026-08-28 16:35:30'),
@@ -1051,10 +1051,10 @@ INSERT INTO `manuscript_evaluations` (`id`, `submission_id`, `research_group_id`
 -- --------------------------------------------------------
 
 --
--- Table structure for table `manuscript_submissions`
+-- Table structure for table `crad_manuscript_submissions`
 --
 
-CREATE TABLE `manuscript_submissions` (
+CREATE TABLE `crad_manuscript_submissions` (
   `id` int(10) UNSIGNED NOT NULL,
   `research_group_id` int(10) UNSIGNED NOT NULL,
   `version_number` int(10) UNSIGNED NOT NULL,
@@ -1075,10 +1075,10 @@ CREATE TABLE `manuscript_submissions` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `manuscript_submissions`
+-- Dumping data for table `crad_manuscript_submissions`
 --
 
-INSERT INTO `manuscript_submissions` (`id`, `research_group_id`, `version_number`, `status`, `submitted_by_user`, `submitted_by_name`, `submitted_by_email`, `submission_notes`, `original_name`, `stored_subdir`, `stored_name`, `file_size`, `file_mime`, `submission_token`, `submitted_at`, `reviewed_at`, `updated_at`) VALUES
+INSERT INTO `crad_manuscript_submissions` (`id`, `research_group_id`, `version_number`, `status`, `submitted_by_user`, `submitted_by_name`, `submitted_by_email`, `submission_notes`, `original_name`, `stored_subdir`, `stored_name`, `file_size`, `file_mime`, `submission_token`, `submitted_at`, `reviewed_at`, `updated_at`) VALUES
 (1, 61, 1, 'Approved', 9, '', 'kenlangmalakas0308@gmail.com', '', 'CRAD_Chapter_1_TO_4 (1).docx', 'manuscripts/g61', '059624a21b3ee3e8c9d5d6d6cae4d3d8.docx', 4824980, 'application/octet-stream', 'c0ba01bd7d587e02c4aac89baad005b9817863f67e132d46c53fd5a8e2f202b8', '2026-08-28 08:01:38', '2026-08-28 08:03:48', '2026-08-28 08:03:48'),
 (2, 62, 1, 'Approved', 9, '', 'kenlangmalakas0308@gmail.com', '', 'OJT_PRACTICUM_1_NARRATIVE_REPORT (1) (1).docx', 'manuscripts/g62', 'cd889c4f0fa3737edd9c7075cae72eb5.docx', 302605, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'ac45628a1a25f5f177bbcace7b945c684229993d6462e2d2dba7551d88a01198', '2026-08-28 15:45:09', '2026-08-28 15:45:48', '2026-08-28 15:45:48'),
 (3, 63, 1, 'Approved', 9, '', 'kenlangmalakas0308@gmail.com', '', 'OJT_PRACTICUM_1_NARRATIVE_REPORT (1) (1).docx', 'manuscripts/g63', 'c4d2449c98f39a5604fedf92ac2cc70e.docx', 302605, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', '4be87c933edc484ef2cddf1a86daa6e4521cc149c28b66b278d67db825ffdd44', '2026-08-28 16:34:34', '2026-08-28 16:35:30', '2026-08-28 16:35:30'),
@@ -1089,10 +1089,10 @@ INSERT INTO `manuscript_submissions` (`id`, `research_group_id`, `version_number
 -- --------------------------------------------------------
 
 --
--- Table structure for table `panel_assignment_notifications`
+-- Table structure for table `crad_panel_assignment_notifications`
 --
 
-CREATE TABLE `panel_assignment_notifications` (
+CREATE TABLE `crad_panel_assignment_notifications` (
   `id` int(10) UNSIGNED NOT NULL,
   `event_key` varchar(140) NOT NULL,
   `recipient_user_id` int(10) UNSIGNED NOT NULL,
@@ -1108,10 +1108,10 @@ CREATE TABLE `panel_assignment_notifications` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `panel_assignment_notifications`
+-- Dumping data for table `crad_panel_assignment_notifications`
 --
 
-INSERT INTO `panel_assignment_notifications` (`id`, `event_key`, `recipient_user_id`, `recipient_role`, `recipient_email`, `panel_assignment_id`, `research_group_id`, `title`, `body`, `url`, `is_read`, `created_at`) VALUES
+INSERT INTO `crad_panel_assignment_notifications` (`id`, `event_key`, `recipient_user_id`, `recipient_role`, `recipient_email`, `panel_assignment_id`, `research_group_id`, `title`, `body`, `url`, `is_read`, `created_at`) VALUES
 (19, 'preoral-panel-assignment:61:u491', 491, 'panel', 'jobertvalentino@bestlink.edu.ph', 13, 61, 'Pre-Oral Panel Assignment', 'You have been assigned as a Panel Member for Group 01\nDEVELOPMENT OF AI ANALYSIS\nDefense Phase: Pre-Oral Defense', '/sms2_system/modules/faculty/pages/assigned-defenses.php?group=RG-2026-001', 0, '2026-08-23 04:09:43'),
 (20, 'preoral-panel-assignment:61:u492', 492, 'panel', 'jonathanestrada@bestlink.edu.ph', 14, 61, 'Pre-Oral Panel Assignment', 'You have been assigned as a Panel Member for Group 01\nDEVELOPMENT OF AI ANALYSIS\nDefense Phase: Pre-Oral Defense', '/sms2_system/modules/faculty/pages/assigned-defenses.php?group=RG-2026-001', 0, '2026-08-23 04:09:43'),
 (21, 'preoral-panel-assignment:61:u493', 493, 'panel', 'michelleguevarra@bestlink.edu.ph', 15, 61, 'Pre-Oral Panel Assignment', 'You have been assigned as a Panel Member for Group 01\nDEVELOPMENT OF AI ANALYSIS\nDefense Phase: Pre-Oral Defense', '/sms2_system/modules/faculty/pages/assigned-defenses.php?group=RG-2026-001', 0, '2026-08-23 04:09:43'),
@@ -1176,10 +1176,10 @@ INSERT INTO `panel_assignment_notifications` (`id`, `event_key`, `recipient_user
 -- --------------------------------------------------------
 
 --
--- Table structure for table `panel_member_availability`
+-- Table structure for table `crad_panel_member_availability`
 --
 
-CREATE TABLE `panel_member_availability` (
+CREATE TABLE `crad_panel_member_availability` (
   `id` int(10) UNSIGNED NOT NULL,
   `panel_user_id` int(10) UNSIGNED NOT NULL,
   `availability_status` varchar(40) NOT NULL DEFAULT 'Pending',
@@ -1189,10 +1189,10 @@ CREATE TABLE `panel_member_availability` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `panel_member_availability`
+-- Dumping data for table `crad_panel_member_availability`
 --
 
-INSERT INTO `panel_member_availability` (`id`, `panel_user_id`, `availability_status`, `notes`, `updated_at`, `created_at`) VALUES
+INSERT INTO `crad_panel_member_availability` (`id`, `panel_user_id`, `availability_status`, `notes`, `updated_at`, `created_at`) VALUES
 (6, 491, 'Available', '', '2026-08-23 04:08:58', '2026-08-23 04:08:58'),
 (7, 492, 'Available', '', '2026-08-23 04:09:10', '2026-08-23 04:09:10'),
 (8, 493, 'Available', '', '2026-08-23 04:09:26', '2026-08-23 04:09:26'),
@@ -1201,10 +1201,10 @@ INSERT INTO `panel_member_availability` (`id`, `panel_user_id`, `availability_st
 -- --------------------------------------------------------
 
 --
--- Table structure for table `preoral_defense_evaluations`
+-- Table structure for table `crad_preoral_defense_evaluations`
 --
 
-CREATE TABLE `preoral_defense_evaluations` (
+CREATE TABLE `crad_preoral_defense_evaluations` (
   `id` int(10) UNSIGNED NOT NULL,
   `defense_schedule_id` int(10) UNSIGNED NOT NULL,
   `research_group_id` int(10) UNSIGNED DEFAULT NULL,
@@ -1226,10 +1226,10 @@ CREATE TABLE `preoral_defense_evaluations` (
 -- --------------------------------------------------------
 
 --
--- Table structure for table `proposal_documents`
+-- Table structure for table `crad_proposal_documents`
 --
 
-CREATE TABLE `proposal_documents` (
+CREATE TABLE `crad_proposal_documents` (
   `id` int(10) UNSIGNED NOT NULL,
   `proposal_id` int(10) UNSIGNED NOT NULL,
   `doc_key` varchar(60) NOT NULL COMMENT 'Slot key: manuscript, approval, abstract, etc.',
@@ -1243,10 +1243,10 @@ CREATE TABLE `proposal_documents` (
 -- --------------------------------------------------------
 
 --
--- Table structure for table `proposal_drafts`
+-- Table structure for table `crad_proposal_drafts`
 --
 
-CREATE TABLE `proposal_drafts` (
+CREATE TABLE `crad_proposal_drafts` (
   `id` int(10) UNSIGNED NOT NULL,
   `student_id` varchar(50) NOT NULL,
   `user_id` int(10) UNSIGNED DEFAULT NULL COMMENT 'FK to sms2_db users (optional)',
@@ -1261,10 +1261,10 @@ CREATE TABLE `proposal_drafts` (
 -- --------------------------------------------------------
 
 --
--- Table structure for table `proposal_members`
+-- Table structure for table `crad_proposal_members`
 --
 
-CREATE TABLE `proposal_members` (
+CREATE TABLE `crad_proposal_members` (
   `id` int(10) UNSIGNED NOT NULL,
   `proposal_id` int(10) UNSIGNED NOT NULL,
   `sort_order` tinyint(3) UNSIGNED NOT NULL DEFAULT 1 COMMENT '1 = lead member',
@@ -1277,10 +1277,10 @@ CREATE TABLE `proposal_members` (
 -- --------------------------------------------------------
 
 --
--- Table structure for table `proposal_status_logs`
+-- Table structure for table `crad_proposal_status_logs`
 --
 
-CREATE TABLE `proposal_status_logs` (
+CREATE TABLE `crad_proposal_status_logs` (
   `id` int(10) UNSIGNED NOT NULL,
   `proposal_id` int(10) UNSIGNED NOT NULL,
   `old_status` varchar(30) DEFAULT NULL,
@@ -1293,10 +1293,10 @@ CREATE TABLE `proposal_status_logs` (
 -- --------------------------------------------------------
 
 --
--- Table structure for table `publications`
+-- Table structure for table `crad_publications`
 --
 
-CREATE TABLE `publications` (
+CREATE TABLE `crad_publications` (
   `id` int(10) UNSIGNED NOT NULL,
   `research_group_id` int(10) UNSIGNED NOT NULL,
   `title` varchar(500) NOT NULL DEFAULT '',
@@ -1313,10 +1313,10 @@ CREATE TABLE `publications` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `publications`
+-- Dumping data for table `crad_publications`
 --
 
-INSERT INTO `publications` (`id`, `research_group_id`, `title`, `authors`, `publication_outlet`, `publication_date`, `doi_link`, `status`, `notes`, `created_by_user`, `created_by_name`, `created_at`, `updated_at`) VALUES
+INSERT INTO `crad_publications` (`id`, `research_group_id`, `title`, `authors`, `publication_outlet`, `publication_date`, `doi_link`, `status`, `notes`, `created_by_user`, `created_by_name`, `created_at`, `updated_at`) VALUES
 (4, 62, 'DEVELOPMENT OF AI ASSISTED DOCUMENT', 'Group 01', '', '2026-08-29', 'i3o213uo1u3oi12', 'Published', '', 3, '', '2026-08-28 16:13:42', '2026-08-28 16:14:09'),
 (5, 63, 'DEVELOPMENT OF AI', 'Group 01', '', NULL, '', 'Draft', NULL, 3, '', '2026-08-28 16:39:18', '2026-08-28 16:39:18'),
 (6, 64, 'DEVELOPMENT OF AI ANALYSIS', 'Group 01', 'crad', '2026-08-31', 'http://localhost/sms2_system/modules/crad/pages/documentation-publication-management.php', 'Published', '', 3, '', '2026-08-31 06:32:29', '2026-08-31 06:33:01'),
@@ -1325,10 +1325,10 @@ INSERT INTO `publications` (`id`, `research_group_id`, `title`, `authors`, `publ
 -- --------------------------------------------------------
 
 --
--- Table structure for table `research_adviser_assignments`
+-- Table structure for table `crad_research_adviser_assignments`
 --
 
-CREATE TABLE `research_adviser_assignments` (
+CREATE TABLE `crad_research_adviser_assignments` (
   `id` int(10) UNSIGNED NOT NULL,
   `research_group_id` int(10) UNSIGNED DEFAULT NULL,
   `proposal_id` int(10) UNSIGNED DEFAULT NULL,
@@ -1353,10 +1353,10 @@ CREATE TABLE `research_adviser_assignments` (
 -- --------------------------------------------------------
 
 --
--- Table structure for table `research_clearance_notifications`
+-- Table structure for table `crad_research_clearance_notifications`
 --
 
-CREATE TABLE `research_clearance_notifications` (
+CREATE TABLE `crad_research_clearance_notifications` (
   `id` int(10) UNSIGNED NOT NULL,
   `event_key` varchar(190) NOT NULL,
   `recipient_user_id` int(10) UNSIGNED DEFAULT NULL,
@@ -1372,10 +1372,10 @@ CREATE TABLE `research_clearance_notifications` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `research_clearance_notifications`
+-- Dumping data for table `crad_research_clearance_notifications`
 --
 
-INSERT INTO `research_clearance_notifications` (`id`, `event_key`, `recipient_user_id`, `recipient_role`, `recipient_email`, `clearance_id`, `type`, `title`, `body`, `url`, `is_read`, `created_at`) VALUES
+INSERT INTO `crad_research_clearance_notifications` (`id`, `event_key`, `recipient_user_id`, `recipient_role`, `recipient_email`, `clearance_id`, `type`, `title`, `body`, `url`, `is_read`, `created_at`) VALUES
 (9, 'clearance-payment:1', 1354, 'student', '', 0, 'payment_approved', 'College payment approved', 'Your college payment was approved. The O.R. number and remarks are now on your Research Services Clearance form.', '/sms2_system/modules/student-portal/pages/research-clearance.php', 0, '2026-09-19 12:07:01'),
 (15, 'clearance-payment:2', 1354, 'student', '', 0, 'payment_approved', 'Research 2 college payment approved', 'Your Research 2 college payment was approved. The O.R. number and remarks are now on that Research Services Clearance form.', '/sms2_system/modules/student-portal/pages/research-clearance.php', 0, '2026-09-19 13:00:57'),
 (20, 'clearance-payment:3', 1354, 'student', '', 0, 'payment_approved', 'Research 1 collage payment approved', 'Your Research 1 collage payment was approved. The O.R. number and remarks are now on that Research Services Clearance form.', '/sms2_system/modules/student-portal/pages/research-clearance.php', 0, '2026-09-19 13:29:42'),
@@ -1384,10 +1384,10 @@ INSERT INTO `research_clearance_notifications` (`id`, `event_key`, `recipient_us
 -- --------------------------------------------------------
 
 --
--- Table structure for table `research_clearance_payments`
+-- Table structure for table `crad_research_clearance_payments`
 --
 
-CREATE TABLE `research_clearance_payments` (
+CREATE TABLE `crad_research_clearance_payments` (
   `id` int(10) UNSIGNED NOT NULL,
   `research_group_id` int(10) UNSIGNED NOT NULL,
   `research_stage` varchar(20) NOT NULL DEFAULT 'research_1',
@@ -1407,10 +1407,10 @@ CREATE TABLE `research_clearance_payments` (
 -- --------------------------------------------------------
 
 --
--- Table structure for table `research_coordinator_assignments`
+-- Table structure for table `crad_research_coordinator_assignments`
 --
 
-CREATE TABLE `research_coordinator_assignments` (
+CREATE TABLE `crad_research_coordinator_assignments` (
   `id` int(10) UNSIGNED NOT NULL,
   `research_group_id` int(10) UNSIGNED DEFAULT NULL,
   `proposal_id` int(10) UNSIGNED DEFAULT NULL,
@@ -1433,10 +1433,10 @@ CREATE TABLE `research_coordinator_assignments` (
 -- --------------------------------------------------------
 
 --
--- Table structure for table `research_defense_schedules`
+-- Table structure for table `crad_research_defense_schedules`
 --
 
-CREATE TABLE `research_defense_schedules` (
+CREATE TABLE `crad_research_defense_schedules` (
   `id` int(10) UNSIGNED NOT NULL,
   `research_group_id` int(10) UNSIGNED DEFAULT NULL,
   `proposal_id` int(10) UNSIGNED DEFAULT NULL,
@@ -1461,10 +1461,10 @@ CREATE TABLE `research_defense_schedules` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `research_defense_schedules`
+-- Dumping data for table `crad_research_defense_schedules`
 --
 
-INSERT INTO `research_defense_schedules` (`id`, `research_group_id`, `proposal_id`, `proposal_number`, `group_number`, `research_group`, `research_title`, `adviser_name`, `panel_members`, `panel_chair`, `venue`, `venue_id`, `defense_datetime`, `defense_end_datetime`, `defense_type`, `status`, `recorded_by`, `finalized_by`, `finalized_at`, `recorded_at`, `updated_at`) VALUES
+INSERT INTO `crad_research_defense_schedules` (`id`, `research_group_id`, `proposal_id`, `proposal_number`, `group_number`, `research_group`, `research_title`, `adviser_name`, `panel_members`, `panel_chair`, `venue`, `venue_id`, `defense_datetime`, `defense_end_datetime`, `defense_type`, `status`, `recorded_by`, `finalized_by`, `finalized_at`, `recorded_at`, `updated_at`) VALUES
 (70, 72, NULL, 'TAP-2026-00060', 'RG-2026-068', 'Group 68', 'AI DRIVEN DATA ANALYTICS', 'Dr. Roberto M. Santos', 'Dr. Jobert Valentino\nDr. Jonathan Estrada\nDr. Joseph Alcantara', 'Dr. Jobert Valentino', 'Computer Laboratory 1', 5, '2026-09-21 08:00:00', '2026-09-21 10:00:00', 'Pre-Oral', 'Rejected', 758, NULL, NULL, '2026-09-19 13:32:39', '2026-09-19 13:32:49'),
 (71, 72, NULL, 'TAP-2026-00060', 'RG-2026-068', 'Group 68', 'AI DRIVEN DATA ANALYTICS', 'Dr. Roberto M. Santos', 'Dr. Jobert Valentino\nDr. Jonathan Estrada\nDr. Joseph Alcantara', 'Dr. Jobert Valentino', 'Research Room 1', 2, '2026-09-24 13:00:00', '2026-09-24 15:00:00', 'Pre-Oral', 'Finalized', 758, 758, '2026-09-19 13:32:49', '2026-09-19 13:32:39', '2026-09-19 13:32:49'),
 (72, 72, NULL, 'TAP-2026-00060', 'RG-2026-068', 'Group 68', 'AI DRIVEN DATA ANALYTICS', 'Dr. Roberto M. Santos', 'Dr. Jobert Valentino\nDr. Jonathan Estrada\nDr. Joseph Alcantara', 'Dr. Jobert Valentino', 'Research Room 2', 3, '2026-09-28 09:00:00', '2026-09-28 11:00:00', 'Pre-Oral', 'Rejected', 758, NULL, NULL, '2026-09-19 13:32:39', '2026-09-19 13:32:49'),
@@ -1475,10 +1475,10 @@ INSERT INTO `research_defense_schedules` (`id`, `research_group_id`, `proposal_i
 -- --------------------------------------------------------
 
 --
--- Table structure for table `research_groups`
+-- Table structure for table `crad_research_groups`
 --
 
-CREATE TABLE `research_groups` (
+CREATE TABLE `crad_research_groups` (
   `id` int(10) UNSIGNED NOT NULL,
   `proposal_id` int(10) UNSIGNED DEFAULT NULL,
   `title_approval_id` int(10) UNSIGNED DEFAULT NULL,
@@ -1500,32 +1500,32 @@ CREATE TABLE `research_groups` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `research_groups`
+-- Dumping data for table `crad_research_groups`
 --
 
-INSERT INTO `research_groups` (`id`, `proposal_id`, `title_approval_id`, `proposal_number`, `group_number`, `group_name`, `research_title`, `college_dept`, `adviser`, `academic_year`, `leader_name`, `leader_id`, `leader_email`, `leader_contact`, `status`, `date_assigned`, `created_by`, `created_at`) VALUES
+INSERT INTO `crad_research_groups` (`id`, `proposal_id`, `title_approval_id`, `proposal_number`, `group_number`, `group_name`, `research_title`, `college_dept`, `adviser`, `academic_year`, `leader_name`, `leader_id`, `leader_email`, `leader_contact`, `status`, `date_assigned`, `created_by`, `created_at`) VALUES
 (67, NULL, NULL, NULL, 'STU-S230106713', 'John Kenneth Abejuela', 'Pending Title Approval', '', '', '2026-2027', 'John Kenneth Abejuela', 'S230106713', '', '', 'Pending Assignment', '2026-09-18', 758, '2026-09-18 15:11:09');
 
 --
--- Triggers `research_groups`
+-- Triggers `crad_research_groups`
 --
 DELIMITER $$
-CREATE TRIGGER `trg_research_groups_panel_notifications_after_delete` AFTER DELETE ON `research_groups` FOR EACH ROW BEGIN
-                DELETE FROM panel_assignment_notifications
+CREATE TRIGGER `trg_research_groups_panel_notifications_after_delete` AFTER DELETE ON `crad_research_groups` FOR EACH ROW BEGIN
+                DELETE FROM crad_panel_assignment_notifications
                 WHERE research_group_id = OLD.id;
             END
 $$
 DELIMITER ;
 DELIMITER $$
-CREATE TRIGGER `trg_research_groups_preoral_evals_after_delete` AFTER DELETE ON `research_groups` FOR EACH ROW BEGIN
-                DELETE FROM preoral_defense_evaluations
+CREATE TRIGGER `trg_research_groups_preoral_evals_after_delete` AFTER DELETE ON `crad_research_groups` FOR EACH ROW BEGIN
+                DELETE FROM crad_preoral_defense_evaluations
                 WHERE research_group_id = OLD.id;
             END
 $$
 DELIMITER ;
 DELIMITER $$
-CREATE TRIGGER `trg_research_groups_preoral_evaluations_after_delete` AFTER DELETE ON `research_groups` FOR EACH ROW BEGIN
-                DELETE FROM preoral_defense_evaluations
+CREATE TRIGGER `trg_research_groups_preoral_evaluations_after_delete` AFTER DELETE ON `crad_research_groups` FOR EACH ROW BEGIN
+                DELETE FROM crad_preoral_defense_evaluations
                 WHERE research_group_id = OLD.id;
             END
 $$
@@ -1534,10 +1534,10 @@ DELIMITER ;
 -- --------------------------------------------------------
 
 --
--- Table structure for table `research_milestones`
+-- Table structure for table `crad_research_milestones`
 --
 
-CREATE TABLE `research_milestones` (
+CREATE TABLE `crad_research_milestones` (
   `id` int(10) UNSIGNED NOT NULL,
   `research_plan_id` int(10) UNSIGNED NOT NULL,
   `milestone_name` varchar(200) NOT NULL,
@@ -1557,10 +1557,10 @@ CREATE TABLE `research_milestones` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `research_milestones`
+-- Dumping data for table `crad_research_milestones`
 --
 
-INSERT INTO `research_milestones` (`id`, `research_plan_id`, `milestone_name`, `description`, `milestone_order`, `progress_percentage`, `weight`, `status`, `start_date`, `target_date`, `completed_at`, `researcher_notes`, `adviser_remarks`, `panel_remarks`, `created_at`, `updated_at`) VALUES
+INSERT INTO `crad_research_milestones` (`id`, `research_plan_id`, `milestone_name`, `description`, `milestone_order`, `progress_percentage`, `weight`, `status`, `start_date`, `target_date`, `completed_at`, `researcher_notes`, `adviser_remarks`, `panel_remarks`, `created_at`, `updated_at`) VALUES
 (175, 21, 'Chapter 4', 'Results / System Design and Development', 4, 0.00, 1.00, 'Not Started', NULL, NULL, NULL, NULL, NULL, NULL, '2026-08-23 03:47:51', '2026-08-23 03:47:51'),
 (176, 21, 'Chapter 5', 'Summary, Conclusions and Recommendations', 5, 0.00, 1.00, 'Not Started', NULL, NULL, NULL, NULL, NULL, NULL, '2026-08-23 03:47:51', '2026-08-23 03:47:51'),
 (177, 22, 'Chapter 1', 'Introduction and Background', 1, 100.00, 1.00, 'Approved', NULL, NULL, '2026-08-23 04:11:53', NULL, 'Progress approved.', 'Approved by Panel.', '2026-08-23 03:49:51', '2026-08-23 04:11:53'),
@@ -1647,10 +1647,10 @@ INSERT INTO `research_milestones` (`id`, `research_plan_id`, `milestone_name`, `
 -- --------------------------------------------------------
 
 --
--- Table structure for table `research_panel_assignments`
+-- Table structure for table `crad_research_panel_assignments`
 --
 
-CREATE TABLE `research_panel_assignments` (
+CREATE TABLE `crad_research_panel_assignments` (
   `id` int(10) UNSIGNED NOT NULL,
   `research_group_id` int(10) UNSIGNED NOT NULL,
   `defense_schedule_id` int(10) UNSIGNED DEFAULT NULL,
@@ -1673,10 +1673,10 @@ CREATE TABLE `research_panel_assignments` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `research_panel_assignments`
+-- Dumping data for table `crad_research_panel_assignments`
 --
 
-INSERT INTO `research_panel_assignments` (`id`, `research_group_id`, `defense_schedule_id`, `proposal_id`, `title_approval_id`, `proposal_number`, `group_number`, `research_title`, `panel_user_id`, `panel_name`, `panel_email`, `expertise`, `availability_status`, `assignment_status`, `defense_phase`, `assigned_by`, `assigned_at`, `created_at`, `updated_at`) VALUES
+INSERT INTO `crad_research_panel_assignments` (`id`, `research_group_id`, `defense_schedule_id`, `proposal_id`, `title_approval_id`, `proposal_number`, `group_number`, `research_title`, `panel_user_id`, `panel_name`, `panel_email`, `expertise`, `availability_status`, `assignment_status`, `defense_phase`, `assigned_by`, `assigned_at`, `created_at`, `updated_at`) VALUES
 (1, 52, NULL, NULL, 35, 'TAP-2026-00035', 'RG-2026-001', 'DEVELOPMENT OF AI ASSISTED OPEN AI GPT 5,5', 491, 'Dr. Jobert Valentino', 'jobertvalentino@bestlink.edu.ph', '', 'Available', 'Assigned', 'Pre-Oral Defense', 116, '2026-08-15 18:28:32', '2026-08-15 18:28:32', '2026-08-15 18:28:32'),
 (2, 52, NULL, NULL, 35, 'TAP-2026-00035', 'RG-2026-001', 'DEVELOPMENT OF AI ASSISTED OPEN AI GPT 5,5', 492, 'Dr. Jonathan Estrada', 'jonathanestrada@bestlink.edu.ph', '', 'Available', 'Assigned', 'Pre-Oral Defense', 116, '2026-08-15 18:28:32', '2026-08-15 18:28:32', '2026-08-15 18:28:32'),
 (3, 52, NULL, NULL, 35, 'TAP-2026-00035', 'RG-2026-001', 'DEVELOPMENT OF AI ASSISTED OPEN AI GPT 5,5', 493, 'Dr. Michelle Guevarra', 'michelleguevarra@bestlink.edu.ph', '', 'Available', 'Assigned', 'Pre-Oral Defense', 116, '2026-08-15 18:28:32', '2026-08-15 18:28:32', '2026-08-15 18:28:32'),
@@ -1735,10 +1735,10 @@ INSERT INTO `research_panel_assignments` (`id`, `research_group_id`, `defense_sc
 -- --------------------------------------------------------
 
 --
--- Table structure for table `research_plans`
+-- Table structure for table `crad_research_plans`
 --
 
-CREATE TABLE `research_plans` (
+CREATE TABLE `crad_research_plans` (
   `id` int(10) UNSIGNED NOT NULL,
   `research_group_id` int(10) UNSIGNED DEFAULT NULL COMMENT 'FK to research_groups; nullable to preserve history if group is removed',
   `research_title` varchar(500) NOT NULL DEFAULT '',
@@ -1761,10 +1761,10 @@ CREATE TABLE `research_plans` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `research_plans`
+-- Dumping data for table `crad_research_plans`
 --
 
-INSERT INTO `research_plans` (`id`, `research_group_id`, `research_title`, `group_number`, `adviser_id`, `adviser_name`, `adviser_email`, `start_date`, `target_completion_date`, `current_stage`, `overall_progress`, `status`, `created_at`, `updated_at`, `final_defense_recommended`, `final_defense_recommended_by`, `final_defense_recommended_by_name`, `final_defense_recommended_at`, `final_defense_recommendation_remarks`) VALUES
+INSERT INTO `crad_research_plans` (`id`, `research_group_id`, `research_title`, `group_number`, `adviser_id`, `adviser_name`, `adviser_email`, `start_date`, `target_completion_date`, `current_stage`, `overall_progress`, `status`, `created_at`, `updated_at`, `final_defense_recommended`, `final_defense_recommended_by`, `final_defense_recommended_by_name`, `final_defense_recommended_at`, `final_defense_recommendation_remarks`) VALUES
 (21, NULL, 'DEVELOPMENT OF AI ASSISTED', 'RG-2026-001', 54, 'Dr. Roberto M. Santos', '', '2026-08-23', NULL, 'Planning', 0.00, 'Active', '2026-08-23 03:16:21', '2026-08-23 03:46:14', 0, NULL, NULL, NULL, NULL),
 (22, NULL, 'DEVELOPMENT OF AI ANALYSIS', 'RG-2026-001', 54, 'Dr. Roberto M. Santos', '', '2026-08-23', NULL, 'Pre-Oral Defense', 100.00, 'Active', '2026-08-23 03:49:51', '2026-08-28 08:00:25', 0, NULL, NULL, NULL, NULL),
 (23, NULL, 'DEVELOPMENT OF AI ASSISTED DOCUMENT', 'RG-2026-001', 54, 'Dr. Roberto M. Santos', '', '2026-08-28', NULL, 'Pre-Oral Defense', 100.00, 'Active', '2026-08-28 15:30:09', '2026-08-28 16:05:34', 1, 54, 'Dr. Roberto M. Santos', '2026-08-28 15:45:21', ''),
@@ -1780,10 +1780,10 @@ INSERT INTO `research_plans` (`id`, `research_group_id`, `research_title`, `grou
 -- --------------------------------------------------------
 
 --
--- Table structure for table `research_progress_activity_logs`
+-- Table structure for table `crad_research_progress_activity_logs`
 --
 
-CREATE TABLE `research_progress_activity_logs` (
+CREATE TABLE `crad_research_progress_activity_logs` (
   `id` int(10) UNSIGNED NOT NULL,
   `research_plan_id` int(10) UNSIGNED NOT NULL,
   `user_id` int(10) UNSIGNED DEFAULT NULL COMMENT 'FK to sms2_db users',
@@ -1799,10 +1799,10 @@ CREATE TABLE `research_progress_activity_logs` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `research_progress_activity_logs`
+-- Dumping data for table `crad_research_progress_activity_logs`
 --
 
-INSERT INTO `research_progress_activity_logs` (`id`, `research_plan_id`, `user_id`, `user_name`, `user_role`, `action`, `entity_type`, `entity_id`, `old_value`, `new_value`, `description`, `created_at`) VALUES
+INSERT INTO `crad_research_progress_activity_logs` (`id`, `research_plan_id`, `user_id`, `user_name`, `user_role`, `action`, `entity_type`, `entity_id`, `old_value`, `new_value`, `description`, `created_at`) VALUES
 (79, 21, 9, 'Student User', 'student', 'progress_updated', 'progress_update', 43, NULL, NULL, 'Progress updated to 0%', '2026-08-23 03:16:35'),
 (90, 22, 9, 'Student User', 'student', 'progress_updated', 'progress_update', 53, NULL, NULL, 'Progress updated to 0%', '2026-08-23 03:49:58'),
 (91, 22, 9, 'Student User', 'student', 'progress_updated', 'progress_update', 54, NULL, NULL, 'Progress updated to 0%', '2026-08-23 03:50:08'),
@@ -1937,10 +1937,10 @@ INSERT INTO `research_progress_activity_logs` (`id`, `research_plan_id`, `user_i
 -- --------------------------------------------------------
 
 --
--- Table structure for table `research_progress_ai_analyses`
+-- Table structure for table `crad_research_progress_ai_analyses`
 --
 
-CREATE TABLE `research_progress_ai_analyses` (
+CREATE TABLE `crad_research_progress_ai_analyses` (
   `id` int(10) UNSIGNED NOT NULL,
   `progress_update_id` int(10) UNSIGNED NOT NULL,
   `attachment_id` int(10) UNSIGNED NOT NULL DEFAULT 0,
@@ -1956,10 +1956,10 @@ CREATE TABLE `research_progress_ai_analyses` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `research_progress_ai_analyses`
+-- Dumping data for table `crad_research_progress_ai_analyses`
 --
 
-INSERT INTO `research_progress_ai_analyses` (`id`, `progress_update_id`, `attachment_id`, `milestone_name`, `verdict`, `grammar_quality`, `summary`, `notes_json`, `source`, `analyzed_by`, `analyzed_by_name`, `created_at`) VALUES
+INSERT INTO `crad_research_progress_ai_analyses` (`id`, `progress_update_id`, `attachment_id`, `milestone_name`, `verdict`, `grammar_quality`, `summary`, `notes_json`, `source`, `analyzed_by`, `analyzed_by_name`, `created_at`) VALUES
 (1, 94, 80, 'Chapter 1', 'needs_revision', 'poor', 'Grammar and writing issues were found in Chapter 1. Do not approve until the student revises the notes below.', '[{\"issue\":\"Possible spelling mistake found.\",\"suggestion\":\"Change to: \\\"sec\\\"\",\"example\":\"...VITY Name: Abejuela, John Kenneth C. Yr.&Sec. 4th 41005 Date:08\\/28\\/2026 Activity Ove...\"},{\"issue\":\"“Part time” is usually hyphenated in this context.\",\"suggestion\":\"Change to: \\\"Part-Time\\\"\",\"example\":\"...entation requirements. 2-Hour Time Plan Part Time Points I – Hard Case Scenario 60 minute...\"},{\"issue\":\"Possible spelling mistake found.\",\"suggestion\":\"Change to: \\\"Last Name\\\"\",\"example\":\"...ocument. Submit one PDF\\/DOCX file named LastName_FirstName_Week8_OnlineActivity.  PART I...\"},{\"issue\":\"Possible spelling mistake found.\",\"suggestion\":\"Change to: \\\"First-name\\\"\",\"example\":\"...Submit one PDF\\/DOCX file named LastName_FirstName_Week8_OnlineActivity.  PART I – CASE SC...\"},{\"issue\":\"Possible spelling mistake found.\",\"suggestion\":\"Change to: \\\"Online Activity\\\"\",\"example\":\"...OCX file named LastName_FirstName_Week8_OnlineActivity.  PART I – CASE SCENARIO 60 minutes | 5...\"},{\"issue\":\"Possible spelling mistake found.\",\"suggestion\":\"Change to: \\\"SEES\\\"\",\"example\":\"... Student Enrollment and Records System (SERS). The implementation team has only 14 d...\"},{\"issue\":\"Consider using an em dash in dialogues and enumerations.\",\"suggestion\":\"Change to: \\\"—\\\"\",\"example\":\"...influence the choice of software media. - Unreliable internet connection – Two ca...\"},{\"issue\":\"Consider using an em dash in dialogues and enumerations.\",\"suggestion\":\"Change to: \\\"—\\\"\",\"example\":\"... not depend only on online downloading. - Large installation package – The softwa...\"},{\"issue\":\"Consider using an em dash in dialogues and enumerations.\",\"suggestion\":\"Change to: \\\"—\\\"\",\"example\":\"...oo long and consume a lot of bandwidth. - 60 target computers – The team needs a ...\"},{\"issue\":\"Consider using an em dash in dialogues and enumerations.\",\"suggestion\":\"Change to: \\\"—\\\"\",\"example\":\"... package on many computers efficiently. - Same software version is required – All...\"},{\"issue\":\"Consider using an em dash in dialogues and enumerations.\",\"suggestion\":\"Change to: \\\"—\\\"\",\"example\":\"...compatibility and maintenance problems. - Security of the installer – The team mu...\"},{\"issue\":\"This sentence does not start with an uppercase letter.\",\"suggestion\":\"Change to: \\\"Issue\\\"\",\"example\":\"... is not automatically the best choice.  issue tracking, reporting, or support. Choosi...\"}]', 'grammar_engine', 54, 'Dr. Roberto M. Santos', '2026-09-02 07:55:16'),
 (2, 95, 81, 'Chapter 2', 'needs_revision', 'poor', 'Grammar and writing issues were found in Chapter 2. Do not approve until the student revises the notes below.', '[{\"issue\":\"Possible spelling mistake found.\",\"suggestion\":\"Change to: \\\"sec\\\"\",\"example\":\"...VITY Name: Abejuela, John Kenneth C. Yr.&Sec. 4th 41005 Date:08\\/28\\/2026 Activity Ove...\"},{\"issue\":\"“Part time” is usually hyphenated in this context.\",\"suggestion\":\"Change to: \\\"Part-Time\\\"\",\"example\":\"...entation requirements. 2-Hour Time Plan Part Time Points I – Hard Case Scenario 60 minute...\"},{\"issue\":\"Possible spelling mistake found.\",\"suggestion\":\"Change to: \\\"Last Name\\\"\",\"example\":\"...ocument. Submit one PDF\\/DOCX file named LastName_FirstName_Week8_OnlineActivity.  PART I...\"},{\"issue\":\"Possible spelling mistake found.\",\"suggestion\":\"Change to: \\\"First-name\\\"\",\"example\":\"...Submit one PDF\\/DOCX file named LastName_FirstName_Week8_OnlineActivity.  PART I – CASE SC...\"},{\"issue\":\"Possible spelling mistake found.\",\"suggestion\":\"Change to: \\\"Online Activity\\\"\",\"example\":\"...OCX file named LastName_FirstName_Week8_OnlineActivity.  PART I – CASE SCENARIO 60 minutes | 5...\"},{\"issue\":\"Possible spelling mistake found.\",\"suggestion\":\"Change to: \\\"SEES\\\"\",\"example\":\"... Student Enrollment and Records System (SERS). The implementation team has only 14 d...\"},{\"issue\":\"Consider using an em dash in dialogues and enumerations.\",\"suggestion\":\"Change to: \\\"—\\\"\",\"example\":\"...influence the choice of software media. - Unreliable internet connection – Two ca...\"},{\"issue\":\"Consider using an em dash in dialogues and enumerations.\",\"suggestion\":\"Change to: \\\"—\\\"\",\"example\":\"... not depend only on online downloading. - Large installation package – The softwa...\"},{\"issue\":\"Consider using an em dash in dialogues and enumerations.\",\"suggestion\":\"Change to: \\\"—\\\"\",\"example\":\"...oo long and consume a lot of bandwidth. - 60 target computers – The team needs a ...\"},{\"issue\":\"Consider using an em dash in dialogues and enumerations.\",\"suggestion\":\"Change to: \\\"—\\\"\",\"example\":\"... package on many computers efficiently. - Same software version is required – All...\"},{\"issue\":\"Consider using an em dash in dialogues and enumerations.\",\"suggestion\":\"Change to: \\\"—\\\"\",\"example\":\"...compatibility and maintenance problems. - Security of the installer – The team mu...\"},{\"issue\":\"This sentence does not start with an uppercase letter.\",\"suggestion\":\"Change to: \\\"Issue\\\"\",\"example\":\"... is not automatically the best choice.  issue tracking, reporting, or support. Choosi...\"}]', 'grammar_engine', 54, 'Dr. Roberto M. Santos', '2026-09-02 07:57:44'),
 (3, 97, 83, 'Chapter 1', 'needs_revision', 'fair', 'Grammar and writing issues were found in Chapter 1. Do not approve until the student revises the notes below.', '[{\"issue\":\"To join two clauses or introduce examples, consider using an em dash.\",\"suggestion\":\"Change to: \\\" — \\\"\",\"example\":\"COURSE CODE: PRAC101 Section: BSIT - 4105\\/NA COURSE TITLE: OJT \\/ PRACTICUM 1 ...\"},{\"issue\":\"Possible spelling mistake found.\",\"suggestion\":\"Change to: \\\"GENERA\\\"\",\"example\":\"...t Semester, SY 2026-2027 PROFESSOR: MR. GELERA, EMERSON D. NAME OF STUDENT: ABEJUELA, ...\"},{\"issue\":\"Possible spelling mistake found.\",\"suggestion\":\"Change to: \\\"BENGUELA\\\"\",\"example\":\"...MR. GELERA, EMERSON D. NAME OF STUDENT: ABEJUELA, JOHN KENNETH C. OJT NARRATIVE REPORT  ...\"},{\"issue\":\"Possible spelling mistake found.\",\"suggestion\":\"Change to: \\\"Fundamental\\\"\",\"example\":\"...OJT NARRATIVE REPORT  TOPIC:Session 7 : Fundumental of Web App Security  SPEAKER: MR. MARC ...\"},{\"issue\":\"Possible spelling mistake found.\",\"suggestion\":\"Change to: \\\"TORNADO\\\"\",\"example\":\"... of Web App Security  SPEAKER: MR. MARC TONIDO DURATION: 8:00 AM – 9:30 AM SCREENSHOT ...\"},{\"issue\":\"If the text is a generality, ‘of the’ is not necessary.\",\"suggestion\":\"Change to: \\\"some\\\"\",\"example\":\"...ols such as HTTPS. Lastly, we discussed some of the OWASP Top 10 vulnerabilities. These inc...\"},{\"issue\":\"Possible spelling mistake found.\",\"suggestion\":\"Change to: \\\"AXE\\\"\",\"example\":\"...e Data Exposure, XML External Entities (XXE), Broken Access Control, Security Misco...\"}]', 'grammar_engine', 54, 'Dr. Roberto M. Santos', '2026-09-19 00:36:24'),
@@ -1988,10 +1988,10 @@ INSERT INTO `research_progress_ai_analyses` (`id`, `progress_update_id`, `attach
 -- --------------------------------------------------------
 
 --
--- Table structure for table `research_progress_attachments`
+-- Table structure for table `crad_research_progress_attachments`
 --
 
-CREATE TABLE `research_progress_attachments` (
+CREATE TABLE `crad_research_progress_attachments` (
   `id` int(10) UNSIGNED NOT NULL,
   `progress_update_id` int(10) UNSIGNED NOT NULL,
   `file_name` varchar(300) NOT NULL,
@@ -2003,10 +2003,10 @@ CREATE TABLE `research_progress_attachments` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `research_progress_attachments`
+-- Dumping data for table `crad_research_progress_attachments`
 --
 
-INSERT INTO `research_progress_attachments` (`id`, `progress_update_id`, `file_name`, `file_path`, `file_type`, `file_size`, `uploaded_by`, `created_at`) VALUES
+INSERT INTO `crad_research_progress_attachments` (`id`, `progress_update_id`, `file_name`, `file_path`, `file_type`, `file_size`, `uploaded_by`, `created_at`) VALUES
 (34, 43, 'CRAD_Chapter_1_TO_4_KULANG-PA.docx', 'F:\\xampp\\htdocs\\SMS2_system/storage/uploads/research_progress/g60/u9/09a62b2daa1cce84684a82782b95b7df.docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 7734354, 9, '2026-08-23 03:16:35'),
 (41, 53, 'OJT_PRACTICUM_1_NARRATIVE_REPORT (1) (1).docx', 'F:\\xampp\\htdocs\\SMS2_system/storage/uploads/research_progress/g61/u9/df3f82b96645757c73e791012ab36dc4.docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 236268, 9, '2026-08-23 03:49:58'),
 (42, 54, 'OJT_PRACTICUM_1_NARRATIVE_REPORT (1) (1).docx', 'F:\\xampp\\htdocs\\SMS2_system/storage/uploads/research_progress/g61/u9/c17c49e54baa55cad91e60bd58bcad92.docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 236268, 9, '2026-08-23 03:50:08'),
@@ -2080,10 +2080,10 @@ INSERT INTO `research_progress_attachments` (`id`, `progress_update_id`, `file_n
 -- --------------------------------------------------------
 
 --
--- Table structure for table `research_progress_feedback`
+-- Table structure for table `crad_research_progress_feedback`
 --
 
-CREATE TABLE `research_progress_feedback` (
+CREATE TABLE `crad_research_progress_feedback` (
   `id` int(10) UNSIGNED NOT NULL,
   `progress_update_id` int(10) UNSIGNED DEFAULT NULL COMMENT 'Can be NULL for general milestone feedback',
   `milestone_id` int(10) UNSIGNED DEFAULT NULL,
@@ -2099,10 +2099,10 @@ CREATE TABLE `research_progress_feedback` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `research_progress_feedback`
+-- Dumping data for table `crad_research_progress_feedback`
 --
 
-INSERT INTO `research_progress_feedback` (`id`, `progress_update_id`, `milestone_id`, `research_plan_id`, `adviser_user_id`, `adviser_name`, `feedback_text`, `new_milestone_status`, `submission_token`, `feedback_type`, `created_at`, `updated_at`) VALUES
+INSERT INTO `crad_research_progress_feedback` (`id`, `progress_update_id`, `milestone_id`, `research_plan_id`, `adviser_user_id`, `adviser_name`, `feedback_text`, `new_milestone_status`, `submission_token`, `feedback_type`, `created_at`, `updated_at`) VALUES
 (36, 53, 177, 22, 54, 'Dr. Roberto M. Santos', 'Progress approved.', 'Approved', 'cbab7e8bb4297eed5707494db5aca072', 'Progress Approved', '2026-08-23 03:50:29', '2026-08-23 03:50:29'),
 (37, 54, 178, 22, 54, 'Dr. Roberto M. Santos', 'Progress approved.', 'Approved', '3db8eccb296ff187522dda8d89406e2e', 'Progress Approved', '2026-08-23 03:50:36', '2026-08-23 03:50:36'),
 (38, 55, 179, 22, 54, 'Dr. Roberto M. Santos', 'Progress approved.', 'Approved', '2e9d9355eb6a72370d738e70531d8dbb', 'Progress Approved', '2026-08-23 03:50:45', '2026-08-23 03:50:45'),
@@ -2165,12 +2165,12 @@ INSERT INTO `research_progress_feedback` (`id`, `progress_update_id`, `milestone
 -- --------------------------------------------------------
 
 --
--- Table structure for table `research_progress_notifications`
+-- Table structure for table `crad_research_progress_notifications`
 --
 
-CREATE TABLE `research_progress_notifications` (
+CREATE TABLE `crad_research_progress_notifications` (
   `id` int(10) UNSIGNED NOT NULL,
-  `recipient_user_id` int(10) UNSIGNED DEFAULT NULL COMMENT 'FK to sms2_db.users.id (NULL = role-based)',
+  `recipient_user_id` int(10) UNSIGNED DEFAULT NULL COMMENT 'FK to sms_users.id (NULL = role-based)',
   `recipient_email` varchar(200) NOT NULL DEFAULT '',
   `recipient_role` varchar(40) NOT NULL DEFAULT '',
   `batch_key` varchar(100) NOT NULL DEFAULT '' COMMENT 'Unique key per event for deduplication',
@@ -2186,10 +2186,10 @@ CREATE TABLE `research_progress_notifications` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `research_progress_notifications`
+-- Dumping data for table `crad_research_progress_notifications`
 --
 
-INSERT INTO `research_progress_notifications` (`id`, `recipient_user_id`, `recipient_email`, `recipient_role`, `batch_key`, `notification_type`, `title`, `body`, `related_entity_type`, `related_entity_id`, `action_url`, `status`, `created_at`, `read_at`) VALUES
+INSERT INTO `crad_research_progress_notifications` (`id`, `recipient_user_id`, `recipient_email`, `recipient_role`, `batch_key`, `notification_type`, `title`, `body`, `related_entity_type`, `related_entity_id`, `action_url`, `status`, `created_at`, `read_at`) VALUES
 (130, 54, 'rsantos@bestlink.edu.ph', 'adviser', 'progress_update:97', 'progress_update', 'New Progress Update', 'RG-2026-068 submitted a progress update for Chapter 1', 'progress_update', 97, '/sms2_system/modules/faculty/pages/research-progress.php?group=RG-2026-068', 'unread', '2026-09-19 00:35:41', NULL),
 (131, 54, 'rsantos@bestlink.edu.ph', 'adviser', 'progress_update:98', 'progress_update', 'New Progress Update', 'RG-2026-068 submitted a progress update for Chapter 2', 'progress_update', 98, '/sms2_system/modules/faculty/pages/research-progress.php?group=RG-2026-068', 'unread', '2026-09-19 00:35:48', NULL),
 (132, 54, 'rsantos@bestlink.edu.ph', 'adviser', 'progress_update:99', 'progress_update', 'New Progress Update', 'RG-2026-068 submitted a progress update for Chapter 3', 'progress_update', 99, '/sms2_system/modules/faculty/pages/research-progress.php?group=RG-2026-068', 'unread', '2026-09-19 00:35:56', NULL),
@@ -2243,10 +2243,10 @@ INSERT INTO `research_progress_notifications` (`id`, `recipient_user_id`, `recip
 -- --------------------------------------------------------
 
 --
--- Table structure for table `research_progress_updates`
+-- Table structure for table `crad_research_progress_updates`
 --
 
-CREATE TABLE `research_progress_updates` (
+CREATE TABLE `crad_research_progress_updates` (
   `id` int(10) UNSIGNED NOT NULL,
   `research_plan_id` int(10) UNSIGNED NOT NULL,
   `research_group_id` int(10) UNSIGNED NOT NULL,
@@ -2268,10 +2268,10 @@ CREATE TABLE `research_progress_updates` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `research_progress_updates`
+-- Dumping data for table `crad_research_progress_updates`
 --
 
-INSERT INTO `research_progress_updates` (`id`, `research_plan_id`, `research_group_id`, `milestone_id`, `submitted_by_user_id`, `submitted_by_name`, `update_title`, `accomplishments`, `problems_blockers`, `next_planned_activity`, `attachment_path`, `attachment_original_name`, `submission_token`, `previous_progress`, `new_progress`, `milestone_status`, `submitted_at`, `updated_at`) VALUES
+INSERT INTO `crad_research_progress_updates` (`id`, `research_plan_id`, `research_group_id`, `milestone_id`, `submitted_by_user_id`, `submitted_by_name`, `update_title`, `accomplishments`, `problems_blockers`, `next_planned_activity`, `attachment_path`, `attachment_original_name`, `submission_token`, `previous_progress`, `new_progress`, `milestone_status`, `submitted_at`, `updated_at`) VALUES
 (43, 21, 60, NULL, 9, 'Student User', 'DEVELOPMENT OF AI ASSISTED', 'sadas', '', 'asdas', 'F:\\xampp\\htdocs\\SMS2_system/storage/uploads/research_progress/g60/u9/09a62b2daa1cce84684a82782b95b7df.docx', 'CRAD_Chapter_1_TO_4_KULANG-PA.docx', '8f3692e45ee0853f66293b2ec969314d', 0.00, 0.00, 'Submitted for Review', '2026-08-23 03:16:35', '2026-08-23 03:16:35'),
 (53, 22, 61, 177, 9, 'Student User', 'DEVELOPMENT OF AI ANALYSIS', 'SADAS', '', 'ASDA', 'F:\\xampp\\htdocs\\SMS2_system/storage/uploads/research_progress/g61/u9/df3f82b96645757c73e791012ab36dc4.docx', 'OJT_PRACTICUM_1_NARRATIVE_REPORT (1) (1).docx', 'e90bcc3cc197bb965809cb9c2e0e3080', 0.00, 0.00, 'Approved', '2026-08-23 03:49:58', '2026-08-23 03:50:29'),
 (54, 22, 61, 178, 9, 'Student User', 'DEVELOPMENT OF AI ANALYSIS', 'ADSAD', '', 'ASDAS', 'F:\\xampp\\htdocs\\SMS2_system/storage/uploads/research_progress/g61/u9/c17c49e54baa55cad91e60bd58bcad92.docx', 'OJT_PRACTICUM_1_NARRATIVE_REPORT (1) (1).docx', '7972c30afb20aa7a048bbb0f1d2c3da3', 0.00, 0.00, 'Approved', '2026-08-23 03:50:08', '2026-08-23 03:50:36'),
@@ -2348,10 +2348,10 @@ INSERT INTO `research_progress_updates` (`id`, `research_plan_id`, `research_gro
 -- --------------------------------------------------------
 
 --
--- Table structure for table `research_proposals`
+-- Table structure for table `crad_research_proposals`
 --
 
-CREATE TABLE `research_proposals` (
+CREATE TABLE `crad_research_proposals` (
   `id` int(10) UNSIGNED NOT NULL,
   `ref_code` varchar(30) NOT NULL COMMENT 'Auto-generated reference e.g. CRD-2026-00001',
   `proposal_number` varchar(30) DEFAULT NULL COMMENT 'Official number generated after approved proposal registration',
@@ -2381,10 +2381,10 @@ CREATE TABLE `research_proposals` (
 -- --------------------------------------------------------
 
 --
--- Table structure for table `research_revision_cycles`
+-- Table structure for table `crad_research_revision_cycles`
 --
 
-CREATE TABLE `research_revision_cycles` (
+CREATE TABLE `crad_research_revision_cycles` (
   `id` int(10) UNSIGNED NOT NULL,
   `research_group_id` int(10) UNSIGNED NOT NULL,
   `defense_schedule_id` int(10) UNSIGNED NOT NULL,
@@ -2405,10 +2405,10 @@ CREATE TABLE `research_revision_cycles` (
 -- --------------------------------------------------------
 
 --
--- Table structure for table `research_services_clearances`
+-- Table structure for table `crad_research_services_clearances`
 --
 
-CREATE TABLE `research_services_clearances` (
+CREATE TABLE `crad_research_services_clearances` (
   `id` int(10) UNSIGNED NOT NULL,
   `research_group_id` int(10) UNSIGNED NOT NULL,
   `research_stage` varchar(20) NOT NULL DEFAULT 'research_1',
@@ -2451,10 +2451,10 @@ CREATE TABLE `research_services_clearances` (
 -- --------------------------------------------------------
 
 --
--- Table structure for table `research_venues`
+-- Table structure for table `crad_research_venues`
 --
 
-CREATE TABLE `research_venues` (
+CREATE TABLE `crad_research_venues` (
   `id` int(10) UNSIGNED NOT NULL,
   `venue_name` varchar(160) NOT NULL,
   `capacity` int(10) UNSIGNED NOT NULL DEFAULT 0,
@@ -2466,10 +2466,10 @@ CREATE TABLE `research_venues` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `research_venues`
+-- Dumping data for table `crad_research_venues`
 --
 
-INSERT INTO `research_venues` (`id`, `venue_name`, `capacity`, `venue_type`, `status`, `created_by`, `created_at`, `updated_at`) VALUES
+INSERT INTO `crad_research_venues` (`id`, `venue_name`, `capacity`, `venue_type`, `status`, `created_by`, `created_at`, `updated_at`) VALUES
 (1, 'CRAD Conference Room', 30, 'Conference Room', 'Available', NULL, '2026-08-10 13:50:31', '2026-08-10 13:50:31'),
 (2, 'Research Room 1', 25, 'Research Room', 'Available', NULL, '2026-08-10 13:50:31', '2026-08-10 13:50:31'),
 (3, 'Research Room 2', 25, 'Research Room', 'Available', NULL, '2026-08-10 13:50:31', '2026-08-10 13:50:31'),
@@ -2479,10 +2479,10 @@ INSERT INTO `research_venues` (`id`, `venue_name`, `capacity`, `venue_type`, `st
 -- --------------------------------------------------------
 
 --
--- Table structure for table `title_approvals`
+-- Table structure for table `crad_title_approvals`
 --
 
-CREATE TABLE `title_approvals` (
+CREATE TABLE `crad_title_approvals` (
   `id` int(10) UNSIGNED NOT NULL,
   `student_id` varchar(50) NOT NULL DEFAULT '',
   `student_user_id` int(10) UNSIGNED DEFAULT NULL,
@@ -2517,17 +2517,17 @@ CREATE TABLE `title_approvals` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Triggers `title_approvals`
+-- Triggers `crad_title_approvals`
 --
 DELIMITER $$
-CREATE TRIGGER `trg_title_approvals_after_delete` AFTER DELETE ON `title_approvals` FOR EACH ROW BEGIN
-            DELETE FROM research_coordinator_assignments
+CREATE TRIGGER `trg_title_approvals_after_delete` AFTER DELETE ON `crad_title_approvals` FOR EACH ROW BEGIN
+            DELETE FROM crad_research_coordinator_assignments
              WHERE (title_approval_id IS NOT NULL AND title_approval_id = OLD.id)
                 OR (OLD.student_id IS NOT NULL AND OLD.student_id <> '' AND student_id = OLD.student_id)
                 OR (OLD.student_id IS NOT NULL AND OLD.student_id <> '' AND group_number = CONCAT('STU-', OLD.student_id))
                 OR (OLD.proposal_number IS NOT NULL AND OLD.proposal_number <> '' AND proposal_number = OLD.proposal_number);
 
-            DELETE FROM research_adviser_assignments
+            DELETE FROM crad_research_adviser_assignments
              WHERE (OLD.student_id IS NOT NULL AND OLD.student_id <> '' AND student_id = OLD.student_id)
                 OR (OLD.student_id IS NOT NULL AND OLD.student_id <> '' AND group_number = CONCAT('STU-', OLD.student_id))
                 OR (OLD.proposal_number IS NOT NULL AND OLD.proposal_number <> '' AND proposal_number = OLD.proposal_number);
@@ -2540,9 +2540,9 @@ DELIMITER ;
 --
 
 --
--- Indexes for table `chapter_evaluations`
+-- Indexes for table `crad_chapter_evaluations`
 --
-ALTER TABLE `chapter_evaluations`
+ALTER TABLE `crad_chapter_evaluations`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_chapter_evaluation_submission` (`submission_id`),
   ADD KEY `idx_chapter_eval_evaluator` (`evaluator_user_id`),
@@ -2550,9 +2550,9 @@ ALTER TABLE `chapter_evaluations`
   ADD KEY `idx_chapter_eval_created` (`created_at`);
 
 --
--- Indexes for table `chapter_evaluation_notifications`
+-- Indexes for table `crad_chapter_evaluation_notifications`
 --
-ALTER TABLE `chapter_evaluation_notifications`
+ALTER TABLE `crad_chapter_evaluation_notifications`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_chapter_notification_event` (`event_key`),
   ADD KEY `idx_chapter_notification_recipient` (`recipient_user_id`,`recipient_role`,`recipient_email`),
@@ -2560,9 +2560,9 @@ ALTER TABLE `chapter_evaluation_notifications`
   ADD KEY `idx_chapter_notification_created` (`created_at`);
 
 --
--- Indexes for table `chapter_submissions`
+-- Indexes for table `crad_chapter_submissions`
 --
-ALTER TABLE `chapter_submissions`
+ALTER TABLE `crad_chapter_submissions`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_chapter_version` (`research_group_id`,`chapter_number`,`version_number`),
   ADD UNIQUE KEY `uniq_chapter_token` (`submission_token`),
@@ -2572,18 +2572,18 @@ ALTER TABLE `chapter_submissions`
   ADD KEY `idx_chapter_updated` (`updated_at`);
 
 --
--- Indexes for table `chapter_submission_history`
+-- Indexes for table `crad_chapter_submission_history`
 --
-ALTER TABLE `chapter_submission_history`
+ALTER TABLE `crad_chapter_submission_history`
   ADD PRIMARY KEY (`id`),
   ADD KEY `idx_chapter_history_submission` (`submission_id`),
   ADD KEY `idx_chapter_history_group` (`research_group_id`),
   ADD KEY `idx_chapter_history_created` (`created_at`);
 
 --
--- Indexes for table `final_defense_evaluations`
+-- Indexes for table `crad_final_defense_evaluations`
 --
-ALTER TABLE `final_defense_evaluations`
+ALTER TABLE `crad_final_defense_evaluations`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_final_panel_submission` (`defense_schedule_id`,`panel_user_id`),
   ADD KEY `idx_final_group` (`research_group_id`),
@@ -2591,24 +2591,24 @@ ALTER TABLE `final_defense_evaluations`
   ADD KEY `idx_final_status` (`status`);
 
 --
--- Indexes for table `final_defense_recommendations`
+-- Indexes for table `crad_final_defense_recommendations`
 --
-ALTER TABLE `final_defense_recommendations`
+ALTER TABLE `crad_final_defense_recommendations`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_fdr_group` (`research_group_id`),
   ADD KEY `idx_fdr_status` (`status`);
 
 --
--- Indexes for table `final_manuscript_approvals`
+-- Indexes for table `crad_final_manuscript_approvals`
 --
-ALTER TABLE `final_manuscript_approvals`
+ALTER TABLE `crad_final_manuscript_approvals`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_fma_group` (`research_group_id`);
 
 --
--- Indexes for table `grant_applications`
+-- Indexes for table `crad_grant_applications`
 --
-ALTER TABLE `grant_applications`
+ALTER TABLE `crad_grant_applications`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_ga_token` (`submission_token`),
   ADD KEY `idx_ga_opportunity` (`grant_opportunity_id`),
@@ -2617,72 +2617,72 @@ ALTER TABLE `grant_applications`
   ADD KEY `idx_ga_submitted` (`submitted_at`);
 
 --
--- Indexes for table `grant_document_repository`
+-- Indexes for table `crad_grant_document_repository`
 --
-ALTER TABLE `grant_document_repository`
+ALTER TABLE `crad_grant_document_repository`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_gdr_application` (`grant_application_id`),
   ADD KEY `idx_gdr_reference` (`archive_reference`),
   ADD KEY `idx_gdr_archived` (`archived_at`);
 
 --
--- Indexes for table `grant_document_repository_items`
+-- Indexes for table `crad_grant_document_repository_items`
 --
-ALTER TABLE `grant_document_repository_items`
+ALTER TABLE `crad_grant_document_repository_items`
   ADD PRIMARY KEY (`id`),
   ADD KEY `idx_gdri_repository` (`repository_id`),
   ADD KEY `idx_gdri_application` (`grant_application_id`),
   ADD KEY `idx_gdri_category` (`category`);
 
 --
--- Indexes for table `grant_final_output_submissions`
+-- Indexes for table `crad_grant_final_output_submissions`
 --
-ALTER TABLE `grant_final_output_submissions`
+ALTER TABLE `crad_grant_final_output_submissions`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_gfos_application` (`grant_application_id`),
   ADD KEY `idx_gfos_status` (`status`),
   ADD KEY `idx_gfos_submitted` (`submitted_at`);
 
 --
--- Indexes for table `grant_funded_progress_evidence`
+-- Indexes for table `crad_grant_funded_progress_evidence`
 --
-ALTER TABLE `grant_funded_progress_evidence`
+ALTER TABLE `crad_grant_funded_progress_evidence`
   ADD PRIMARY KEY (`id`),
   ADD KEY `idx_gfpe_application` (`grant_application_id`),
   ADD KEY `idx_gfpe_milestone` (`milestone_id`),
   ADD KEY `idx_gfpe_created` (`created_at`);
 
 --
--- Indexes for table `grant_funded_project_milestones`
+-- Indexes for table `crad_grant_funded_project_milestones`
 --
-ALTER TABLE `grant_funded_project_milestones`
+ALTER TABLE `crad_grant_funded_project_milestones`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_gfpm_app_order` (`grant_application_id`,`milestone_order`),
   ADD KEY `idx_gfpm_application` (`grant_application_id`),
   ADD KEY `idx_gfpm_status` (`status`);
 
 --
--- Indexes for table `grant_funding_disbursements`
+-- Indexes for table `crad_grant_funding_disbursements`
 --
-ALTER TABLE `grant_funding_disbursements`
+ALTER TABLE `crad_grant_funding_disbursements`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_gfd_app_tranche` (`grant_application_id`,`tranche_number`),
   ADD KEY `idx_gfd_application` (`grant_application_id`),
   ADD KEY `idx_gfd_status` (`status`);
 
 --
--- Indexes for table `grant_opportunities`
+-- Indexes for table `crad_grant_opportunities`
 --
-ALTER TABLE `grant_opportunities`
+ALTER TABLE `crad_grant_opportunities`
   ADD PRIMARY KEY (`id`),
   ADD KEY `idx_go_status` (`status`),
   ADD KEY `idx_go_deadline` (`application_deadline`),
   ADD KEY `idx_go_created_by` (`created_by_user_id`);
 
 --
--- Indexes for table `grant_proposal_approval_steps`
+-- Indexes for table `crad_grant_proposal_approval_steps`
 --
-ALTER TABLE `grant_proposal_approval_steps`
+ALTER TABLE `crad_grant_proposal_approval_steps`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_gpas_workflow_step` (`workflow_id`,`step_key`),
   ADD KEY `idx_gpas_application` (`grant_application_id`),
@@ -2690,18 +2690,18 @@ ALTER TABLE `grant_proposal_approval_steps`
   ADD KEY `idx_gpas_role` (`approver_role_key`);
 
 --
--- Indexes for table `grant_proposal_approval_workflows`
+-- Indexes for table `crad_grant_proposal_approval_workflows`
 --
-ALTER TABLE `grant_proposal_approval_workflows`
+ALTER TABLE `crad_grant_proposal_approval_workflows`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_gpaw_application` (`grant_application_id`),
   ADD KEY `idx_gpaw_status` (`workflow_status`),
   ADD KEY `idx_gpaw_current_step` (`current_step_key`);
 
 --
--- Indexes for table `grant_proposal_evaluations`
+-- Indexes for table `crad_grant_proposal_evaluations`
 --
-ALTER TABLE `grant_proposal_evaluations`
+ALTER TABLE `crad_grant_proposal_evaluations`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_gpe_app_eval_ver` (`grant_application_id`,`evaluator_user_id`,`proposal_version`),
   ADD KEY `idx_gpe_application` (`grant_application_id`),
@@ -2709,9 +2709,9 @@ ALTER TABLE `grant_proposal_evaluations`
   ADD KEY `idx_gpe_submitted` (`submitted_at`);
 
 --
--- Indexes for table `grant_proposal_notifications`
+-- Indexes for table `crad_grant_proposal_notifications`
 --
-ALTER TABLE `grant_proposal_notifications`
+ALTER TABLE `crad_grant_proposal_notifications`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_gpn_event` (`event_key`),
   ADD KEY `idx_gpn_recipient_user` (`recipient_user_id`),
@@ -2719,35 +2719,35 @@ ALTER TABLE `grant_proposal_notifications`
   ADD KEY `idx_gpn_created` (`created_at`);
 
 --
--- Indexes for table `grant_proposal_versions`
+-- Indexes for table `crad_grant_proposal_versions`
 --
-ALTER TABLE `grant_proposal_versions`
+ALTER TABLE `crad_grant_proposal_versions`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_gpv_app_ver` (`grant_application_id`,`version_number`),
   ADD KEY `idx_gpv_application` (`grant_application_id`),
   ADD KEY `idx_gpv_submitted` (`submitted_at`);
 
 --
--- Indexes for table `grant_publications_ip_repository`
+-- Indexes for table `crad_grant_publications_ip_repository`
 --
-ALTER TABLE `grant_publications_ip_repository`
+ALTER TABLE `crad_grant_publications_ip_repository`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_gpip_application` (`grant_application_id`),
   ADD KEY `idx_gpip_reference` (`repository_reference`),
   ADD KEY `idx_gpip_verified` (`verified_at`);
 
 --
--- Indexes for table `manuscript_evaluations`
+-- Indexes for table `crad_manuscript_evaluations`
 --
-ALTER TABLE `manuscript_evaluations`
+ALTER TABLE `crad_manuscript_evaluations`
   ADD PRIMARY KEY (`id`),
   ADD KEY `idx_meval_submission` (`submission_id`),
   ADD KEY `idx_meval_group` (`research_group_id`);
 
 --
--- Indexes for table `manuscript_submissions`
+-- Indexes for table `crad_manuscript_submissions`
 --
-ALTER TABLE `manuscript_submissions`
+ALTER TABLE `crad_manuscript_submissions`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_manuscript_version` (`research_group_id`,`version_number`),
   ADD UNIQUE KEY `uniq_manuscript_token` (`submission_token`),
@@ -2755,26 +2755,26 @@ ALTER TABLE `manuscript_submissions`
   ADD KEY `idx_manuscript_group` (`research_group_id`);
 
 --
--- Indexes for table `panel_assignment_notifications`
+-- Indexes for table `crad_panel_assignment_notifications`
 --
-ALTER TABLE `panel_assignment_notifications`
+ALTER TABLE `crad_panel_assignment_notifications`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_panel_assignment_notification` (`event_key`),
   ADD KEY `idx_panel_notification_recipient` (`recipient_user_id`,`recipient_role`,`recipient_email`),
   ADD KEY `idx_panel_notification_created` (`created_at`);
 
 --
--- Indexes for table `panel_member_availability`
+-- Indexes for table `crad_panel_member_availability`
 --
-ALTER TABLE `panel_member_availability`
+ALTER TABLE `crad_panel_member_availability`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_panel_availability_user` (`panel_user_id`),
   ADD KEY `idx_panel_availability_status` (`availability_status`);
 
 --
--- Indexes for table `preoral_defense_evaluations`
+-- Indexes for table `crad_preoral_defense_evaluations`
 --
-ALTER TABLE `preoral_defense_evaluations`
+ALTER TABLE `crad_preoral_defense_evaluations`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_preoral_panel_submission` (`defense_schedule_id`,`panel_user_id`),
   ADD KEY `idx_preoral_group` (`research_group_id`),
@@ -2782,45 +2782,45 @@ ALTER TABLE `preoral_defense_evaluations`
   ADD KEY `idx_preoral_status` (`status`);
 
 --
--- Indexes for table `proposal_documents`
+-- Indexes for table `crad_proposal_documents`
 --
-ALTER TABLE `proposal_documents`
+ALTER TABLE `crad_proposal_documents`
   ADD PRIMARY KEY (`id`),
   ADD KEY `idx_pd_proposal` (`proposal_id`);
 
 --
--- Indexes for table `proposal_drafts`
+-- Indexes for table `crad_proposal_drafts`
 --
-ALTER TABLE `proposal_drafts`
+ALTER TABLE `crad_proposal_drafts`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_proposal_draft_student_type` (`student_id`,`form_type`);
 
 --
--- Indexes for table `proposal_members`
+-- Indexes for table `crad_proposal_members`
 --
-ALTER TABLE `proposal_members`
+ALTER TABLE `crad_proposal_members`
   ADD PRIMARY KEY (`id`),
   ADD KEY `idx_proposal` (`proposal_id`);
 
 --
--- Indexes for table `proposal_status_logs`
+-- Indexes for table `crad_proposal_status_logs`
 --
-ALTER TABLE `proposal_status_logs`
+ALTER TABLE `crad_proposal_status_logs`
   ADD PRIMARY KEY (`id`),
   ADD KEY `idx_psl_proposal` (`proposal_id`);
 
 --
--- Indexes for table `publications`
+-- Indexes for table `crad_publications`
 --
-ALTER TABLE `publications`
+ALTER TABLE `crad_publications`
   ADD PRIMARY KEY (`id`),
   ADD KEY `idx_pub_group` (`research_group_id`),
   ADD KEY `idx_pub_status` (`status`);
 
 --
--- Indexes for table `research_adviser_assignments`
+-- Indexes for table `crad_research_adviser_assignments`
 --
-ALTER TABLE `research_adviser_assignments`
+ALTER TABLE `crad_research_adviser_assignments`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_raa_adviser_identity` (`adviser_email`,`adviser_name`),
   ADD KEY `idx_raa_group` (`research_group_id`),
@@ -2831,26 +2831,26 @@ ALTER TABLE `research_adviser_assignments`
   ADD KEY `idx_raa_student` (`student_id`);
 
 --
--- Indexes for table `research_clearance_notifications`
+-- Indexes for table `crad_research_clearance_notifications`
 --
-ALTER TABLE `research_clearance_notifications`
+ALTER TABLE `crad_research_clearance_notifications`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_rsc_notif_event` (`event_key`),
   ADD KEY `idx_rsc_notif_recipient` (`recipient_user_id`,`recipient_role`);
 
 --
--- Indexes for table `research_clearance_payments`
+-- Indexes for table `crad_research_clearance_payments`
 --
-ALTER TABLE `research_clearance_payments`
+ALTER TABLE `crad_research_clearance_payments`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_rcp_group_stage` (`research_group_id`,`research_stage`),
   ADD KEY `idx_rcp_group` (`research_group_id`),
   ADD KEY `idx_rcp_status` (`status`);
 
 --
--- Indexes for table `research_coordinator_assignments`
+-- Indexes for table `crad_research_coordinator_assignments`
 --
-ALTER TABLE `research_coordinator_assignments`
+ALTER TABLE `crad_research_coordinator_assignments`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_rca_group_number` (`group_number`),
   ADD UNIQUE KEY `uniq_rca_group_coordinator` (`research_group_id`,`coordinator_user_id`),
@@ -2861,9 +2861,9 @@ ALTER TABLE `research_coordinator_assignments`
   ADD KEY `idx_rca_student` (`student_id`);
 
 --
--- Indexes for table `research_defense_schedules`
+-- Indexes for table `crad_research_defense_schedules`
 --
-ALTER TABLE `research_defense_schedules`
+ALTER TABLE `crad_research_defense_schedules`
   ADD PRIMARY KEY (`id`),
   ADD KEY `idx_rds_proposal_number` (`proposal_number`),
   ADD KEY `idx_rds_status` (`status`),
@@ -2873,9 +2873,9 @@ ALTER TABLE `research_defense_schedules`
   ADD KEY `idx_rds_group_number` (`group_number`);
 
 --
--- Indexes for table `research_groups`
+-- Indexes for table `crad_research_groups`
 --
-ALTER TABLE `research_groups`
+ALTER TABLE `crad_research_groups`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `group_number` (`group_number`),
   ADD UNIQUE KEY `proposal_id` (`proposal_id`),
@@ -2883,9 +2883,9 @@ ALTER TABLE `research_groups`
   ADD KEY `idx_rg_proposal_number` (`proposal_number`);
 
 --
--- Indexes for table `research_milestones`
+-- Indexes for table `crad_research_milestones`
 --
-ALTER TABLE `research_milestones`
+ALTER TABLE `crad_research_milestones`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_rm_plan_name` (`research_plan_id`,`milestone_name`),
   ADD KEY `idx_rm_plan` (`research_plan_id`),
@@ -2893,9 +2893,9 @@ ALTER TABLE `research_milestones`
   ADD KEY `idx_rm_sequence` (`research_plan_id`,`milestone_order`);
 
 --
--- Indexes for table `research_panel_assignments`
+-- Indexes for table `crad_research_panel_assignments`
 --
-ALTER TABLE `research_panel_assignments`
+ALTER TABLE `crad_research_panel_assignments`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_panel_assignment_phase` (`research_group_id`,`panel_user_id`,`defense_phase`),
   ADD KEY `idx_panel_assignment_group` (`research_group_id`),
@@ -2904,9 +2904,9 @@ ALTER TABLE `research_panel_assignments`
   ADD KEY `idx_panel_assignment_schedule` (`defense_schedule_id`);
 
 --
--- Indexes for table `research_plans`
+-- Indexes for table `crad_research_plans`
 --
-ALTER TABLE `research_plans`
+ALTER TABLE `crad_research_plans`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_rp_group` (`research_group_id`),
   ADD KEY `idx_rp_group_number` (`group_number`),
@@ -2914,9 +2914,9 @@ ALTER TABLE `research_plans`
   ADD KEY `idx_rp_status` (`status`);
 
 --
--- Indexes for table `research_progress_activity_logs`
+-- Indexes for table `crad_research_progress_activity_logs`
 --
-ALTER TABLE `research_progress_activity_logs`
+ALTER TABLE `crad_research_progress_activity_logs`
   ADD PRIMARY KEY (`id`),
   ADD KEY `idx_rpal_plan` (`research_plan_id`),
   ADD KEY `idx_rpal_user` (`user_id`),
@@ -2925,24 +2925,24 @@ ALTER TABLE `research_progress_activity_logs`
   ADD KEY `idx_rpal_created` (`created_at`);
 
 --
--- Indexes for table `research_progress_ai_analyses`
+-- Indexes for table `crad_research_progress_ai_analyses`
 --
-ALTER TABLE `research_progress_ai_analyses`
+ALTER TABLE `crad_research_progress_ai_analyses`
   ADD PRIMARY KEY (`id`),
   ADD KEY `idx_rpai_update` (`progress_update_id`,`id`);
 
 --
--- Indexes for table `research_progress_attachments`
+-- Indexes for table `crad_research_progress_attachments`
 --
-ALTER TABLE `research_progress_attachments`
+ALTER TABLE `crad_research_progress_attachments`
   ADD PRIMARY KEY (`id`),
   ADD KEY `idx_rpa_update` (`progress_update_id`),
   ADD KEY `idx_rpa_uploaded` (`uploaded_by`);
 
 --
--- Indexes for table `research_progress_feedback`
+-- Indexes for table `crad_research_progress_feedback`
 --
-ALTER TABLE `research_progress_feedback`
+ALTER TABLE `crad_research_progress_feedback`
   ADD PRIMARY KEY (`id`),
   ADD KEY `idx_rpf_update` (`progress_update_id`),
   ADD KEY `idx_rpf_milestone` (`milestone_id`),
@@ -2954,9 +2954,9 @@ ALTER TABLE `research_progress_feedback`
   ADD KEY `idx_rpf_plan_type` (`research_plan_id`,`feedback_type`);
 
 --
--- Indexes for table `research_progress_notifications`
+-- Indexes for table `crad_research_progress_notifications`
 --
-ALTER TABLE `research_progress_notifications`
+ALTER TABLE `crad_research_progress_notifications`
   ADD PRIMARY KEY (`id`),
   ADD KEY `idx_rpn_recipient_user` (`recipient_user_id`),
   ADD KEY `idx_rpn_recipient_email` (`recipient_email`),
@@ -2966,9 +2966,9 @@ ALTER TABLE `research_progress_notifications`
   ADD KEY `idx_rpn_created` (`created_at`);
 
 --
--- Indexes for table `research_progress_updates`
+-- Indexes for table `crad_research_progress_updates`
 --
-ALTER TABLE `research_progress_updates`
+ALTER TABLE `crad_research_progress_updates`
   ADD PRIMARY KEY (`id`),
   ADD KEY `idx_rpu_plan` (`research_plan_id`),
   ADD KEY `idx_rpu_milestone` (`milestone_id`),
@@ -2980,9 +2980,9 @@ ALTER TABLE `research_progress_updates`
   ADD KEY `idx_rpu_plan_submitted` (`research_plan_id`,`submitted_at`);
 
 --
--- Indexes for table `research_proposals`
+-- Indexes for table `crad_research_proposals`
 --
-ALTER TABLE `research_proposals`
+ALTER TABLE `crad_research_proposals`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `ref_code` (`ref_code`),
   ADD UNIQUE KEY `proposal_number` (`proposal_number`),
@@ -2991,35 +2991,35 @@ ALTER TABLE `research_proposals`
   ADD KEY `idx_submitted` (`date_submitted`);
 
 --
--- Indexes for table `research_revision_cycles`
+-- Indexes for table `crad_research_revision_cycles`
 --
-ALTER TABLE `research_revision_cycles`
+ALTER TABLE `crad_research_revision_cycles`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_rrc_schedule` (`defense_schedule_id`),
   ADD KEY `idx_rrc_group` (`research_group_id`),
   ADD KEY `idx_rrc_status` (`revision_status`);
 
 --
--- Indexes for table `research_services_clearances`
+-- Indexes for table `crad_research_services_clearances`
 --
-ALTER TABLE `research_services_clearances`
+ALTER TABLE `crad_research_services_clearances`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_rsc_group_stage` (`research_group_id`,`research_stage`),
   ADD KEY `idx_rsc_status` (`status`),
   ADD KEY `idx_rsc_adviser` (`adviser_user_id`);
 
 --
--- Indexes for table `research_venues`
+-- Indexes for table `crad_research_venues`
 --
-ALTER TABLE `research_venues`
+ALTER TABLE `crad_research_venues`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_research_venue_name` (`venue_name`),
   ADD KEY `idx_research_venues_status` (`status`);
 
 --
--- Indexes for table `title_approvals`
+-- Indexes for table `crad_title_approvals`
 --
-ALTER TABLE `title_approvals`
+ALTER TABLE `crad_title_approvals`
   ADD PRIMARY KEY (`id`),
   ADD KEY `idx_ta_student_id` (`student_id`),
   ADD KEY `idx_ta_adviser_email` (`adviser_email`(100)),
@@ -3032,309 +3032,309 @@ ALTER TABLE `title_approvals`
 --
 
 --
--- AUTO_INCREMENT for table `chapter_evaluations`
+-- AUTO_INCREMENT for table `crad_chapter_evaluations`
 --
-ALTER TABLE `chapter_evaluations`
+ALTER TABLE `crad_chapter_evaluations`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=52;
 
 --
--- AUTO_INCREMENT for table `chapter_evaluation_notifications`
+-- AUTO_INCREMENT for table `crad_chapter_evaluation_notifications`
 --
-ALTER TABLE `chapter_evaluation_notifications`
+ALTER TABLE `crad_chapter_evaluation_notifications`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=163;
 
 --
--- AUTO_INCREMENT for table `chapter_submissions`
+-- AUTO_INCREMENT for table `crad_chapter_submissions`
 --
-ALTER TABLE `chapter_submissions`
+ALTER TABLE `crad_chapter_submissions`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=56;
 
 --
--- AUTO_INCREMENT for table `chapter_submission_history`
+-- AUTO_INCREMENT for table `crad_chapter_submission_history`
 --
-ALTER TABLE `chapter_submission_history`
+ALTER TABLE `crad_chapter_submission_history`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=159;
 
 --
--- AUTO_INCREMENT for table `final_defense_evaluations`
+-- AUTO_INCREMENT for table `crad_final_defense_evaluations`
 --
-ALTER TABLE `final_defense_evaluations`
+ALTER TABLE `crad_final_defense_evaluations`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
 
 --
--- AUTO_INCREMENT for table `final_defense_recommendations`
+-- AUTO_INCREMENT for table `crad_final_defense_recommendations`
 --
-ALTER TABLE `final_defense_recommendations`
+ALTER TABLE `crad_final_defense_recommendations`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
 
 --
--- AUTO_INCREMENT for table `final_manuscript_approvals`
+-- AUTO_INCREMENT for table `crad_final_manuscript_approvals`
 --
-ALTER TABLE `final_manuscript_approvals`
+ALTER TABLE `crad_final_manuscript_approvals`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
--- AUTO_INCREMENT for table `grant_applications`
+-- AUTO_INCREMENT for table `crad_grant_applications`
 --
-ALTER TABLE `grant_applications`
+ALTER TABLE `crad_grant_applications`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
 
 --
--- AUTO_INCREMENT for table `grant_document_repository`
+-- AUTO_INCREMENT for table `crad_grant_document_repository`
 --
-ALTER TABLE `grant_document_repository`
+ALTER TABLE `crad_grant_document_repository`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
--- AUTO_INCREMENT for table `grant_document_repository_items`
+-- AUTO_INCREMENT for table `crad_grant_document_repository_items`
 --
-ALTER TABLE `grant_document_repository_items`
+ALTER TABLE `crad_grant_document_repository_items`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=33;
 
 --
--- AUTO_INCREMENT for table `grant_final_output_submissions`
+-- AUTO_INCREMENT for table `crad_grant_final_output_submissions`
 --
-ALTER TABLE `grant_final_output_submissions`
+ALTER TABLE `crad_grant_final_output_submissions`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
--- AUTO_INCREMENT for table `grant_funded_progress_evidence`
+-- AUTO_INCREMENT for table `crad_grant_funded_progress_evidence`
 --
-ALTER TABLE `grant_funded_progress_evidence`
+ALTER TABLE `crad_grant_funded_progress_evidence`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
 
 --
--- AUTO_INCREMENT for table `grant_funded_project_milestones`
+-- AUTO_INCREMENT for table `crad_grant_funded_project_milestones`
 --
-ALTER TABLE `grant_funded_project_milestones`
+ALTER TABLE `crad_grant_funded_project_milestones`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
 
 --
--- AUTO_INCREMENT for table `grant_funding_disbursements`
+-- AUTO_INCREMENT for table `crad_grant_funding_disbursements`
 --
-ALTER TABLE `grant_funding_disbursements`
+ALTER TABLE `crad_grant_funding_disbursements`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
--- AUTO_INCREMENT for table `grant_opportunities`
+-- AUTO_INCREMENT for table `crad_grant_opportunities`
 --
-ALTER TABLE `grant_opportunities`
+ALTER TABLE `crad_grant_opportunities`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
--- AUTO_INCREMENT for table `grant_proposal_approval_steps`
+-- AUTO_INCREMENT for table `crad_grant_proposal_approval_steps`
 --
-ALTER TABLE `grant_proposal_approval_steps`
+ALTER TABLE `crad_grant_proposal_approval_steps`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=38;
 
 --
--- AUTO_INCREMENT for table `grant_proposal_approval_workflows`
+-- AUTO_INCREMENT for table `crad_grant_proposal_approval_workflows`
 --
-ALTER TABLE `grant_proposal_approval_workflows`
+ALTER TABLE `crad_grant_proposal_approval_workflows`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
--- AUTO_INCREMENT for table `grant_proposal_evaluations`
+-- AUTO_INCREMENT for table `crad_grant_proposal_evaluations`
 --
-ALTER TABLE `grant_proposal_evaluations`
+ALTER TABLE `crad_grant_proposal_evaluations`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=34;
 
 --
--- AUTO_INCREMENT for table `grant_proposal_notifications`
+-- AUTO_INCREMENT for table `crad_grant_proposal_notifications`
 --
-ALTER TABLE `grant_proposal_notifications`
+ALTER TABLE `crad_grant_proposal_notifications`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=127;
 
 --
--- AUTO_INCREMENT for table `grant_proposal_versions`
+-- AUTO_INCREMENT for table `crad_grant_proposal_versions`
 --
-ALTER TABLE `grant_proposal_versions`
+ALTER TABLE `crad_grant_proposal_versions`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
 
 --
--- AUTO_INCREMENT for table `grant_publications_ip_repository`
+-- AUTO_INCREMENT for table `crad_grant_publications_ip_repository`
 --
-ALTER TABLE `grant_publications_ip_repository`
+ALTER TABLE `crad_grant_publications_ip_repository`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
--- AUTO_INCREMENT for table `manuscript_evaluations`
+-- AUTO_INCREMENT for table `crad_manuscript_evaluations`
 --
-ALTER TABLE `manuscript_evaluations`
+ALTER TABLE `crad_manuscript_evaluations`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
--- AUTO_INCREMENT for table `manuscript_submissions`
+-- AUTO_INCREMENT for table `crad_manuscript_submissions`
 --
-ALTER TABLE `manuscript_submissions`
+ALTER TABLE `crad_manuscript_submissions`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
--- AUTO_INCREMENT for table `panel_assignment_notifications`
+-- AUTO_INCREMENT for table `crad_panel_assignment_notifications`
 --
-ALTER TABLE `panel_assignment_notifications`
+ALTER TABLE `crad_panel_assignment_notifications`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=82;
 
 --
--- AUTO_INCREMENT for table `panel_member_availability`
+-- AUTO_INCREMENT for table `crad_panel_member_availability`
 --
-ALTER TABLE `panel_member_availability`
+ALTER TABLE `crad_panel_member_availability`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=249;
 
 --
--- AUTO_INCREMENT for table `preoral_defense_evaluations`
+-- AUTO_INCREMENT for table `crad_preoral_defense_evaluations`
 --
-ALTER TABLE `preoral_defense_evaluations`
+ALTER TABLE `crad_preoral_defense_evaluations`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=43;
 
 --
--- AUTO_INCREMENT for table `proposal_documents`
+-- AUTO_INCREMENT for table `crad_proposal_documents`
 --
-ALTER TABLE `proposal_documents`
+ALTER TABLE `crad_proposal_documents`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=204;
 
 --
--- AUTO_INCREMENT for table `proposal_drafts`
+-- AUTO_INCREMENT for table `crad_proposal_drafts`
 --
-ALTER TABLE `proposal_drafts`
+ALTER TABLE `crad_proposal_drafts`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=23;
 
 --
--- AUTO_INCREMENT for table `proposal_members`
+-- AUTO_INCREMENT for table `crad_proposal_members`
 --
-ALTER TABLE `proposal_members`
+ALTER TABLE `crad_proposal_members`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=38;
 
 --
--- AUTO_INCREMENT for table `proposal_status_logs`
+-- AUTO_INCREMENT for table `crad_proposal_status_logs`
 --
-ALTER TABLE `proposal_status_logs`
+ALTER TABLE `crad_proposal_status_logs`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=148;
 
 --
--- AUTO_INCREMENT for table `publications`
+-- AUTO_INCREMENT for table `crad_publications`
 --
-ALTER TABLE `publications`
+ALTER TABLE `crad_publications`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
 
 --
--- AUTO_INCREMENT for table `research_adviser_assignments`
+-- AUTO_INCREMENT for table `crad_research_adviser_assignments`
 --
-ALTER TABLE `research_adviser_assignments`
+ALTER TABLE `crad_research_adviser_assignments`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=113;
 
 --
--- AUTO_INCREMENT for table `research_clearance_notifications`
+-- AUTO_INCREMENT for table `crad_research_clearance_notifications`
 --
-ALTER TABLE `research_clearance_notifications`
+ALTER TABLE `crad_research_clearance_notifications`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=30;
 
 --
--- AUTO_INCREMENT for table `research_clearance_payments`
+-- AUTO_INCREMENT for table `crad_research_clearance_payments`
 --
-ALTER TABLE `research_clearance_payments`
+ALTER TABLE `crad_research_clearance_payments`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
--- AUTO_INCREMENT for table `research_coordinator_assignments`
+-- AUTO_INCREMENT for table `crad_research_coordinator_assignments`
 --
-ALTER TABLE `research_coordinator_assignments`
+ALTER TABLE `crad_research_coordinator_assignments`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=51;
 
 --
--- AUTO_INCREMENT for table `research_defense_schedules`
+-- AUTO_INCREMENT for table `crad_research_defense_schedules`
 --
-ALTER TABLE `research_defense_schedules`
+ALTER TABLE `crad_research_defense_schedules`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=79;
 
 --
--- AUTO_INCREMENT for table `research_groups`
+-- AUTO_INCREMENT for table `crad_research_groups`
 --
-ALTER TABLE `research_groups`
+ALTER TABLE `crad_research_groups`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=73;
 
 --
--- AUTO_INCREMENT for table `research_milestones`
+-- AUTO_INCREMENT for table `crad_research_milestones`
 --
-ALTER TABLE `research_milestones`
+ALTER TABLE `crad_research_milestones`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=257;
 
 --
--- AUTO_INCREMENT for table `research_panel_assignments`
+-- AUTO_INCREMENT for table `crad_research_panel_assignments`
 --
-ALTER TABLE `research_panel_assignments`
+ALTER TABLE `crad_research_panel_assignments`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=55;
 
 --
--- AUTO_INCREMENT for table `research_plans`
+-- AUTO_INCREMENT for table `crad_research_plans`
 --
-ALTER TABLE `research_plans`
+ALTER TABLE `crad_research_plans`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=32;
 
 --
--- AUTO_INCREMENT for table `research_progress_activity_logs`
+-- AUTO_INCREMENT for table `crad_research_progress_activity_logs`
 --
-ALTER TABLE `research_progress_activity_logs`
+ALTER TABLE `crad_research_progress_activity_logs`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=219;
 
 --
--- AUTO_INCREMENT for table `research_progress_ai_analyses`
+-- AUTO_INCREMENT for table `crad_research_progress_ai_analyses`
 --
-ALTER TABLE `research_progress_ai_analyses`
+ALTER TABLE `crad_research_progress_ai_analyses`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=25;
 
 --
--- AUTO_INCREMENT for table `research_progress_attachments`
+-- AUTO_INCREMENT for table `crad_research_progress_attachments`
 --
-ALTER TABLE `research_progress_attachments`
+ALTER TABLE `crad_research_progress_attachments`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=109;
 
 --
--- AUTO_INCREMENT for table `research_progress_feedback`
+-- AUTO_INCREMENT for table `crad_research_progress_feedback`
 --
-ALTER TABLE `research_progress_feedback`
+ALTER TABLE `crad_research_progress_feedback`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=94;
 
 --
--- AUTO_INCREMENT for table `research_progress_notifications`
+-- AUTO_INCREMENT for table `crad_research_progress_notifications`
 --
-ALTER TABLE `research_progress_notifications`
+ALTER TABLE `crad_research_progress_notifications`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=179;
 
 --
--- AUTO_INCREMENT for table `research_progress_updates`
+-- AUTO_INCREMENT for table `crad_research_progress_updates`
 --
-ALTER TABLE `research_progress_updates`
+ALTER TABLE `crad_research_progress_updates`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=124;
 
 --
--- AUTO_INCREMENT for table `research_proposals`
+-- AUTO_INCREMENT for table `crad_research_proposals`
 --
-ALTER TABLE `research_proposals`
+ALTER TABLE `crad_research_proposals`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=28;
 
 --
--- AUTO_INCREMENT for table `research_revision_cycles`
+-- AUTO_INCREMENT for table `crad_research_revision_cycles`
 --
-ALTER TABLE `research_revision_cycles`
+ALTER TABLE `crad_research_revision_cycles`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
--- AUTO_INCREMENT for table `research_services_clearances`
+-- AUTO_INCREMENT for table `crad_research_services_clearances`
 --
-ALTER TABLE `research_services_clearances`
+ALTER TABLE `crad_research_services_clearances`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
--- AUTO_INCREMENT for table `research_venues`
+-- AUTO_INCREMENT for table `crad_research_venues`
 --
-ALTER TABLE `research_venues`
+ALTER TABLE `crad_research_venues`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=15652;
 
 --
--- AUTO_INCREMENT for table `title_approvals`
+-- AUTO_INCREMENT for table `crad_title_approvals`
 --
-ALTER TABLE `title_approvals`
+ALTER TABLE `crad_title_approvals`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=61;
 
 --
@@ -3342,85 +3342,85 @@ ALTER TABLE `title_approvals`
 --
 
 --
--- Constraints for table `proposal_documents`
+-- Constraints for table `crad_proposal_documents`
 --
-ALTER TABLE `proposal_documents`
-  ADD CONSTRAINT `fk_pd_proposal` FOREIGN KEY (`proposal_id`) REFERENCES `research_proposals` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `crad_proposal_documents`
+  ADD CONSTRAINT `fk_pd_proposal` FOREIGN KEY (`proposal_id`) REFERENCES `crad_research_proposals` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 --
--- Constraints for table `proposal_members`
+-- Constraints for table `crad_proposal_members`
 --
-ALTER TABLE `proposal_members`
-  ADD CONSTRAINT `fk_pm_proposal` FOREIGN KEY (`proposal_id`) REFERENCES `research_proposals` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `crad_proposal_members`
+  ADD CONSTRAINT `fk_pm_proposal` FOREIGN KEY (`proposal_id`) REFERENCES `crad_research_proposals` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 --
--- Constraints for table `proposal_status_logs`
+-- Constraints for table `crad_proposal_status_logs`
 --
-ALTER TABLE `proposal_status_logs`
-  ADD CONSTRAINT `fk_psl_proposal` FOREIGN KEY (`proposal_id`) REFERENCES `research_proposals` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `crad_proposal_status_logs`
+  ADD CONSTRAINT `fk_psl_proposal` FOREIGN KEY (`proposal_id`) REFERENCES `crad_research_proposals` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 --
--- Constraints for table `research_adviser_assignments`
+-- Constraints for table `crad_research_adviser_assignments`
 --
-ALTER TABLE `research_adviser_assignments`
-  ADD CONSTRAINT `fk_raa_proposal` FOREIGN KEY (`proposal_id`) REFERENCES `research_proposals` (`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE `crad_research_adviser_assignments`
+  ADD CONSTRAINT `fk_raa_proposal` FOREIGN KEY (`proposal_id`) REFERENCES `crad_research_proposals` (`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 --
--- Constraints for table `research_coordinator_assignments`
+-- Constraints for table `crad_research_coordinator_assignments`
 --
-ALTER TABLE `research_coordinator_assignments`
-  ADD CONSTRAINT `fk_rca_title_approval` FOREIGN KEY (`title_approval_id`) REFERENCES `title_approvals` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `crad_research_coordinator_assignments`
+  ADD CONSTRAINT `fk_rca_title_approval` FOREIGN KEY (`title_approval_id`) REFERENCES `crad_title_approvals` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 --
--- Constraints for table `research_defense_schedules`
+-- Constraints for table `crad_research_defense_schedules`
 --
-ALTER TABLE `research_defense_schedules`
-  ADD CONSTRAINT `fk_rds_proposal` FOREIGN KEY (`proposal_id`) REFERENCES `research_proposals` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `crad_research_defense_schedules`
+  ADD CONSTRAINT `fk_rds_proposal` FOREIGN KEY (`proposal_id`) REFERENCES `crad_research_proposals` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 --
--- Constraints for table `research_groups`
+-- Constraints for table `crad_research_groups`
 --
-ALTER TABLE `research_groups`
-  ADD CONSTRAINT `fk_rg_title_approval` FOREIGN KEY (`title_approval_id`) REFERENCES `title_approvals` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `crad_research_groups`
+  ADD CONSTRAINT `fk_rg_title_approval` FOREIGN KEY (`title_approval_id`) REFERENCES `crad_title_approvals` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 --
--- Constraints for table `research_milestones`
+-- Constraints for table `crad_research_milestones`
 --
-ALTER TABLE `research_milestones`
-  ADD CONSTRAINT `fk_rm_research_plan` FOREIGN KEY (`research_plan_id`) REFERENCES `research_plans` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `crad_research_milestones`
+  ADD CONSTRAINT `fk_rm_research_plan` FOREIGN KEY (`research_plan_id`) REFERENCES `crad_research_plans` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 --
--- Constraints for table `research_plans`
+-- Constraints for table `crad_research_plans`
 --
-ALTER TABLE `research_plans`
-  ADD CONSTRAINT `fk_rp_research_group` FOREIGN KEY (`research_group_id`) REFERENCES `research_groups` (`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE `crad_research_plans`
+  ADD CONSTRAINT `fk_rp_research_group` FOREIGN KEY (`research_group_id`) REFERENCES `crad_research_groups` (`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 --
--- Constraints for table `research_progress_activity_logs`
+-- Constraints for table `crad_research_progress_activity_logs`
 --
-ALTER TABLE `research_progress_activity_logs`
-  ADD CONSTRAINT `fk_rpal_research_plan` FOREIGN KEY (`research_plan_id`) REFERENCES `research_plans` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `crad_research_progress_activity_logs`
+  ADD CONSTRAINT `fk_rpal_research_plan` FOREIGN KEY (`research_plan_id`) REFERENCES `crad_research_plans` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 --
--- Constraints for table `research_progress_attachments`
+-- Constraints for table `crad_research_progress_attachments`
 --
-ALTER TABLE `research_progress_attachments`
-  ADD CONSTRAINT `fk_rpa_progress_update` FOREIGN KEY (`progress_update_id`) REFERENCES `research_progress_updates` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `crad_research_progress_attachments`
+  ADD CONSTRAINT `fk_rpa_progress_update` FOREIGN KEY (`progress_update_id`) REFERENCES `crad_research_progress_updates` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 --
--- Constraints for table `research_progress_feedback`
+-- Constraints for table `crad_research_progress_feedback`
 --
-ALTER TABLE `research_progress_feedback`
-  ADD CONSTRAINT `fk_rpf_milestone` FOREIGN KEY (`milestone_id`) REFERENCES `research_milestones` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
-  ADD CONSTRAINT `fk_rpf_progress_update` FOREIGN KEY (`progress_update_id`) REFERENCES `research_progress_updates` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
-  ADD CONSTRAINT `fk_rpf_research_plan` FOREIGN KEY (`research_plan_id`) REFERENCES `research_plans` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `crad_research_progress_feedback`
+  ADD CONSTRAINT `fk_rpf_milestone` FOREIGN KEY (`milestone_id`) REFERENCES `crad_research_milestones` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  ADD CONSTRAINT `fk_rpf_progress_update` FOREIGN KEY (`progress_update_id`) REFERENCES `crad_research_progress_updates` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  ADD CONSTRAINT `fk_rpf_research_plan` FOREIGN KEY (`research_plan_id`) REFERENCES `crad_research_plans` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 --
--- Constraints for table `research_progress_updates`
+-- Constraints for table `crad_research_progress_updates`
 --
-ALTER TABLE `research_progress_updates`
-  ADD CONSTRAINT `fk_rpu_milestone` FOREIGN KEY (`milestone_id`) REFERENCES `research_milestones` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
-  ADD CONSTRAINT `fk_rpu_research_plan` FOREIGN KEY (`research_plan_id`) REFERENCES `research_plans` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `crad_research_progress_updates`
+  ADD CONSTRAINT `fk_rpu_milestone` FOREIGN KEY (`milestone_id`) REFERENCES `crad_research_milestones` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  ADD CONSTRAINT `fk_rpu_research_plan` FOREIGN KEY (`research_plan_id`) REFERENCES `crad_research_plans` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

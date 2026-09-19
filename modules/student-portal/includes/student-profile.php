@@ -8,7 +8,7 @@ declare(strict_types=1);
 function studentPortalEnsureProfileSchema(PDO $pdo): void
 {
     $pdo->exec("
-        CREATE TABLE IF NOT EXISTS student_profiles (
+        CREATE TABLE IF NOT EXISTS sms_student_profiles (
             id INT UNSIGNED NOT NULL AUTO_INCREMENT,
             user_id INT UNSIGNED NOT NULL,
             student_id VARCHAR(40) NOT NULL,
@@ -97,7 +97,7 @@ function studentPortalUpsertProfile(PDO $pdo, int $userId, string $studentId, ar
     $seed = array_merge(studentPortalKnownProfileSeed($studentId), $fields);
 
     $pdo->prepare("
-        INSERT INTO student_profiles
+        INSERT INTO sms_student_profiles
             (user_id, student_id, program, year_level, section, semester, school_year,
              enrollment_status, standing, mobile, address, guardian, guardian_contact)
         VALUES
@@ -146,14 +146,14 @@ function studentPortalEnsureProfileForUser(int $userId, string $studentId = '', 
 
     try {
         if ($studentId === '') {
-            $stmt = $pdo->prepare('SELECT student_id FROM users WHERE id = :id LIMIT 1');
+            $stmt = $pdo->prepare('SELECT student_id FROM sms_users WHERE id = :id LIMIT 1');
             $stmt->execute([':id' => $userId]);
             $studentId = strtoupper(trim((string) ($stmt->fetchColumn() ?: '')));
         }
         if ($studentId === '') {
             return;
         }
-        $exists = $pdo->prepare('SELECT id FROM student_profiles WHERE user_id = :uid OR student_id = :sid LIMIT 1');
+        $exists = $pdo->prepare('SELECT id FROM sms_student_profiles WHERE user_id = :uid OR student_id = :sid LIMIT 1');
         $exists->execute([':uid' => $userId, ':sid' => $studentId]);
         if ($exists->fetch()) {
             return;
@@ -177,7 +177,7 @@ function studentPortalLoadProfile(?PDO $pdo, int $userId, string $studentId, str
             studentPortalEnsureProfileSchema($pdo);
 
             if ($userId > 0 && $studentId === '') {
-                $userStmt = $pdo->prepare('SELECT student_id, full_name, email FROM users WHERE id = :id LIMIT 1');
+                $userStmt = $pdo->prepare('SELECT student_id, full_name, email FROM sms_users WHERE id = :id LIMIT 1');
                 $userStmt->execute([':id' => $userId]);
                 $user = $userStmt->fetch() ?: [];
                 $studentId = strtoupper(trim((string) ($user['student_id'] ?? '')));
@@ -190,7 +190,7 @@ function studentPortalLoadProfile(?PDO $pdo, int $userId, string $studentId, str
             }
 
             if ($userId > 0 && $studentId !== '') {
-                $check = $pdo->prepare('SELECT id FROM student_profiles WHERE user_id = :uid OR student_id = :sid LIMIT 1');
+                $check = $pdo->prepare('SELECT id FROM sms_student_profiles WHERE user_id = :uid OR student_id = :sid LIMIT 1');
                 $check->execute([':uid' => $userId, ':sid' => $studentId]);
                 if (!$check->fetch()) {
                     studentPortalUpsertProfile($pdo, $userId, $studentId);
@@ -198,12 +198,12 @@ function studentPortalLoadProfile(?PDO $pdo, int $userId, string $studentId, str
             }
 
             if ($userId > 0) {
-                $stmt = $pdo->prepare('SELECT * FROM student_profiles WHERE user_id = :uid LIMIT 1');
+                $stmt = $pdo->prepare('SELECT * FROM sms_student_profiles WHERE user_id = :uid LIMIT 1');
                 $stmt->execute([':uid' => $userId]);
                 $row = $stmt->fetch() ?: null;
             }
             if (!$row && $studentId !== '') {
-                $stmt = $pdo->prepare('SELECT * FROM student_profiles WHERE student_id = :sid LIMIT 1');
+                $stmt = $pdo->prepare('SELECT * FROM sms_student_profiles WHERE student_id = :sid LIMIT 1');
                 $stmt->execute([':sid' => $studentId]);
                 $row = $stmt->fetch() ?: null;
             }

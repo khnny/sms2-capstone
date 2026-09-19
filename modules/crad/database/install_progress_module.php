@@ -119,9 +119,9 @@ try {
         SELECT rg.id, rg.group_number, rg.group_name, rg.research_title, 
                rg.adviser, rg.academic_year,
                raa.adviser_user_id, raa.adviser_name, raa.adviser_email
-        FROM research_groups rg
-        LEFT JOIN research_plans rp ON rp.research_group_id = rg.id
-        LEFT JOIN research_adviser_assignments raa ON raa.group_number = rg.group_number 
+        FROM crad_research_groups rg
+        LEFT JOIN crad_research_plans rp ON rp.research_group_id = rg.id
+        LEFT JOIN crad_research_adviser_assignments raa ON raa.group_number = rg.group_number 
             AND raa.assignment_status = 'Confirmed'
         WHERE rp.id IS NULL 
           AND rg.status = 'Approved'
@@ -153,7 +153,7 @@ try {
                 $groupName = $group['group_name'];
                 
                 // Create research plan (with duplicate check)
-                $checkPlan = $crad->prepare("SELECT id FROM research_plans WHERE research_group_id = ?");
+                $checkPlan = $crad->prepare("SELECT id FROM crad_research_plans WHERE research_group_id = ?");
                 $checkPlan->execute([$groupId]);
                 
                 if ($checkPlan->fetch()) {
@@ -162,7 +162,7 @@ try {
                 }
                 
                 $insertPlan = $crad->prepare("
-                    INSERT INTO research_plans (
+                    INSERT INTO crad_research_plans (
                         research_group_id, group_number, research_title, 
                         adviser_user_id, adviser_name, start_date, status
                     ) VALUES (?, ?, ?, ?, ?, CURDATE(), 'Active')
@@ -192,7 +192,7 @@ try {
                 ];
                 
                 $insertMilestone = $crad->prepare("
-                    INSERT IGNORE INTO research_milestones (
+                    INSERT IGNORE INTO crad_research_milestones (
                         research_plan_id, milestone_name, milestone_order, description, status
                     ) VALUES (?, ?, ?, ?, 'Not Started')
                 ");

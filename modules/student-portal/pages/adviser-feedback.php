@@ -28,7 +28,7 @@ renderBreadcrumbs($breadcrumbs);
 // Check if module is properly installed
 try {
     $crad = cradDb();
-    $tablesCheck = $crad->query("SHOW TABLES LIKE 'research_plans'")->fetch();
+    $tablesCheck = $crad->query("SHOW TABLES LIKE 'crad_research_plans'")->fetch();
     if (!$tablesCheck) {
         throw new Exception('Research Progress module not installed.');
     }
@@ -69,9 +69,9 @@ try {
                rpu.update_title,
                rpu.new_progress,
                rpu.submitted_at as update_submitted_at
-        FROM research_progress_feedback rpf
-        INNER JOIN research_progress_updates rpu ON rpu.id = rpf.progress_update_id
-        LEFT JOIN research_milestones rm ON rm.id = rpf.milestone_id
+        FROM crad_research_progress_feedback rpf
+        INNER JOIN crad_research_progress_updates rpu ON rpu.id = rpf.progress_update_id
+        LEFT JOIN crad_research_milestones rm ON rm.id = rpf.milestone_id
         WHERE rpu.research_group_id = ?
         ORDER BY rpf.created_at DESC
     ");

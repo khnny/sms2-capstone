@@ -8,7 +8,7 @@ require_once ROOT_PATH . '/modules/crad/config/config.php';
 function finalDefenseEnsureSchema(PDO $crad): void
 {
     $crad->exec(
-        "CREATE TABLE IF NOT EXISTS final_defense_evaluations (
+        "CREATE TABLE IF NOT EXISTS crad_final_defense_evaluations (
             id INT UNSIGNED NOT NULL AUTO_INCREMENT,
             defense_schedule_id INT UNSIGNED NOT NULL,
             research_group_id INT UNSIGNED DEFAULT NULL,
@@ -32,14 +32,14 @@ function finalDefenseEnsureSchema(PDO $crad): void
             KEY idx_final_status (status)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     );
-    $idColumn = $crad->query("SHOW COLUMNS FROM final_defense_evaluations LIKE 'id'")->fetch(PDO::FETCH_ASSOC);
+    $idColumn = $crad->query("SHOW COLUMNS FROM crad_final_defense_evaluations LIKE 'id'")->fetch(PDO::FETCH_ASSOC);
     if ($idColumn && stripos((string) ($idColumn['Extra'] ?? ''), 'auto_increment') === false) {
-        $crad->exec("ALTER TABLE final_defense_evaluations MODIFY id INT UNSIGNED NOT NULL AUTO_INCREMENT");
+        $crad->exec("ALTER TABLE crad_final_defense_evaluations MODIFY id INT UNSIGNED NOT NULL AUTO_INCREMENT");
     }
     try {
-        if (!$crad->query("SHOW COLUMNS FROM final_defense_evaluations LIKE 'defense_score'")->fetch()) {
+        if (!$crad->query("SHOW COLUMNS FROM crad_final_defense_evaluations LIKE 'defense_score'")->fetch()) {
             $crad->exec(
-                "ALTER TABLE final_defense_evaluations
+                "ALTER TABLE crad_final_defense_evaluations
                  ADD COLUMN defense_score DECIMAL(5,2) NOT NULL DEFAULT 0 AFTER format_score"
             );
         }
@@ -77,7 +77,7 @@ function finalDefenseCurrentPanelId(PDO $crad): int
         try {
             $stmt = $crad->prepare(
                 "SELECT panel_user_id
-                 FROM research_panel_assignments
+                 FROM crad_research_panel_assignments
                  WHERE {$identity['expression']} = ?
                    AND defense_phase = 'Final Defense'
                    AND assignment_status = 'Assigned'
@@ -103,7 +103,7 @@ function finalDefenseCurrentPanelId(PDO $crad): int
         }
         try {
             $operator = $identity['column'] === 'email' ? 'LOWER(TRIM(email))' : 'TRIM(full_name)';
-            $stmt = $crad->prepare("SELECT id FROM sms2_db.users WHERE {$operator} = ? AND role_key = 'panel' LIMIT 1");
+            $stmt = $crad->prepare("SELECT id FROM sms_users WHERE {$operator} = ? AND role_key = 'panel' LIMIT 1");
             $stmt->execute([$identity['value']]);
             $userId = (int) ($stmt->fetchColumn() ?: 0);
             if ($userId > 0) {
@@ -155,12 +155,12 @@ function finalDefenseAssignedSchedule(PDO $crad, int $scheduleId): ?array
                 rds.defense_type,
                                 rpa.panel_user_id AS assigned_panel_user_id,
                                 rpa.panel_name,
-                                (SELECT fde.id FROM final_defense_evaluations fde
+                                (SELECT fde.id FROM crad_final_defense_evaluations fde
                  WHERE fde.defense_schedule_id = rds.id
                                      AND fde.panel_user_id = rpa.panel_user_id
                  LIMIT 1) AS evaluation_id
-         FROM research_defense_schedules rds
-         INNER JOIN research_panel_assignments rpa
+         FROM crad_research_defense_schedules rds
+         INNER JOIN crad_research_panel_assignments rpa
            ON rpa.research_group_id = rds.research_group_id
                     AND rpa.defense_schedule_id = rds.id
            AND rpa.defense_phase = 'Final Defense'
@@ -171,7 +171,7 @@ function finalDefenseAssignedSchedule(PDO $crad, int $scheduleId): ?array
            AND rds.defense_datetime IS NOT NULL
            AND EXISTS (
                 SELECT 1
-                FROM research_groups rg_gate
+                FROM crad_research_groups rg_gate
                 WHERE rg_gate.id = rds.research_group_id
                   AND " . cradOfficialRegistryGroupWhereSql('rg_gate') . "
            )
@@ -199,14 +199,14 @@ function finalDefenseRows(PDO $crad, bool $history = false): array
                 rds.defense_type, fde.id AS evaluation_id,
                 fde.result AS panel_result, fde.overall_score AS panel_score,
                 fde.submitted_at
-         FROM research_defense_schedules rds
-         INNER JOIN research_panel_assignments rpa
+         FROM crad_research_defense_schedules rds
+         INNER JOIN crad_research_panel_assignments rpa
            ON rpa.research_group_id = rds.research_group_id
           AND rpa.defense_schedule_id = rds.id
           AND rpa.panel_user_id = :panel_id
           AND rpa.defense_phase = 'Final Defense'
           AND rpa.assignment_status = 'Assigned'
-         LEFT JOIN final_defense_evaluations fde
+         LEFT JOIN crad_final_defense_evaluations fde
            ON fde.defense_schedule_id = rds.id
           AND fde.panel_user_id = :panel_id_eval
          WHERE LOWER(TRIM(COALESCE(rds.defense_type, ''))) = 'final defense'
@@ -214,7 +214,7 @@ function finalDefenseRows(PDO $crad, bool $history = false): array
            AND LOWER(rds.status) IN ('scheduled', 'finalized', 'final', 'completed', 'passed', 'failed')
            AND EXISTS (
                 SELECT 1
-                FROM research_groups rg_gate
+                FROM crad_research_groups rg_gate
                 WHERE rg_gate.id = rds.research_group_id
                   AND " . cradOfficialRegistryGroupWhereSql('rg_gate') . "
            )
@@ -271,7 +271,7 @@ function finalDefenseSubmitEvaluation(PDO $crad, int $scheduleId, array $data): 
 
     try {
         $stmt = $crad->prepare(
-            "INSERT INTO final_defense_evaluations
+            "INSERT INTO crad_final_defense_evaluations
                 (defense_schedule_id, research_group_id, panel_user_id, panel_name,
                  content_score, methodology_score, references_score, format_score, defense_score,
                  remarks, result, overall_score, status, submitted_at, created_at)

@@ -31,7 +31,7 @@ if (!$official) {
     exit(1);
 }
 
-$stmt = $pdo->prepare('SELECT id FROM users WHERE username = ? LIMIT 1');
+$stmt = $pdo->prepare('SELECT id FROM sms_users WHERE username = ? LIMIT 1');
 $stmt->execute(['reviewcommittee']);
 $id = (int) $stmt->fetchColumn();
 if ($id <= 0) {
@@ -45,7 +45,7 @@ if (!smsSetUserPassword($id, (string) $official['password'], false)) {
 }
 
 $pdo->prepare(
-    "UPDATE users
+    "UPDATE sms_users
      SET role_key = ?, email = ?, full_name = ?, status = 'active',
          failed_login_attempts = 0, locked_until = NULL, must_change_password = 0
      WHERE id = ?"
@@ -57,13 +57,13 @@ $pdo->prepare(
 ]);
 
 $pdo->prepare(
-    "INSERT INTO role_permissions (role_key, module_key, granted)
+    "INSERT INTO sms_role_permissions (role_key, module_key, granted)
      VALUES ('review_committee', 'crad_grant', 1)
      ON DUPLICATE KEY UPDATE granted = VALUES(granted)"
 )->execute();
 
 $pdo->prepare(
-    "INSERT IGNORE INTO roles (role_key, label, description, is_system)
+    "INSERT IGNORE INTO sms_roles (role_key, label, description, is_system)
      VALUES ('review_committee', 'Review Committee', 'Grant proposal review and rubric evaluation', 1)"
 )->execute();
 

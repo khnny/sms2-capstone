@@ -28,8 +28,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $action = (string) ($_POST['review_action'] ?? '');
         $stmt = $crad->prepare(
             "SELECT ms.*, rg.research_title, rg.group_name, rg.group_number
-             FROM manuscript_submissions ms
-             INNER JOIN research_groups rg ON rg.id = ms.research_group_id
+             FROM crad_manuscript_submissions ms
+             INNER JOIN crad_research_groups rg ON rg.id = ms.research_group_id
              WHERE ms.id = ? LIMIT 1"
         );
         $stmt->execute([$submissionId]);
@@ -78,10 +78,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $remarks = trim((string) ($_POST['remarks'] ?? ''));
                     $crad->beginTransaction();
                     try {
-                        $crad->prepare('UPDATE manuscript_submissions SET status = ?, reviewed_at = NOW() WHERE id = ?')
+                        $crad->prepare('UPDATE crad_manuscript_submissions SET status = ?, reviewed_at = NOW() WHERE id = ?')
                             ->execute([$status, $submissionId]);
                         $crad->prepare(
-                            "INSERT INTO manuscript_evaluations
+                            "INSERT INTO crad_manuscript_evaluations
                                 (submission_id, research_group_id, evaluator_user_id, evaluator_name,
                                  content_score, methodology_score, results_score, conclusions_score,
                                  recommendations_score, references_score, formatting_score, compliance_score,
@@ -125,18 +125,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $listSql = "SELECT ms.*, rg.group_number, rg.group_name, rg.research_title
-            FROM manuscript_submissions ms
-            INNER JOIN research_groups rg ON rg.id = ms.research_group_id
+            FROM crad_manuscript_submissions ms
+            INNER JOIN crad_research_groups rg ON rg.id = ms.research_group_id
             INNER JOIN (
                 SELECT research_group_id, MAX(version_number) version_number
-                FROM manuscript_submissions
+                FROM crad_manuscript_submissions
                 GROUP BY research_group_id
             ) latest ON latest.research_group_id = ms.research_group_id
                    AND latest.version_number = ms.version_number";
 $listParams = [];
 if ($role === 'adviser') {
     $listSql .= " WHERE EXISTS (
-        SELECT 1 FROM research_adviser_assignments raa
+        SELECT 1 FROM crad_research_adviser_assignments raa
         WHERE raa.research_group_id = ms.research_group_id
           AND raa.assignment_status IN ('Assigned', 'Confirmed')
           AND (

@@ -30,7 +30,7 @@ try {
 
     // Also verify proposal exists (security: ensure pid is valid)
     $stmtP = $cradPdo->prepare(
-        "SELECT submitted_by_user FROM research_proposals WHERE id = :pid LIMIT 1"
+        "SELECT submitted_by_user FROM crad_research_proposals WHERE id = :pid LIMIT 1"
     );
     $stmtP->execute([':pid' => $proposalId]);
     $proposalRow = $stmtP->fetch();
@@ -42,7 +42,7 @@ try {
 
     // Get document record
     $stmtD = $cradPdo->prepare(
-        "SELECT stored_name, original_name FROM proposal_documents
+        "SELECT stored_name, original_name FROM crad_proposal_documents
          WHERE proposal_id = :pid AND doc_key = :key LIMIT 1"
     );
     $stmtD->execute([':pid' => $proposalId, ':key' => $docKey]);

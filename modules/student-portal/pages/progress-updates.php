@@ -28,7 +28,7 @@ renderBreadcrumbs($breadcrumbs);
 // Check if module is properly installed
 try {
     $crad = cradDb();
-    $tablesCheck = $crad->query("SHOW TABLES LIKE 'research_plans'")->fetch();
+    $tablesCheck = $crad->query("SHOW TABLES LIKE 'crad_research_plans'")->fetch();
     if (!$tablesCheck) {
         throw new Exception('Research Progress module not installed.');
     }
@@ -97,8 +97,8 @@ $selectedIsPending = $selectedMilestone && !empty($selectedMilestone['has_pendin
 try {
     $recentUpdatesStmt = $crad->prepare("
         SELECT rpu.*, rm.milestone_name
-        FROM research_progress_updates rpu
-        LEFT JOIN research_milestones rm ON rm.id = rpu.milestone_id
+        FROM crad_research_progress_updates rpu
+        LEFT JOIN crad_research_milestones rm ON rm.id = rpu.milestone_id
         WHERE rpu.research_group_id = ?
         ORDER BY rpu.submitted_at DESC
         LIMIT 5

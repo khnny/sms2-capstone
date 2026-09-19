@@ -88,15 +88,15 @@ function rdScheduleSidebarActivePage(string $view, string $defenseType): string
 function rdScheduleEnsureSchema(PDO $pdo): void
 {
     $columns = [
-        'venue_id' => "ALTER TABLE research_defense_schedules ADD venue_id INT UNSIGNED DEFAULT NULL AFTER venue",
-        'defense_end_datetime' => "ALTER TABLE research_defense_schedules ADD defense_end_datetime DATETIME DEFAULT NULL AFTER defense_datetime",
-        'defense_type' => "ALTER TABLE research_defense_schedules ADD defense_type VARCHAR(40) NOT NULL DEFAULT 'Pre-Oral' AFTER defense_end_datetime",
-        'finalized_by' => "ALTER TABLE research_defense_schedules ADD finalized_by INT UNSIGNED DEFAULT NULL AFTER recorded_by",
-        'finalized_at' => "ALTER TABLE research_defense_schedules ADD finalized_at DATETIME DEFAULT NULL AFTER finalized_by",
+        'venue_id' => "ALTER TABLE crad_research_defense_schedules ADD venue_id INT UNSIGNED DEFAULT NULL AFTER venue",
+        'defense_end_datetime' => "ALTER TABLE crad_research_defense_schedules ADD defense_end_datetime DATETIME DEFAULT NULL AFTER defense_datetime",
+        'defense_type' => "ALTER TABLE crad_research_defense_schedules ADD defense_type VARCHAR(40) NOT NULL DEFAULT 'Pre-Oral' AFTER defense_end_datetime",
+        'finalized_by' => "ALTER TABLE crad_research_defense_schedules ADD finalized_by INT UNSIGNED DEFAULT NULL AFTER recorded_by",
+        'finalized_at' => "ALTER TABLE crad_research_defense_schedules ADD finalized_at DATETIME DEFAULT NULL AFTER finalized_by",
     ];
     foreach ($columns as $column => $sql) {
         try {
-            if (!$pdo->query("SHOW COLUMNS FROM research_defense_schedules LIKE " . $pdo->quote($column))->fetch()) {
+            if (!$pdo->query("SHOW COLUMNS FROM crad_research_defense_schedules LIKE " . $pdo->quote($column))->fetch()) {
                 $pdo->exec($sql);
             }
         } catch (Throwable $e) {
@@ -105,23 +105,23 @@ function rdScheduleEnsureSchema(PDO $pdo): void
     }
     try {
         $legacyUnique = $pdo->query(
-            "SHOW INDEX FROM research_defense_schedules
+            "SHOW INDEX FROM crad_research_defense_schedules
              WHERE Key_name = 'uniq_rds_group_number'
                AND Non_unique = 0"
         )->fetch();
         if ($legacyUnique) {
-            $pdo->exec("ALTER TABLE research_defense_schedules DROP INDEX uniq_rds_group_number");
+            $pdo->exec("ALTER TABLE crad_research_defense_schedules DROP INDEX uniq_rds_group_number");
         }
     } catch (Throwable $e) {
         error_log('RD schedule schema legacy unique cleanup failed: ' . $e->getMessage());
     }
     foreach ([
-        'idx_rds_group_number' => "ALTER TABLE research_defense_schedules ADD KEY idx_rds_group_number (group_number)",
-        'idx_rds_venue_time' => "ALTER TABLE research_defense_schedules ADD KEY idx_rds_venue_time (venue_id, defense_datetime, defense_end_datetime)",
-        'idx_rds_group_time' => "ALTER TABLE research_defense_schedules ADD KEY idx_rds_group_time (research_group_id, defense_datetime, defense_end_datetime)",
+        'idx_rds_group_number' => "ALTER TABLE crad_research_defense_schedules ADD KEY idx_rds_group_number (group_number)",
+        'idx_rds_venue_time' => "ALTER TABLE crad_research_defense_schedules ADD KEY idx_rds_venue_time (venue_id, defense_datetime, defense_end_datetime)",
+        'idx_rds_group_time' => "ALTER TABLE crad_research_defense_schedules ADD KEY idx_rds_group_time (research_group_id, defense_datetime, defense_end_datetime)",
     ] as $index => $sql) {
         try {
-            if (!$pdo->query("SHOW INDEX FROM research_defense_schedules WHERE Key_name = " . $pdo->quote($index))->fetch()) {
+            if (!$pdo->query("SHOW INDEX FROM crad_research_defense_schedules WHERE Key_name = " . $pdo->quote($index))->fetch()) {
                 $pdo->exec($sql);
             }
         } catch (Throwable $e) {
@@ -171,14 +171,14 @@ function rdOfficialRegistrySql(string $groupAlias = 'rg'): string
         AND TRIM(COALESCE({$groupAlias}.academic_year, '')) <> ''
         AND EXISTS (
             SELECT 1
-            FROM title_approvals reg_t
+            FROM crad_title_approvals reg_t
             WHERE reg_t.id = {$groupAlias}.title_approval_id
               AND " . rdOfficialTitleApprovalClause('reg_t') . "
               AND (TRIM(COALESCE({$groupAlias}.college_dept, '')) <> '' OR TRIM(COALESCE(reg_t.department, '')) <> '')
         )
         AND EXISTS (
             SELECT 1
-            FROM research_coordinator_assignments reg_ca
+            FROM crad_research_coordinator_assignments reg_ca
             WHERE reg_ca.status = 'Active'
               AND (
                     reg_ca.research_group_id = {$groupAlias}.id
@@ -187,7 +187,7 @@ function rdOfficialRegistrySql(string $groupAlias = 'rg'): string
         )
         AND EXISTS (
             SELECT 1
-            FROM research_adviser_assignments reg_aa
+            FROM crad_research_adviser_assignments reg_aa
             WHERE (
                     reg_aa.research_group_id = {$groupAlias}.id
                  OR (reg_aa.research_group_id IS NULL AND reg_aa.group_number = {$groupAlias}.group_number)
@@ -197,7 +197,7 @@ function rdOfficialRegistrySql(string $groupAlias = 'rg'): string
 
 function rdOfficialScheduleJoinSql(): string
 {
-    return "INNER JOIN research_groups registry_rg
+    return "INNER JOIN crad_research_groups registry_rg
               ON registry_rg.id = rds.research_group_id
              AND " . rdOfficialRegistrySql('registry_rg');
 }
@@ -209,7 +209,7 @@ function rdIsOfficialResearchGroup(PDO $pdo, int $groupId): bool
     }
     $stmt = $pdo->prepare(
         "SELECT 1
-         FROM research_groups rg
+         FROM crad_research_groups rg
          WHERE rg.id = ?
            AND " . rdOfficialRegistrySql('rg') . "
          LIMIT 1"
@@ -228,9 +228,9 @@ function rdSchedulePanelRows(PDO $pdo, int $groupId): array
                     MAX(NULLIF(rpa.availability_status, '')),
                     'Pending'
                 ) AS availability_status
-         FROM research_panel_assignments rpa
-         LEFT JOIN sms2_db.users u ON u.id = rpa.panel_user_id
-         LEFT JOIN panel_member_availability pma ON pma.panel_user_id = rpa.panel_user_id
+         FROM crad_research_panel_assignments rpa
+         LEFT JOIN sms_users u ON u.id = rpa.panel_user_id
+         LEFT JOIN crad_panel_member_availability pma ON pma.panel_user_id = rpa.panel_user_id
          WHERE rpa.research_group_id = ?
            AND " . rdPanelActiveAssignmentSql('rpa') . "
          GROUP BY rpa.panel_user_id, panel_name
@@ -282,8 +282,8 @@ function rdScheduleAutoDefenseType(PDO $pdo, int $groupId, string $requestedType
     try {
         $stmt = $pdo->prepare(
             "SELECT 1
-             FROM manuscript_submissions ms
-             INNER JOIN manuscript_evaluations me ON me.submission_id = ms.id
+             FROM crad_manuscript_submissions ms
+             INNER JOIN crad_manuscript_evaluations me ON me.submission_id = ms.id
              WHERE ms.research_group_id = ?
                AND ms.status = 'Approved'
                AND me.result = 'APPROVED'
@@ -314,27 +314,27 @@ function rdScheduleReadyRows(PDO $pdo, bool $includeScheduled = false, string $d
         $finalDefenseWhere = '';
         if ($defenseType === CRAD_DEFENSE_TYPE_FINAL) {
                 $finalDefenseJoins = "
-                 INNER JOIN final_defense_recommendations fdr
+                 INNER JOIN crad_final_defense_recommendations fdr
                      ON fdr.research_group_id = rg.id
                     AND fdr.status = 'Recommended'
-                 INNER JOIN research_services_clearances rsc2
+                 INNER JOIN crad_research_services_clearances rsc2
                      ON rsc2.research_group_id = rg.id
                     AND rsc2.research_stage = 'research_2'
                     AND rsc2.status = 'clearance_done'
                     AND TRIM(COALESCE(rsc2.adviser_signature, '')) <> ''
                     AND TRIM(COALESCE(rsc2.crad_signature, '')) <> ''
-                 INNER JOIN manuscript_submissions fms
+                 INNER JOIN crad_manuscript_submissions fms
                      ON fms.id = (
                                 SELECT ms.id
-                                FROM manuscript_submissions ms
+                                FROM crad_manuscript_submissions ms
                                 WHERE ms.research_group_id = rg.id
                                 ORDER BY ms.version_number DESC, ms.id DESC
                                 LIMIT 1
                      )
-                 INNER JOIN manuscript_evaluations fme
+                 INNER JOIN crad_manuscript_evaluations fme
                      ON fme.id = (
                                 SELECT me.id
-                                FROM manuscript_evaluations me
+                                FROM crad_manuscript_evaluations me
                                 WHERE me.submission_id = fms.id
                                 ORDER BY me.id DESC
                                 LIMIT 1
@@ -368,29 +368,29 @@ function rdScheduleReadyRows(PDO $pdo, bool $includeScheduled = false, string $d
                 COALESCE(MAX(rpa.updated_at), '1000-01-01 00:00:00'),
                 COALESCE(raa.updated_at, '1000-01-01 00:00:00')
             ) AS updated_at
-         FROM research_groups rg
+         FROM crad_research_groups rg
          {$finalDefenseJoins}
-         INNER JOIN chapter_submissions ch1 ON ch1.id = (
-            SELECT cs1.id FROM chapter_submissions cs1
+         INNER JOIN crad_chapter_submissions ch1 ON ch1.id = (
+            SELECT cs1.id FROM crad_chapter_submissions cs1
             WHERE cs1.research_group_id = rg.id AND cs1.chapter_number = 1
             ORDER BY cs1.version_number DESC, cs1.id DESC LIMIT 1
          )
-         INNER JOIN chapter_evaluations ce1 ON ce1.submission_id = ch1.id
-         INNER JOIN chapter_submissions ch2 ON ch2.id = (
-            SELECT cs2.id FROM chapter_submissions cs2
+         INNER JOIN crad_chapter_evaluations ce1 ON ce1.submission_id = ch1.id
+         INNER JOIN crad_chapter_submissions ch2 ON ch2.id = (
+            SELECT cs2.id FROM crad_chapter_submissions cs2
             WHERE cs2.research_group_id = rg.id AND cs2.chapter_number = 2
             ORDER BY cs2.version_number DESC, cs2.id DESC LIMIT 1
          )
-         INNER JOIN chapter_evaluations ce2 ON ce2.submission_id = ch2.id
-         INNER JOIN chapter_submissions ch3 ON ch3.id = (
-            SELECT cs3.id FROM chapter_submissions cs3
+         INNER JOIN crad_chapter_evaluations ce2 ON ce2.submission_id = ch2.id
+         INNER JOIN crad_chapter_submissions ch3 ON ch3.id = (
+            SELECT cs3.id FROM crad_chapter_submissions cs3
             WHERE cs3.research_group_id = rg.id AND cs3.chapter_number = 3
             ORDER BY cs3.version_number DESC, cs3.id DESC LIMIT 1
          )
-         INNER JOIN chapter_evaluations ce3 ON ce3.submission_id = ch3.id
-         INNER JOIN research_adviser_assignments raa ON raa.id = (
+         INNER JOIN crad_chapter_evaluations ce3 ON ce3.submission_id = ch3.id
+         INNER JOIN crad_research_adviser_assignments raa ON raa.id = (
             SELECT raa2.id
-            FROM research_adviser_assignments raa2
+            FROM crad_research_adviser_assignments raa2
             WHERE raa2.assignment_status IN ('Assigned', 'Confirmed')
               AND ((raa2.research_group_id IS NOT NULL AND raa2.research_group_id = rg.id)
                 OR (raa2.group_number IS NOT NULL AND raa2.group_number <> '' AND raa2.group_number = rg.group_number))
@@ -400,14 +400,14 @@ function rdScheduleReadyRows(PDO $pdo, bool $includeScheduled = false, string $d
                      raa2.id DESC
             LIMIT 1
          )
-         INNER JOIN research_panel_assignments rpa
+         INNER JOIN crad_research_panel_assignments rpa
            ON rpa.research_group_id = rg.id
           AND " . rdPanelActiveAssignmentSql('rpa') . "
-         LEFT JOIN sms2_db.users u ON u.id = rpa.panel_user_id
-         LEFT JOIN research_defense_schedules finalized
+         LEFT JOIN sms_users u ON u.id = rpa.panel_user_id
+         LEFT JOIN crad_research_defense_schedules finalized
            ON finalized.id = (
                 SELECT rds.id
-                FROM research_defense_schedules rds
+                FROM crad_research_defense_schedules rds
                 WHERE rds.research_group_id = rg.id
                                     AND rds.defense_type = :ready_defense_type
                   AND LOWER(rds.status) IN ('scheduled', 'finalized', 'final')
@@ -455,9 +455,9 @@ function rdScheduleRows(PDO $pdo, array $statuses = [], string $defenseType = CR
     $where = "WHERE " . implode(' AND ', $whereParts);
     $stmt = $pdo->prepare(
         "SELECT rds.*, rv.venue_name
-         FROM research_defense_schedules rds
+         FROM crad_research_defense_schedules rds
          " . rdOfficialScheduleJoinSql() . "
-         LEFT JOIN research_venues rv ON rv.id = rds.venue_id
+         LEFT JOIN crad_research_venues rv ON rv.id = rds.venue_id
          {$where}
          ORDER BY COALESCE(rds.defense_datetime, rds.updated_at) DESC, rds.id DESC"
     );
@@ -469,9 +469,9 @@ function rdScheduleOne(PDO $pdo, int $scheduleId): ?array
 {
     $stmt = $pdo->prepare(
         "SELECT rds.*, rv.venue_name
-         FROM research_defense_schedules rds
+         FROM crad_research_defense_schedules rds
          " . rdOfficialScheduleJoinSql() . "
-         LEFT JOIN research_venues rv ON rv.id = rds.venue_id
+         LEFT JOIN crad_research_venues rv ON rv.id = rds.venue_id
          WHERE rds.id = ?
          LIMIT 1"
     );
@@ -521,7 +521,7 @@ function rdScheduleAvailabilityReport(PDO $pdo, array $slot, int $ignoreId = 0):
     ];
     $overlapSql = rdScheduleOverlapWhere();
 
-    $researcher = $pdo->prepare("SELECT rds.id FROM research_defense_schedules rds " . rdOfficialScheduleJoinSql() . " WHERE {$overlapSql} AND rds.research_group_id = :group_id LIMIT 1");
+    $researcher = $pdo->prepare("SELECT rds.id FROM crad_research_defense_schedules rds " . rdOfficialScheduleJoinSql() . " WHERE {$overlapSql} AND rds.research_group_id = :group_id LIMIT 1");
     $researcher->execute($params + [':group_id' => $groupId]);
     $researcherConflict = (bool) $researcher->fetchColumn();
     $addItem('Researcher', !$researcherConflict, $researcherConflict ? 'Schedule Conflict' : 'Available');
@@ -530,11 +530,11 @@ function rdScheduleAvailabilityReport(PDO $pdo, array $slot, int $ignoreId = 0):
     if ($adviserOk && !empty($group['adviser_user_id'])) {
         $adviser = $pdo->prepare(
              "SELECT rds.id
-             FROM research_defense_schedules rds
+             FROM crad_research_defense_schedules rds
              " . rdOfficialScheduleJoinSql() . "
              WHERE {$overlapSql}
                AND EXISTS (
-                    SELECT 1 FROM research_adviser_assignments aa_old
+                    SELECT 1 FROM crad_research_adviser_assignments aa_old
                     WHERE aa_old.research_group_id = rds.research_group_id
                       AND aa_old.adviser_user_id = :adviser_user_id
                       AND aa_old.assignment_status IN ('Assigned', 'Confirmed')
@@ -553,11 +553,11 @@ function rdScheduleAvailabilityReport(PDO $pdo, array $slot, int $ignoreId = 0):
         if ($panelOk && $panelUserId > 0) {
             $panelConflict = $pdo->prepare(
                 "SELECT rds.id
-                 FROM research_defense_schedules rds
+                 FROM crad_research_defense_schedules rds
                  " . rdOfficialScheduleJoinSql() . "
                  WHERE {$overlapSql}
                    AND EXISTS (
-                        SELECT 1 FROM research_panel_assignments pa_old
+                        SELECT 1 FROM crad_research_panel_assignments pa_old
                         WHERE pa_old.research_group_id = rds.research_group_id
                           AND pa_old.panel_user_id = :panel_user_id
                           AND " . rdPanelActiveAssignmentSql('pa_old') . "
@@ -570,12 +570,12 @@ function rdScheduleAvailabilityReport(PDO $pdo, array $slot, int $ignoreId = 0):
         $addItem($panelName, $panelOk, $panelOk ? 'Available' : 'Schedule Conflict');
     }
 
-    $venueStmt = $pdo->prepare("SELECT id, venue_name, status FROM research_venues WHERE id = ?");
+    $venueStmt = $pdo->prepare("SELECT id, venue_name, status FROM crad_research_venues WHERE id = ?");
     $venueStmt->execute([$venueId]);
     $venue = $venueStmt->fetch();
     $venueOk = $venue && strcasecmp((string) ($venue['status'] ?? ''), 'Available') === 0;
     if ($venueOk) {
-        $venueConflict = $pdo->prepare("SELECT rds.id FROM research_defense_schedules rds " . rdOfficialScheduleJoinSql() . " WHERE {$overlapSql} AND rds.venue_id = :venue_id LIMIT 1");
+        $venueConflict = $pdo->prepare("SELECT rds.id FROM crad_research_defense_schedules rds " . rdOfficialScheduleJoinSql() . " WHERE {$overlapSql} AND rds.venue_id = :venue_id LIMIT 1");
         $venueConflict->execute($params + [':venue_id' => $venueId]);
         $venueOk = !$venueConflict->fetchColumn();
     }
@@ -635,7 +635,7 @@ function rdScheduleConflictMessages(PDO $pdo, int $groupId, int $venueId, string
     if (count($uniquePanelIds) !== RD_SCHEDULE_MAX_PANEL_MEMBERS) {
         $messages[] = 'Exactly 3 Panel Members are required for a ' . $defenseType . ' schedule.';
     }
-    $venueStmt = $pdo->prepare("SELECT id, venue_name, status FROM research_venues WHERE id = ?");
+    $venueStmt = $pdo->prepare("SELECT id, venue_name, status FROM crad_research_venues WHERE id = ?");
     $venueStmt->execute([$venueId]);
     $venue = $venueStmt->fetch();
     if (!$venue) {
@@ -654,7 +654,7 @@ function rdScheduleConflictMessages(PDO $pdo, int $groupId, int $venueId, string
 
     $conflict = $pdo->prepare(
         "SELECT rds.id, rds.research_group_id, rds.venue_id, rds.group_number, rds.research_title, rds.venue, rds.status
-         FROM research_defense_schedules rds
+         FROM crad_research_defense_schedules rds
          " . rdOfficialScheduleJoinSql() . "
          WHERE rds.id <> :ignore_id
            AND rds.defense_datetime IS NOT NULL
@@ -665,8 +665,8 @@ function rdScheduleConflictMessages(PDO $pdo, int $groupId, int $venueId, string
                 rds.research_group_id = :group_id
              OR rds.venue_id = :venue_id
              OR EXISTS (
-                    SELECT 1 FROM research_adviser_assignments aa_new
-                    JOIN research_adviser_assignments aa_old
+                    SELECT 1 FROM crad_research_adviser_assignments aa_new
+                    JOIN crad_research_adviser_assignments aa_old
                       ON aa_old.adviser_user_id = aa_new.adviser_user_id
                      AND aa_old.adviser_user_id IS NOT NULL
                      AND aa_old.research_group_id = rds.research_group_id
@@ -675,8 +675,8 @@ function rdScheduleConflictMessages(PDO $pdo, int $groupId, int $venueId, string
                       AND aa_new.assignment_status IN ('Assigned', 'Confirmed')
                 )
              OR EXISTS (
-                    SELECT 1 FROM research_panel_assignments pa_new
-                    JOIN research_panel_assignments pa_old
+                    SELECT 1 FROM crad_research_panel_assignments pa_new
+                    JOIN crad_research_panel_assignments pa_old
                       ON pa_old.panel_user_id = pa_new.panel_user_id
                      AND pa_old.research_group_id = rds.research_group_id
                      AND " . rdPanelActiveAssignmentSql('pa_old') . "
@@ -727,7 +727,7 @@ $crad = cradDb();
 if ($crad) {
     try {
         $crad->exec(
-            "CREATE TABLE IF NOT EXISTS research_defense_schedules (
+            "CREATE TABLE IF NOT EXISTS crad_research_defense_schedules (
                 id INT UNSIGNED NOT NULL AUTO_INCREMENT,
                 research_group_id INT UNSIGNED DEFAULT NULL,
                 proposal_id INT UNSIGNED DEFAULT NULL,
@@ -752,7 +752,7 @@ if ($crad) {
         );
 
         $crad->exec(
-            "CREATE TABLE IF NOT EXISTS research_venues (
+            "CREATE TABLE IF NOT EXISTS crad_research_venues (
                 id INT UNSIGNED NOT NULL AUTO_INCREMENT,
                 venue_name VARCHAR(160) NOT NULL,
                 capacity INT UNSIGNED NOT NULL DEFAULT 0,
@@ -768,7 +768,7 @@ if ($crad) {
         );
 
         $seedVenue = $crad->prepare(
-            "INSERT IGNORE INTO research_venues
+            "INSERT IGNORE INTO crad_research_venues
                 (venue_name, capacity, venue_type, status, created_at, updated_at)
              VALUES
                 (?, ?, ?, 'Available', NOW(), NOW())"
@@ -802,7 +802,7 @@ if ($crad) {
         }
         try {
             $upd = $crad->prepare(
-                "UPDATE research_venues SET status = :status, updated_at = NOW() WHERE id = :id"
+                "UPDATE crad_research_venues SET status = :status, updated_at = NOW() WHERE id = :id"
             );
             $upd->execute([':status' => $newStatus, ':id' => $venueId]);
             echo json_encode(['ok' => true, 'status' => $newStatus]);
@@ -827,7 +827,7 @@ if ($crad) {
         }
         try {
             $upd = $crad->prepare(
-                "UPDATE research_venues SET capacity = :capacity, updated_at = NOW() WHERE id = :id"
+                "UPDATE crad_research_venues SET capacity = :capacity, updated_at = NOW() WHERE id = :id"
             );
             $upd->execute([':capacity' => $capacity, ':id' => $venueId]);
             echo json_encode(['ok' => true, 'capacity' => $capacity]);
@@ -853,7 +853,7 @@ if ($crad) {
             } else {
                 try {
                     $addVenue = $crad->prepare(
-                        "INSERT INTO research_venues
+                        "INSERT INTO crad_research_venues
                             (venue_name, capacity, venue_type, status, created_by, created_at, updated_at)
                          VALUES
                             (:venue_name, :capacity, :venue_type, :status, :created_by, NOW(), NOW())
@@ -951,7 +951,7 @@ if ($crad) {
             $ends = is_array($_POST['end_time'] ?? null) ? $_POST['end_time'] : [$_POST['end_time'] ?? ''];
             $venueIds = is_array($_POST['venue_id'] ?? null) ? $_POST['venue_id'] : [$_POST['venue_id'] ?? 0];
             $slots = [];
-            $venueStmt = $crad->prepare("SELECT id, venue_name FROM research_venues WHERE id = ?");
+            $venueStmt = $crad->prepare("SELECT id, venue_name FROM crad_research_venues WHERE id = ?");
             $slotLimit = min(3, max(count($dates), count($starts), count($ends), count($venueIds)));
             for ($i = 0; $i < $slotLimit; $i++) {
                 $date = trim((string) ($dates[$i] ?? ''));
@@ -1017,7 +1017,7 @@ if ($crad) {
             }
             if (!$errors) {
                 $official = $crad->prepare(
-                    "SELECT id FROM research_defense_schedules
+                    "SELECT id FROM crad_research_defense_schedules
                      WHERE research_group_id = ?
                                              AND defense_type = ?
                        AND LOWER(status) IN ('scheduled', 'finalized', 'final')
@@ -1044,7 +1044,7 @@ if ($crad) {
                     }
                     $crad->beginTransaction();
                     $exists = $crad->prepare(
-                        "SELECT id FROM research_defense_schedules
+                        "SELECT id FROM crad_research_defense_schedules
                          WHERE research_group_id = ?
                            AND venue_id = ?
                            AND defense_datetime = ?
@@ -1060,7 +1060,7 @@ if ($crad) {
                     $panels = rdPanelFormatNames($panelNamesForSchedule);
                     $panelChair = (string) ((rdPanelNamesFromString($panels)[0] ?? '') ?: 'For panel chair');
                     $insert = $crad->prepare(
-                        "INSERT INTO research_defense_schedules
+                        "INSERT INTO crad_research_defense_schedules
                             (research_group_id, proposal_id, proposal_number, group_number, research_group,
                              research_title, adviser_name, panel_members, panel_chair, venue, venue_id,
                              defense_datetime, defense_end_datetime, defense_type, status, recorded_by, recorded_at, updated_at)
@@ -1124,7 +1124,7 @@ if ($crad) {
         }
         $scheduleId = (int) ($_POST['schedule_id'] ?? 0);
         try {
-            $stmt = $crad->prepare("SELECT * FROM research_defense_schedules WHERE id = ? AND LOWER(status) IN ('proposed', 'selected')");
+            $stmt = $crad->prepare("SELECT * FROM crad_research_defense_schedules WHERE id = ? AND LOWER(status) IN ('proposed', 'selected')");
             $stmt->execute([$scheduleId]);
             $slot = $stmt->fetch();
             if (!$slot) {
@@ -1145,7 +1145,7 @@ if ($crad) {
                 (string) ($slot['defense_type'] ?? CRAD_DEFENSE_TYPE_PRE_ORAL)
             );
             $official = $crad->prepare(
-                "SELECT id FROM research_defense_schedules
+                "SELECT id FROM crad_research_defense_schedules
                  WHERE id <> ?
                    AND research_group_id = ?
                    AND defense_type = ?
@@ -1162,8 +1162,8 @@ if ($crad) {
             $panelStmt = $crad->prepare(
                 "SELECT rpa.id, rpa.panel_user_id, rpa.panel_email,
                         COALESCE(NULLIF(u.full_name, ''), NULLIF(rpa.panel_name, ''), 'Panel Member') AS panel_name
-                 FROM research_panel_assignments rpa
-                 LEFT JOIN sms2_db.users u ON u.id = rpa.panel_user_id
+                 FROM crad_research_panel_assignments rpa
+                 LEFT JOIN sms_users u ON u.id = rpa.panel_user_id
                  WHERE rpa.research_group_id = ?
                    AND " . rdPanelActiveAssignmentSql('rpa') . "
                  GROUP BY rpa.id, rpa.panel_user_id, rpa.panel_email, panel_name
@@ -1178,46 +1178,46 @@ if ($crad) {
 
             $crad->beginTransaction();
             try {
-                $lockStmt = $crad->prepare("SELECT * FROM research_defense_schedules WHERE id = ? AND LOWER(status) IN ('proposed', 'selected') FOR UPDATE");
+                $lockStmt = $crad->prepare("SELECT * FROM crad_research_defense_schedules WHERE id = ? AND LOWER(status) IN ('proposed', 'selected') FOR UPDATE");
                 $lockStmt->execute([$scheduleId]);
                 if (!$lockStmt->fetch()) {
                     throw new RuntimeException('Proposed schedule was not found.');
                 }
                 if ($scheduleDefenseType === CRAD_DEFENSE_TYPE_FINAL) {
                     $crad->prepare(
-                        "INSERT INTO research_panel_assignments
+                        "INSERT INTO crad_research_panel_assignments
                             (research_group_id, defense_schedule_id, proposal_id, title_approval_id, proposal_number,
                              group_number, research_title, panel_user_id, panel_name, panel_email, expertise,
                              availability_status, assignment_status, defense_phase, assigned_by, assigned_at, created_at, updated_at)
                          SELECT research_group_id, ?, proposal_id, title_approval_id, proposal_number,
                                 group_number, research_title, panel_user_id, panel_name, panel_email, expertise,
                                 availability_status, 'Assigned', ?, assigned_by, NOW(), NOW(), NOW()
-                         FROM research_panel_assignments
+                         FROM crad_research_panel_assignments
                          WHERE research_group_id = ?
                            AND defense_phase = ?
                            AND assignment_status = 'Assigned'
                          ON DUPLICATE KEY UPDATE defense_schedule_id = VALUES(defense_schedule_id), assignment_status = 'Assigned', updated_at = NOW()"
                     )->execute([$scheduleId, CRAD_DEFENSE_PHASE_FINAL, $groupId, CRAD_DEFENSE_PHASE_PRE_ORAL]);
                 }
-                $crad->prepare("UPDATE research_defense_schedules SET status = 'Rejected', updated_at = NOW() WHERE research_group_id = ? AND id <> ? AND defense_type = ? AND LOWER(status) IN ('proposed', 'selected')")
+                $crad->prepare("UPDATE crad_research_defense_schedules SET status = 'Rejected', updated_at = NOW() WHERE research_group_id = ? AND id <> ? AND defense_type = ? AND LOWER(status) IN ('proposed', 'selected')")
                     ->execute([$groupId, $scheduleId, $scheduleDefenseType]);
-                $crad->prepare("UPDATE research_defense_schedules SET status = 'Finalized', finalized_by = ?, finalized_at = NOW(), updated_at = NOW() WHERE id = ?")
+                $crad->prepare("UPDATE crad_research_defense_schedules SET status = 'Finalized', finalized_by = ?, finalized_at = NOW(), updated_at = NOW() WHERE id = ?")
                     ->execute([(int) getCurrentUserId(), $scheduleId]);
                 $crad->prepare(
-                    "UPDATE research_panel_assignments
+                    "UPDATE crad_research_panel_assignments
                      SET defense_schedule_id = ?, updated_at = NOW()
                      WHERE research_group_id = ?
                        AND defense_phase = ?
                        AND assignment_status = 'Assigned'"
                 )->execute([$scheduleId, $groupId, $scheduleDefenseType === CRAD_DEFENSE_TYPE_FINAL ? CRAD_DEFENSE_PHASE_FINAL : CRAD_DEFENSE_PHASE_PRE_ORAL]);
-                $planStmt = $crad->prepare("SELECT id FROM research_plans WHERE research_group_id = ? LIMIT 1");
+                $planStmt = $crad->prepare("SELECT id FROM crad_research_plans WHERE research_group_id = ? LIMIT 1");
                 $planStmt->execute([$groupId]);
                 $planId = (int) ($planStmt->fetchColumn() ?: 0);
                 if ($planId > 0 && $scheduleDefenseType === CRAD_DEFENSE_TYPE_PRE_ORAL) {
                     rpSetCurrentStageIfFirstSemesterComplete($crad, $planId, $groupId);
                 }
                 $notify = $crad->prepare(
-                    "INSERT IGNORE INTO panel_assignment_notifications
+                    "INSERT IGNORE INTO crad_panel_assignment_notifications
                         (event_key, recipient_user_id, recipient_role, recipient_email, panel_assignment_id,
                          research_group_id, title, body, url, is_read, created_at)
                      VALUES
@@ -1316,7 +1316,7 @@ if ($crad) {
             $groupId = (int) ($slot['research_group_id'] ?? 0);
             $defenseType = (string) ($slot['defense_type'] ?? CRAD_DEFENSE_TYPE_PRE_ORAL);
             $official = $crad->prepare(
-                "SELECT id FROM research_defense_schedules
+                "SELECT id FROM crad_research_defense_schedules
                  WHERE research_group_id = ?
                    AND defense_type = ?
                    AND LOWER(status) IN ('scheduled', 'finalized', 'final')
@@ -1330,7 +1330,7 @@ if ($crad) {
             $crad->beginTransaction();
             try {
                 $crad->prepare(
-                    "UPDATE research_defense_schedules
+                    "UPDATE crad_research_defense_schedules
                      SET status = 'Proposed', updated_at = NOW()
                      WHERE research_group_id = ?
                        AND id <> ?
@@ -1338,7 +1338,7 @@ if ($crad) {
                        AND LOWER(status) = 'selected'"
                 )->execute([$groupId, $scheduleId, $defenseType]);
                 $crad->prepare(
-                    "UPDATE research_defense_schedules
+                    "UPDATE crad_research_defense_schedules
                      SET status = 'Selected', updated_at = NOW()
                      WHERE id = ?
                        AND LOWER(status) IN ('proposed', 'selected')"
@@ -1437,7 +1437,7 @@ if ($crad) {
     try {
         $allVenueRows = $crad->query(
             "SELECT id, venue_name, capacity, venue_type, status, updated_at
-             FROM research_venues
+             FROM crad_research_venues
              ORDER BY FIELD(status, 'Available', 'Reserved', 'Unavailable'), venue_name ASC"
         )->fetchAll() ?: [];
     } catch (Throwable $e) {
@@ -1447,7 +1447,7 @@ if ($crad) {
     try {
         $officialScheduledStmt = $crad->prepare(
             "SELECT COUNT(*)
-             FROM research_defense_schedules rds
+             FROM crad_research_defense_schedules rds
              " . rdOfficialScheduleJoinSql() . "
              WHERE rds.defense_datetime IS NOT NULL
                AND rds.defense_type = ?
@@ -1457,7 +1457,7 @@ if ($crad) {
         $officialScheduledCount = (int) $officialScheduledStmt->fetchColumn();
         $completedScheduleStmt = $crad->prepare(
             "SELECT COUNT(*)
-             FROM research_defense_schedules rds
+             FROM crad_research_defense_schedules rds
              " . rdOfficialScheduleJoinSql() . "
              WHERE rds.defense_datetime IS NOT NULL
                AND rds.defense_type = ?
@@ -1475,7 +1475,7 @@ if ($crad) {
                 "SELECT rv.id, rv.venue_name, rv.capacity, rv.venue_type, rv.status, rv.updated_at,
                         (
                             SELECT CONCAT(rds.group_number, ' | ', DATE_FORMAT(rds.defense_datetime, '%b %e, %Y %h:%i %p'))
-                            FROM research_defense_schedules rds
+                            FROM crad_research_defense_schedules rds
                             " . rdOfficialScheduleJoinSql() . "
                             WHERE rds.venue_id = rv.id
                               AND rds.defense_datetime IS NOT NULL
@@ -1483,7 +1483,7 @@ if ($crad) {
                             ORDER BY rds.defense_datetime ASC
                             LIMIT 1
                         ) AS current_schedule
-                 FROM research_venues rv
+                 FROM crad_research_venues rv
                  ORDER BY FIELD(rv.status, 'Available', 'Reserved', 'Unavailable'), rv.venue_name ASC"
             );
             $venueRows = $venueStmt->fetchAll() ?: [];
@@ -1507,7 +1507,7 @@ $selectedGroupHasOfficial = false;
 if ($crad && $selectedGroupId > 0) {
     try {
         $officialStmt = $crad->prepare(
-            "SELECT id FROM research_defense_schedules
+            "SELECT id FROM crad_research_defense_schedules
              WHERE research_group_id = ?
                              AND defense_type = ?
                AND LOWER(status) IN ('scheduled', 'finalized', 'final')

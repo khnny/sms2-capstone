@@ -20,7 +20,7 @@ function smsEnsureAnnouncementTables(): void
 
     try {
         $pdo->exec(
-            "CREATE TABLE IF NOT EXISTS admin_announcements (
+            "CREATE TABLE IF NOT EXISTS sms_admin_announcements (
                 id INT UNSIGNED NOT NULL AUTO_INCREMENT,
                 title VARCHAR(180) NOT NULL,
                 body TEXT NOT NULL,
@@ -38,9 +38,9 @@ function smsEnsureAnnouncementTables(): void
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
         );
         try {
-            $col = $pdo->query("SHOW COLUMNS FROM admin_announcements LIKE 'image_path'")->fetch();
+            $col = $pdo->query("SHOW COLUMNS FROM sms_admin_announcements LIKE 'image_path'")->fetch();
             if (!$col) {
-                $pdo->exec("ALTER TABLE admin_announcements ADD image_path VARCHAR(255) NULL AFTER body");
+                $pdo->exec("ALTER TABLE sms_admin_announcements ADD image_path VARCHAR(255) NULL AFTER body");
             }
         } catch (Throwable $e) {
             error_log('smsEnsureAnnouncementTables image_path: ' . $e->getMessage());
@@ -68,7 +68,7 @@ function smsAnnouncementFetch(bool $publishedOnly = false, int $limit = 50): arr
                    DATE_FORMAT(updated_at, "%b %e, %Y %h:%i %p") AS updated_label,
                    DATE_FORMAT(published_at, "%b %e, %Y %h:%i %p") AS published_label,
                    UNIX_TIMESTAMP(IFNULL(published_at, updated_at)) AS stamp
-              FROM admin_announcements';
+              FROM sms_admin_announcements';
     if ($publishedOnly) {
         $sql .= " WHERE status = 'published' AND audience = 'student'";
     }
@@ -222,7 +222,7 @@ function smsAnnouncementPublish(string $title, string $body, ?array $imageFile =
 
     try {
         $stmt = $pdo->prepare(
-            'INSERT INTO admin_announcements
+            'INSERT INTO sms_admin_announcements
                 (title, body, image_path, status, audience, created_by, created_by_name, published_at)
              VALUES (?, ?, ?, \'published\', \'student\', ?, ?, NOW())'
         );
@@ -258,8 +258,8 @@ function smsAnnouncementSetStatus(int $id, string $status): array
 
     try {
         $sql = $status === 'published'
-            ? 'UPDATE admin_announcements SET status = ?, published_at = IFNULL(published_at, NOW()), updated_at = NOW() WHERE id = ?'
-            : 'UPDATE admin_announcements SET status = ?, updated_at = NOW() WHERE id = ?';
+            ? 'UPDATE sms_admin_announcements SET status = ?, published_at = IFNULL(published_at, NOW()), updated_at = NOW() WHERE id = ?'
+            : 'UPDATE sms_admin_announcements SET status = ?, updated_at = NOW() WHERE id = ?';
         $stmt = $pdo->prepare($sql);
         $stmt->execute([$status, $id]);
         if (function_exists('logActivity')) {
@@ -282,10 +282,10 @@ function smsAnnouncementDelete(int $id): array
     }
 
     try {
-        $lookup = $pdo->prepare('SELECT image_path FROM admin_announcements WHERE id = ? LIMIT 1');
+        $lookup = $pdo->prepare('SELECT image_path FROM sms_admin_announcements WHERE id = ? LIMIT 1');
         $lookup->execute([$id]);
         $imagePath = (string) ($lookup->fetchColumn() ?: '');
-        $stmt = $pdo->prepare('DELETE FROM admin_announcements WHERE id = ?');
+        $stmt = $pdo->prepare('DELETE FROM sms_admin_announcements WHERE id = ?');
         $stmt->execute([$id]);
         smsAnnouncementDeleteFile($imagePath);
         if (function_exists('logActivity')) {

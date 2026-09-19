@@ -151,7 +151,7 @@ function sms2MigrateApplySqlFile(PDO $pdo, string $sqlFile): int
 function sms2MigrateEnsureTrackingTable(PDO $pdo): void
 {
     $pdo->exec(
-        'CREATE TABLE IF NOT EXISTS `schema_migrations` (
+        'CREATE TABLE IF NOT EXISTS `sms_schema_migrations` (
             `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT,
             `migration_key` varchar(120) NOT NULL,
             `source_file` varchar(255) NOT NULL,
@@ -168,7 +168,7 @@ function sms2MigrateWasRecorded(PDO $pdo, string $migrationKey): bool
     sms2MigrateEnsureTrackingTable($pdo);
 
     $stmt = $pdo->prepare(
-        'SELECT 1 FROM `schema_migrations` WHERE `migration_key` = ? LIMIT 1'
+        'SELECT 1 FROM `sms_schema_migrations` WHERE `migration_key` = ? LIMIT 1'
     );
     $stmt->execute([$migrationKey]);
 
@@ -180,7 +180,7 @@ function sms2MigrateRecord(PDO $pdo, string $migrationKey, string $sourceFile): 
     sms2MigrateEnsureTrackingTable($pdo);
 
     $stmt = $pdo->prepare(
-        'INSERT INTO `schema_migrations` (`migration_key`, `source_file`, `source_sha256`)
+        'INSERT INTO `sms_schema_migrations` (`migration_key`, `source_file`, `source_sha256`)
          VALUES (?, ?, ?)
          ON DUPLICATE KEY UPDATE
              `source_file` = VALUES(`source_file`),

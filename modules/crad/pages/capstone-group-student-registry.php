@@ -89,11 +89,11 @@ function cgsrRegistryRows(PDO $pdo): array
                 aa.adviser_name,
                 aa.adviser_email,
                 aa.assigned_at     AS adviser_assigned_at
-            FROM research_groups g
-            LEFT JOIN title_approvals t ON t.id = g.title_approval_id
-            LEFT JOIN research_coordinator_assignments ca ON ca.id = (
+            FROM crad_research_groups g
+            LEFT JOIN crad_title_approvals t ON t.id = g.title_approval_id
+            LEFT JOIN crad_research_coordinator_assignments ca ON ca.id = (
                 SELECT ca2.id
-                FROM research_coordinator_assignments ca2
+                FROM crad_research_coordinator_assignments ca2
                 WHERE ca2.status = 'Active'
                   AND (
                         ca2.research_group_id = g.id
@@ -103,9 +103,9 @@ function cgsrRegistryRows(PDO $pdo): array
                 ORDER BY ca2.updated_at DESC, ca2.id DESC
                 LIMIT 1
             )
-            LEFT JOIN research_adviser_assignments aa ON aa.id = (
+            LEFT JOIN crad_research_adviser_assignments aa ON aa.id = (
                 SELECT aa2.id
-                FROM research_adviser_assignments aa2
+                FROM crad_research_adviser_assignments aa2
                 WHERE aa2.assignment_status IN ('Assigned', 'Confirmed')
                   AND (
                         aa2.research_group_id = g.id
@@ -142,7 +142,7 @@ function cgsrResolveMembers(PDO $pdo, array $g): array
         try {
             $stmt = $pdo->prepare(
                 "SELECT sort_order, student_id, student_name
-                 FROM proposal_members
+                 FROM crad_proposal_members
                  WHERE proposal_id = ?
                  ORDER BY sort_order ASC, id ASC"
             );

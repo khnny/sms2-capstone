@@ -66,7 +66,7 @@ function grantEnsureDocumentRepositoryTables(PDO $crad): void
     $done = true;
 
     $crad->exec("
-        CREATE TABLE IF NOT EXISTS grant_document_repository (
+        CREATE TABLE IF NOT EXISTS crad_grant_document_repository (
             id                      INT UNSIGNED NOT NULL AUTO_INCREMENT,
             grant_application_id    INT UNSIGNED NOT NULL,
             archive_reference       VARCHAR(40) NOT NULL DEFAULT '',
@@ -84,7 +84,7 @@ function grantEnsureDocumentRepositoryTables(PDO $crad): void
     ");
 
     $crad->exec("
-        CREATE TABLE IF NOT EXISTS grant_document_repository_items (
+        CREATE TABLE IF NOT EXISTS crad_grant_document_repository_items (
             id                      INT UNSIGNED NOT NULL AUTO_INCREMENT,
             repository_id           INT UNSIGNED NOT NULL,
             grant_application_id    INT UNSIGNED NOT NULL,
@@ -129,10 +129,10 @@ function grantGetDocumentRepositoryOverview(PDO $crad): array
                dr.archived_by_name,
                dr.updated_at AS archive_updated_at,
                pip.repository_reference AS publication_reference
-          FROM grant_applications ga
-         INNER JOIN grant_opportunities go ON go.id = ga.grant_opportunity_id
-          LEFT JOIN grant_document_repository dr ON dr.grant_application_id = ga.id
-          LEFT JOIN grant_publications_ip_repository pip ON pip.grant_application_id = ga.id
+          FROM crad_grant_applications ga
+         INNER JOIN crad_grant_opportunities go ON go.id = ga.grant_opportunity_id
+          LEFT JOIN crad_grant_document_repository dr ON dr.grant_application_id = ga.id
+          LEFT JOIN crad_grant_publications_ip_repository pip ON pip.grant_application_id = ga.id
          WHERE ga.status IN (?, ?)
          ORDER BY
             CASE WHEN dr.id IS NULL AND ga.status = ? THEN 0
@@ -209,8 +209,8 @@ function grantGetDocumentRepositoryDetail(PDO $crad, int $applicationId): ?array
 
     $stmt = $crad->prepare("
         SELECT ga.*, go.funding_title
-          FROM grant_applications ga
-         INNER JOIN grant_opportunities go ON go.id = ga.grant_opportunity_id
+          FROM crad_grant_applications ga
+         INNER JOIN crad_grant_opportunities go ON go.id = ga.grant_opportunity_id
          WHERE ga.id = ?
          LIMIT 1
     ");
@@ -225,14 +225,14 @@ function grantGetDocumentRepositoryDetail(PDO $crad, int $applicationId): ?array
         return null;
     }
 
-    $archiveStmt = $crad->prepare('SELECT * FROM grant_document_repository WHERE grant_application_id = ? LIMIT 1');
+    $archiveStmt = $crad->prepare('SELECT * FROM crad_grant_document_repository WHERE grant_application_id = ? LIMIT 1');
     $archiveStmt->execute([$applicationId]);
     $archive = $archiveStmt->fetch(PDO::FETCH_ASSOC) ?: null;
 
     $categories = [];
     if ($archive !== null) {
         $itemStmt = $crad->prepare("
-            SELECT * FROM grant_document_repository_items
+            SELECT * FROM crad_grant_document_repository_items
              WHERE repository_id = ?
              ORDER BY category ASC, sort_order ASC, id ASC
         ");
@@ -297,7 +297,7 @@ function grantBuildDocumentRepositoryManifest(PDO $crad, int $applicationId): ar
         $manifest[$key] = [];
     }
 
-    $appStmt = $crad->prepare('SELECT * FROM grant_applications WHERE id = ? LIMIT 1');
+    $appStmt = $crad->prepare('SELECT * FROM crad_grant_applications WHERE id = ? LIMIT 1');
     $appStmt->execute([$applicationId]);
     $app = $appStmt->fetch(PDO::FETCH_ASSOC);
     if (!$app) {
@@ -328,7 +328,7 @@ function grantBuildDocumentRepositoryManifest(PDO $crad, int $applicationId): ar
     }
 
     $verStmt = $crad->prepare("
-        SELECT * FROM grant_proposal_versions
+        SELECT * FROM crad_grant_proposal_versions
          WHERE grant_application_id = ?
          ORDER BY version_number ASC
     ");
@@ -365,7 +365,7 @@ function grantBuildDocumentRepositoryManifest(PDO $crad, int $applicationId): ar
     }
 
     $evalStmt = $crad->prepare("
-        SELECT * FROM grant_proposal_evaluations
+        SELECT * FROM crad_grant_proposal_evaluations
          WHERE grant_application_id = ?
          ORDER BY submitted_at ASC
     ");
@@ -402,7 +402,7 @@ function grantBuildDocumentRepositoryManifest(PDO $crad, int $applicationId): ar
     }
 
     $stepStmt = $crad->prepare("
-        SELECT * FROM grant_proposal_approval_steps
+        SELECT * FROM crad_grant_proposal_approval_steps
          WHERE grant_application_id = ?
          ORDER BY step_order ASC
     ");
@@ -435,7 +435,7 @@ function grantBuildDocumentRepositoryManifest(PDO $crad, int $applicationId): ar
     $approved = (float) ($app['approved_budget'] ?? $app['requested_budget'] ?? 0);
     $budgetSummary = 'Approved Budget: ' . grantFormatPeso($approved);
     $disbStmt = $crad->prepare("
-        SELECT * FROM grant_funding_disbursements
+        SELECT * FROM crad_grant_funding_disbursements
          WHERE grant_application_id = ?
          ORDER BY tranche_number ASC
     ");
@@ -466,7 +466,7 @@ function grantBuildDocumentRepositoryManifest(PDO $crad, int $applicationId): ar
     );
 
     $msStmt = $crad->prepare("
-        SELECT * FROM grant_funded_project_milestones
+        SELECT * FROM crad_grant_funded_project_milestones
          WHERE grant_application_id = ?
          ORDER BY milestone_order ASC
     ");
@@ -495,7 +495,7 @@ function grantBuildDocumentRepositoryManifest(PDO $crad, int $applicationId): ar
     }
 
     $evStmt = $crad->prepare("
-        SELECT * FROM grant_funded_progress_evidence
+        SELECT * FROM crad_grant_funded_progress_evidence
          WHERE grant_application_id = ?
          ORDER BY created_at ASC
     ");
@@ -514,7 +514,7 @@ function grantBuildDocumentRepositoryManifest(PDO $crad, int $applicationId): ar
         );
     }
 
-    $subStmt = $crad->prepare('SELECT * FROM grant_final_output_submissions WHERE grant_application_id = ? LIMIT 1');
+    $subStmt = $crad->prepare('SELECT * FROM crad_grant_final_output_submissions WHERE grant_application_id = ? LIMIT 1');
     $subStmt->execute([$applicationId]);
     $submission = $subStmt->fetch(PDO::FETCH_ASSOC);
     if ($submission) {
@@ -551,7 +551,7 @@ function grantBuildDocumentRepositoryManifest(PDO $crad, int $applicationId): ar
         }
     }
 
-    $pipStmt = $crad->prepare('SELECT * FROM grant_publications_ip_repository WHERE grant_application_id = ? LIMIT 1');
+    $pipStmt = $crad->prepare('SELECT * FROM crad_grant_publications_ip_repository WHERE grant_application_id = ? LIMIT 1');
     $pipStmt->execute([$applicationId]);
     $pip = $pipStmt->fetch(PDO::FETCH_ASSOC);
     if ($pip) {
@@ -695,7 +695,7 @@ function grantArchiveToDocumentRepository(PDO $crad, int $applicationId, int $us
         $crad->beginTransaction();
 
         $insert = $crad->prepare("
-            INSERT INTO grant_document_repository
+            INSERT INTO crad_grant_document_repository
                 (grant_application_id, archive_reference, status, item_count,
                  archived_by_user_id, archived_by_name, archived_at)
             VALUES (?, ?, 'ARCHIVED', ?, ?, ?, NOW())
@@ -710,7 +710,7 @@ function grantArchiveToDocumentRepository(PDO $crad, int $applicationId, int $us
         $repositoryId = (int) $crad->lastInsertId();
 
         $itemInsert = $crad->prepare("
-            INSERT INTO grant_document_repository_items
+            INSERT INTO crad_grant_document_repository_items
                 (repository_id, grant_application_id, category, item_label, item_type,
                  file_path, file_original, download_url, summary_text, metadata_json, sort_order)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -731,7 +731,7 @@ function grantArchiveToDocumentRepository(PDO $crad, int $applicationId, int $us
             ]);
         }
 
-        $appUpdate = $crad->prepare('UPDATE grant_applications SET status = ?, updated_at = NOW() WHERE id = ?');
+        $appUpdate = $crad->prepare('UPDATE crad_grant_applications SET status = ?, updated_at = NOW() WHERE id = ?');
         $appUpdate->execute([grantStatusArchived(), $applicationId]);
 
         $crad->commit();
@@ -756,7 +756,7 @@ function grantGenerateDocumentArchiveReference(PDO $crad): string
     $prefix = 'DAR-' . $year . '-';
 
     $stmt = $crad->prepare("
-        SELECT archive_reference FROM grant_document_repository
+        SELECT archive_reference FROM crad_grant_document_repository
          WHERE archive_reference LIKE ?
          ORDER BY id DESC LIMIT 1
     ");

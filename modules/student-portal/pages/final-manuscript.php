@@ -30,13 +30,13 @@ if ($groupId > 0 && $_SERVER['REQUEST_METHOD'] === 'POST') {
             $latest = fpGetLatestManuscriptSubmission($crad, $groupId);
             $version = (int) ($latest['version_number'] ?? 0) + 1;
             $token = bin2hex(random_bytes(32));
-            $stmt = $crad->prepare("INSERT INTO manuscript_submissions (research_group_id, version_number, status, submitted_by_user, submitted_by_name, submitted_by_email, submission_notes, original_name, stored_subdir, stored_name, file_size, file_mime, submission_token) VALUES (?, ?, 'Submitted', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt = $crad->prepare("INSERT INTO crad_manuscript_submissions (research_group_id, version_number, status, submitted_by_user, submitted_by_name, submitted_by_email, submission_notes, original_name, stored_subdir, stored_name, file_size, file_mime, submission_token) VALUES (?, ?, 'Submitted', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
             $stmt->execute([$groupId, $version, (int) ($_SESSION['user_id'] ?? 0), (string) ($_SESSION['full_name'] ?? $_SESSION['username'] ?? ''), (string) ($_SESSION['user_email'] ?? ''), trim((string) ($_POST['submission_notes'] ?? '')), $upload['original_name'] ?? '', $uploadSubdir, $upload['stored_name'] ?? basename((string) ($upload['path'] ?? '')), (int) ($upload['size'] ?? 0), $upload['mime'] ?? '', $token]);
             $message = 'Final manuscript version ' . $version . ' submitted for review.';
         }
     }
 }
-if ($groupId > 0) { $stmt = $crad->prepare('SELECT * FROM manuscript_submissions WHERE research_group_id = ? ORDER BY version_number DESC'); $stmt->execute([$groupId]); $submissions = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: []; }
+if ($groupId > 0) { $stmt = $crad->prepare('SELECT * FROM crad_manuscript_submissions WHERE research_group_id = ? ORDER BY version_number DESC'); $stmt->execute([$groupId]); $submissions = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: []; }
 $isFinalManuscriptEligible = $groupId > 0 && fpIsRecommendedForFinalDefense($crad, $groupId);
 function renderFinalManuscriptEligibilityBlock(bool $eligible): void
 {

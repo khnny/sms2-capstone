@@ -30,7 +30,7 @@ function rscLiveAccountName(int $userId = 0, string $email = '', string $roleKey
     try {
         if ($userId > 0) {
             $stmt = $sms->prepare(
-                "SELECT full_name FROM users
+                "SELECT full_name FROM sms_users
                  WHERE id = ? AND TRIM(COALESCE(full_name, '')) <> ''
                  LIMIT 1"
             );
@@ -43,7 +43,7 @@ function rscLiveAccountName(int $userId = 0, string $email = '', string $roleKey
         $email = strtolower(trim($email));
         if ($email !== '') {
             $stmt = $sms->prepare(
-                "SELECT full_name FROM users
+                "SELECT full_name FROM sms_users
                  WHERE LOWER(TRIM(email)) = ? AND TRIM(COALESCE(full_name, '')) <> ''
                  LIMIT 1"
             );
@@ -56,7 +56,7 @@ function rscLiveAccountName(int $userId = 0, string $email = '', string $roleKey
         $roleKey = strtolower(trim($roleKey));
         if ($roleKey !== '') {
             $stmt = $sms->prepare(
-                "SELECT full_name FROM users
+                "SELECT full_name FROM sms_users
                  WHERE role_key = ? AND TRIM(COALESCE(full_name, '')) <> ''
                    AND (status = 'active' OR status = 1 OR status IS NULL OR status = '')
                  ORDER BY id DESC
@@ -86,7 +86,7 @@ function rscEnsureSchema(?PDO $crad = null): void
     }
 
     $crad->exec(
-        "CREATE TABLE IF NOT EXISTS research_services_clearances (
+        "CREATE TABLE IF NOT EXISTS crad_research_services_clearances (
             id INT UNSIGNED NOT NULL AUTO_INCREMENT,
             research_group_id INT UNSIGNED NOT NULL,
             research_stage VARCHAR(20) NOT NULL DEFAULT 'research_1',
@@ -124,18 +124,18 @@ function rscEnsureSchema(?PDO $crad = null): void
     );
 
     foreach ([
-        'mis_verified' => "ALTER TABLE research_services_clearances ADD COLUMN mis_verified TINYINT(1) NOT NULL DEFAULT 0 AFTER uploaded_at",
-        'aa_verified' => "ALTER TABLE research_services_clearances ADD COLUMN aa_verified TINYINT(1) NOT NULL DEFAULT 0 AFTER mis_verified",
-        'mis_verified_at' => "ALTER TABLE research_services_clearances ADD COLUMN mis_verified_at DATETIME DEFAULT NULL AFTER aa_verified",
-        'aa_verified_at' => "ALTER TABLE research_services_clearances ADD COLUMN aa_verified_at DATETIME DEFAULT NULL AFTER mis_verified_at",
-        'export_hash' => "ALTER TABLE research_services_clearances ADD COLUMN export_hash VARCHAR(64) NOT NULL DEFAULT '' AFTER aa_verified_at",
-        'form_verified' => "ALTER TABLE research_services_clearances ADD COLUMN form_verified TINYINT(1) NOT NULL DEFAULT 0 AFTER export_hash",
-        'mis_signature' => "ALTER TABLE research_services_clearances ADD COLUMN mis_signature LONGTEXT DEFAULT NULL AFTER form_verified",
-        'aa_signature' => "ALTER TABLE research_services_clearances ADD COLUMN aa_signature LONGTEXT DEFAULT NULL AFTER mis_signature",
-        'research_stage' => "ALTER TABLE research_services_clearances ADD COLUMN research_stage VARCHAR(20) NOT NULL DEFAULT 'research_1' AFTER research_group_id",
+        'mis_verified' => "ALTER TABLE crad_research_services_clearances ADD COLUMN mis_verified TINYINT(1) NOT NULL DEFAULT 0 AFTER uploaded_at",
+        'aa_verified' => "ALTER TABLE crad_research_services_clearances ADD COLUMN aa_verified TINYINT(1) NOT NULL DEFAULT 0 AFTER mis_verified",
+        'mis_verified_at' => "ALTER TABLE crad_research_services_clearances ADD COLUMN mis_verified_at DATETIME DEFAULT NULL AFTER aa_verified",
+        'aa_verified_at' => "ALTER TABLE crad_research_services_clearances ADD COLUMN aa_verified_at DATETIME DEFAULT NULL AFTER mis_verified_at",
+        'export_hash' => "ALTER TABLE crad_research_services_clearances ADD COLUMN export_hash VARCHAR(64) NOT NULL DEFAULT '' AFTER aa_verified_at",
+        'form_verified' => "ALTER TABLE crad_research_services_clearances ADD COLUMN form_verified TINYINT(1) NOT NULL DEFAULT 0 AFTER export_hash",
+        'mis_signature' => "ALTER TABLE crad_research_services_clearances ADD COLUMN mis_signature LONGTEXT DEFAULT NULL AFTER form_verified",
+        'aa_signature' => "ALTER TABLE crad_research_services_clearances ADD COLUMN aa_signature LONGTEXT DEFAULT NULL AFTER mis_signature",
+        'research_stage' => "ALTER TABLE crad_research_services_clearances ADD COLUMN research_stage VARCHAR(20) NOT NULL DEFAULT 'research_1' AFTER research_group_id",
     ] as $column => $sql) {
         try {
-            if (!$crad->query("SHOW COLUMNS FROM research_services_clearances LIKE " . $crad->quote($column))->fetch()) {
+            if (!$crad->query("SHOW COLUMNS FROM crad_research_services_clearances LIKE " . $crad->quote($column))->fetch()) {
                 $crad->exec($sql);
             }
         } catch (Throwable $e) {
@@ -144,8 +144,8 @@ function rscEnsureSchema(?PDO $crad = null): void
     }
 
     try {
-        $crad->exec("UPDATE research_services_clearances SET research_stage = 'research_1' WHERE TRIM(COALESCE(research_stage, '')) = ''");
-        $indexes = $crad->query("SHOW INDEX FROM research_services_clearances")->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        $crad->exec("UPDATE crad_research_services_clearances SET research_stage = 'research_1' WHERE TRIM(COALESCE(research_stage, '')) = ''");
+        $indexes = $crad->query("SHOW INDEX FROM crad_research_services_clearances")->fetchAll(PDO::FETCH_ASSOC) ?: [];
         $hasStageUnique = false;
         foreach ($indexes as $idx) {
             if (($idx['Key_name'] ?? '') === 'uniq_rsc_group_stage') {
@@ -155,17 +155,17 @@ function rscEnsureSchema(?PDO $crad = null): void
         }
         if (!$hasStageUnique) {
             try {
-                $crad->exec('ALTER TABLE research_services_clearances DROP INDEX uniq_rsc_group');
+                $crad->exec('ALTER TABLE crad_research_services_clearances DROP INDEX uniq_rsc_group');
             } catch (Throwable $e) {
                 // legacy index name may differ
             }
             $crad->exec(
-                'ALTER TABLE research_services_clearances
+                'ALTER TABLE crad_research_services_clearances
                  ADD UNIQUE KEY uniq_rsc_group_stage (research_group_id, research_stage)'
             );
         }
         try {
-            $crad->exec('ALTER TABLE research_services_clearances MODIFY or_number VARCHAR(80) NOT NULL DEFAULT \'\'');
+            $crad->exec('ALTER TABLE crad_research_services_clearances MODIFY or_number VARCHAR(80) NOT NULL DEFAULT \'\'');
         } catch (Throwable $e) {
             // keep existing width if alter fails
         }
@@ -174,7 +174,7 @@ function rscEnsureSchema(?PDO $crad = null): void
     }
 
     $crad->exec(
-        "CREATE TABLE IF NOT EXISTS research_clearance_notifications (
+        "CREATE TABLE IF NOT EXISTS crad_research_clearance_notifications (
             id INT UNSIGNED NOT NULL AUTO_INCREMENT,
             event_key VARCHAR(190) NOT NULL,
             recipient_user_id INT UNSIGNED DEFAULT NULL,
@@ -206,8 +206,8 @@ function rscPurgeDisconnectedClearances(PDO $crad): int
 {
     $orphans = $crad->query(
         "SELECT c.id, c.uploaded_file
-         FROM research_services_clearances c
-         LEFT JOIN research_groups rg ON rg.id = c.research_group_id
+         FROM crad_research_services_clearances c
+         LEFT JOIN crad_research_groups rg ON rg.id = c.research_group_id
          WHERE c.research_group_id IS NULL
             OR c.research_group_id < 1
             OR rg.id IS NULL"
@@ -236,14 +236,14 @@ function rscPurgeDisconnectedClearances(PDO $crad): int
     $placeholders = implode(',', array_fill(0, count($ids), '?'));
     try {
         $crad->prepare(
-            "DELETE FROM research_clearance_notifications
+            "DELETE FROM crad_research_clearance_notifications
              WHERE clearance_id IN ($placeholders)"
         )->execute($ids);
     } catch (Throwable $e) {
         // older schema may not have clearance_id
         try {
             $crad->prepare(
-                "DELETE FROM research_clearance_notifications
+                "DELETE FROM crad_research_clearance_notifications
                  WHERE event_key LIKE 'clearance:%'
                    AND (" . implode(' OR ', array_map(static fn(int $id): string => "event_key LIKE " . $crad->quote('%:' . $id . ':%'), $ids)) . ")"
             )->execute();
@@ -251,7 +251,7 @@ function rscPurgeDisconnectedClearances(PDO $crad): int
             // ignore
         }
     }
-    $stmt = $crad->prepare("DELETE FROM research_services_clearances WHERE id IN ($placeholders)");
+    $stmt = $crad->prepare("DELETE FROM crad_research_services_clearances WHERE id IN ($placeholders)");
     $stmt->execute($ids);
 
     return $stmt->rowCount();
@@ -322,25 +322,25 @@ function rscIsChapterReady(PDO $crad, int $groupId): bool
     try {
         $stmt = $crad->prepare(
             "SELECT 1
-             FROM research_groups rg
-             INNER JOIN chapter_submissions ch1 ON ch1.id = (
-                SELECT cs1.id FROM chapter_submissions cs1
+             FROM crad_research_groups rg
+             INNER JOIN crad_chapter_submissions ch1 ON ch1.id = (
+                SELECT cs1.id FROM crad_chapter_submissions cs1
                 WHERE cs1.research_group_id = rg.id AND cs1.chapter_number = 1
                 ORDER BY cs1.version_number DESC, cs1.id DESC LIMIT 1
              )
-             INNER JOIN chapter_evaluations ce1 ON ce1.submission_id = ch1.id
-             INNER JOIN chapter_submissions ch2 ON ch2.id = (
-                SELECT cs2.id FROM chapter_submissions cs2
+             INNER JOIN crad_chapter_evaluations ce1 ON ce1.submission_id = ch1.id
+             INNER JOIN crad_chapter_submissions ch2 ON ch2.id = (
+                SELECT cs2.id FROM crad_chapter_submissions cs2
                 WHERE cs2.research_group_id = rg.id AND cs2.chapter_number = 2
                 ORDER BY cs2.version_number DESC, cs2.id DESC LIMIT 1
              )
-             INNER JOIN chapter_evaluations ce2 ON ce2.submission_id = ch2.id
-             INNER JOIN chapter_submissions ch3 ON ch3.id = (
-                SELECT cs3.id FROM chapter_submissions cs3
+             INNER JOIN crad_chapter_evaluations ce2 ON ce2.submission_id = ch2.id
+             INNER JOIN crad_chapter_submissions ch3 ON ch3.id = (
+                SELECT cs3.id FROM crad_chapter_submissions cs3
                 WHERE cs3.research_group_id = rg.id AND cs3.chapter_number = 3
                 ORDER BY cs3.version_number DESC, cs3.id DESC LIMIT 1
              )
-             INNER JOIN chapter_evaluations ce3 ON ce3.submission_id = ch3.id
+             INNER JOIN crad_chapter_evaluations ce3 ON ce3.submission_id = ch3.id
              WHERE rg.id = :gid
                AND ch1.status = 'Accepted'
                AND ch2.status = 'Accepted'
@@ -471,7 +471,7 @@ function rscMembersFromGroup(PDO $crad, array $group): array
     if ($proposalId > 0) {
         try {
             $stmt = $crad->prepare(
-                "SELECT student_id, student_name FROM proposal_members
+                "SELECT student_id, student_name FROM crad_proposal_members
                  WHERE proposal_id = ? ORDER BY sort_order ASC, id ASC"
             );
             $stmt->execute([$proposalId]);
@@ -518,10 +518,10 @@ function rscLoadGroupContext(PDO $crad, int $groupId): ?array
         "SELECT rg.*, t.members_json, t.department AS title_department, t.student_id AS title_student_id,
                 t.student_name AS title_student_name, t.student_user_id,
                 aa.adviser_user_id, aa.adviser_name, aa.adviser_email
-         FROM research_groups rg
-         LEFT JOIN title_approvals t ON t.id = rg.title_approval_id
-         LEFT JOIN research_adviser_assignments aa ON aa.id = (
-            SELECT aa2.id FROM research_adviser_assignments aa2
+         FROM crad_research_groups rg
+         LEFT JOIN crad_title_approvals t ON t.id = rg.title_approval_id
+         LEFT JOIN crad_research_adviser_assignments aa ON aa.id = (
+            SELECT aa2.id FROM crad_research_adviser_assignments aa2
             WHERE (aa2.research_group_id = rg.id
                 OR (aa2.group_number IS NOT NULL AND aa2.group_number <> '' AND aa2.group_number = rg.group_number))
             ORDER BY (aa2.assignment_status IN ('Assigned','Confirmed')) DESC, aa2.updated_at DESC, aa2.id DESC
@@ -540,7 +540,7 @@ function rscLoadGroupContext(PDO $crad, int $groupId): ?array
     $grammarianUserId = 0;
     try {
         $gStmt = $crad->prepare(
-            "SELECT evaluator_user_id, evaluator_name FROM chapter_evaluations
+            "SELECT evaluator_user_id, evaluator_name FROM crad_chapter_evaluations
              WHERE research_group_id = ?
              ORDER BY id DESC LIMIT 1"
         );
@@ -579,7 +579,7 @@ function rscLoadGroupContext(PDO $crad, int $groupId): ?array
                 require_once ROOT_PATH . '/modules/student-portal/includes/student-profile.php';
             }
             studentPortalEnsureProfileSchema($sms);
-            $pStmt = $sms->prepare('SELECT program, section FROM student_profiles WHERE student_id = ? LIMIT 1');
+            $pStmt = $sms->prepare('SELECT program, section FROM sms_student_profiles WHERE student_id = ? LIMIT 1');
             $pStmt->execute([$leaderId]);
             $profile = $pStmt->fetch() ?: null;
             if ($profile) {
@@ -689,7 +689,7 @@ function rscEnsureForReadyGroup(PDO $crad, int $groupId, string $stage = 'resear
 
     if (!$existing) {
         $stmt = $crad->prepare(
-            "INSERT INTO research_services_clearances
+            "INSERT INTO crad_research_services_clearances
                 (research_group_id, research_stage, title_approval_id, status, or_number, leader_student_no, leader_group_no,
                  program, section, research_title, members_json, grammarian_name, statistician_name, adviser_name,
                  adviser_user_id, adviser_email)
@@ -719,7 +719,7 @@ function rscEnsureForReadyGroup(PDO $crad, int $groupId, string $stage = 'resear
     }
 
     $crad->prepare(
-        "UPDATE research_services_clearances
+        "UPDATE crad_research_services_clearances
          SET title_approval_id = :tid,
              research_stage = :stage,
              or_number = :or_number,
@@ -762,7 +762,7 @@ function rscFindByGroup(PDO $crad, int $groupId, string $stage = 'research_1'): 
     }
     $stage = rscNormalizeStage($stage);
     $stmt = $crad->prepare(
-        'SELECT * FROM research_services_clearances
+        'SELECT * FROM crad_research_services_clearances
          WHERE research_group_id = ? AND research_stage = ?
          LIMIT 1'
     );
@@ -776,7 +776,7 @@ function rscFindById(PDO $crad, int $id): ?array
     if ($id <= 0) {
         return null;
     }
-    $stmt = $crad->prepare('SELECT * FROM research_services_clearances WHERE id = ? LIMIT 1');
+    $stmt = $crad->prepare('SELECT * FROM crad_research_services_clearances WHERE id = ? LIMIT 1');
     $stmt->execute([$id]);
     $row = $stmt->fetch() ?: null;
     return $row ?: null;
@@ -786,7 +786,7 @@ function rscNotify(PDO $crad, string $eventKey, int $clearanceId, array $recipie
 {
     rscEnsureSchema($crad);
     $stmt = $crad->prepare(
-        "INSERT IGNORE INTO research_clearance_notifications
+        "INSERT IGNORE INTO crad_research_clearance_notifications
             (event_key, recipient_user_id, recipient_role, recipient_email, clearance_id, type, title, body, url)
          VALUES
             (:event_key, :user_id, :role, :email, :clearance_id, :type, :title, :body, :url)"
@@ -819,7 +819,7 @@ function rscStudentRecipients(PDO $crad, array $clearance): array
     $leaderId = trim((string) ($ctx['leader_id'] ?? $ctx['title_student_id'] ?? ''));
     if ($sms instanceof PDO && $leaderId !== '' && (int) ($recipients[0]['id'] ?? 0) <= 0) {
         try {
-            $uStmt = $sms->prepare("SELECT id, email, role_key FROM users WHERE student_id = ? AND role_key = 'student' LIMIT 1");
+            $uStmt = $sms->prepare("SELECT id, email, role_key FROM sms_users WHERE student_id = ? AND role_key = 'student' LIMIT 1");
             $uStmt->execute([$leaderId]);
             $user = $uStmt->fetch() ?: null;
             if ($user) {
@@ -853,7 +853,7 @@ function rscSendToAdviser(PDO $crad, array $clearance): array
         return ['ok' => false, 'error' => 'Admin must approve the college payment before you can send the clearance form.'];
     }
     $id = (int) $clearance['id'];
-    $crad->prepare("UPDATE research_services_clearances SET status = 'sent_to_adviser', sent_at = NOW() WHERE id = ?")
+    $crad->prepare("UPDATE crad_research_services_clearances SET status = 'sent_to_adviser', sent_at = NOW() WHERE id = ?")
         ->execute([$id]);
 
     $recipient = [
@@ -884,7 +884,7 @@ function rscAdviserSign(PDO $crad, array $clearance, string $signature, string $
         return ['ok' => false, 'error' => 'Please provide your signature before approving.'];
     }
     $crad->prepare(
-        "UPDATE research_services_clearances
+        "UPDATE crad_research_services_clearances
          SET status = 'adviser_signed',
              adviser_signature = :sig,
              adviser_signed_at = NOW(),
@@ -899,7 +899,7 @@ function rscAdviserSign(PDO $crad, array $clearance, string $signature, string $
     $fresh = rscFindById($crad, (int) $clearance['id']);
     $sms = function_exists('db') ? db() : null;
     if ($sms instanceof PDO) {
-        $officers = $sms->query("SELECT id, email, role_key FROM users WHERE role_key = 'crad_officer' AND status = 'active'")->fetchAll() ?: [];
+        $officers = $sms->query("SELECT id, email, role_key FROM sms_users WHERE role_key = 'crad_officer' AND status = 'active'")->fetchAll() ?: [];
         foreach ($officers as $officer) {
             rscNotify(
                 $crad,
@@ -958,7 +958,7 @@ function rscCradReceive(PDO $crad, array $clearance, array $file = []): array
     $hasAa = trim((string) ($extracted['aa'] ?? '')) !== '';
     $nextStatus = $status === 'clearance_done' ? 'clearance_done' : 'crad_received';
     $crad->prepare(
-        "UPDATE research_services_clearances
+        "UPDATE crad_research_services_clearances
          SET status = :status,
              uploaded_file = :file,
              uploaded_original = :original,
@@ -1067,7 +1067,7 @@ function rscCradVerifyMarks(PDO $crad, array $clearance, bool $mis, bool $aa): a
         return ['ok' => false, 'error' => 'The adviser signature is missing.'];
     }
     $crad->prepare(
-        "UPDATE research_services_clearances
+        "UPDATE crad_research_services_clearances
          SET mis_verified = :mis,
              aa_verified = :aa,
              mis_verified_at = CASE WHEN :mis2 = 1 THEN COALESCE(mis_verified_at, NOW()) ELSE NULL END,
@@ -1107,7 +1107,7 @@ function rscCradSign(PDO $crad, array $clearance, string $signature, string $sig
         return ['ok' => false, 'error' => 'Please provide your signature before approving.'];
     }
     $crad->prepare(
-        "UPDATE research_services_clearances
+        "UPDATE crad_research_services_clearances
          SET status = 'clearance_done',
              crad_signature = :sig,
              crad_signed_at = NOW(),
@@ -1322,7 +1322,7 @@ function rscPersistUploadedSignatures(PDO $crad, array $row): array
         return $hydrated;
     }
     $crad->prepare(
-        "UPDATE research_services_clearances
+        "UPDATE crad_research_services_clearances
          SET mis_signature = :mis,
              aa_signature = :aa,
              mis_verified = CASE WHEN TRIM(:mis_ok) <> '' THEN 1 ELSE 0 END,
@@ -1554,7 +1554,7 @@ function rscListForAdviser(PDO $crad): array
     $email = strtolower(trim((string) ($_SESSION['user_email'] ?? '')));
     $name = strtolower(trim((string) ($_SESSION['user_name'] ?? '')));
     $stmt = $crad->prepare(
-        "SELECT * FROM research_services_clearances
+        "SELECT * FROM crad_research_services_clearances
          WHERE status IN ('sent_to_adviser','adviser_signed','crad_received','clearance_done')
            AND (
                 (:uid > 0 AND adviser_user_id = :uid_match)
@@ -1578,7 +1578,7 @@ function rscListForCrad(PDO $crad): array
 {
     rscEnsureSchema($crad);
     $stmt = $crad->query(
-        "SELECT * FROM research_services_clearances
+        "SELECT * FROM crad_research_services_clearances
          WHERE status IN ('adviser_signed','crad_received','clearance_done')
          ORDER BY FIELD(status,'adviser_signed','crad_received','clearance_done'), updated_at DESC"
     );
@@ -1590,7 +1590,7 @@ function rscClearanceDoneExists(PDO $crad, int $groupId, string $stage = 'resear
     rscEnsureSchema($crad);
     $stage = rscNormalizeStage($stage);
     $stmt = $crad->prepare(
-        "SELECT 1 FROM research_services_clearances
+        "SELECT 1 FROM crad_research_services_clearances
          WHERE research_group_id = ?
            AND research_stage = ?
            AND status = 'clearance_done'

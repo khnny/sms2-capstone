@@ -41,7 +41,7 @@ $backup = [
 ];
 
 $stmt = $pdo->prepare(
-    'UPDATE users
+    'UPDATE sms_users
         SET password_hash = ?,
             password_changed_at = ?,
             must_change_password = 0,

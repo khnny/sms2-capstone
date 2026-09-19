@@ -78,7 +78,7 @@ try {
         $pdo = db();
         $owns = false;
         if ($pdo && $id > 0) {
-            $st = $pdo->prepare('SELECT id FROM user_passkeys WHERE id = ? AND user_id = ? LIMIT 1');
+            $st = $pdo->prepare('SELECT id FROM sms_user_passkeys WHERE id = ? AND user_id = ? LIMIT 1');
             $st->execute([$id, $uid]);
             $owns = (bool) $st->fetch();
         }

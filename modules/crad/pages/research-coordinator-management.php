@@ -7,7 +7,7 @@
  * student first. Adviser assignment happens next. Only then do both names
  * appear on the student's Title Approval Form.
  *
- * Records live in the `research_coordinator_assignments` table. The page
+ * Records live in the `crad_research_coordinator_assignments` table. The page
  * refreshes in real time (5s polling) via the `ajax=coordinator-assignments`
  * endpoint so the CRAD Officer always sees the latest eligible groups and
  * assignments without reloading.
@@ -57,15 +57,15 @@ function rcmEnsureSchema(PDO $pdo): void
     cradEnsureAssigneeSchema($pdo);
 
     try {
-        $exists = $pdo->query("SHOW TABLES LIKE 'research_groups'")->fetch();
+        $exists = $pdo->query("SHOW TABLES LIKE 'crad_research_groups'")->fetch();
         if ($exists) {
-            $pdo->exec("ALTER TABLE research_groups CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+            $pdo->exec("ALTER TABLE crad_research_groups CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
         }
     } catch (Throwable $e) {
         // ignore conversion errors
     }
 
-    $pdo->exec("CREATE TABLE IF NOT EXISTS research_coordinator_assignments (
+    $pdo->exec("CREATE TABLE IF NOT EXISTS crad_research_coordinator_assignments (
         id INT UNSIGNED NOT NULL AUTO_INCREMENT,
         research_group_id INT UNSIGNED NULL,
         proposal_id INT UNSIGNED NULL,
@@ -90,9 +90,9 @@ function rcmEnsureSchema(PDO $pdo): void
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
     try {
-        $col = $pdo->query("SHOW COLUMNS FROM research_coordinator_assignments LIKE 'group_number'")->fetch();
+        $col = $pdo->query("SHOW COLUMNS FROM crad_research_coordinator_assignments LIKE 'group_number'")->fetch();
         if ($col && strtoupper((string) ($col['Null'] ?? 'YES')) === 'NO') {
-            $pdo->exec("ALTER TABLE research_coordinator_assignments MODIFY group_number VARCHAR(40) DEFAULT NULL");
+            $pdo->exec("ALTER TABLE crad_research_coordinator_assignments MODIFY group_number VARCHAR(40) DEFAULT NULL");
         }
     } catch (Throwable $e) {
         error_log('Coordinator assignment group_number nullable check skipped: ' . $e->getMessage());
@@ -135,7 +135,7 @@ function rcmEligibleStudents(PDO $pdo): array
     try {
         $students = $main->query(
             "SELECT student_id, full_name, email
-             FROM users
+             FROM sms_users
              WHERE role_key = 'student'
                AND status = 'active'
                AND student_id IS NOT NULL
@@ -149,7 +149,7 @@ function rcmEligibleStudents(PDO $pdo): array
 
     $assigned = [];
     try {
-        foreach ($pdo->query("SELECT student_id, group_number FROM research_coordinator_assignments WHERE status = 'Active'")->fetchAll() as $a) {
+        foreach ($pdo->query("SELECT student_id, group_number FROM crad_research_coordinator_assignments WHERE status = 'Active'")->fetchAll() as $a) {
             $sid = trim((string) ($a['student_id'] ?? ''));
             if ($sid !== '') {
                 $assigned[$sid] = true;
@@ -165,7 +165,7 @@ function rcmEligibleStudents(PDO $pdo): array
 
     $titles = [];
     try {
-        foreach ($pdo->query("SELECT student_id, proposed_title, department FROM title_approvals ORDER BY id DESC")->fetchAll() as $row) {
+        foreach ($pdo->query("SELECT student_id, proposed_title, department FROM crad_title_approvals ORDER BY id DESC")->fetchAll() as $row) {
             $sid = trim((string) ($row['student_id'] ?? ''));
             if ($sid !== '' && !isset($titles[$sid])) {
                 $titles[$sid] = $row;
@@ -218,7 +218,7 @@ function rcmCoordinatorPool(PDO $pdo): array
         try {
             $users = $mainDb->query(
                 "SELECT id, full_name, email, status
-                 FROM users
+                 FROM sms_users
                  WHERE role_key = 'research_coordinator'
                  ORDER BY full_name ASC"
             )->fetchAll();
@@ -250,7 +250,7 @@ function rcmCoordinatorPool(PDO $pdo): array
     try {
         $approvals = $pdo->query(
             "SELECT DISTINCT coordinator_name
-             FROM title_approvals
+             FROM crad_title_approvals
              WHERE coordinator_status = 'Approved'
                AND coordinator_name IS NOT NULL AND TRIM(coordinator_name) <> ''
              ORDER BY coordinator_name ASC"
@@ -293,8 +293,8 @@ function rcmEligibleGroups(PDO $pdo): array
                    g.adviser, g.proposal_number, g.leader_id,
                    t.proposal_number AS tap_proposal_number,
                    t.coordinator_name AS suggested_coordinator
-            FROM research_groups g
-            JOIN title_approvals t ON t.id = g.title_approval_id
+            FROM crad_research_groups g
+            JOIN crad_title_approvals t ON t.id = g.title_approval_id
             WHERE g.title_approval_id IS NOT NULL
               AND " . rcmFullyApprovedClause('t') . "
             ORDER BY g.group_number ASC";
@@ -303,7 +303,7 @@ function rcmEligibleGroups(PDO $pdo): array
 
     $activeGroups = [];
     $assignedLeaders = [];
-    foreach ($pdo->query("SELECT student_id, group_number FROM research_coordinator_assignments WHERE status = 'Active'")->fetchAll() as $a) {
+    foreach ($pdo->query("SELECT student_id, group_number FROM crad_research_coordinator_assignments WHERE status = 'Active'")->fetchAll() as $a) {
         $gn = trim((string) ($a['group_number'] ?? ''));
         if ($gn !== '') {
             $activeGroups[$gn] = true;
@@ -358,9 +358,9 @@ function rcmAssignments(PDO $pdo): array
         "SELECT a.*, g.group_name AS current_group_name, g.research_title AS current_title,
                 g.adviser AS current_adviser,
                 t.coordinator_name AS approval_coordinator
-         FROM research_coordinator_assignments a
-         LEFT JOIN research_groups g ON g.id = a.research_group_id
-         LEFT JOIN title_approvals t ON t.id = a.title_approval_id
+         FROM crad_research_coordinator_assignments a
+         LEFT JOIN crad_research_groups g ON g.id = a.research_group_id
+         LEFT JOIN crad_title_approvals t ON t.id = a.title_approval_id
          WHERE a.group_number IS NOT NULL AND a.group_number <> ''
          ORDER BY a.updated_at DESC, a.id DESC"
     )->fetchAll();
@@ -472,7 +472,7 @@ function rcmResolveGroupMembers(PDO $pdo, array $group): array
         try {
             $stmt = $pdo->prepare(
                 "SELECT sort_order, student_id, student_name, email, contact
-                 FROM proposal_members
+                 FROM crad_proposal_members
                  WHERE proposal_id = ?
                  ORDER BY sort_order ASC, id ASC"
             );
@@ -566,8 +566,8 @@ function rcmGroupDetails(PDO $pdo, string $groupNumber): array
 {
     $stmt = $pdo->prepare(
         "SELECT g.*, t.coordinator_name AS approval_coordinator, t.members_json
-         FROM research_groups g
-         LEFT JOIN title_approvals t ON t.id = g.title_approval_id
+         FROM crad_research_groups g
+         LEFT JOIN crad_title_approvals t ON t.id = g.title_approval_id
          WHERE g.group_number = ?
          LIMIT 1"
     );
@@ -581,7 +581,7 @@ function rcmGroupDetails(PDO $pdo, string $groupNumber): array
 
     $as = $pdo->prepare(
         "SELECT status, coordinator_name, coordinator_email, assigned_at, updated_at
-         FROM research_coordinator_assignments
+         FROM crad_research_coordinator_assignments
          WHERE group_number = ?
          ORDER BY updated_at DESC, id DESC"
     );
@@ -778,12 +778,12 @@ if ($ajax === 'assign') {
         $department = '';
         $main = db();
         if ($main && $studentId !== '') {
-            $u = $main->prepare("SELECT full_name FROM users WHERE student_id = :sid LIMIT 1");
+            $u = $main->prepare("SELECT full_name FROM sms_users WHERE student_id = :sid LIMIT 1");
             $u->execute([':sid' => $studentId]);
             $studentName = trim((string) $u->fetchColumn());
         }
         try {
-            $t = $pdo->prepare("SELECT proposed_title, department FROM title_approvals WHERE student_id = :sid ORDER BY id DESC LIMIT 1");
+            $t = $pdo->prepare("SELECT proposed_title, department FROM crad_title_approvals WHERE student_id = :sid ORDER BY id DESC LIMIT 1");
             $t->execute([':sid' => $studentId]);
             $titleRow = $t->fetch(PDO::FETCH_ASSOC) ?: [];
             $title = trim((string) ($titleRow['proposed_title'] ?? ''));
@@ -807,8 +807,8 @@ if ($ajax === 'assign') {
             "SELECT g.id AS group_id, g.group_number, g.group_name, g.research_title,
                     g.proposal_number, g.title_approval_id, g.leader_id,
                     t.proposal_number AS tap_proposal_number
-             FROM research_groups g
-             LEFT JOIN title_approvals t ON t.id = g.title_approval_id
+             FROM crad_research_groups g
+             LEFT JOIN crad_title_approvals t ON t.id = g.title_approval_id
              WHERE g.group_number = ?
              LIMIT 1"
         );
@@ -829,7 +829,7 @@ if ($ajax === 'assign') {
     $pdo->beginTransaction();
     try {
         $stmt = $pdo->prepare(
-            "INSERT INTO research_coordinator_assignments
+            "INSERT INTO crad_research_coordinator_assignments
                 (research_group_id, title_approval_id, proposal_number, group_number, group_name, research_title,
                  student_id, coordinator_user_id, coordinator_name, coordinator_email, status, assigned_by, assigned_at)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Active', ?, NOW())
@@ -897,7 +897,7 @@ if ($ajax === 'set-status') {
         exit;
     }
 
-    $stmt = $pdo->prepare("SELECT group_number, coordinator_name FROM research_coordinator_assignments WHERE id = ?");
+    $stmt = $pdo->prepare("SELECT group_number, coordinator_name FROM crad_research_coordinator_assignments WHERE id = ?");
     $stmt->execute([$id]);
     $row = $stmt->fetch();
     if (!$row) {
@@ -905,9 +905,9 @@ if ($ajax === 'set-status') {
         exit;
     }
 
-    $pdo->prepare("UPDATE research_coordinator_assignments SET status = ? WHERE id = ?")->execute([$status, $id]);
+    $pdo->prepare("UPDATE crad_research_coordinator_assignments SET status = ? WHERE id = ?")->execute([$status, $id]);
 
-    $sidStmt = $pdo->prepare("SELECT student_id, group_number FROM research_coordinator_assignments WHERE id = ?");
+    $sidStmt = $pdo->prepare("SELECT student_id, group_number FROM crad_research_coordinator_assignments WHERE id = ?");
     $sidStmt->execute([$id]);
     $sidRow = $sidStmt->fetch(PDO::FETCH_ASSOC) ?: [];
     $studentId = trim((string) ($sidRow['student_id'] ?? ''));
@@ -946,7 +946,7 @@ if ($ajax === 'details') {
     }
 
     if ($type === 'assignment') {
-        $stmt = $pdo->prepare("SELECT group_number FROM research_coordinator_assignments WHERE id = ?");
+        $stmt = $pdo->prepare("SELECT group_number FROM crad_research_coordinator_assignments WHERE id = ?");
         $stmt->execute([(int) $id]);
         $row = $stmt->fetch();
         if (!$row) {

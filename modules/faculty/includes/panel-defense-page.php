@@ -89,22 +89,22 @@ function panelDefenseRows(bool $history = false): array
                 ev.result AS panel_result,
                 ev.overall_score AS panel_score,
                 ev.submitted_at
-             FROM research_defense_schedules rds
-             LEFT JOIN research_groups rg ON rg.id = rds.research_group_id OR rg.group_number = rds.group_number
-             LEFT JOIN research_venues rv ON rv.id = rds.venue_id
-             LEFT JOIN research_panel_assignments rpa_self
+             FROM crad_research_defense_schedules rds
+             LEFT JOIN crad_research_groups rg ON rg.id = rds.research_group_id OR rg.group_number = rds.group_number
+             LEFT JOIN crad_research_venues rv ON rv.id = rds.venue_id
+             LEFT JOIN crad_research_panel_assignments rpa_self
                ON rpa_self.research_group_id = rds.research_group_id
               AND rpa_self.defense_schedule_id = rds.id
               AND rpa_self.panel_user_id = :panel_user_id_match
               AND rpa_self.defense_phase = 'Pre-Oral Defense'
               AND rpa_self.assignment_status = 'Assigned'
-             LEFT JOIN research_panel_assignments rpa_all
+             LEFT JOIN crad_research_panel_assignments rpa_all
                ON rpa_all.research_group_id = rds.research_group_id
               AND rpa_all.defense_schedule_id = rds.id
               AND rpa_all.defense_phase = 'Pre-Oral Defense'
               AND rpa_all.assignment_status = 'Assigned'
-             LEFT JOIN sms2_db.users u_all ON u_all.id = rpa_all.panel_user_id
-             LEFT JOIN preoral_defense_evaluations ev
+             LEFT JOIN sms_users u_all ON u_all.id = rpa_all.panel_user_id
+             LEFT JOIN crad_preoral_defense_evaluations ev
                ON ev.defense_schedule_id = rds.id
               AND ev.panel_user_id = :panel_user_id
               AND ev.status = 'Submitted'
@@ -114,7 +114,7 @@ function panelDefenseRows(bool $history = false): array
                AND rpa_self.id IS NOT NULL
                AND EXISTS (
                      SELECT 1
-                     FROM research_groups rg_gate
+                     FROM crad_research_groups rg_gate
                      WHERE rg_gate.id = rds.research_group_id
                        AND " . cradOfficialRegistryGroupWhereSql('rg_gate') . "
                )
@@ -125,7 +125,7 @@ function panelDefenseRows(bool $history = false): array
                      NOT :history_gate
                      OR EXISTS (
                            SELECT 1
-                           FROM research_groups rg_gate
+                           FROM crad_research_groups rg_gate
                            WHERE rg_gate.id = rds.research_group_id
                              AND " . cradOfficialRegistryGroupWhereSql('rg_gate') . "
                      )
@@ -173,13 +173,13 @@ function chapterPanelCanAccessSubmission(PDO $crad, array $submission): bool
     try {
         $stmt = $crad->prepare(
             "SELECT id, panel_members, panel_chair, status, defense_datetime
-             FROM research_defense_schedules
+             FROM crad_research_defense_schedules
              WHERE research_group_id = ?
                AND defense_datetime IS NOT NULL
                AND LOWER(status) IN ('scheduled', 'finalized', 'final', 'completed', 'passed', 'failed')
                AND EXISTS (
                     SELECT 1
-                    FROM research_panel_assignments rpa
+                    FROM crad_research_panel_assignments rpa
                     WHERE rpa.research_group_id = research_defense_schedules.research_group_id
                       AND rpa.defense_schedule_id = research_defense_schedules.id
                       AND rpa.panel_user_id = ?
@@ -188,7 +188,7 @@ function chapterPanelCanAccessSubmission(PDO $crad, array $submission): bool
                )
                AND EXISTS (
                     SELECT 1
-                    FROM research_groups rg_gate
+                    FROM crad_research_groups rg_gate
                     WHERE rg_gate.id = research_defense_schedules.research_group_id
                       AND " . cradOfficialRegistryGroupWhereSql('rg_gate') . "
                )
@@ -238,7 +238,7 @@ function panelHydrateDefenseRow(array $row): array
     if ($crad instanceof PDO) {
         try {
             $stmt = $crad->prepare(
-                "SELECT result FROM preoral_defense_evaluations
+                "SELECT result FROM crad_preoral_defense_evaluations
                  WHERE defense_schedule_id = ? AND status = 'Submitted'
                  ORDER BY submitted_at ASC, id ASC"
             );
@@ -299,7 +299,7 @@ function panelEnsureEvaluationSchema(?PDO $crad = null): void
         return;
     }
     $crad->exec(
-        "CREATE TABLE IF NOT EXISTS preoral_defense_evaluations (
+        "CREATE TABLE IF NOT EXISTS crad_preoral_defense_evaluations (
             id INT UNSIGNED NOT NULL AUTO_INCREMENT,
             defense_schedule_id INT UNSIGNED NOT NULL,
             research_group_id INT UNSIGNED DEFAULT NULL,
@@ -324,9 +324,9 @@ function panelEnsureEvaluationSchema(?PDO $crad = null): void
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     );
     try {
-        if (!$crad->query("SHOW COLUMNS FROM preoral_defense_evaluations LIKE 'defense_score'")->fetch()) {
+        if (!$crad->query("SHOW COLUMNS FROM crad_preoral_defense_evaluations LIKE 'defense_score'")->fetch()) {
             $crad->exec(
-                "ALTER TABLE preoral_defense_evaluations
+                "ALTER TABLE crad_preoral_defense_evaluations
                  ADD COLUMN defense_score DECIMAL(5,2) NOT NULL DEFAULT 0 AFTER format_score"
             );
         }
@@ -353,7 +353,7 @@ function panelChapterDocuments(int $groupId): array
         foreach ([1, 2, 3] as $chapter) {
             $stmt = $crad->prepare(
                 "SELECT id, chapter_number, version_number, status, original_name, submitted_at
-                 FROM chapter_submissions
+                 FROM crad_chapter_submissions
                  WHERE research_group_id = ?
                    AND chapter_number = ?
                    AND status = 'Accepted'
@@ -384,7 +384,7 @@ function panelStudentMembers(array $defense): array
     try {
         $stmt = $crad->prepare(
             "SELECT student_name, student_id, email
-             FROM proposal_members
+             FROM crad_proposal_members
              WHERE proposal_id = ?
              ORDER BY sort_order ASC, id ASC"
         );
@@ -442,7 +442,7 @@ function panelSubmitEvaluation(int $scheduleId, array $data): array
     try {
         $crad->beginTransaction();
         $stmt = $crad->prepare(
-            "INSERT INTO preoral_defense_evaluations
+            "INSERT INTO crad_preoral_defense_evaluations
                 (defense_schedule_id, research_group_id, panel_user_id, panel_name,
                  content_score, methodology_score, references_score, format_score, defense_score,
                  remarks, result, overall_score, status, submitted_at, created_at)

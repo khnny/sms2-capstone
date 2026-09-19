@@ -157,7 +157,7 @@ function rcSendNotificationRows(): array
                     CASE
                         WHEN g.proposal_id IS NOT NULL AND g.proposal_id > 0 THEN (
                             SELECT COUNT(*)
-                            FROM proposal_members pm
+                            FROM crad_proposal_members pm
                             WHERE pm.proposal_id = g.proposal_id
                         )
                         WHEN g.title_approval_id IS NOT NULL AND g.title_approval_id > 0 THEN 1
@@ -166,7 +166,7 @@ function rcSendNotificationRows(): array
                 ) AS member_count,
                 (
                     SELECT a.adviser_name
-                    FROM research_adviser_assignments a
+                    FROM crad_research_adviser_assignments a
                     WHERE a.assignment_status = 'Assigned'
                       AND (a.research_group_id = g.id OR a.group_number = g.group_number OR a.proposal_id = g.proposal_id)
                     ORDER BY a.assigned_at DESC, a.updated_at DESC, a.id DESC
@@ -174,7 +174,7 @@ function rcSendNotificationRows(): array
                 ) AS adviser_name,
                 (
                     SELECT a.adviser_email
-                    FROM research_adviser_assignments a
+                    FROM crad_research_adviser_assignments a
                     WHERE a.assignment_status = 'Assigned'
                       AND (a.research_group_id = g.id OR a.group_number = g.group_number OR a.proposal_id = g.proposal_id)
                     ORDER BY a.assigned_at DESC, a.updated_at DESC, a.id DESC
@@ -182,36 +182,36 @@ function rcSendNotificationRows(): array
                 ) AS adviser_email,
                 (
                     SELECT COUNT(*)
-                    FROM research_adviser_assignments a
+                    FROM crad_research_adviser_assignments a
                     WHERE a.assignment_status = 'Assigned'
                       AND (a.research_group_id = g.id OR a.group_number = g.group_number OR a.proposal_id = g.proposal_id)
                 ) AS adviser_count,
                 (
                     SELECT COUNT(*)
-                    FROM research_adviser_assignments a
+                    FROM crad_research_adviser_assignments a
                     WHERE a.assignment_status = 'Assigned'
                       AND a.notification_sent_at IS NULL
                       AND (a.research_group_id = g.id OR a.group_number = g.group_number OR a.proposal_id = g.proposal_id)
                 ) AS adviser_unsent_count,
                 COALESCE((
                     SELECT MAX(COALESCE(a.assigned_at, a.updated_at))
-                    FROM research_adviser_assignments a
+                    FROM crad_research_adviser_assignments a
                     WHERE a.assignment_status = 'Assigned'
                       AND (a.research_group_id = g.id OR a.group_number = g.group_number OR a.proposal_id = g.proposal_id)
                 ), '1000-01-01 00:00:00') AS updated_at,
                 COALESCE((
                     SELECT MAX(a.notification_sent_at)
-                    FROM research_adviser_assignments a
+                    FROM crad_research_adviser_assignments a
                     WHERE a.assignment_status = 'Assigned'
                       AND (a.research_group_id = g.id OR a.group_number = g.group_number OR a.proposal_id = g.proposal_id)
                 ), '1000-01-01 00:00:00') AS notification_sent_at
-             FROM research_groups g
-             LEFT JOIN research_proposals p ON p.id = g.proposal_id
-             LEFT JOIN title_approvals t ON t.id = g.title_approval_id
+             FROM crad_research_groups g
+             LEFT JOIN crad_research_proposals p ON p.id = g.proposal_id
+             LEFT JOIN crad_title_approvals t ON t.id = g.title_approval_id
              WHERE (g.title_approval_id IS NULL OR g.title_approval_id = 0 OR t.id IS NOT NULL)
                AND EXISTS (
                 SELECT 1
-                FROM research_adviser_assignments a
+                FROM crad_research_adviser_assignments a
                 WHERE a.assignment_status = 'Assigned'
                   AND (a.research_group_id = g.id OR a.group_number = g.group_number OR a.proposal_id = g.proposal_id)
              )

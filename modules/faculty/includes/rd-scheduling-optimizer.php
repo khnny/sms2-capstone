@@ -52,7 +52,7 @@ function rdScheduleGenerateOptimizedSlots(
 
     $venues = $pdo->query(
         "SELECT id, venue_name, capacity, venue_type, status
-           FROM research_venues
+           FROM crad_research_venues
           WHERE LOWER(status) = 'available'
             AND capacity >= " . (int) $expectedAttendees . "
           ORDER BY capacity ASC, venue_name ASC"
@@ -266,8 +266,8 @@ function rdScheduleAiBusyBlocks(PDO $pdo, int $groupId, string $periodStart, str
                    END AS is_own_group,
                    CASE
                      WHEN EXISTS (
-                        SELECT 1 FROM research_adviser_assignments aa_new
-                        JOIN research_adviser_assignments aa_old
+                        SELECT 1 FROM crad_research_adviser_assignments aa_new
+                        JOIN crad_research_adviser_assignments aa_old
                           ON aa_old.adviser_user_id = aa_new.adviser_user_id
                          AND aa_old.adviser_user_id IS NOT NULL
                          AND aa_old.research_group_id = rds.research_group_id
@@ -278,8 +278,8 @@ function rdScheduleAiBusyBlocks(PDO $pdo, int $groupId, string $periodStart, str
                    END AS shares_adviser,
                    CASE
                      WHEN EXISTS (
-                        SELECT 1 FROM research_panel_assignments pa_new
-                        JOIN research_panel_assignments pa_old
+                        SELECT 1 FROM crad_research_panel_assignments pa_new
+                        JOIN crad_research_panel_assignments pa_old
                           ON pa_old.panel_user_id = pa_new.panel_user_id
                          AND pa_old.research_group_id = rds.research_group_id
                          AND {$panelActive}
@@ -287,7 +287,7 @@ function rdScheduleAiBusyBlocks(PDO $pdo, int $groupId, string $periodStart, str
                           AND {$panelActiveNew}
                      ) THEN 1 ELSE 0
                    END AS shares_panel
-            FROM research_defense_schedules rds
+            FROM crad_research_defense_schedules rds
             {$join}
             WHERE rds.defense_datetime IS NOT NULL
               AND LOWER(rds.status) IN ('proposed', 'selected', 'scheduled', 'finalized', 'final')
@@ -387,7 +387,7 @@ function rdScheduleVenueDayLoad(PDO $pdo, int $venueId, string $date): int
     $join = function_exists('rdOfficialScheduleJoinSql') ? rdOfficialScheduleJoinSql() : '';
     $stmt = $pdo->prepare(
         "SELECT COUNT(*)
-           FROM research_defense_schedules rds
+           FROM crad_research_defense_schedules rds
            {$join}
           WHERE rds.venue_id = ?
             AND DATE(rds.defense_datetime) = ?

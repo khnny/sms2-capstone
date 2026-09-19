@@ -165,7 +165,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $pdo = db();
         $row = null;
         if ($pdo) {
-            $stmt = $pdo->prepare('SELECT password_hash FROM users WHERE id = ? LIMIT 1');
+            $stmt = $pdo->prepare('SELECT password_hash FROM sms_users WHERE id = ? LIMIT 1');
             $stmt->execute([$userId]);
             $row = $stmt->fetch();
         }
@@ -252,7 +252,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $pdo = db();
                     if ($pdo) {
                         $pdo->prepare(
-                            'UPDATE users SET password_hash = ?, must_change_password = 0, password_changed_at = NOW(),
+                            'UPDATE sms_users SET password_hash = ?, must_change_password = 0, password_changed_at = NOW(),
                              failed_login_attempts = 0, locked_until = NULL WHERE id = ?'
                         )->execute([$pending['hash'], $userId]);
                         unset($_SESSION['pending_pw_change']);
@@ -361,7 +361,7 @@ if ($isAdmin) {
     if ($pdo) {
         $resetUsers = $pdo->query(
             'SELECT id, full_name, username, email, role_key, status
-             FROM users WHERE status IN (\'active\',\'locked\') AND role_key <> \'admin\'
+             FROM sms_users WHERE status IN (\'active\',\'locked\') AND role_key <> \'admin\'
              ORDER BY full_name ASC'
         )->fetchAll() ?: [];
     }
@@ -374,7 +374,7 @@ if (!$isAdmin) {
     $pdo = db();
     if ($pdo) {
         $stmt = $pdo->prepare(
-            'SELECT * FROM password_reset_requests
+            'SELECT * FROM sms_password_reset_requests
              WHERE user_id = ? AND status = \'pending\' ORDER BY id DESC LIMIT 1'
         );
         $stmt->execute([$userId]);
@@ -382,7 +382,7 @@ if (!$isAdmin) {
 
         if (!$myPending) {
             $stmt = $pdo->prepare(
-                'SELECT * FROM password_reset_requests
+                'SELECT * FROM sms_password_reset_requests
                  WHERE user_id = ? AND module_key = ? AND status = \'rejected\'
                  ORDER BY resolved_at DESC, id DESC LIMIT 1'
             );

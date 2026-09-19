@@ -82,7 +82,7 @@ if ($path === null) {
     exit;
 }
 
-$milestoneStmt = $crad->prepare('SELECT milestone_name FROM research_milestones WHERE id = ? LIMIT 1');
+$milestoneStmt = $crad->prepare('SELECT milestone_name FROM crad_research_milestones WHERE id = ? LIMIT 1');
 $milestoneStmt->execute([(int) ($update['milestone_id'] ?? 0)]);
 $milestoneName = (string) ($milestoneStmt->fetchColumn() ?: '');
 $fileName = (string) ($attachment['file_name'] ?? basename($path));

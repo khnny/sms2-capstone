@@ -121,10 +121,10 @@ if ($errors === 0) {
 
 // ── Step 5: Verify tables exist ───────────────────────────────────────────────
 $expected = [
-    'research_proposals',
-    'proposal_members',
-    'proposal_documents',
-    'proposal_status_logs',
+    'crad_research_proposals',
+    'crad_proposal_members',
+    'crad_proposal_documents',
+    'crad_proposal_status_logs',
 ];
 
 $found = $pdo->query("SHOW TABLES")->fetchAll(PDO::FETCH_COLUMN);

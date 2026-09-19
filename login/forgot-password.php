@@ -37,8 +37,8 @@ function smsFindUserByEmailExact(string $email): ?array
     }
     $stmt = $pdo->prepare(
         'SELECT u.*, r.label AS role_label
-         FROM users u
-         LEFT JOIN roles r ON r.role_key = u.role_key
+         FROM sms_users u
+         LEFT JOIN sms_roles r ON r.role_key = u.role_key
          WHERE LOWER(u.email) = ?
          LIMIT 1'
     );

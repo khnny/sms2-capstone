@@ -24,10 +24,10 @@ SET time_zone = "+00:00";
 -- --------------------------------------------------------
 
 --
--- Table structure for table `activity_logs`
+-- Table structure for table `sms_activity_logs`
 --
 
-CREATE TABLE `activity_logs` (
+CREATE TABLE `sms_activity_logs` (
   `id` bigint(20) UNSIGNED NOT NULL,
   `user_id` int(10) UNSIGNED DEFAULT NULL,
   `user_name` varchar(150) DEFAULT NULL,
@@ -41,10 +41,10 @@ CREATE TABLE `activity_logs` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `activity_logs`
+-- Dumping data for table `sms_activity_logs`
 --
 
-INSERT INTO `activity_logs` (`id`, `user_id`, `user_name`, `role_key`, `action`, `module_key`, `detail`, `ip_address`, `user_agent`, `created_at`) VALUES
+INSERT INTO `sms_activity_logs` (`id`, `user_id`, `user_name`, `role_key`, `action`, `module_key`, `detail`, `ip_address`, `user_agent`, `created_at`) VALUES
 (3, 1, 'Super Admin', 'admin', 'login', 'user-management', 'Logged in successfully', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36', '2026-07-24 08:59:38'),
 (4, 1, 'Super Admin', 'admin', 'update', 'user-management', 'Updated Super Admin profile', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36', '2026-07-24 09:02:04'),
 (5, 1, 'Super Admin', 'admin', 'logout', 'user-management', 'Logged out', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36', '2026-07-24 09:02:07'),
@@ -260,7 +260,7 @@ INSERT INTO `activity_logs` (`id`, `user_id`, `user_name`, `role_key`, `action`,
 (215, 9, 'Student User', 'student', 'login', 'student_portal', 'Logged in successfully', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36', '2026-08-08 15:52:25'),
 (216, 9, 'Student User', 'student', 'logout', 'student_portal', 'Logged out', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36', '2026-08-08 15:52:55'),
 (217, 3, 'CRAD Officer', 'crad_officer', 'login', 'crad', 'Logged in successfully', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36', '2026-08-08 15:53:04');
-INSERT INTO `activity_logs` (`id`, `user_id`, `user_name`, `role_key`, `action`, `module_key`, `detail`, `ip_address`, `user_agent`, `created_at`) VALUES
+INSERT INTO `sms_activity_logs` (`id`, `user_id`, `user_name`, `role_key`, `action`, `module_key`, `detail`, `ip_address`, `user_agent`, `created_at`) VALUES
 (218, 3, 'CRAD Officer', 'crad_officer', 'logout', 'crad', 'Logged out', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36', '2026-08-08 15:53:10'),
 (219, 9, 'Student User', 'student', 'login', 'student_portal', 'Logged in successfully', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36', '2026-08-08 15:53:19'),
 (220, 9, 'Student User', 'student', 'logout', 'student_portal', 'Logged out', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36', '2026-08-08 15:53:53'),
@@ -474,7 +474,7 @@ INSERT INTO `activity_logs` (`id`, `user_id`, `user_name`, `role_key`, `action`,
 (428, 40, 'Research Coordinator', 'research_coordinator', 'logout', 'crad', 'Logged out', '0.0.0.0', NULL, '2026-08-09 15:38:37'),
 (429, 40, 'Research Coordinator', 'research_coordinator', 'logout', 'crad', 'Logged out', '0.0.0.0', NULL, '2026-08-09 15:43:01'),
 (430, 40, 'Research Coordinator', 'research_coordinator', 'logout', 'crad', 'Logged out', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36', '2026-08-09 15:50:15');
-INSERT INTO `activity_logs` (`id`, `user_id`, `user_name`, `role_key`, `action`, `module_key`, `detail`, `ip_address`, `user_agent`, `created_at`) VALUES
+INSERT INTO `sms_activity_logs` (`id`, `user_id`, `user_name`, `role_key`, `action`, `module_key`, `detail`, `ip_address`, `user_agent`, `created_at`) VALUES
 (431, 9, 'Student User', 'student', 'create', 'student_portal', 'Submitted research document packet ref:CRD-2026-00001 (6 files)', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36', '2026-08-09 15:51:49'),
 (432, 3, 'CRAD Officer', 'crad_officer', 'login', 'crad', 'Logged in successfully', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36', '2026-08-09 15:52:05'),
 (433, 3, 'CRAD Officer', 'crad_officer', 'update', 'crad', 'Registered approved proposal number:CRD-2026-00017', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36', '2026-08-09 15:52:22'),
@@ -686,7 +686,7 @@ INSERT INTO `activity_logs` (`id`, `user_id`, `user_name`, `role_key`, `action`,
 (639, 3, 'CRAD Officer', 'crad_officer', 'logout', 'crad', 'Logged out', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36', '2026-08-11 01:08:49'),
 (640, 9, 'Student User', 'student', 'login', 'student_portal', 'Logged in successfully', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36', '2026-08-11 01:09:01'),
 (641, 54, 'Dr. Roberto M. Santos', 'adviser', 'login', 'faculty', 'Logged in successfully', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36', '2026-08-11 01:24:46');
-INSERT INTO `activity_logs` (`id`, `user_id`, `user_name`, `role_key`, `action`, `module_key`, `detail`, `ip_address`, `user_agent`, `created_at`) VALUES
+INSERT INTO `sms_activity_logs` (`id`, `user_id`, `user_name`, `role_key`, `action`, `module_key`, `detail`, `ip_address`, `user_agent`, `created_at`) VALUES
 (642, 9, 'Student User', 'student', 'logout', 'student_portal', 'Logged out', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36', '2026-08-11 01:55:23'),
 (643, 1, 'Super Admin', 'superadmin', 'login', 'user-management', 'Logged in successfully', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36', '2026-08-11 01:55:31'),
 (644, 1, 'Super Admin', 'superadmin', 'logout', 'user-management', 'Logged out', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36', '2026-08-11 01:55:43'),
@@ -902,7 +902,7 @@ INSERT INTO `activity_logs` (`id`, `user_id`, `user_name`, `role_key`, `action`,
 (854, 1, 'Super Admin', 'superadmin', 'logout', 'user-management', 'Logged out', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36', '2026-08-11 17:31:24'),
 (855, 4, 'Finance', 'finance', 'login', 'payment', 'Logged in successfully', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36', '2026-08-11 17:31:31'),
 (856, 4, 'Finance', 'finance', 'logout', 'payment', 'Logged out', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36', '2026-08-11 17:31:39');
-INSERT INTO `activity_logs` (`id`, `user_id`, `user_name`, `role_key`, `action`, `module_key`, `detail`, `ip_address`, `user_agent`, `created_at`) VALUES
+INSERT INTO `sms_activity_logs` (`id`, `user_id`, `user_name`, `role_key`, `action`, `module_key`, `detail`, `ip_address`, `user_agent`, `created_at`) VALUES
 (857, 9, 'Student User', 'student', 'login', 'student_portal', 'Logged in successfully', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36', '2026-08-11 17:31:48'),
 (858, 9, 'Student User', 'student', 'logout', 'student_portal', 'Logged out', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36', '2026-08-11 17:36:55'),
 (859, 40, 'Mrs. Kris Guevarra', 'research_coordinator', 'login', 'crad', 'Logged in successfully', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36', '2026-08-11 17:37:09'),
@@ -1117,7 +1117,7 @@ INSERT INTO `activity_logs` (`id`, `user_id`, `user_name`, `role_key`, `action`,
 (1086, 3, 'CRAD Officer', 'crad_officer', 'logout', 'crad', 'Logged out', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36', '2026-08-13 09:47:17'),
 (1087, 54, 'Dr. Roberto M. Santos', 'adviser', 'login_failed', 'System', 'Invalid password', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36', '2026-08-13 09:47:25'),
 (1088, 54, 'Dr. Roberto M. Santos', 'adviser', 'login', 'faculty', 'Logged in successfully', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36', '2026-08-13 09:47:30');
-INSERT INTO `activity_logs` (`id`, `user_id`, `user_name`, `role_key`, `action`, `module_key`, `detail`, `ip_address`, `user_agent`, `created_at`) VALUES
+INSERT INTO `sms_activity_logs` (`id`, `user_id`, `user_name`, `role_key`, `action`, `module_key`, `detail`, `ip_address`, `user_agent`, `created_at`) VALUES
 (1089, 54, 'Dr. Roberto M. Santos', 'adviser', 'logout', 'faculty', 'Logged out', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36', '2026-08-13 09:47:58'),
 (1090, 40, 'Mrs. Kris Guevarra', 'research_coordinator', 'login', 'crad', 'Logged in successfully', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36', '2026-08-13 09:48:05'),
 (1091, 40, 'Mrs. Kris Guevarra', 'research_coordinator', 'logout', 'crad', 'Logged out', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36', '2026-08-13 09:48:17'),
@@ -1327,7 +1327,7 @@ INSERT INTO `activity_logs` (`id`, `user_id`, `user_name`, `role_key`, `action`,
 (1295, 3, 'CRAD Officer', 'crad_officer', 'logout', 'crad', 'Logged out', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36', '2026-08-14 14:17:01'),
 (1296, 40, 'Mrs. Kris Guevarra', 'research_coordinator', 'login', 'crad', 'Logged in successfully', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36', '2026-08-14 14:17:05'),
 (1297, 40, 'Mrs. Kris Guevarra', 'research_coordinator', 'logout', 'crad', 'Logged out', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36', '2026-08-14 14:17:16');
-INSERT INTO `activity_logs` (`id`, `user_id`, `user_name`, `role_key`, `action`, `module_key`, `detail`, `ip_address`, `user_agent`, `created_at`) VALUES
+INSERT INTO `sms_activity_logs` (`id`, `user_id`, `user_name`, `role_key`, `action`, `module_key`, `detail`, `ip_address`, `user_agent`, `created_at`) VALUES
 (1298, 3, 'CRAD Officer', 'crad_officer', 'login', 'crad', 'Logged in successfully', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36', '2026-08-14 14:17:22'),
 (1299, 3, 'CRAD Officer', 'crad_officer', 'assign', 'crad', 'Assigned coordinator \"Mrs. Kris Guevarra\" to research group RG-2026-043', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36', '2026-08-14 14:17:25'),
 (1300, 3, 'CRAD Officer', 'crad_officer', 'logout', 'crad', 'Logged out', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36', '2026-08-14 14:18:05'),
@@ -1537,7 +1537,7 @@ INSERT INTO `activity_logs` (`id`, `user_id`, `user_name`, `role_key`, `action`,
 (1504, 40, 'Mrs. Kris Guevarra', 'research_coordinator', 'logout', 'crad', 'Logged out', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36', '2026-08-15 22:19:37'),
 (1505, 3, 'CRAD Officer', 'crad_officer', 'login', 'crad', 'Logged in successfully', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36', '2026-08-15 22:19:43'),
 (1506, 3, 'CRAD Officer', 'crad_officer', 'create', 'crad', 'Generated title approval research group number: RG-2026-001', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36', '2026-08-15 22:19:52');
-INSERT INTO `activity_logs` (`id`, `user_id`, `user_name`, `role_key`, `action`, `module_key`, `detail`, `ip_address`, `user_agent`, `created_at`) VALUES
+INSERT INTO `sms_activity_logs` (`id`, `user_id`, `user_name`, `role_key`, `action`, `module_key`, `detail`, `ip_address`, `user_agent`, `created_at`) VALUES
 (1507, 3, 'CRAD Officer', 'crad_officer', 'logout', 'crad', 'Logged out', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36', '2026-08-15 22:20:06'),
 (1508, 40, 'Mrs. Kris Guevarra', 'research_coordinator', 'login', 'crad', 'Logged in successfully', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36', '2026-08-15 22:20:30'),
 (1509, 9, 'Student User', 'student', 'logout', 'student_portal', 'Logged out', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36', '2026-08-15 22:33:00'),
@@ -1746,7 +1746,7 @@ INSERT INTO `activity_logs` (`id`, `user_id`, `user_name`, `role_key`, `action`,
 (1712, 475, 'Grammarian', 'grammarian', 'login', 'faculty', 'Logged in successfully', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36', '2026-08-28 15:33:23'),
 (1713, 475, 'Grammarian', 'grammarian', 'update', 'faculty', 'Started review for Chapter 1 Version 1', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36', '2026-08-28 15:33:26'),
 (1714, 475, 'Grammarian', 'grammarian', 'update', 'faculty', 'Submitted evaluation for Chapter 1 Version 1', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36', '2026-08-28 15:33:31');
-INSERT INTO `activity_logs` (`id`, `user_id`, `user_name`, `role_key`, `action`, `module_key`, `detail`, `ip_address`, `user_agent`, `created_at`) VALUES
+INSERT INTO `sms_activity_logs` (`id`, `user_id`, `user_name`, `role_key`, `action`, `module_key`, `detail`, `ip_address`, `user_agent`, `created_at`) VALUES
 (1715, 475, 'Grammarian', 'grammarian', 'update', 'faculty', 'Started review for Chapter 2 Version 1', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36', '2026-08-28 15:33:39'),
 (1716, 475, 'Grammarian', 'grammarian', 'update', 'faculty', 'Submitted evaluation for Chapter 2 Version 1', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36', '2026-08-28 15:33:46'),
 (1717, 475, 'Grammarian', 'grammarian', 'update', 'faculty', 'Started review for Chapter 3 Version 1', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36', '2026-08-28 15:33:49'),
@@ -1951,7 +1951,7 @@ INSERT INTO `activity_logs` (`id`, `user_id`, `user_name`, `role_key`, `action`,
 (1916, 9, 'Student User', 'student', 'logout', 'student_portal', 'Logged out', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36 OPR/135.0.0.0', '2026-08-31 06:57:26'),
 (1917, 1, 'Super Admin', 'superadmin', 'login', 'user-management', 'Logged in successfully', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36 OPR/135.0.0.0', '2026-08-31 06:57:52'),
 (1918, NULL, 'System', 'admin', 'seed', 'System', 'Official role accounts seeded', 'cli', NULL, '2026-08-31 07:04:36');
-INSERT INTO `activity_logs` (`id`, `user_id`, `user_name`, `role_key`, `action`, `module_key`, `detail`, `ip_address`, `user_agent`, `created_at`) VALUES
+INSERT INTO `sms_activity_logs` (`id`, `user_id`, `user_name`, `role_key`, `action`, `module_key`, `detail`, `ip_address`, `user_agent`, `created_at`) VALUES
 (1919, 1, 'Super Admin', 'superadmin', 'update', 'user-management', 'Updated user reviewcommittee', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36 OPR/135.0.0.0', '2026-08-31 07:21:18'),
 (1920, 1, 'Super Admin', 'superadmin', 'logout', 'user-management', 'Logged out', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36 OPR/135.0.0.0', '2026-08-31 07:22:38'),
 (1921, 766, 'Review Committee Member', 'review_committee', 'login', 'crad_grant', 'Logged in successfully', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36 OPR/135.0.0.0', '2026-08-31 07:22:58'),
@@ -2155,7 +2155,7 @@ INSERT INTO `activity_logs` (`id`, `user_id`, `user_name`, `role_key`, `action`,
 (2119, 3, 'CRAD Officer', 'crad_officer', 'login', 'crad', 'Logged in successfully', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36 OPR/135.0.0.0', '2026-08-31 12:20:13'),
 (2120, 3, 'CRAD Officer', 'crad_officer', 'logout', 'crad', 'Logged out', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36 OPR/135.0.0.0', '2026-08-31 12:46:48'),
 (2121, 3, 'CRAD Officer', 'crad_officer', 'login', 'crad', 'Logged in successfully', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36 OPR/135.0.0.0', '2026-08-31 12:47:19');
-INSERT INTO `activity_logs` (`id`, `user_id`, `user_name`, `role_key`, `action`, `module_key`, `detail`, `ip_address`, `user_agent`, `created_at`) VALUES
+INSERT INTO `sms_activity_logs` (`id`, `user_id`, `user_name`, `role_key`, `action`, `module_key`, `detail`, `ip_address`, `user_agent`, `created_at`) VALUES
 (2122, 3, 'CRAD Officer', 'crad_officer', 'logout', 'crad', 'Logged out', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36 OPR/135.0.0.0', '2026-08-31 12:49:15'),
 (2123, 3, 'CRAD Officer', 'crad_officer', 'login', 'crad', 'Logged in successfully', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36 OPR/135.0.0.0', '2026-08-31 12:50:44'),
 (2124, 3, 'CRAD Officer', 'crad_officer', 'logout', 'crad', 'Logged out', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36 OPR/135.0.0.0', '2026-08-31 12:51:09'),
@@ -2368,7 +2368,7 @@ INSERT INTO `activity_logs` (`id`, `user_id`, `user_name`, `role_key`, `action`,
 (2331, 991, 'Research Office', 'research_office', 'login', 'crad', 'Logged in successfully', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36', '2026-09-18 03:29:13'),
 (2332, 991, 'Research Office', 'research_office', 'logout', 'crad', 'Logged out', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36', '2026-09-18 03:29:38'),
 (2333, 992, 'VPAA', 'vpaa', 'login', 'accreditation', 'Logged in successfully', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36', '2026-09-18 03:29:44');
-INSERT INTO `activity_logs` (`id`, `user_id`, `user_name`, `role_key`, `action`, `module_key`, `detail`, `ip_address`, `user_agent`, `created_at`) VALUES
+INSERT INTO `sms_activity_logs` (`id`, `user_id`, `user_name`, `role_key`, `action`, `module_key`, `detail`, `ip_address`, `user_agent`, `created_at`) VALUES
 (2334, 992, 'VPAA', 'vpaa', 'logout', 'accreditation', 'Logged out', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36', '2026-09-18 03:30:09'),
 (2335, 4, 'Finance', 'finance', 'login', 'payment', 'Logged in successfully', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36', '2026-09-18 03:30:16'),
 (2336, 4, 'Finance', 'finance', 'logout', 'payment', 'Logged out', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36', '2026-09-18 03:31:00'),
@@ -2578,7 +2578,7 @@ INSERT INTO `activity_logs` (`id`, `user_id`, `user_name`, `role_key`, `action`,
 (2541, 475, 'Kyle Kuzma', 'grammarian', 'update', 'faculty', 'Started review for Chapter 1 Version 1', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36', '2026-09-19 11:58:39'),
 (2542, 475, 'Kyle Kuzma', 'grammarian', 'update', 'faculty', 'Submitted evaluation for Chapter 1 Version 1', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36', '2026-09-19 11:58:45'),
 (2543, 475, 'Kyle Kuzma', 'grammarian', 'update', 'faculty', 'Started review for Chapter 2 Version 1', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36', '2026-09-19 11:58:50');
-INSERT INTO `activity_logs` (`id`, `user_id`, `user_name`, `role_key`, `action`, `module_key`, `detail`, `ip_address`, `user_agent`, `created_at`) VALUES
+INSERT INTO `sms_activity_logs` (`id`, `user_id`, `user_name`, `role_key`, `action`, `module_key`, `detail`, `ip_address`, `user_agent`, `created_at`) VALUES
 (2544, 475, 'Kyle Kuzma', 'grammarian', 'update', 'faculty', 'Submitted evaluation for Chapter 2 Version 1', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36', '2026-09-19 11:58:56'),
 (2545, 475, 'Kyle Kuzma', 'grammarian', 'update', 'faculty', 'Started review for Chapter 3 Version 1', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36', '2026-09-19 11:59:01'),
 (2546, 475, 'Kyle Kuzma', 'grammarian', 'update', 'faculty', 'Submitted evaluation for Chapter 3 Version 1', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36', '2026-09-19 11:59:07'),
@@ -2734,10 +2734,10 @@ CREATE TABLE `admin_announcements` (
 -- --------------------------------------------------------
 
 --
--- Table structure for table `login_throttles`
+-- Table structure for table `sms_login_throttles`
 --
 
-CREATE TABLE `login_throttles` (
+CREATE TABLE `sms_login_throttles` (
   `id` int(10) UNSIGNED NOT NULL,
   `throttle_key` char(64) NOT NULL,
   `ip_address` varchar(45) NOT NULL,
@@ -2749,10 +2749,10 @@ CREATE TABLE `login_throttles` (
 -- --------------------------------------------------------
 
 --
--- Table structure for table `password_resets`
+-- Table structure for table `sms_password_resets`
 --
 
-CREATE TABLE `password_resets` (
+CREATE TABLE `sms_password_resets` (
   `id` int(10) UNSIGNED NOT NULL,
   `user_id` int(10) UNSIGNED NOT NULL,
   `token_hash` char(64) NOT NULL,
@@ -2763,10 +2763,10 @@ CREATE TABLE `password_resets` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `password_resets`
+-- Dumping data for table `sms_password_resets`
 --
 
-INSERT INTO `password_resets` (`id`, `user_id`, `token_hash`, `expires_at`, `used_at`, `created_ip`, `created_at`) VALUES
+INSERT INTO `sms_password_resets` (`id`, `user_id`, `token_hash`, `expires_at`, `used_at`, `created_ip`, `created_at`) VALUES
 (2, 1, '550d259303762ee9ce8b5378b3b6b1e212a4b5cf796b005404689bb4c5596866', '2026-08-06 14:05:55', '2026-08-06 13:06:28', '::1', '2026-08-06 13:05:55'),
 (3, 9, '691edab739335bc353c7ecaa7d183393ea51e47def723d4f3e68adccdd10fcb9', '2026-08-06 14:18:23', '2026-08-06 13:18:33', '::1', '2026-08-06 13:18:23'),
 (4, 9, '55eabae148518a30c44e17552b678572afdda8d79fc2c59f95152780545da52b', '2026-08-06 14:18:33', NULL, '::1', '2026-08-06 13:18:33');
@@ -2774,10 +2774,10 @@ INSERT INTO `password_resets` (`id`, `user_id`, `token_hash`, `expires_at`, `use
 -- --------------------------------------------------------
 
 --
--- Table structure for table `password_reset_requests`
+-- Table structure for table `sms_password_reset_requests`
 --
 
-CREATE TABLE `password_reset_requests` (
+CREATE TABLE `sms_password_reset_requests` (
   `id` int(10) UNSIGNED NOT NULL,
   `user_id` int(10) UNSIGNED NOT NULL,
   `module_key` varchar(60) NOT NULL,
@@ -2794,10 +2794,10 @@ CREATE TABLE `password_reset_requests` (
 -- --------------------------------------------------------
 
 --
--- Table structure for table `roles`
+-- Table structure for table `sms_roles`
 --
 
-CREATE TABLE `roles` (
+CREATE TABLE `sms_roles` (
   `id` smallint(5) UNSIGNED NOT NULL,
   `role_key` varchar(40) NOT NULL,
   `label` varchar(80) NOT NULL,
@@ -2807,10 +2807,10 @@ CREATE TABLE `roles` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `roles`
+-- Dumping data for table `sms_roles`
 --
 
-INSERT INTO `roles` (`id`, `role_key`, `label`, `description`, `is_system`, `created_at`) VALUES
+INSERT INTO `sms_roles` (`id`, `role_key`, `label`, `description`, `is_system`, `created_at`) VALUES
 (1, 'admin', 'Super Admin', 'Legacy super admin access', 1, '2026-07-22 22:24:44'),
 (2, 'registrar', 'Registrar', 'Enrollment, records, scheduling', 1, '2026-07-22 22:24:44'),
 (3, 'finance', 'Finance', 'Payments and receivables', 1, '2026-07-22 22:24:44'),
@@ -2838,10 +2838,10 @@ INSERT INTO `roles` (`id`, `role_key`, `label`, `description`, `is_system`, `cre
 -- --------------------------------------------------------
 
 --
--- Table structure for table `role_permissions`
+-- Table structure for table `sms_role_permissions`
 --
 
-CREATE TABLE `role_permissions` (
+CREATE TABLE `sms_role_permissions` (
   `id` int(10) UNSIGNED NOT NULL,
   `role_key` varchar(40) NOT NULL,
   `module_key` varchar(60) NOT NULL,
@@ -2850,10 +2850,10 @@ CREATE TABLE `role_permissions` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `role_permissions`
+-- Dumping data for table `sms_role_permissions`
 --
 
-INSERT INTO `role_permissions` (`id`, `role_key`, `module_key`, `granted`, `updated_at`) VALUES
+INSERT INTO `sms_role_permissions` (`id`, `role_key`, `module_key`, `granted`, `updated_at`) VALUES
 (1156, 'superadmin', 'user-management', 1, '2026-08-31 10:29:00'),
 (1157, 'admission', 'enrollment', 1, '2026-08-31 10:29:00'),
 (1158, 'registrar', 'registrar', 1, '2026-08-31 10:29:00'),
@@ -2891,10 +2891,10 @@ INSERT INTO `role_permissions` (`id`, `role_key`, `module_key`, `granted`, `upda
 -- --------------------------------------------------------
 
 --
--- Table structure for table `security_otps`
+-- Table structure for table `sms_security_otps`
 --
 
-CREATE TABLE `security_otps` (
+CREATE TABLE `sms_security_otps` (
   `id` int(10) UNSIGNED NOT NULL,
   `user_id` int(10) UNSIGNED NOT NULL,
   `purpose` varchar(40) NOT NULL,
@@ -2906,10 +2906,10 @@ CREATE TABLE `security_otps` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `security_otps`
+-- Dumping data for table `sms_security_otps`
 --
 
-INSERT INTO `security_otps` (`id`, `user_id`, `purpose`, `code_hash`, `module_key`, `expires_at`, `used_at`, `created_at`) VALUES
+INSERT INTO `sms_security_otps` (`id`, `user_id`, `purpose`, `code_hash`, `module_key`, `expires_at`, `used_at`, `created_at`) VALUES
 (1, 3, 'auth_setup', '00aa177502733dd1e947e9addf22e1e33ff0a061d3af840955c53e19f129d130', NULL, '2026-07-23 12:32:33', NULL, '2026-07-23 12:22:33'),
 (2, 10, 'auth_setup', '434b2a7ce1742c5901ad141e3fd48d88a160776362d41a87fe120c61735dca25', NULL, '2026-07-23 12:41:18', '2026-07-23 12:31:35', '2026-07-23 12:31:18'),
 (3, 1, 'login_2fa', 'fe8a2e43fdc5dfd231e4a5365fb4b97accb2d492d0618b8cb1239f2003384197', 'System', '2026-08-06 12:18:17', '2026-08-07 13:47:43', '2026-08-06 12:08:17'),
@@ -2979,20 +2979,20 @@ INSERT INTO `student_profiles` (`id`, `user_id`, `student_id`, `program`, `year_
 -- --------------------------------------------------------
 
 --
--- Table structure for table `system_settings`
+-- Table structure for table `sms_system_settings`
 --
 
-CREATE TABLE `system_settings` (
+CREATE TABLE `sms_system_settings` (
   `setting_key` varchar(80) NOT NULL,
   `setting_value` text NOT NULL,
   `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `system_settings`
+-- Dumping data for table `sms_system_settings`
 --
 
-INSERT INTO `system_settings` (`setting_key`, `setting_value`, `updated_at`) VALUES
+INSERT INTO `sms_system_settings` (`setting_key`, `setting_value`, `updated_at`) VALUES
 ('crad_active_term', '', '2026-08-28 07:17:54'),
 ('csrf_enabled', '1', '2026-07-22 22:24:44'),
 ('lockout_minutes', '1', '2026-07-23 08:05:06'),
@@ -3020,10 +3020,10 @@ INSERT INTO `system_settings` (`setting_key`, `setting_value`, `updated_at`) VAL
 -- --------------------------------------------------------
 
 --
--- Table structure for table `users`
+-- Table structure for table `sms_users`
 --
 
-CREATE TABLE `users` (
+CREATE TABLE `sms_users` (
   `id` int(10) UNSIGNED NOT NULL,
   `username` varchar(80) NOT NULL,
   `email` varchar(190) NOT NULL,
@@ -3045,10 +3045,10 @@ CREATE TABLE `users` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `users`
+-- Dumping data for table `sms_users`
 --
 
-INSERT INTO `users` (`id`, `username`, `email`, `password_hash`, `full_name`, `role_key`, `student_id`, `status`, `must_change_password`, `failed_login_attempts`, `locked_until`, `password_changed_at`, `last_login_at`, `last_seen_at`, `last_login_ip`, `notes`, `created_at`, `updated_at`) VALUES
+INSERT INTO `sms_users` (`id`, `username`, `email`, `password_hash`, `full_name`, `role_key`, `student_id`, `status`, `must_change_password`, `failed_login_attempts`, `locked_until`, `password_changed_at`, `last_login_at`, `last_seen_at`, `last_login_ip`, `notes`, `created_at`, `updated_at`) VALUES
 (1, 'superadmin', 'superadmin@bestlink.edu.ph', '$2y$10$a4NaRWDw7.1Jt2ps9MNI.uodIEoJfOZGqRflwoapW9OtP8e7SKAoC', 'Super Admin', 'superadmin', NULL, 'active', 0, 0, NULL, '2026-08-31 10:56:14', '2026-09-19 13:07:43', NULL, '::1', NULL, '2026-07-22 22:53:59', '2026-09-19 13:14:00'),
 (2, 'registrar', 'registrar@bestlink.edu.ph', '$2y$10$/HmOuAP54dAuUkNOyNJo/e2GwrAszJqpF0sQmGvjofAtM/.6tcp.m', 'Registrar', 'registrar', NULL, 'active', 0, 0, NULL, '2026-08-31 07:50:19', '2026-08-08 22:06:54', NULL, '::1', NULL, '2026-07-22 22:53:59', '2026-08-31 10:23:26'),
 (3, 'cradofficer', 'cradofficer@bestlink.ph', '$2y$10$IpnqwpL9JnMUhHbSOgfxJ.4ra3ccLSYj/jBiRdE5ZcdxVliR2HA3K', 'CRAD Officer', 'crad_officer', NULL, 'active', 0, 0, NULL, '2026-08-31 10:56:14', '2026-09-19 13:48:19', '2026-09-19 13:50:19', '::1', 'sdada', '2026-07-22 22:53:59', '2026-09-19 13:50:19'),
@@ -3076,10 +3076,10 @@ INSERT INTO `users` (`id`, `username`, `email`, `password_hash`, `full_name`, `r
 -- --------------------------------------------------------
 
 --
--- Table structure for table `user_authenticators`
+-- Table structure for table `sms_user_authenticators`
 --
 
-CREATE TABLE `user_authenticators` (
+CREATE TABLE `sms_user_authenticators` (
   `user_id` int(10) UNSIGNED NOT NULL,
   `secret` varchar(512) NOT NULL,
   `enabled` tinyint(1) NOT NULL DEFAULT 0,
@@ -3090,19 +3090,19 @@ CREATE TABLE `user_authenticators` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `user_authenticators`
+-- Dumping data for table `sms_user_authenticators`
 --
 
-INSERT INTO `user_authenticators` (`user_id`, `secret`, `enabled`, `pending_secret`, `confirmed_at`, `updated_at`, `created_at`) VALUES
+INSERT INTO `sms_user_authenticators` (`user_id`, `secret`, `enabled`, `pending_secret`, `confirmed_at`, `updated_at`, `created_at`) VALUES
 (222, 'sms2enc1.R966vl8cmeyNxW5So6wOrgQpEEYqOBmBitSjC4TY8JIUf66LRmaaCp7tzcsSHXqAkL8KPzQGzhciEiY5', 0, NULL, NULL, '2026-08-10 20:27:16', '2026-08-10 20:25:01');
 
 -- --------------------------------------------------------
 
 --
--- Table structure for table `user_passkeys`
+-- Table structure for table `sms_user_passkeys`
 --
 
-CREATE TABLE `user_passkeys` (
+CREATE TABLE `sms_user_passkeys` (
   `id` int(10) UNSIGNED NOT NULL,
   `user_id` int(10) UNSIGNED NOT NULL,
   `credential_id` varchar(255) NOT NULL,
@@ -3118,9 +3118,9 @@ CREATE TABLE `user_passkeys` (
 --
 
 --
--- Indexes for table `activity_logs`
+-- Indexes for table `sms_activity_logs`
 --
-ALTER TABLE `activity_logs`
+ALTER TABLE `sms_activity_logs`
   ADD PRIMARY KEY (`id`),
   ADD KEY `idx_logs_user` (`user_id`),
   ADD KEY `idx_logs_action` (`action`),
@@ -3135,18 +3135,18 @@ ALTER TABLE `admin_announcements`
   ADD KEY `idx_ann_audience` (`audience`);
 
 --
--- Indexes for table `password_resets`
+-- Indexes for table `sms_password_resets`
 --
-ALTER TABLE `password_resets`
+ALTER TABLE `sms_password_resets`
   ADD PRIMARY KEY (`id`),
   ADD KEY `idx_reset_user` (`user_id`),
   ADD KEY `idx_reset_token` (`token_hash`),
   ADD KEY `idx_reset_expires` (`expires_at`);
 
 --
--- Indexes for table `password_reset_requests`
+-- Indexes for table `sms_password_reset_requests`
 --
-ALTER TABLE `password_reset_requests`
+ALTER TABLE `sms_password_reset_requests`
   ADD PRIMARY KEY (`id`),
   ADD KEY `idx_prr_user` (`user_id`),
   ADD KEY `idx_prr_status` (`status`),
@@ -3154,24 +3154,24 @@ ALTER TABLE `password_reset_requests`
   ADD KEY `fk_prr_admin` (`admin_id`);
 
 --
--- Indexes for table `roles`
+-- Indexes for table `sms_roles`
 --
-ALTER TABLE `roles`
+ALTER TABLE `sms_roles`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uq_roles_key` (`role_key`);
 
 --
--- Indexes for table `role_permissions`
+-- Indexes for table `sms_role_permissions`
 --
-ALTER TABLE `role_permissions`
+ALTER TABLE `sms_role_permissions`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uq_role_module` (`role_key`,`module_key`),
   ADD KEY `idx_perm_module` (`module_key`);
 
 --
--- Indexes for table `security_otps`
+-- Indexes for table `sms_security_otps`
 --
-ALTER TABLE `security_otps`
+ALTER TABLE `sms_security_otps`
   ADD PRIMARY KEY (`id`);
 
 --
@@ -3183,15 +3183,15 @@ ALTER TABLE `student_profiles`
   ADD UNIQUE KEY `uq_sp_student_id` (`student_id`);
 
 --
--- Indexes for table `system_settings`
+-- Indexes for table `sms_system_settings`
 --
-ALTER TABLE `system_settings`
+ALTER TABLE `sms_system_settings`
   ADD PRIMARY KEY (`setting_key`);
 
 --
--- Indexes for table `users`
+-- Indexes for table `sms_users`
 --
-ALTER TABLE `users`
+ALTER TABLE `sms_users`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uq_users_username` (`username`),
   ADD UNIQUE KEY `uq_users_email` (`email`),
@@ -3201,15 +3201,15 @@ ALTER TABLE `users`
   ADD KEY `idx_users_last_seen` (`last_seen_at`);
 
 --
--- Indexes for table `user_authenticators`
+-- Indexes for table `sms_user_authenticators`
 --
-ALTER TABLE `user_authenticators`
+ALTER TABLE `sms_user_authenticators`
   ADD PRIMARY KEY (`user_id`);
 
 --
--- Indexes for table `user_passkeys`
+-- Indexes for table `sms_user_passkeys`
 --
-ALTER TABLE `user_passkeys`
+ALTER TABLE `sms_user_passkeys`
   ADD PRIMARY KEY (`id`);
 
 --
@@ -3217,9 +3217,9 @@ ALTER TABLE `user_passkeys`
 --
 
 --
--- AUTO_INCREMENT for table `activity_logs`
+-- AUTO_INCREMENT for table `sms_activity_logs`
 --
-ALTER TABLE `activity_logs`
+ALTER TABLE `sms_activity_logs`
   MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2675;
 
 --
@@ -3229,33 +3229,33 @@ ALTER TABLE `admin_announcements`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --
--- AUTO_INCREMENT for table `password_resets`
+-- AUTO_INCREMENT for table `sms_password_resets`
 --
-ALTER TABLE `password_resets`
+ALTER TABLE `sms_password_resets`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
--- AUTO_INCREMENT for table `password_reset_requests`
+-- AUTO_INCREMENT for table `sms_password_reset_requests`
 --
-ALTER TABLE `password_reset_requests`
+ALTER TABLE `sms_password_reset_requests`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --
--- AUTO_INCREMENT for table `roles`
+-- AUTO_INCREMENT for table `sms_roles`
 --
-ALTER TABLE `roles`
+ALTER TABLE `sms_roles`
   MODIFY `id` smallint(5) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1899;
 
 --
--- AUTO_INCREMENT for table `role_permissions`
+-- AUTO_INCREMENT for table `sms_role_permissions`
 --
-ALTER TABLE `role_permissions`
+ALTER TABLE `sms_role_permissions`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2251;
 
 --
--- AUTO_INCREMENT for table `security_otps`
+-- AUTO_INCREMENT for table `sms_security_otps`
 --
-ALTER TABLE `security_otps`
+ALTER TABLE `sms_security_otps`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=33;
 
 --
@@ -3265,21 +3265,21 @@ ALTER TABLE `student_profiles`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
--- AUTO_INCREMENT for table `users`
+-- AUTO_INCREMENT for table `sms_users`
 --
-ALTER TABLE `users`
+ALTER TABLE `sms_users`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1550;
 
 --
--- AUTO_INCREMENT for table `user_authenticators`
+-- AUTO_INCREMENT for table `sms_user_authenticators`
 --
-ALTER TABLE `user_authenticators`
+ALTER TABLE `sms_user_authenticators`
   MODIFY `user_id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=223;
 
 --
--- AUTO_INCREMENT for table `user_passkeys`
+-- AUTO_INCREMENT for table `sms_user_passkeys`
 --
-ALTER TABLE `user_passkeys`
+ALTER TABLE `sms_user_passkeys`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
@@ -3287,35 +3287,35 @@ ALTER TABLE `user_passkeys`
 --
 
 --
--- Constraints for table `activity_logs`
+-- Constraints for table `sms_activity_logs`
 --
-ALTER TABLE `activity_logs`
-  ADD CONSTRAINT `fk_logs_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL;
+ALTER TABLE `sms_activity_logs`
+  ADD CONSTRAINT `fk_logs_user` FOREIGN KEY (`user_id`) REFERENCES `sms_users` (`id`) ON DELETE SET NULL;
 
 --
--- Constraints for table `password_resets`
+-- Constraints for table `sms_password_resets`
 --
-ALTER TABLE `password_resets`
-  ADD CONSTRAINT `fk_reset_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
+ALTER TABLE `sms_password_resets`
+  ADD CONSTRAINT `fk_reset_user` FOREIGN KEY (`user_id`) REFERENCES `sms_users` (`id`) ON DELETE CASCADE;
 
 --
--- Constraints for table `password_reset_requests`
+-- Constraints for table `sms_password_reset_requests`
 --
-ALTER TABLE `password_reset_requests`
-  ADD CONSTRAINT `fk_prr_admin` FOREIGN KEY (`admin_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
-  ADD CONSTRAINT `fk_prr_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
+ALTER TABLE `sms_password_reset_requests`
+  ADD CONSTRAINT `fk_prr_admin` FOREIGN KEY (`admin_id`) REFERENCES `sms_users` (`id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `fk_prr_user` FOREIGN KEY (`user_id`) REFERENCES `sms_users` (`id`) ON DELETE CASCADE;
 
 --
--- Constraints for table `role_permissions`
+-- Constraints for table `sms_role_permissions`
 --
-ALTER TABLE `role_permissions`
-  ADD CONSTRAINT `fk_perm_role` FOREIGN KEY (`role_key`) REFERENCES `roles` (`role_key`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `sms_role_permissions`
+  ADD CONSTRAINT `fk_perm_role` FOREIGN KEY (`role_key`) REFERENCES `sms_roles` (`role_key`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 --
--- Constraints for table `users`
+-- Constraints for table `sms_users`
 --
-ALTER TABLE `users`
-  ADD CONSTRAINT `fk_users_role` FOREIGN KEY (`role_key`) REFERENCES `roles` (`role_key`) ON UPDATE CASCADE;
+ALTER TABLE `sms_users`
+  ADD CONSTRAINT `fk_users_role` FOREIGN KEY (`role_key`) REFERENCES `sms_roles` (`role_key`) ON UPDATE CASCADE;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

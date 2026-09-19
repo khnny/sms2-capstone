@@ -3,7 +3,7 @@
  * CRAD API — Send Title Approval Form to Adviser
  *
  * POST /modules/crad/api/send-to-adviser.php
- * 1. Validates the adviser exists in sms2_db.users
+ * 1. Validates the adviser exists in sms_users
  * 2. Returns {ok:false, no_account:true} when adviser has no account
  * 3. Inserts into crad_db.title_approvals when all is well
  */
@@ -95,7 +95,7 @@ try {
     $mainPdo = db();
     if ($mainPdo) {
         $chk = $mainPdo->prepare(
-            "SELECT id, full_name, email FROM users
+            "SELECT id, full_name, email FROM sms_users
              WHERE status = 'active'
                AND (
                     (email != '' AND LOWER(email) = LOWER(:email))
@@ -121,22 +121,22 @@ try {
 }
 
 try {
-    $sigCol = $pdo->query("SHOW COLUMNS FROM title_approvals LIKE 'adviser_signature_data'")->fetch();
+    $sigCol = $pdo->query("SHOW COLUMNS FROM crad_title_approvals LIKE 'adviser_signature_data'")->fetch();
     if (!$sigCol) {
-        $pdo->exec("ALTER TABLE title_approvals ADD COLUMN adviser_signature_data MEDIUMTEXT NULL DEFAULT NULL AFTER adviser_remarks");
+        $pdo->exec("ALTER TABLE crad_title_approvals ADD COLUMN adviser_signature_data MEDIUMTEXT NULL DEFAULT NULL AFTER adviser_remarks");
     }
     $workflowColumns = [
-        'coordinator_status' => "ALTER TABLE title_approvals ADD COLUMN coordinator_status VARCHAR(30) NOT NULL DEFAULT 'Not Ready' AFTER adviser_signature_data",
-        'coordinator_remarks' => "ALTER TABLE title_approvals ADD COLUMN coordinator_remarks TEXT NULL DEFAULT NULL AFTER coordinator_status",
-        'coordinator_screening_json' => "ALTER TABLE title_approvals ADD COLUMN coordinator_screening_json TEXT NULL DEFAULT NULL AFTER coordinator_remarks",
-        'coordinator_signature_data' => "ALTER TABLE title_approvals ADD COLUMN coordinator_signature_data MEDIUMTEXT NULL DEFAULT NULL AFTER coordinator_remarks",
-        'coordinator_reviewed_at' => "ALTER TABLE title_approvals ADD COLUMN coordinator_reviewed_at DATETIME NULL DEFAULT NULL AFTER coordinator_signature_data",
-        'crad_status' => "ALTER TABLE title_approvals ADD COLUMN crad_status VARCHAR(30) NOT NULL DEFAULT 'Not Ready' AFTER coordinator_reviewed_at",
-        'crad_signature_data' => "ALTER TABLE title_approvals ADD COLUMN crad_signature_data MEDIUMTEXT NULL DEFAULT NULL AFTER crad_status",
-        'crad_reviewed_at' => "ALTER TABLE title_approvals ADD COLUMN crad_reviewed_at DATETIME NULL DEFAULT NULL AFTER crad_signature_data",
+        'coordinator_status' => "ALTER TABLE crad_title_approvals ADD COLUMN coordinator_status VARCHAR(30) NOT NULL DEFAULT 'Not Ready' AFTER adviser_signature_data",
+        'coordinator_remarks' => "ALTER TABLE crad_title_approvals ADD COLUMN coordinator_remarks TEXT NULL DEFAULT NULL AFTER coordinator_status",
+        'coordinator_screening_json' => "ALTER TABLE crad_title_approvals ADD COLUMN coordinator_screening_json TEXT NULL DEFAULT NULL AFTER coordinator_remarks",
+        'coordinator_signature_data' => "ALTER TABLE crad_title_approvals ADD COLUMN coordinator_signature_data MEDIUMTEXT NULL DEFAULT NULL AFTER coordinator_remarks",
+        'coordinator_reviewed_at' => "ALTER TABLE crad_title_approvals ADD COLUMN coordinator_reviewed_at DATETIME NULL DEFAULT NULL AFTER coordinator_signature_data",
+        'crad_status' => "ALTER TABLE crad_title_approvals ADD COLUMN crad_status VARCHAR(30) NOT NULL DEFAULT 'Not Ready' AFTER coordinator_reviewed_at",
+        'crad_signature_data' => "ALTER TABLE crad_title_approvals ADD COLUMN crad_signature_data MEDIUMTEXT NULL DEFAULT NULL AFTER crad_status",
+        'crad_reviewed_at' => "ALTER TABLE crad_title_approvals ADD COLUMN crad_reviewed_at DATETIME NULL DEFAULT NULL AFTER crad_signature_data",
     ];
     foreach ($workflowColumns as $column => $sql) {
-        if (!$pdo->query("SHOW COLUMNS FROM title_approvals LIKE " . $pdo->quote($column))->fetch()) {
+        if (!$pdo->query("SHOW COLUMNS FROM crad_title_approvals LIKE " . $pdo->quote($column))->fetch()) {
             $pdo->exec($sql);
         }
     }
@@ -149,7 +149,7 @@ $existingId = 0;
 if ($submissionId > 0) {
     $byId = $pdo->prepare(
         "SELECT id, status, coordinator_status
-         FROM title_approvals
+         FROM crad_title_approvals
          WHERE id = :id AND student_id = :sid
          LIMIT 1"
     );
@@ -169,7 +169,7 @@ if ($submissionId > 0) {
 if ($existingId === 0) {
     $findExisting = $pdo->prepare(
         "SELECT id, status, coordinator_status
-         FROM title_approvals
+         FROM crad_title_approvals
          WHERE student_id = :sid AND proposed_title = :title
          ORDER BY id DESC
          LIMIT 1"
@@ -189,7 +189,7 @@ if ($existingId === 0) {
 
 if ($existingId > 0) {
     $update = $pdo->prepare("
-        UPDATE title_approvals
+        UPDATE crad_title_approvals
         SET student_user_id = :student_user_id,
             student_name = :student_name,
             submission_date = :submission_date,
@@ -246,7 +246,7 @@ if ($existingId > 0) {
 }
 
 $stmt = $pdo->prepare("
-    INSERT INTO title_approvals
+    INSERT INTO crad_title_approvals
         (student_id, student_user_id, student_name, submission_date, department,
          proposed_title, discipline_cluster, primary_sdg, research_agenda,
          sdg_justification, members_json, adviser_name, adviser_email,

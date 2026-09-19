@@ -22,7 +22,7 @@ function rcpStageList(): array
 function rcpEnsureSchema(PDO $crad): void
 {
     $crad->exec(
-        "CREATE TABLE IF NOT EXISTS research_clearance_payments (
+        "CREATE TABLE IF NOT EXISTS crad_research_clearance_payments (
             id INT UNSIGNED NOT NULL AUTO_INCREMENT,
             research_group_id INT UNSIGNED NOT NULL,
             research_stage VARCHAR(20) NOT NULL DEFAULT 'research_1',
@@ -45,14 +45,14 @@ function rcpEnsureSchema(PDO $crad): void
     );
 
     try {
-        if (!$crad->query("SHOW COLUMNS FROM research_clearance_payments LIKE 'research_stage'")->fetch()) {
+        if (!$crad->query("SHOW COLUMNS FROM crad_research_clearance_payments LIKE 'research_stage'")->fetch()) {
             $crad->exec(
-                "ALTER TABLE research_clearance_payments
+                "ALTER TABLE crad_research_clearance_payments
                  ADD COLUMN research_stage VARCHAR(20) NOT NULL DEFAULT 'research_1' AFTER research_group_id"
             );
         }
-        $crad->exec("UPDATE research_clearance_payments SET research_stage = 'research_1' WHERE TRIM(COALESCE(research_stage, '')) = ''");
-        $indexes = $crad->query("SHOW INDEX FROM research_clearance_payments")->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        $crad->exec("UPDATE crad_research_clearance_payments SET research_stage = 'research_1' WHERE TRIM(COALESCE(research_stage, '')) = ''");
+        $indexes = $crad->query("SHOW INDEX FROM crad_research_clearance_payments")->fetchAll(PDO::FETCH_ASSOC) ?: [];
         $hasStageUnique = false;
         foreach ($indexes as $idx) {
             if (($idx['Key_name'] ?? '') === 'uniq_rcp_group_stage') {
@@ -62,12 +62,12 @@ function rcpEnsureSchema(PDO $crad): void
         }
         if (!$hasStageUnique) {
             try {
-                $crad->exec('ALTER TABLE research_clearance_payments DROP INDEX uniq_rcp_group');
+                $crad->exec('ALTER TABLE crad_research_clearance_payments DROP INDEX uniq_rcp_group');
             } catch (Throwable $e) {
                 // optional legacy index
             }
             $crad->exec(
-                'ALTER TABLE research_clearance_payments
+                'ALTER TABLE crad_research_clearance_payments
                  ADD UNIQUE KEY uniq_rcp_group_stage (research_group_id, research_stage)'
             );
         }
@@ -83,7 +83,7 @@ function rcpFindByGroup(PDO $crad, int $groupId, string $stage = 'research_1'): 
     }
     $stage = rcpNormalizeStage($stage);
     $stmt = $crad->prepare(
-        "SELECT * FROM research_clearance_payments
+        "SELECT * FROM crad_research_clearance_payments
          WHERE research_group_id = ? AND research_stage = ?
          ORDER BY id DESC LIMIT 1"
     );
@@ -97,7 +97,7 @@ function rcpFindById(PDO $crad, int $id): ?array
     if ($id <= 0) {
         return null;
     }
-    $stmt = $crad->prepare('SELECT * FROM research_clearance_payments WHERE id = ? LIMIT 1');
+    $stmt = $crad->prepare('SELECT * FROM crad_research_clearance_payments WHERE id = ? LIMIT 1');
     $stmt->execute([$id]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
     return $row ?: null;
@@ -227,7 +227,7 @@ function rcpEnsureOrFromImage(PDO $crad, array $row): array
     if ($extracted === '' || strcasecmp($extracted, $or) === 0) {
         return $row;
     }
-    $crad->prepare('UPDATE research_clearance_payments SET or_number = ? WHERE id = ?')
+    $crad->prepare('UPDATE crad_research_clearance_payments SET or_number = ? WHERE id = ?')
         ->execute([$extracted, (int) ($row['id'] ?? 0)]);
     $row['or_number'] = $extracted;
     return $row;
@@ -304,7 +304,7 @@ function rcpStudentUpload(PDO $crad, int $groupId, array $file, string $orNumber
     if ($existing) {
         $old = basename(str_replace('\\', '/', (string) ($existing['uploaded_file'] ?? '')));
         $crad->prepare(
-            "UPDATE research_clearance_payments
+            "UPDATE crad_research_clearance_payments
              SET uploaded_file = :file,
                  uploaded_original = :original,
                  or_number = :or_number,
@@ -330,7 +330,7 @@ function rcpStudentUpload(PDO $crad, int $groupId, array $file, string $orNumber
         $fresh = rcpFindById($crad, (int) $existing['id']);
     } else {
         $crad->prepare(
-            "INSERT INTO research_clearance_payments
+            "INSERT INTO crad_research_clearance_payments
                 (research_group_id, research_stage, student_user_id, uploaded_file, uploaded_original, or_number, remarks, status)
              VALUES
                 (:gid, :stage, :uid, :file, :original, :or_number, '', 'pending')"
@@ -364,7 +364,7 @@ function rcpApplyToClearance(PDO $crad, int $groupId, string $orNumber, string $
         unset($member);
     }
     $crad->prepare(
-        "UPDATE research_services_clearances
+        "UPDATE crad_research_services_clearances
          SET or_number = :or_number,
              members_json = :members
          WHERE id = :id"
@@ -384,7 +384,7 @@ function rcpAdminApprove(PDO $crad, array $payment, string $orNumber, string $re
         return ['ok' => false, 'error' => 'Enter the O.R. number from the college payment.'];
     }
     $crad->prepare(
-        "UPDATE research_clearance_payments
+        "UPDATE crad_research_clearance_payments
          SET status = 'approved',
              or_number = :or_number,
              remarks = :remarks,
@@ -429,7 +429,7 @@ function rcpAdminApprove(PDO $crad, array $payment, string $orNumber, string $re
 function rcpAdminReject(PDO $crad, array $payment): array
 {
     $crad->prepare(
-        "UPDATE research_clearance_payments
+        "UPDATE crad_research_clearance_payments
          SET status = 'rejected',
              approved_by_user_id = :uid,
              approved_by_name = :name,
@@ -457,8 +457,8 @@ function rcpPurgeDisconnectedPayments(PDO $crad): int
     rcpEnsureSchema($crad);
     $orphans = $crad->query(
         "SELECT p.id, p.uploaded_file
-         FROM research_clearance_payments p
-         LEFT JOIN research_groups rg ON rg.id = p.research_group_id
+         FROM crad_research_clearance_payments p
+         LEFT JOIN crad_research_groups rg ON rg.id = p.research_group_id
          WHERE p.research_group_id IS NULL
             OR p.research_group_id < 1
             OR rg.id IS NULL"
@@ -485,7 +485,7 @@ function rcpPurgeDisconnectedPayments(PDO $crad): int
         return 0;
     }
     $placeholders = implode(',', array_fill(0, count($ids), '?'));
-    $stmt = $crad->prepare("DELETE FROM research_clearance_payments WHERE id IN ($placeholders)");
+    $stmt = $crad->prepare("DELETE FROM crad_research_clearance_payments WHERE id IN ($placeholders)");
     $stmt->execute($ids);
 
     return $stmt->rowCount();
@@ -501,8 +501,8 @@ function rcpListForAdmin(PDO $crad): array
                 rg.group_number,
                 rg.research_title,
                 rg.group_name
-         FROM research_clearance_payments p
-         INNER JOIN research_groups rg ON rg.id = p.research_group_id
+         FROM crad_research_clearance_payments p
+         INNER JOIN crad_research_groups rg ON rg.id = p.research_group_id
          ORDER BY FIELD(p.status, 'pending', 'rejected', 'approved'), p.updated_at DESC"
     )->fetchAll(PDO::FETCH_ASSOC) ?: [];
 }

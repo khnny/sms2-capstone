@@ -15,7 +15,7 @@ function smsEnsureAuthenticatorTable(): void
         return;
     }
     $pdo->exec(
-        'CREATE TABLE IF NOT EXISTS user_authenticators (
+        'CREATE TABLE IF NOT EXISTS sms_user_authenticators (
             user_id INT UNSIGNED NOT NULL,
             secret VARCHAR(512) NOT NULL,
             enabled TINYINT(1) NOT NULL DEFAULT 0,
@@ -24,13 +24,13 @@ function smsEnsureAuthenticatorTable(): void
             updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (user_id),
-            CONSTRAINT fk_ua_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            CONSTRAINT fk_ua_user FOREIGN KEY (user_id) REFERENCES sms_users(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
     );
     // Widen legacy VARCHAR(64) columns so encrypted secrets fit
     try {
-        $pdo->exec('ALTER TABLE user_authenticators MODIFY secret VARCHAR(512) NOT NULL');
-        $pdo->exec('ALTER TABLE user_authenticators MODIFY pending_secret VARCHAR(512) NULL');
+        $pdo->exec('ALTER TABLE sms_user_authenticators MODIFY secret VARCHAR(512) NOT NULL');
+        $pdo->exec('ALTER TABLE sms_user_authenticators MODIFY pending_secret VARCHAR(512) NULL');
     } catch (Throwable $e) {
         // Ignore if already widened / no permission
     }
@@ -180,7 +180,7 @@ function smsAuthenticatorGet(int $userId): ?array
     if (!$pdo || $userId <= 0) {
         return null;
     }
-    $stmt = $pdo->prepare('SELECT * FROM user_authenticators WHERE user_id = ? LIMIT 1');
+    $stmt = $pdo->prepare('SELECT * FROM sms_user_authenticators WHERE user_id = ? LIMIT 1');
     $stmt->execute([$userId]);
     $row = $stmt->fetch();
     if (!$row) {
@@ -207,7 +207,7 @@ function smsAuthenticatorGet(int $userId): ?array
         }
         if ($needUpgrade) {
             $pdo->prepare(
-                'UPDATE user_authenticators SET secret = ?, pending_secret = ?, updated_at = NOW() WHERE user_id = ?'
+                'UPDATE sms_user_authenticators SET secret = ?, pending_secret = ?, updated_at = NOW() WHERE user_id = ?'
             )->execute([$encSecret, $encPending, $userId]);
         }
     } catch (Throwable $e) {
@@ -244,11 +244,11 @@ function smsAuthenticatorBeginSetup(int $userId): ?string
     $existing = smsAuthenticatorGet($userId);
     if ($existing) {
         $pdo->prepare(
-            'UPDATE user_authenticators SET pending_secret = ?, updated_at = NOW() WHERE user_id = ?'
+            'UPDATE sms_user_authenticators SET pending_secret = ?, updated_at = NOW() WHERE user_id = ?'
         )->execute([$encSecret, $userId]);
     } else {
         $pdo->prepare(
-            'INSERT INTO user_authenticators (user_id, secret, enabled, pending_secret)
+            'INSERT INTO sms_user_authenticators (user_id, secret, enabled, pending_secret)
              VALUES (?, ?, 0, ?)'
         )->execute([$userId, $encSecret, $encSecret]);
     }
@@ -271,7 +271,7 @@ function smsAuthenticatorConfirmEnable(int $userId, string $code): bool
         return false;
     }
     $pdo->prepare(
-        'UPDATE user_authenticators
+        'UPDATE sms_user_authenticators
          SET secret = ?, pending_secret = NULL, enabled = 1, confirmed_at = NOW()
          WHERE user_id = ?'
     )->execute([smsSecretEncrypt($secret), $userId]);
@@ -287,7 +287,7 @@ function smsAuthenticatorDisable(int $userId): bool
     }
     // Invalidate previous app secret so Turn On requires a fresh QR / code.
     $pdo->prepare(
-        'UPDATE user_authenticators
+        'UPDATE sms_user_authenticators
          SET enabled = 0, secret = ?, pending_secret = NULL, confirmed_at = NULL, updated_at = NOW()
          WHERE user_id = ?'
     )->execute([smsSecretEncrypt(smsTotpGenerateSecret()), $userId]);

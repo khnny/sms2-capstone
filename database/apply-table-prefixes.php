@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Apply sms_ / crad_ table prefixes to SQL dumps and PHP application code.
  *
@@ -98,7 +98,7 @@ foreach ($cradTables as $t) {
  */
 function replaceTableNames(string $raw, array $map): string
 {
-    // Already fully prefixed dumps ΓÇö skip (idempotent).
+    // Already fully prefixed dumps — skip (idempotent).
     if (str_contains($raw, '`sms_users`') && str_contains($raw, '`crad_title_approvals`')
         && !str_contains($raw, 'CREATE TABLE `users`') && !str_contains($raw, 'CREATE TABLE `title_approvals`')) {
         return $raw;
@@ -106,12 +106,12 @@ function replaceTableNames(string $raw, array $map): string
 
     $out = $raw;
 
-    // Hard-coded cross-database qualifiers ΓåÆ same-DB prefixed table.
+    // Hard-coded cross-database qualifiers → same-DB prefixed table.
     $out = str_replace('sms2_db.users', 'sms_users', $out);
     $out = str_replace('`sms2_db`.`users`', '`sms_users`', $out);
     $out = str_replace('sms2_db.roles', 'sms_roles', $out);
 
-    // Tables already created as crad_* in some helpers ΓÇö normalize double prefix.
+    // Tables already created as crad_* in some helpers — normalize double prefix.
     $out = str_replace('crad_crad_', 'crad_', $out);
 
     foreach ($map as $old => $new) {

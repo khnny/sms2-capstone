@@ -43,7 +43,7 @@ $roles = [
 ];
 
 $insRole = $pdo->prepare(
-    'INSERT INTO roles (role_key, label, description) VALUES (?, ?, ?)
+    'INSERT INTO sms_roles (role_key, label, description) VALUES (?, ?, ?)
      ON DUPLICATE KEY UPDATE label = VALUES(label), description = VALUES(description)'
 );
 foreach ($roles as $role) {
@@ -52,7 +52,7 @@ foreach ($roles as $role) {
 
 echo "Updating role permissions…" . PHP_EOL;
 
-$pdo->exec('DELETE FROM role_permissions');
+$pdo->exec('DELETE FROM sms_role_permissions');
 
 $perms = [
     'superadmin'   => ['user-management'],
@@ -77,7 +77,7 @@ $perms = [
 ];
 
 $insPerm = $pdo->prepare(
-    'INSERT INTO role_permissions (role_key, module_key, granted) VALUES (?, ?, 1)'
+    'INSERT INTO sms_role_permissions (role_key, module_key, granted) VALUES (?, ?, 1)'
 );
 foreach ($perms as $role => $modules) {
     foreach ($modules as $mod) {
@@ -260,7 +260,7 @@ $accounts = [
 ];
 
 $upsert = $pdo->prepare(
-    'INSERT INTO users
+    'INSERT INTO sms_users
         (username, email, password_hash, full_name, role_key, student_id, status, password_changed_at, must_change_password, failed_login_attempts, locked_until)
      VALUES (?, ?, ?, ?, ?, ?, \'active\', NOW(), 0, 0, NULL)
      ON DUPLICATE KEY UPDATE
@@ -294,7 +294,7 @@ if (is_file($permFile)) {
 }
 
 $pdo->prepare(
-    'INSERT INTO activity_logs (user_id, user_name, role_key, action, module_key, detail, ip_address)
+    'INSERT INTO sms_activity_logs (user_id, user_name, role_key, action, module_key, detail, ip_address)
      VALUES (NULL, ?, ?, ?, ?, ?, ?)'
 )->execute(['System', 'admin', 'seed', 'System', 'Official role accounts seeded', 'cli']);
 

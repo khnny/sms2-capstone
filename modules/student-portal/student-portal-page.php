@@ -34,7 +34,7 @@ try {
     $titleStmt = $cradPdo->prepare(
         "SELECT proposed_title, status, adviser_name, coordinator_status, crad_status,
                 sent_at, reviewed_at, coordinator_reviewed_at, crad_reviewed_at, updated_at
-         FROM title_approvals
+         FROM crad_title_approvals
          WHERE student_id = :student_id
          ORDER BY id DESC
          LIMIT 1"

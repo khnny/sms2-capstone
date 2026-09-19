@@ -21,19 +21,19 @@ if (!in_array($roleKey, ['research_coordinator', 'superadmin'], true)) {
 function rcTitleApprovalEnsureSchema(PDO $pdo): void
 {
     $columns = [
-        'adviser_signature_data' => "ALTER TABLE title_approvals ADD COLUMN adviser_signature_data MEDIUMTEXT NULL DEFAULT NULL AFTER adviser_remarks",
-        'coordinator_status' => "ALTER TABLE title_approvals ADD COLUMN coordinator_status VARCHAR(30) NOT NULL DEFAULT 'Not Ready' AFTER adviser_signature_data",
-        'coordinator_remarks' => "ALTER TABLE title_approvals ADD COLUMN coordinator_remarks TEXT NULL DEFAULT NULL AFTER coordinator_status",
-        'coordinator_screening_json' => "ALTER TABLE title_approvals ADD COLUMN coordinator_screening_json TEXT NULL DEFAULT NULL AFTER coordinator_remarks",
-        'coordinator_signature_data' => "ALTER TABLE title_approvals ADD COLUMN coordinator_signature_data MEDIUMTEXT NULL DEFAULT NULL AFTER coordinator_remarks",
-        'coordinator_reviewed_at' => "ALTER TABLE title_approvals ADD COLUMN coordinator_reviewed_at DATETIME NULL DEFAULT NULL AFTER coordinator_signature_data",
-        'crad_status' => "ALTER TABLE title_approvals ADD COLUMN crad_status VARCHAR(30) NOT NULL DEFAULT 'Not Ready' AFTER coordinator_reviewed_at",
-        'crad_signature_data' => "ALTER TABLE title_approvals ADD COLUMN crad_signature_data MEDIUMTEXT NULL DEFAULT NULL AFTER crad_status",
-        'crad_reviewed_at' => "ALTER TABLE title_approvals ADD COLUMN crad_reviewed_at DATETIME NULL DEFAULT NULL AFTER crad_signature_data",
+        'adviser_signature_data' => "ALTER TABLE crad_title_approvals ADD COLUMN adviser_signature_data MEDIUMTEXT NULL DEFAULT NULL AFTER adviser_remarks",
+        'coordinator_status' => "ALTER TABLE crad_title_approvals ADD COLUMN coordinator_status VARCHAR(30) NOT NULL DEFAULT 'Not Ready' AFTER adviser_signature_data",
+        'coordinator_remarks' => "ALTER TABLE crad_title_approvals ADD COLUMN coordinator_remarks TEXT NULL DEFAULT NULL AFTER coordinator_status",
+        'coordinator_screening_json' => "ALTER TABLE crad_title_approvals ADD COLUMN coordinator_screening_json TEXT NULL DEFAULT NULL AFTER coordinator_remarks",
+        'coordinator_signature_data' => "ALTER TABLE crad_title_approvals ADD COLUMN coordinator_signature_data MEDIUMTEXT NULL DEFAULT NULL AFTER coordinator_remarks",
+        'coordinator_reviewed_at' => "ALTER TABLE crad_title_approvals ADD COLUMN coordinator_reviewed_at DATETIME NULL DEFAULT NULL AFTER coordinator_signature_data",
+        'crad_status' => "ALTER TABLE crad_title_approvals ADD COLUMN crad_status VARCHAR(30) NOT NULL DEFAULT 'Not Ready' AFTER coordinator_reviewed_at",
+        'crad_signature_data' => "ALTER TABLE crad_title_approvals ADD COLUMN crad_signature_data MEDIUMTEXT NULL DEFAULT NULL AFTER crad_status",
+        'crad_reviewed_at' => "ALTER TABLE crad_title_approvals ADD COLUMN crad_reviewed_at DATETIME NULL DEFAULT NULL AFTER crad_signature_data",
     ];
     foreach ($columns as $name => $sql) {
         try {
-            if (!$pdo->query("SHOW COLUMNS FROM title_approvals LIKE " . $pdo->quote($name))->fetch()) {
+            if (!$pdo->query("SHOW COLUMNS FROM crad_title_approvals LIKE " . $pdo->quote($name))->fetch()) {
                 $pdo->exec($sql);
             }
         } catch (Throwable $e) {
@@ -52,7 +52,7 @@ function rcTitleApprovalRows(PDO $pdo): array
                 coordinator_name, status, adviser_remarks, adviser_signature_data,
                 coordinator_status, coordinator_remarks, coordinator_screening_json, coordinator_signature_data,
                 sent_at, reviewed_at, coordinator_reviewed_at
-         FROM title_approvals
+         FROM crad_title_approvals
          WHERE status = 'Approved'
          ORDER BY FIELD(coordinator_status, 'Pending', 'Returned', 'Approved', 'Not Ready'),
                   reviewed_at DESC, id DESC"
@@ -97,7 +97,7 @@ function rcTitleApprovalUpdate(int $id, string $status, string $remarks, string 
     $screeningJson = $allowedScreening ? json_encode($allowedScreening, JSON_UNESCAPED_UNICODE) : null;
     if ($status === 'Screening') {
         $stmt = $pdo->prepare(
-            "UPDATE title_approvals
+            "UPDATE crad_title_approvals
              SET coordinator_screening_json = :screening_json
              WHERE id = :id
                AND status = 'Approved'"
@@ -109,12 +109,12 @@ function rcTitleApprovalUpdate(int $id, string $status, string $remarks, string 
         if ($stmt->rowCount() > 0) {
             return true;
         }
-        $check = $pdo->prepare("SELECT id FROM title_approvals WHERE id = :id AND status = 'Approved' LIMIT 1");
+        $check = $pdo->prepare("SELECT id FROM crad_title_approvals WHERE id = :id AND status = 'Approved' LIMIT 1");
         $check->execute([':id' => $id]);
         return (bool) $check->fetch();
     }
     $stmt = $pdo->prepare(
-        "UPDATE title_approvals
+        "UPDATE crad_title_approvals
          SET coordinator_status = :status,
              coordinator_remarks = :remarks,
              coordinator_screening_json = :screening_json,
@@ -164,8 +164,8 @@ function rcApprovedResearchFetch(PDO $pdo): array
             'Approved' AS display_status,
             p.approved_at,
             p.registered_at
-         FROM research_groups g
-         INNER JOIN research_proposals p ON p.id = g.proposal_id
+         FROM crad_research_groups g
+         INNER JOIN crad_research_proposals p ON p.id = g.proposal_id
          WHERE p.status = 'Approved'
            AND p.registration_status = 'Registered'
            AND p.proposal_number IS NOT NULL

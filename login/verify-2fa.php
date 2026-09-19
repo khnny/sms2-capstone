@@ -52,7 +52,7 @@ $pdo = db();
 if ($pdo) {
     $stmt = $pdo->prepare(
         'SELECT u.*, r.label AS role_label
-         FROM users u LEFT JOIN roles r ON r.role_key = u.role_key
+         FROM sms_users u LEFT JOIN sms_roles r ON r.role_key = u.role_key
          WHERE u.id = ? LIMIT 1'
     );
     $stmt->execute([$userId]);

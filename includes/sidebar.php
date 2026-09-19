@@ -96,7 +96,7 @@ if ($sidebarMode === 'student') {
             $sidebarStudentUserId = (int) ($_SESSION['user_id'] ?? 0);
             $titleStmt = $sidebarCrad->prepare(
                 "SELECT id
-                 FROM title_approvals
+                 FROM crad_title_approvals
                  WHERE status = 'Returned'
                    AND (
                         (:student_id_value <> '' AND student_id = :student_id_match)
@@ -139,9 +139,9 @@ $studentHasResearchGroup = false;
 if ($sidebarMode === 'student' && isset($sidebarCrad) && $sidebarCrad instanceof PDO) {
     try {
         $checkGroupStmt = $sidebarCrad->prepare("
-            SELECT COUNT(*) FROM research_groups 
+            SELECT COUNT(*) FROM crad_research_groups 
             WHERE status = 'Approved'
-              AND (leader_id = :student_id OR leader_id = (SELECT student_id FROM sms2_db.users WHERE id = :user_id LIMIT 1))
+              AND (leader_id = :student_id OR leader_id = (SELECT student_id FROM sms_users WHERE id = :user_id LIMIT 1))
             LIMIT 1
         ");
         $checkGroupStmt->execute([

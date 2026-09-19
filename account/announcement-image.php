@@ -35,7 +35,7 @@ if (!$pdo) {
 try {
     $stmt = $pdo->prepare(
         'SELECT image_path, status, audience
-           FROM admin_announcements
+           FROM sms_admin_announcements
           WHERE id = ?
           LIMIT 1'
     );

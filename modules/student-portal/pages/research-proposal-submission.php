@@ -90,7 +90,7 @@ try {
     $cradPdoEarly = getCradDatabaseConnection();
     if ($requestedResubmitId > 0) {
         $exStmt = $cradPdoEarly->prepare(
-            "SELECT * FROM title_approvals
+            "SELECT * FROM crad_title_approvals
              WHERE student_id = :sid AND id = :id
              LIMIT 1"
         );
@@ -98,7 +98,7 @@ try {
         $resubmitSubmission = $exStmt->fetch(PDO::FETCH_ASSOC) ?: null;
     } else {
         $exStmt = $cradPdoEarly->prepare(
-            "SELECT * FROM title_approvals
+            "SELECT * FROM crad_title_approvals
              WHERE student_id = :sid
              ORDER BY id DESC
              LIMIT 1"

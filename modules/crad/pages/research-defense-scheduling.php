@@ -18,7 +18,7 @@ if (!smsRoleAllowedForModule(['crad_officer', 'research_coordinator', 'research_
 function cradEnsureDefenseScheduleTable(PDO $pdo): void
 {
     $pdo->exec("
-        CREATE TABLE IF NOT EXISTS research_defense_schedules (
+        CREATE TABLE IF NOT EXISTS crad_research_defense_schedules (
             id INT UNSIGNED NOT NULL AUTO_INCREMENT,
             research_group_id INT UNSIGNED DEFAULT NULL,
             proposal_id INT UNSIGNED DEFAULT NULL,
@@ -45,36 +45,36 @@ function cradEnsureDefenseScheduleTable(PDO $pdo): void
     ");
 
     $columns = [
-        'research_group_id' => "ALTER TABLE research_defense_schedules ADD research_group_id INT UNSIGNED DEFAULT NULL AFTER id",
-        'proposal_id' => "ALTER TABLE research_defense_schedules ADD proposal_id INT UNSIGNED DEFAULT NULL AFTER research_group_id",
-        'proposal_number' => "ALTER TABLE research_defense_schedules ADD proposal_number VARCHAR(30) DEFAULT NULL AFTER proposal_id",
-        'group_number' => "ALTER TABLE research_defense_schedules ADD group_number VARCHAR(40) NOT NULL DEFAULT '' AFTER proposal_number",
-        'research_group' => "ALTER TABLE research_defense_schedules ADD research_group VARCHAR(120) NOT NULL DEFAULT '' AFTER group_number",
-        'research_title' => "ALTER TABLE research_defense_schedules ADD research_title VARCHAR(255) NOT NULL DEFAULT '' AFTER research_group",
-        'adviser_name' => "ALTER TABLE research_defense_schedules ADD adviser_name VARCHAR(160) DEFAULT NULL AFTER research_title",
-        'panel_members' => "ALTER TABLE research_defense_schedules ADD panel_members TEXT DEFAULT NULL AFTER adviser_name",
-        'panel_chair' => "ALTER TABLE research_defense_schedules ADD panel_chair VARCHAR(160) DEFAULT NULL AFTER panel_members",
-        'defense_type' => "ALTER TABLE research_defense_schedules ADD defense_type VARCHAR(40) NOT NULL DEFAULT 'Pre-Oral' AFTER panel_chair",
-        'venue' => "ALTER TABLE research_defense_schedules ADD venue VARCHAR(120) DEFAULT NULL AFTER panel_chair",
-        'defense_datetime' => "ALTER TABLE research_defense_schedules ADD defense_datetime DATETIME DEFAULT NULL AFTER venue",
-        'status' => "ALTER TABLE research_defense_schedules ADD status VARCHAR(40) NOT NULL DEFAULT 'Ready for Scheduling' AFTER defense_datetime",
-        'recorded_by' => "ALTER TABLE research_defense_schedules ADD recorded_by INT UNSIGNED DEFAULT NULL AFTER status",
-        'recorded_at' => "ALTER TABLE research_defense_schedules ADD recorded_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP AFTER recorded_by",
-        'updated_at' => "ALTER TABLE research_defense_schedules ADD updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER recorded_at",
+        'research_group_id' => "ALTER TABLE crad_research_defense_schedules ADD research_group_id INT UNSIGNED DEFAULT NULL AFTER id",
+        'proposal_id' => "ALTER TABLE crad_research_defense_schedules ADD proposal_id INT UNSIGNED DEFAULT NULL AFTER research_group_id",
+        'proposal_number' => "ALTER TABLE crad_research_defense_schedules ADD proposal_number VARCHAR(30) DEFAULT NULL AFTER proposal_id",
+        'group_number' => "ALTER TABLE crad_research_defense_schedules ADD group_number VARCHAR(40) NOT NULL DEFAULT '' AFTER proposal_number",
+        'research_group' => "ALTER TABLE crad_research_defense_schedules ADD research_group VARCHAR(120) NOT NULL DEFAULT '' AFTER group_number",
+        'research_title' => "ALTER TABLE crad_research_defense_schedules ADD research_title VARCHAR(255) NOT NULL DEFAULT '' AFTER research_group",
+        'adviser_name' => "ALTER TABLE crad_research_defense_schedules ADD adviser_name VARCHAR(160) DEFAULT NULL AFTER research_title",
+        'panel_members' => "ALTER TABLE crad_research_defense_schedules ADD panel_members TEXT DEFAULT NULL AFTER adviser_name",
+        'panel_chair' => "ALTER TABLE crad_research_defense_schedules ADD panel_chair VARCHAR(160) DEFAULT NULL AFTER panel_members",
+        'defense_type' => "ALTER TABLE crad_research_defense_schedules ADD defense_type VARCHAR(40) NOT NULL DEFAULT 'Pre-Oral' AFTER panel_chair",
+        'venue' => "ALTER TABLE crad_research_defense_schedules ADD venue VARCHAR(120) DEFAULT NULL AFTER panel_chair",
+        'defense_datetime' => "ALTER TABLE crad_research_defense_schedules ADD defense_datetime DATETIME DEFAULT NULL AFTER venue",
+        'status' => "ALTER TABLE crad_research_defense_schedules ADD status VARCHAR(40) NOT NULL DEFAULT 'Ready for Scheduling' AFTER defense_datetime",
+        'recorded_by' => "ALTER TABLE crad_research_defense_schedules ADD recorded_by INT UNSIGNED DEFAULT NULL AFTER status",
+        'recorded_at' => "ALTER TABLE crad_research_defense_schedules ADD recorded_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP AFTER recorded_by",
+        'updated_at' => "ALTER TABLE crad_research_defense_schedules ADD updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER recorded_at",
     ];
 
     foreach ($columns as $column => $sql) {
-        if (!$pdo->query("SHOW COLUMNS FROM research_defense_schedules LIKE " . $pdo->quote($column))->fetch()) {
+        if (!$pdo->query("SHOW COLUMNS FROM crad_research_defense_schedules LIKE " . $pdo->quote($column))->fetch()) {
             $pdo->exec($sql);
         }
     }
 
     foreach ([
-        'idx_rds_proposal_id' => "ALTER TABLE research_defense_schedules ADD KEY idx_rds_proposal_id (proposal_id)",
-        'idx_rds_proposal_number' => "ALTER TABLE research_defense_schedules ADD KEY idx_rds_proposal_number (proposal_number)",
-        'idx_rds_status' => "ALTER TABLE research_defense_schedules ADD KEY idx_rds_status (status)",
+        'idx_rds_proposal_id' => "ALTER TABLE crad_research_defense_schedules ADD KEY idx_rds_proposal_id (proposal_id)",
+        'idx_rds_proposal_number' => "ALTER TABLE crad_research_defense_schedules ADD KEY idx_rds_proposal_number (proposal_number)",
+        'idx_rds_status' => "ALTER TABLE crad_research_defense_schedules ADD KEY idx_rds_status (status)",
     ] as $index => $sql) {
-        if (!$pdo->query("SHOW INDEX FROM research_defense_schedules WHERE Key_name = " . $pdo->quote($index))->fetch()) {
+        if (!$pdo->query("SHOW INDEX FROM crad_research_defense_schedules WHERE Key_name = " . $pdo->quote($index))->fetch()) {
             $pdo->exec($sql);
         }
     }
@@ -84,10 +84,10 @@ function cradPruneOrphanDefenseSchedules(PDO $pdo): void
 {
     cradEnsureDefenseScheduleTable($pdo);
     $pdo->exec("
-        DELETE FROM research_defense_schedules
+        DELETE FROM crad_research_defense_schedules
         WHERE NOT EXISTS (
             SELECT 1
-            FROM research_proposals p
+            FROM crad_research_proposals p
             WHERE (research_defense_schedules.proposal_id IS NOT NULL AND p.id = research_defense_schedules.proposal_id)
                OR (
                     research_defense_schedules.proposal_number IS NOT NULL
@@ -117,8 +117,8 @@ function cradDefenseScheduleRows(PDO $pdo): array
                 rds.defense_datetime,
                 rds.status,
                 rds.updated_at
-            FROM research_defense_schedules rds
-            JOIN research_proposals p
+            FROM crad_research_defense_schedules rds
+            JOIN crad_research_proposals p
               ON (rds.proposal_id IS NOT NULL AND p.id = rds.proposal_id)
               OR (
                     rds.proposal_number IS NOT NULL
@@ -208,15 +208,15 @@ function cradDefenseSelectedAssignment(PDO $pdo, string $groupNumber, string $pr
                 COALESCE(NULLIF(g.research_title, ''), p.research_title, '') AS research_title,
                 (
                     SELECT a.adviser_name
-                    FROM research_adviser_assignments a
+                    FROM crad_research_adviser_assignments a
                     WHERE a.assignment_status = 'Assigned'
                       AND (a.research_group_id = g.id OR a.group_number = g.group_number OR a.proposal_id = g.proposal_id)
                     ORDER BY a.assigned_at DESC, a.updated_at DESC, a.id DESC
                     LIMIT 1
                 ) AS adviser,
                 '' AS panel_members
-             FROM research_groups g
-             JOIN research_proposals p ON p.id = g.proposal_id
+             FROM crad_research_groups g
+             JOIN crad_research_proposals p ON p.id = g.proposal_id
              WHERE (:group_gate <> '' AND g.group_number = :group_match)
                 OR (
                     :proposal_gate <> ''

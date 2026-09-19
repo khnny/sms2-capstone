@@ -27,7 +27,7 @@ renderBreadcrumbs($breadcrumbs);
 
 try {
     $crad = cradDb();
-    $tablesCheck = $crad->query("SHOW TABLES LIKE 'research_plans'")->fetch();
+    $tablesCheck = $crad->query("SHOW TABLES LIKE 'crad_research_plans'")->fetch();
     if (!$tablesCheck) throw new Exception('Not installed.');
 } catch (Throwable $e) {
     echo '<div class="alert alert-warning m-3">' . smsIcon('exclamation-triangle', ['class' => 'me-2']) . '<strong>Module Not Installed</strong></div>';
@@ -77,9 +77,9 @@ try {
     $feedbackStmt = $crad->prepare("
         SELECT rpf.*, rpu.update_title, rpu.submitted_by_name,
                rm.milestone_name, rm.milestone_order
-        FROM research_progress_feedback rpf
-        INNER JOIN research_progress_updates rpu ON rpu.id = rpf.progress_update_id
-        LEFT  JOIN research_milestones rm ON rm.id = rpf.milestone_id
+        FROM crad_research_progress_feedback rpf
+        INNER JOIN crad_research_progress_updates rpu ON rpu.id = rpf.progress_update_id
+        LEFT  JOIN crad_research_milestones rm ON rm.id = rpf.milestone_id
         WHERE {$whereClause}
         ORDER BY rpf.created_at DESC
     ");
@@ -90,7 +90,7 @@ try {
 try {
     if (!empty($plan['id'])) {
         $milestonesStmt = $crad->prepare("
-            SELECT id, milestone_name, milestone_order FROM research_milestones
+            SELECT id, milestone_name, milestone_order FROM crad_research_milestones
             WHERE research_plan_id = ? ORDER BY milestone_order ASC
         ");
         $milestonesStmt->execute([(int) $plan['id']]);

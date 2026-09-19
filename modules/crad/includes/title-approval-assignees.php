@@ -19,16 +19,16 @@ function cradStudentAssignmentGroupNumber(string $studentId): string
 function cradEnsureAssigneeSchema(PDO $pdo): void
 {
     try {
-        $exists = $pdo->query("SHOW TABLES LIKE 'research_groups'")->fetch();
+        $exists = $pdo->query("SHOW TABLES LIKE 'crad_research_groups'")->fetch();
         if ($exists) {
-            $pdo->exec("ALTER TABLE research_groups CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+            $pdo->exec("ALTER TABLE crad_research_groups CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
         }
     } catch (Throwable $e) {
         error_log('Assignee schema group collation skipped: ' . $e->getMessage());
     }
 
     $pdo->exec("
-        CREATE TABLE IF NOT EXISTS research_groups (
+        CREATE TABLE IF NOT EXISTS crad_research_groups (
             id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
             proposal_id INT UNSIGNED DEFAULT NULL,
             title_approval_id INT UNSIGNED DEFAULT NULL,
@@ -50,7 +50,7 @@ function cradEnsureAssigneeSchema(PDO $pdo): void
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     ");
 
-    $pdo->exec("CREATE TABLE IF NOT EXISTS research_coordinator_assignments (
+    $pdo->exec("CREATE TABLE IF NOT EXISTS crad_research_coordinator_assignments (
         id INT UNSIGNED NOT NULL AUTO_INCREMENT,
         research_group_id INT UNSIGNED NULL,
         proposal_id INT UNSIGNED NULL,
@@ -76,7 +76,7 @@ function cradEnsureAssigneeSchema(PDO $pdo): void
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
     $pdo->exec("
-        CREATE TABLE IF NOT EXISTS research_adviser_assignments (
+        CREATE TABLE IF NOT EXISTS crad_research_adviser_assignments (
             id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
             research_group_id INT UNSIGNED DEFAULT NULL,
             proposal_id INT UNSIGNED DEFAULT NULL,
@@ -112,20 +112,20 @@ function cradEnsureAssigneeSchema(PDO $pdo): void
         }
     };
 
-    $addColumn($pdo, 'research_coordinator_assignments', 'student_id',
-        "ALTER TABLE research_coordinator_assignments ADD COLUMN student_id VARCHAR(40) NULL AFTER research_title, ADD KEY idx_rca_student (student_id)");
-    $addColumn($pdo, 'research_adviser_assignments', 'student_id',
-        "ALTER TABLE research_adviser_assignments ADD COLUMN student_id VARCHAR(40) NULL AFTER group_number, ADD KEY idx_raa_student (student_id)");
+    $addColumn($pdo, 'crad_research_coordinator_assignments', 'student_id',
+        "ALTER TABLE crad_research_coordinator_assignments ADD COLUMN student_id VARCHAR(40) NULL AFTER research_title, ADD KEY idx_rca_student (student_id)");
+    $addColumn($pdo, 'crad_research_adviser_assignments', 'student_id',
+        "ALTER TABLE crad_research_adviser_assignments ADD COLUMN student_id VARCHAR(40) NULL AFTER group_number, ADD KEY idx_raa_student (student_id)");
 
     try {
-        $pdo->exec("UPDATE research_coordinator_assignments SET student_id = NULL WHERE student_id = ''");
+        $pdo->exec("UPDATE crad_research_coordinator_assignments SET student_id = NULL WHERE student_id = ''");
     } catch (Throwable $e) {
         error_log('Coordinator student_id cleanup skipped: ' . $e->getMessage());
     }
 
     try {
-        if (!$pdo->query("SHOW INDEX FROM research_coordinator_assignments WHERE Key_name = 'uniq_rca_student_id'")->fetch()) {
-            $pdo->exec("ALTER TABLE research_coordinator_assignments ADD UNIQUE KEY uniq_rca_student_id (student_id)");
+        if (!$pdo->query("SHOW INDEX FROM crad_research_coordinator_assignments WHERE Key_name = 'uniq_rca_student_id'")->fetch()) {
+            $pdo->exec("ALTER TABLE crad_research_coordinator_assignments ADD UNIQUE KEY uniq_rca_student_id (student_id)");
         }
     } catch (Throwable $e) {
         error_log('Assignee unique student_id skipped: ' . $e->getMessage());
@@ -148,7 +148,7 @@ function cradEnsureStudentPlaceholderGroup(PDO $pdo, string $studentId, string $
 
     $groupNumber = cradStudentAssignmentGroupNumber($studentId);
     $stmt = $pdo->prepare(
-        "SELECT * FROM research_groups
+        "SELECT * FROM crad_research_groups
          WHERE group_number = :group_number
             OR (leader_id = :sid AND (title_approval_id IS NULL OR title_approval_id = 0))
          ORDER BY (group_number = :group_number_order) DESC, id DESC
@@ -176,7 +176,7 @@ function cradEnsureStudentPlaceholderGroup(PDO $pdo, string $studentId, string $
             $params[':college_dept'] = $department;
         }
         if ($updates !== []) {
-            $pdo->prepare('UPDATE research_groups SET ' . implode(', ', $updates) . ' WHERE id = :id LIMIT 1')
+            $pdo->prepare('UPDATE crad_research_groups SET ' . implode(', ', $updates) . ' WHERE id = :id LIMIT 1')
                 ->execute($params);
             $stmt->execute([
                 ':group_number' => $groupNumber,
@@ -196,7 +196,7 @@ function cradEnsureStudentPlaceholderGroup(PDO $pdo, string $studentId, string $
     }
 
     $ins = $pdo->prepare("
-        INSERT INTO research_groups
+        INSERT INTO crad_research_groups
             (proposal_id, title_approval_id, proposal_number, group_number, group_name,
              research_title, college_dept, adviser, academic_year,
              leader_name, leader_id, leader_email, leader_contact,
@@ -220,7 +220,7 @@ function cradEnsureStudentPlaceholderGroup(PDO $pdo, string $studentId, string $
     ]);
 
     $id = (int) $pdo->lastInsertId();
-    $row = $pdo->prepare('SELECT * FROM research_groups WHERE id = :id LIMIT 1');
+    $row = $pdo->prepare('SELECT * FROM crad_research_groups WHERE id = :id LIMIT 1');
     $row->execute([':id' => $id]);
     $created = $row->fetch(PDO::FETCH_ASSOC);
     if (!is_array($created)) {
@@ -273,7 +273,7 @@ function cradStudentOfficialAssignees(PDO $pdo, string $studentId): array
 
     try {
         $gStmt = $pdo->prepare(
-            "SELECT id, group_number FROM research_groups
+            "SELECT id, group_number FROM crad_research_groups
              WHERE LOWER(TRIM(leader_id)) = LOWER(:sid)
                 OR LOWER(TRIM(group_number)) = LOWER(:stu)
              ORDER BY id DESC"
@@ -296,7 +296,7 @@ function cradStudentOfficialAssignees(PDO $pdo, string $studentId): array
     $coord = null;
     try {
         $sql = "SELECT coordinator_name, coordinator_email, group_number
-                FROM research_coordinator_assignments
+                FROM crad_research_coordinator_assignments
                 WHERE status = 'Active'
                   AND (
                         LOWER(TRIM(COALESCE(student_id, ''))) = LOWER(:sid)
@@ -331,7 +331,7 @@ function cradStudentOfficialAssignees(PDO $pdo, string $studentId): array
     $adv = null;
     try {
         $sql = "SELECT adviser_name, adviser_email, group_number
-                FROM research_adviser_assignments
+                FROM crad_research_adviser_assignments
                 WHERE assignment_status IN ('Assigned', 'Confirmed')
                   AND TRIM(adviser_name) <> ''
                   AND (
@@ -394,7 +394,7 @@ function cradSyncTitleApprovalAssigneeNames(PDO $pdo, string $studentId): void
     try {
         $names = cradStudentOfficialAssignees($pdo, $studentId);
         $stmt = $pdo->prepare(
-            "UPDATE title_approvals
+            "UPDATE crad_title_approvals
                 SET adviser_name = :adviser_name,
                     adviser_email = :adviser_email,
                     coordinator_name = :coordinator_name
@@ -431,7 +431,7 @@ function cradGroupHasActiveCoordinator(PDO $pdo, array $group): bool
     $groupNumber = trim((string) ($group['group_number'] ?? ''));
     $studentId = cradStudentIdFromAssignmentGroup($groupNumber, $group);
 
-    $sql = "SELECT id FROM research_coordinator_assignments
+    $sql = "SELECT id FROM crad_research_coordinator_assignments
             WHERE status = 'Active' AND (0=1";
     $params = [];
     if ($groupId > 0) {
@@ -479,7 +479,7 @@ function cradMigrateStudentAssignmentsToOfficialGroup(PDO $pdo, string $studentI
 
     try {
         $pdo->prepare(
-            "UPDATE research_coordinator_assignments
+            "UPDATE crad_research_coordinator_assignments
                 SET research_group_id = :gid,
                     group_number = :gn,
                     title_approval_id = COALESCE(:tid, title_approval_id),
@@ -504,7 +504,7 @@ function cradMigrateStudentAssignmentsToOfficialGroup(PDO $pdo, string $studentI
 
     try {
         $pdo->prepare(
-            "UPDATE research_adviser_assignments
+            "UPDATE crad_research_adviser_assignments
                 SET research_group_id = :gid,
                     group_number = :gn,
                     student_id = :sid,

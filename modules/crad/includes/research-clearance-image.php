@@ -264,7 +264,7 @@ function rscSendFormPngDownload(PDO $crad, array $row): void
 {
     $fresh = rscRefreshExisting($crad, $row) ?: $row;
     $png = rscBuildFormPng($fresh);
-    $crad->prepare('UPDATE research_services_clearances SET export_hash = ? WHERE id = ?')
+    $crad->prepare('UPDATE crad_research_services_clearances SET export_hash = ? WHERE id = ?')
         ->execute([hash('sha256', $png), (int) $fresh['id']]);
     $group = preg_replace('/[^A-Za-z0-9\-]/', '', (string) ($fresh['leader_group_no'] ?? 'clearance')) ?: 'clearance';
     header('Content-Type: image/png');

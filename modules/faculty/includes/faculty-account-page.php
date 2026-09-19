@@ -11,41 +11,41 @@ require_once ROOT_PATH . '/includes/notifications.php';
     try {
         $crad = cradDb();
         if (!$crad) return;
-        $cols = $crad->query("SHOW COLUMNS FROM title_approvals LIKE 'adviser_signature_data'")->fetchAll();
+        $cols = $crad->query("SHOW COLUMNS FROM crad_title_approvals LIKE 'adviser_signature_data'")->fetchAll();
         if (!$cols) {
-            $crad->exec("ALTER TABLE title_approvals ADD COLUMN adviser_signature_data MEDIUMTEXT NULL DEFAULT NULL AFTER adviser_remarks");
+            $crad->exec("ALTER TABLE crad_title_approvals ADD COLUMN adviser_signature_data MEDIUMTEXT NULL DEFAULT NULL AFTER adviser_remarks");
         }
-        $coordStatus = $crad->query("SHOW COLUMNS FROM title_approvals LIKE 'coordinator_status'")->fetchAll();
+        $coordStatus = $crad->query("SHOW COLUMNS FROM crad_title_approvals LIKE 'coordinator_status'")->fetchAll();
         if (!$coordStatus) {
-            $crad->exec("ALTER TABLE title_approvals ADD COLUMN coordinator_status VARCHAR(30) NOT NULL DEFAULT 'Not Ready' AFTER adviser_signature_data");
+            $crad->exec("ALTER TABLE crad_title_approvals ADD COLUMN coordinator_status VARCHAR(30) NOT NULL DEFAULT 'Not Ready' AFTER adviser_signature_data");
         }
-        $coordRemarks = $crad->query("SHOW COLUMNS FROM title_approvals LIKE 'coordinator_remarks'")->fetchAll();
+        $coordRemarks = $crad->query("SHOW COLUMNS FROM crad_title_approvals LIKE 'coordinator_remarks'")->fetchAll();
         if (!$coordRemarks) {
-            $crad->exec("ALTER TABLE title_approvals ADD COLUMN coordinator_remarks TEXT NULL DEFAULT NULL AFTER coordinator_status");
+            $crad->exec("ALTER TABLE crad_title_approvals ADD COLUMN coordinator_remarks TEXT NULL DEFAULT NULL AFTER coordinator_status");
         }
-        $coordScreening = $crad->query("SHOW COLUMNS FROM title_approvals LIKE 'coordinator_screening_json'")->fetchAll();
+        $coordScreening = $crad->query("SHOW COLUMNS FROM crad_title_approvals LIKE 'coordinator_screening_json'")->fetchAll();
         if (!$coordScreening) {
-            $crad->exec("ALTER TABLE title_approvals ADD COLUMN coordinator_screening_json TEXT NULL DEFAULT NULL AFTER coordinator_remarks");
+            $crad->exec("ALTER TABLE crad_title_approvals ADD COLUMN coordinator_screening_json TEXT NULL DEFAULT NULL AFTER coordinator_remarks");
         }
-        $coordSig = $crad->query("SHOW COLUMNS FROM title_approvals LIKE 'coordinator_signature_data'")->fetchAll();
+        $coordSig = $crad->query("SHOW COLUMNS FROM crad_title_approvals LIKE 'coordinator_signature_data'")->fetchAll();
         if (!$coordSig) {
-            $crad->exec("ALTER TABLE title_approvals ADD COLUMN coordinator_signature_data MEDIUMTEXT NULL DEFAULT NULL AFTER coordinator_remarks");
+            $crad->exec("ALTER TABLE crad_title_approvals ADD COLUMN coordinator_signature_data MEDIUMTEXT NULL DEFAULT NULL AFTER coordinator_remarks");
         }
-        $coordReviewed = $crad->query("SHOW COLUMNS FROM title_approvals LIKE 'coordinator_reviewed_at'")->fetchAll();
+        $coordReviewed = $crad->query("SHOW COLUMNS FROM crad_title_approvals LIKE 'coordinator_reviewed_at'")->fetchAll();
         if (!$coordReviewed) {
-            $crad->exec("ALTER TABLE title_approvals ADD COLUMN coordinator_reviewed_at DATETIME NULL DEFAULT NULL AFTER coordinator_signature_data");
+            $crad->exec("ALTER TABLE crad_title_approvals ADD COLUMN coordinator_reviewed_at DATETIME NULL DEFAULT NULL AFTER coordinator_signature_data");
         }
-        $cradStatus = $crad->query("SHOW COLUMNS FROM title_approvals LIKE 'crad_status'")->fetchAll();
+        $cradStatus = $crad->query("SHOW COLUMNS FROM crad_title_approvals LIKE 'crad_status'")->fetchAll();
         if (!$cradStatus) {
-            $crad->exec("ALTER TABLE title_approvals ADD COLUMN crad_status VARCHAR(30) NOT NULL DEFAULT 'Not Ready' AFTER coordinator_reviewed_at");
+            $crad->exec("ALTER TABLE crad_title_approvals ADD COLUMN crad_status VARCHAR(30) NOT NULL DEFAULT 'Not Ready' AFTER coordinator_reviewed_at");
         }
-        $cradSig = $crad->query("SHOW COLUMNS FROM title_approvals LIKE 'crad_signature_data'")->fetchAll();
+        $cradSig = $crad->query("SHOW COLUMNS FROM crad_title_approvals LIKE 'crad_signature_data'")->fetchAll();
         if (!$cradSig) {
-            $crad->exec("ALTER TABLE title_approvals ADD COLUMN crad_signature_data MEDIUMTEXT NULL DEFAULT NULL AFTER crad_status");
+            $crad->exec("ALTER TABLE crad_title_approvals ADD COLUMN crad_signature_data MEDIUMTEXT NULL DEFAULT NULL AFTER crad_status");
         }
-        $cradReviewed = $crad->query("SHOW COLUMNS FROM title_approvals LIKE 'crad_reviewed_at'")->fetchAll();
+        $cradReviewed = $crad->query("SHOW COLUMNS FROM crad_title_approvals LIKE 'crad_reviewed_at'")->fetchAll();
         if (!$cradReviewed) {
-            $crad->exec("ALTER TABLE title_approvals ADD COLUMN crad_reviewed_at DATETIME NULL DEFAULT NULL AFTER crad_signature_data");
+            $crad->exec("ALTER TABLE crad_title_approvals ADD COLUMN crad_reviewed_at DATETIME NULL DEFAULT NULL AFTER crad_signature_data");
         }
     } catch (Throwable) { /* silently ignore */ }
 })();
@@ -137,7 +137,7 @@ function facultyAccountMap(?string $role = null): array
 
     return [
         'role_label' => 'Adviser',
-        'table' => 'research_adviser_assignments',
+        'table' => 'crad_research_adviser_assignments',
         'name_col' => 'adviser_name',
         'email_col' => 'adviser_email',
         'role_col' => "'Research Adviser'",
@@ -147,8 +147,8 @@ function facultyAccountMap(?string $role = null): array
 function facultyPruneOrphanAssignments(PDO $crad): void
 {
     $crad->exec("
-        UPDATE research_adviser_assignments a
-        JOIN research_proposals p
+        UPDATE crad_research_adviser_assignments a
+        JOIN crad_research_proposals p
           ON a.proposal_number IS NOT NULL
          AND a.proposal_number <> ''
          AND (p.proposal_number = a.proposal_number OR p.ref_code = a.proposal_number)
@@ -160,7 +160,7 @@ function facultyPruneOrphanAssignments(PDO $crad): void
 function facultyEnsureAdviserAssignmentSchema(PDO $crad): void
 {
     $crad->exec("
-        CREATE TABLE IF NOT EXISTS research_adviser_assignments (
+        CREATE TABLE IF NOT EXISTS crad_research_adviser_assignments (
             id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
             research_group_id INT UNSIGNED DEFAULT NULL,
             proposal_id INT UNSIGNED DEFAULT NULL,
@@ -187,8 +187,8 @@ function facultyEnsureAdviserAssignmentSchema(PDO $crad): void
     try {
         $crad->exec("
             DELETE a
-            FROM research_adviser_assignments a
-            INNER JOIN research_adviser_assignments keep
+            FROM crad_research_adviser_assignments a
+            INNER JOIN crad_research_adviser_assignments keep
               ON LOWER(TRIM(a.adviser_email)) = LOWER(TRIM(keep.adviser_email))
              AND LOWER(TRIM(a.adviser_name)) = LOWER(TRIM(keep.adviser_name))
              AND a.id < keep.id
@@ -196,9 +196,9 @@ function facultyEnsureAdviserAssignmentSchema(PDO $crad): void
               AND TRIM(a.adviser_name) <> ''
         ");
 
-        if (!$crad->query("SHOW INDEX FROM research_adviser_assignments WHERE Key_name = 'uniq_raa_adviser_identity'")->fetch()) {
+        if (!$crad->query("SHOW INDEX FROM crad_research_adviser_assignments WHERE Key_name = 'uniq_raa_adviser_identity'")->fetch()) {
             $crad->exec("
-                ALTER TABLE research_adviser_assignments
+                ALTER TABLE crad_research_adviser_assignments
                 ADD UNIQUE KEY uniq_raa_adviser_identity (adviser_email, adviser_name)
             ");
         }
@@ -218,7 +218,7 @@ function facultyEnsureCurrentAdviserRows(PDO $crad, ?string $expertise = null, ?
     facultyEnsureAdviserAssignmentSchema($crad);
 
     $stmt = $crad->prepare("
-        INSERT INTO research_adviser_assignments
+        INSERT INTO crad_research_adviser_assignments
             (research_group_id, proposal_id, proposal_number, group_number, adviser_name, adviser_email,
              expertise, availability_status, assignment_status, notes, assigned_by, assigned_at, created_at, updated_at,
              notification_sent_at, notification_sent_by)
@@ -239,8 +239,8 @@ function facultyEnsureCurrentAdviserRows(PDO $crad, ?string $expertise = null, ?
             NOW(),
             NULL,
             NULL
-        FROM research_groups g
-        JOIN title_approvals t ON t.id = g.title_approval_id
+        FROM crad_research_groups g
+        JOIN crad_title_approvals t ON t.id = g.title_approval_id
         WHERE t.status = 'Approved'
           AND t.coordinator_status = 'Approved'
           AND t.crad_status = 'Approved'
@@ -257,7 +257,7 @@ function facultyEnsureCurrentAdviserRows(PDO $crad, ?string $expertise = null, ?
           )
           AND NOT EXISTS (
               SELECT 1
-              FROM research_adviser_assignments existing
+              FROM crad_research_adviser_assignments existing
               WHERE (
                     (:email_gate2 <> '' AND LOWER(TRIM(existing.adviser_email)) = :email_match2)
                  OR (:name_gate3 <> '' AND LOWER(TRIM(existing.adviser_name)) = :name_match3)
@@ -324,18 +324,18 @@ function facultyAccountAssignments(): array
                 COALESCE(NULLIF(rg.research_title, ''), rp.research_title, ta.proposed_title) AS research_title,
                 COALESCE(rg.status, rp.status, ta.status, 'Approved') AS research_status
              FROM $table a
-             LEFT JOIN research_proposals rp
+             LEFT JOIN crad_research_proposals rp
                ON (a.proposal_id IS NOT NULL AND rp.id = a.proposal_id)
                OR (
                     a.proposal_number IS NOT NULL
                     AND a.proposal_number <> ''
                     AND (rp.proposal_number = a.proposal_number OR rp.ref_code = a.proposal_number)
                   )
-             LEFT JOIN research_groups rg
+             LEFT JOIN crad_research_groups rg
                ON (a.research_group_id IS NOT NULL AND rg.id = a.research_group_id)
                OR (a.group_number IS NOT NULL AND a.group_number <> '' AND rg.group_number = a.group_number)
                OR (rg.proposal_id = rp.id)
-             LEFT JOIN title_approvals ta
+             LEFT JOIN crad_title_approvals ta
                ON ta.id = rg.title_approval_id
              WHERE LOWER(a.$emailCol) = ?
                 OR LOWER(a.$nameCol) = LOWER(?)
@@ -401,14 +401,14 @@ function facultyApprovedResearchAssignments(): array
                 COALESCE(NULLIF(rg.research_title, ''), rp.research_title) AS research_title,
                 COALESCE(rg.status, rp.status, 'Approved') AS research_status
              FROM $table a
-             JOIN research_proposals rp
+             JOIN crad_research_proposals rp
                ON (a.proposal_id IS NOT NULL AND rp.id = a.proposal_id)
                OR (
                     a.proposal_number IS NOT NULL
                     AND a.proposal_number <> ''
                     AND (rp.proposal_number = a.proposal_number OR rp.ref_code = a.proposal_number)
                   )
-             LEFT JOIN research_groups rg
+             LEFT JOIN crad_research_groups rg
                ON (a.research_group_id IS NOT NULL AND rg.id = a.research_group_id)
                OR (a.group_number IS NOT NULL AND a.group_number <> '' AND rg.group_number = a.group_number)
                OR (rg.proposal_id = rp.id)
@@ -451,7 +451,7 @@ function facultyTitleApprovalsInbox(): array
                     sdg_justification, members_json, adviser_name, adviser_email,
                     coordinator_name, status, adviser_remarks, adviser_signature_data,
                     sent_at, reviewed_at
-             FROM title_approvals
+             FROM crad_title_approvals
              WHERE LOWER(adviser_email) = :email
                 OR LOWER(adviser_name)  = LOWER(:name)
              ORDER BY
@@ -479,7 +479,7 @@ function facultyTitleApprovalsUpdateStatus(int $id, string $status, string $rema
     /* Build SET clause — only write signature when it is provided */
     if ($signature !== '') {
         $stmt = $crad->prepare(
-            "UPDATE title_approvals
+            "UPDATE crad_title_approvals
              SET status = :status, adviser_remarks = :remarks,
                  adviser_signature_data = :sig,
                  coordinator_status = :coord_status,
@@ -507,7 +507,7 @@ function facultyTitleApprovalsUpdateStatus(int $id, string $status, string $rema
         ]);
     } else {
         $stmt = $crad->prepare(
-            "UPDATE title_approvals
+            "UPDATE crad_title_approvals
              SET status = :status,
                  adviser_remarks = :remarks,
                  adviser_signature_data = CASE WHEN :clear_adviser_signature = 1 THEN NULL ELSE adviser_signature_data END,
@@ -577,7 +577,7 @@ function facultyAccountPostNotice(): ?array
                 return ['type' => 'danger', 'message' => 'Main database is unavailable.'];
             }
 
-            $pdo->prepare('UPDATE users SET full_name = ?, email = ? WHERE id = ? LIMIT 1')
+            $pdo->prepare('UPDATE sms_users SET full_name = ?, email = ? WHERE id = ? LIMIT 1')
                 ->execute([$fullName, $email, (int) getCurrentUserId()]);
 
             $crad = cradDb();
