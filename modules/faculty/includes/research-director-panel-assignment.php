@@ -5,6 +5,7 @@ require_once ROOT_PATH . '/includes/authentication.php';
 require_once ROOT_PATH . '/includes/security.php';
 require_once ROOT_PATH . '/config/database.php';
 require_once ROOT_PATH . '/modules/crad/config/config.php';
+require_once ROOT_PATH . '/modules/crad/includes/research-services-clearance.php';
 
 const RD_PANEL_CONTEXT_KEY = 'panel_assignment_context';
 const RD_PANEL_DEFAULT_REQUIRED_COUNT = 3;
@@ -107,36 +108,42 @@ function rdPanelReadySql(): string
                     COALESCE(ch3.updated_at, '1000-01-01 00:00:00'),
                     COALESCE(MAX(rpa.updated_at), '1000-01-01 00:00:00')
                 ) AS updated_at
-             FROM crad_research_groups rg
-             INNER JOIN crad_chapter_submissions ch1 ON ch1.id = (
-                SELECT cs1.id FROM crad_chapter_submissions cs1
+             FROM research_groups rg
+             INNER JOIN chapter_submissions ch1 ON ch1.id = (
+                SELECT cs1.id FROM chapter_submissions cs1
                 WHERE cs1.research_group_id = rg.id AND cs1.chapter_number = 1
                 ORDER BY cs1.version_number DESC, cs1.id DESC LIMIT 1
              )
-             INNER JOIN crad_chapter_evaluations ce1 ON ce1.submission_id = ch1.id
-             INNER JOIN crad_chapter_submissions ch2 ON ch2.id = (
-                SELECT cs2.id FROM crad_chapter_submissions cs2
+             INNER JOIN chapter_evaluations ce1 ON ce1.submission_id = ch1.id
+             INNER JOIN chapter_submissions ch2 ON ch2.id = (
+                SELECT cs2.id FROM chapter_submissions cs2
                 WHERE cs2.research_group_id = rg.id AND cs2.chapter_number = 2
                 ORDER BY cs2.version_number DESC, cs2.id DESC LIMIT 1
              )
-             INNER JOIN crad_chapter_evaluations ce2 ON ce2.submission_id = ch2.id
-             INNER JOIN crad_chapter_submissions ch3 ON ch3.id = (
-                SELECT cs3.id FROM crad_chapter_submissions cs3
+             INNER JOIN chapter_evaluations ce2 ON ce2.submission_id = ch2.id
+             INNER JOIN chapter_submissions ch3 ON ch3.id = (
+                SELECT cs3.id FROM chapter_submissions cs3
                 WHERE cs3.research_group_id = rg.id AND cs3.chapter_number = 3
                 ORDER BY cs3.version_number DESC, cs3.id DESC LIMIT 1
              )
-             INNER JOIN crad_chapter_evaluations ce3 ON ce3.submission_id = ch3.id
-             LEFT JOIN crad_research_adviser_assignments raa ON raa.id = (
-                SELECT raa2.id FROM crad_research_adviser_assignments raa2
+             INNER JOIN chapter_evaluations ce3 ON ce3.submission_id = ch3.id
+             LEFT JOIN research_adviser_assignments raa ON raa.id = (
+                SELECT raa2.id FROM research_adviser_assignments raa2
                 WHERE raa2.assignment_status IN ('Assigned', 'Confirmed')
                   AND ((raa2.research_group_id IS NOT NULL AND raa2.research_group_id = rg.id)
                     OR (raa2.group_number IS NOT NULL AND raa2.group_number <> '' AND raa2.group_number = rg.group_number))
                 ORDER BY (raa2.assignment_status = 'Confirmed') DESC, raa2.updated_at DESC, raa2.id DESC LIMIT 1
              )
-             LEFT JOIN crad_research_panel_assignments rpa
+             INNER JOIN research_services_clearances rsc
+               ON rsc.research_group_id = rg.id
+              AND rsc.research_stage = 'research_1'
+              AND rsc.status = 'clearance_done'
+              AND TRIM(COALESCE(rsc.adviser_signature, '')) <> ''
+              AND TRIM(COALESCE(rsc.crad_signature, '')) <> ''
+             LEFT JOIN research_panel_assignments rpa
                ON rpa.research_group_id = rg.id
               AND " . rdPanelActiveAssignmentSql('rpa') . "
-             LEFT JOIN sms_users u ON u.id = rpa.panel_user_id
+             LEFT JOIN sms2_db.users u ON u.id = rpa.panel_user_id
              WHERE ch1.status = 'Accepted'
                AND ch2.status = 'Accepted'
                AND ch3.status = 'Accepted'
@@ -154,6 +161,7 @@ function rdPanelReadyRows(): array
         return [];
     }
     try {
+        rscEnsureSchema($crad);
         return $crad->query(rdPanelReadySql() . " ORDER BY updated_at DESC, research_group_id DESC")->fetchAll() ?: [];
     } catch (Throwable $e) {
         error_log('RD panel ready rows failed: ' . $e->getMessage());
@@ -201,6 +209,16 @@ function rdPanelClearContext(): void
     unset($_SESSION[RD_PANEL_CONTEXT_KEY]);
 }
 
+function rdPanelEligibleRoleKeys(): array
+{
+    return ['panel', 'department_chair'];
+}
+
+function rdPanelRoleLabel(string $roleKey): string
+{
+    return $roleKey === 'department_chair' ? 'Department Chair' : 'Panel Member';
+}
+
 function rdPanelFacultyRows(): array
 {
     $sms = db();
@@ -209,31 +227,60 @@ function rdPanelFacultyRows(): array
         return [];
     }
 
-    $rows = $sms->query(
-        "SELECT id, full_name, username, email
-         FROM sms_users
-         WHERE role_key = 'panel'
+    $roles = rdPanelEligibleRoleKeys();
+    $placeholders = implode(',', array_fill(0, count($roles), '?'));
+    $stmt = $sms->prepare(
+        "SELECT id, full_name, username, email, role_key
+         FROM users
+         WHERE role_key IN ($placeholders)
            AND status = 'active'
-         ORDER BY full_name ASC"
-    )->fetchAll() ?: [];
+         ORDER BY CASE WHEN role_key = 'department_chair' THEN 0 ELSE 1 END, full_name ASC"
+    );
+    $stmt->execute($roles);
+    $rows = $stmt->fetchAll() ?: [];
 
-    if (!$crad instanceof PDO || !$rows) {
-        return $rows;
+    if (!$rows) {
+        return [];
     }
 
-    $availabilityStmt = $crad->prepare("SELECT availability_status, notes FROM crad_panel_member_availability WHERE panel_user_id = ?");
-    $loadStmt = $crad->prepare(
-        "SELECT COUNT(*) FROM crad_research_panel_assignments
-         WHERE panel_user_id = ? AND assignment_status = 'Assigned' AND defense_phase = 'Pre-Oral Defense'"
-    );
+    $availabilityStmt = null;
+    $loadStmt = null;
+    $ensureAvailability = null;
+    if ($crad instanceof PDO) {
+        $availabilityStmt = $crad->prepare("SELECT availability_status, notes FROM panel_member_availability WHERE panel_user_id = ?");
+        $loadStmt = $crad->prepare(
+            "SELECT COUNT(*) FROM research_panel_assignments
+             WHERE panel_user_id = ? AND assignment_status = 'Assigned' AND defense_phase = 'Pre-Oral Defense'"
+        );
+        $ensureAvailability = $crad->prepare(
+            "INSERT INTO panel_member_availability (panel_user_id, availability_status, notes, updated_at, created_at)
+             VALUES (?, 'Available', '', NOW(), NOW())
+             ON DUPLICATE KEY UPDATE panel_user_id = panel_user_id"
+        );
+    }
+
     foreach ($rows as &$row) {
-        $availabilityStmt->execute([(int) $row['id']]);
+        $userId = (int) $row['id'];
+        $row['role_key'] = (string) ($row['role_key'] ?? 'panel');
+        $row['role_label'] = rdPanelRoleLabel($row['role_key']);
+        $row['expertise'] = $row['role_key'] === 'department_chair' ? 'Department Chair' : '';
+        $row['availability_status'] = 'Available';
+        $row['availability_notes'] = '';
+        $row['current_assignments'] = 0;
+        if (!$crad instanceof PDO) {
+            continue;
+        }
+        try {
+            $ensureAvailability?->execute([$userId]);
+        } catch (Throwable $e) {
+            error_log('Panel availability ensure failed: ' . $e->getMessage());
+        }
+        $availabilityStmt->execute([$userId]);
         $availability = $availabilityStmt->fetch() ?: [];
-        $loadStmt->execute([(int) $row['id']]);
-        $row['availability_status'] = (string) (($availability['availability_status'] ?? '') ?: 'Pending');
+        $loadStmt->execute([$userId]);
+        $row['availability_status'] = (string) (($availability['availability_status'] ?? '') ?: 'Available');
         $row['availability_notes'] = (string) ($availability['notes'] ?? '');
         $row['current_assignments'] = (int) $loadStmt->fetchColumn();
-        $row['expertise'] = '';
     }
     unset($row);
     return $rows;
@@ -418,9 +465,9 @@ function rdPanelAssignedRows(int $groupId): array
                     COALESCE(NULLIF(pma.availability_status, ''), NULLIF(rpa.availability_status, ''), 'Assigned') AS availability_status,
                     rpa.assignment_status,
                     rpa.assigned_at
-             FROM crad_research_panel_assignments rpa
-             LEFT JOIN sms_users u ON u.id = rpa.panel_user_id
-             LEFT JOIN crad_panel_member_availability pma ON pma.panel_user_id = rpa.panel_user_id
+             FROM research_panel_assignments rpa
+             LEFT JOIN sms2_db.users u ON u.id = rpa.panel_user_id
+             LEFT JOIN panel_member_availability pma ON pma.panel_user_id = rpa.panel_user_id
              WHERE rpa.research_group_id = ?
                AND " . rdPanelActiveAssignmentSql('rpa') . "
              ORDER BY rpa.assigned_at ASC, rpa.id ASC"
@@ -435,7 +482,7 @@ function rdPanelAssignedRows(int $groupId): array
 
 function rdPanelAssign(array $data): array
 {
-    if (getCurrentUserRoleKey() !== 'research_coordinator') {
+    if (!smsCanManageCoordinatorAssignments()) {
         return ['ok' => false, 'message' => 'Forbidden.'];
     }
 
@@ -448,7 +495,15 @@ function rdPanelAssign(array $data): array
     $selectedIds = array_values(array_unique(array_filter(array_map('intval', (array) ($data['panel_ids'] ?? [])))));
     $group = rdPanelReadyGroup($groupId);
     if (!$group) {
-        return ['ok' => false, 'message' => 'Research group is not defense-ready.'];
+        $clearanceMessage = 'Cannot assign panel until Research Services Clearance signatures are complete (Adviser and CRAD).';
+        try {
+            if ($groupId > 0 && rscClearanceDoneExists($crad, $groupId)) {
+                $clearanceMessage = 'Research group is not defense-ready.';
+            }
+        } catch (Throwable $e) {
+            // keep clearance lock message
+        }
+        return ['ok' => false, 'message' => $clearanceMessage];
     }
     if (!$selectedIds) {
         return ['ok' => false, 'message' => 'Select at least one panel member.'];
@@ -471,7 +526,7 @@ function rdPanelAssign(array $data): array
     try {
         $crad->beginTransaction();
         $deactivate = $crad->prepare(
-            "UPDATE crad_research_panel_assignments
+            "UPDATE research_panel_assignments
              SET assignment_status = 'Removed', updated_at = NOW()
              WHERE research_group_id = ?
                AND defense_phase = 'Pre-Oral Defense'
@@ -482,7 +537,7 @@ function rdPanelAssign(array $data): array
 
         $findAssignment = $crad->prepare(
             "SELECT id
-             FROM crad_research_panel_assignments
+             FROM research_panel_assignments
              WHERE research_group_id = ?
                AND panel_user_id = ?
                AND defense_phase = 'Pre-Oral Defense'
@@ -490,7 +545,7 @@ function rdPanelAssign(array $data): array
              LIMIT 1"
         );
         $removeDuplicates = $crad->prepare(
-            "UPDATE crad_research_panel_assignments
+            "UPDATE research_panel_assignments
              SET assignment_status = 'Removed', updated_at = NOW()
              WHERE research_group_id = ?
                AND panel_user_id = ?
@@ -498,7 +553,7 @@ function rdPanelAssign(array $data): array
                AND id <> ?"
         );
         $updateAssignment = $crad->prepare(
-            "UPDATE crad_research_panel_assignments
+            "UPDATE research_panel_assignments
              SET proposal_id = :proposal_id,
                  title_approval_id = :title_approval_id,
                  proposal_number = :proposal_number,
@@ -515,7 +570,7 @@ function rdPanelAssign(array $data): array
              WHERE id = :id"
         );
         $insert = $crad->prepare(
-            "INSERT INTO crad_research_panel_assignments
+            "INSERT INTO research_panel_assignments
                 (research_group_id, defense_schedule_id, proposal_id, title_approval_id, proposal_number,
                  group_number, research_title, panel_user_id, panel_name, panel_email, expertise,
                  availability_status, assignment_status, defense_phase, assigned_by, assigned_at, created_at, updated_at)
@@ -525,11 +580,11 @@ function rdPanelAssign(array $data): array
                  :availability_status, 'Assigned', 'Pre-Oral Defense', :assigned_by, NOW(), NOW(), NOW())"
         );
         $notify = $crad->prepare(
-            "INSERT IGNORE INTO crad_panel_assignment_notifications
+            "INSERT IGNORE INTO panel_assignment_notifications
                 (event_key, recipient_user_id, recipient_role, recipient_email, panel_assignment_id,
                  research_group_id, title, body, url, is_read, created_at)
              VALUES
-                (:event_key, :recipient_user_id, 'panel', :recipient_email, :panel_assignment_id,
+                (:event_key, :recipient_user_id, :recipient_role, :recipient_email, :panel_assignment_id,
                  :research_group_id, :title, :body, :url, 0, NOW())"
         );
 
@@ -568,6 +623,7 @@ function rdPanelAssign(array $data): array
                 $notify->execute([
                     ':event_key' => 'preoral-panel-assignment:' . $groupId . ':u' . $panelId,
                     ':recipient_user_id' => $panelId,
+                    ':recipient_role' => (string) (($panel['role_key'] ?? '') ?: 'panel'),
                     ':recipient_email' => (string) $panel['email'],
                     ':panel_assignment_id' => $assignmentId,
                     ':research_group_id' => $groupId,
@@ -592,13 +648,40 @@ function rdPanelAssign(array $data): array
     }
 }
 
+function rdPanelRenderMemberCard(array $panel, array $selectedIds = []): void
+{
+    $panelId = (int) ($panel['id'] ?? 0);
+    $isSelected = in_array($panelId, $selectedIds, true);
+    $availabilityStatus = (string) ($panel['availability_status'] ?? 'Pending');
+    $roleLabel = (string) ($panel['role_label'] ?? rdPanelRoleLabel((string) ($panel['role_key'] ?? 'panel')));
+    ?>
+    <label class="rdpa-panel-card" data-rd-panel-card data-panel-id="<?= $panelId ?>">
+        <input class="form-check-input" type="checkbox" name="panel_ids[]" value="<?= $panelId ?>" <?= $isSelected ? 'checked' : '' ?>>
+        <strong data-rd-panel-name><?= e((string) ($panel['full_name'] ?? '')) ?></strong>
+        <span class="badge text-bg-<?= ($panel['role_key'] ?? '') === 'department_chair' ? 'primary' : 'secondary' ?> ms-1" data-rd-panel-role><?= e($roleLabel) ?></span>
+        <span class="email" data-rd-panel-email><?= e((string) ($panel['email'] ?? '')) ?></span>
+        <div class="rdpa-detail"><small>Expertise</small><span data-rd-panel-expertise><?= e((string) (($panel['expertise'] ?? '') !== '' ? $panel['expertise'] : 'Not recorded')) ?></span></div>
+        <div class="rdpa-detail"><small>Availability</small><span class="badge text-bg-<?= e(rdPanelBadgeClass($availabilityStatus)) ?>" data-rd-panel-availability><?= e($availabilityStatus) ?></span></div>
+        <div class="rdpa-detail"><small>Current Assignments</small><span data-rd-panel-assignments><?= (int) ($panel['current_assignments'] ?? 0) ?></span></div>
+        <span class="badge text-bg-success rdpa-selected-label">Selected</span>
+    </label>
+    <?php
+}
+
+function rdPanelMemberCardHtml(array $panel, array $selectedIds = []): string
+{
+    ob_start();
+    rdPanelRenderMemberCard($panel, $selectedIds);
+    return trim((string) ob_get_clean());
+}
+
 function rdPanelRenderRows(array $rows): void
 {
     if (!$rows): ?>
         <div class="rdpa-empty">
             <?= smsIcon('flask') ?>
             <strong>No Defense-Ready Research</strong>
-            <span>Research groups will appear here when Chapter 1, 2, and 3 are accepted.</span>
+            <span>Research groups appear here only after Chapters 1–3 are accepted and Research Services Clearance signatures are complete.</span>
         </div>
     <?php else: ?>
         <div class="table-responsive"><table class="table align-middle mb-0 rdpa-table"><thead><tr><th>Reference No.</th><th>Group</th><th>Research Title</th><th>Academic Year</th><th>Adviser</th><th>Pre-Oral Status</th><th>Panel Assignment</th><th>Action</th></tr></thead><tbody>
@@ -628,7 +711,7 @@ function rdPanelRenderResearchPicker(array $rows, string $emptyTitle = 'No Resea
         <div class="rdpa-empty">
             <?= smsIcon('flask') ?>
             <strong>No Defense-Ready Research</strong>
-            <span>Research groups will appear here when Chapter 1, 2, and 3 are accepted.</span>
+            <span>Research groups appear here only after Chapters 1–3 are accepted and Research Services Clearance signatures are complete.</span>
         </div>
     <?php return; endif; ?>
     <div class="rdpa-empty rdpa-empty--picker">
@@ -784,13 +867,21 @@ function renderResearchCoordinatorPanelAssignment(string $view): void
     if (($_GET['ajax'] ?? '') === 'panel-selection-state') {
         header('Content-Type: application/json; charset=utf-8');
         $panelPayload = [];
+        $selectedForHtml = rdPanelSelectedIds();
         foreach ($panels as $panel) {
             $status = (string) ($panel['availability_status'] ?? 'Pending');
+            $panelId = (int) $panel['id'];
             $panelPayload[] = [
-                'id' => (int) $panel['id'],
+                'id' => $panelId,
+                'full_name' => (string) ($panel['full_name'] ?? ''),
+                'email' => (string) ($panel['email'] ?? ''),
+                'role_key' => (string) ($panel['role_key'] ?? 'panel'),
+                'role_label' => (string) ($panel['role_label'] ?? rdPanelRoleLabel((string) ($panel['role_key'] ?? 'panel'))),
+                'expertise' => (string) (($panel['expertise'] ?? '') !== '' ? $panel['expertise'] : 'Not recorded'),
                 'availability_status' => $status,
                 'badge_class' => rdPanelBadgeClass($status),
                 'current_assignments' => (int) ($panel['current_assignments'] ?? 0),
+                'html' => rdPanelMemberCardHtml($panel, $selectedForHtml),
             ];
         }
         echo json_encode(['ok' => true, 'panels' => $panelPayload, 'synced_at' => date('M j, Y h:i:s A')]);
@@ -832,7 +923,7 @@ function renderResearchCoordinatorPanelAssignment(string $view): void
         ];
     }
     $pageCopy = [
-        'retrieve-defense-ready-research' => ['Retrieve Defense-Ready Research', 'Retrieve research groups that are qualified for Pre-Oral Defense and ready for panel assignment.', 'fa-download'],
+        'retrieve-defense-ready-research' => ['Retrieve Defense-Ready Research', 'Retrieve research groups that are qualified for Pre-Oral Defense. Panel assignment stays locked until Research Services Clearance signatures are complete.', 'fa-download'],
         'select-panel-members' => ['Select Panel Members', 'Select qualified faculty members for the chosen Pre-Oral Defense research.', 'fa-user-friends'],
         'check-panel-availability' => ['Check Panel Availability', 'Review the current availability of selected Panel Members.', 'fa-calendar-check'],
         'assign-panel-members' => ['Assign Panel Members', 'Assign selected and available Panel Members to the Pre-Oral Defense research.', 'fa-user-plus'],
@@ -966,21 +1057,9 @@ function renderResearchCoordinatorPanelAssignment(string $view): void
                         <form method="get" action="<?= e(rdPanelPageUrl('check-panel-availability')) ?>" data-rd-panel-select-form>
                             <input type="hidden" name="csrf_token" value="<?= e(csrfToken()) ?>" disabled>
                             <input type="hidden" name="group_id" value="<?= (int) $groupId ?>">
-                            <div class="rdpa-panel-grid">
+                            <div class="rdpa-panel-grid" data-rd-panel-grid>
                                 <?php foreach ($panels as $panel): ?>
-                                    <?php
-                                        $isSelected = in_array((int) $panel['id'], $selectedIds, true);
-                                        $availabilityStatus = (string) ($panel['availability_status'] ?? 'Pending');
-                                    ?>
-                                    <label class="rdpa-panel-card" data-rd-panel-card data-panel-id="<?= (int) $panel['id'] ?>">
-                                        <input class="form-check-input" type="checkbox" name="panel_ids[]" value="<?= (int) $panel['id'] ?>" <?= $isSelected ? 'checked' : '' ?>>
-                                        <strong><?= e((string) $panel['full_name']) ?></strong>
-                                        <span class="email"><?= e((string) $panel['email']) ?></span>
-                                        <div class="rdpa-detail"><small>Expertise</small><span><?= e((string) (($panel['expertise'] ?? '') ?: 'Not recorded')) ?></span></div>
-                                        <div class="rdpa-detail"><small>Availability</small><span class="badge text-bg-<?= e(rdPanelBadgeClass($availabilityStatus)) ?>" data-rd-panel-availability><?= e($availabilityStatus) ?></span></div>
-                                        <div class="rdpa-detail"><small>Current Assignments</small><span data-rd-panel-assignments><?= (int) $panel['current_assignments'] ?></span></div>
-                                        <span class="badge text-bg-success rdpa-selected-label">Selected</span>
-                                    </label>
+                                    <?php rdPanelRenderMemberCard($panel, $selectedIds); ?>
                                 <?php endforeach; ?>
                             </div>
                             <div class="rdpa-actions">

@@ -11,11 +11,14 @@ require_once ROOT_PATH . '/includes/breadcrumbs.php';
 require_once ROOT_PATH . '/modules/faculty/includes/research-director-panel-assignment.php';
 
 requireAuth();
-requireModuleAccess('crad');
 
-if (getCurrentUserRoleKey() !== 'research_coordinator') {
+$roleKey = getCurrentUserRoleKey();
+if (!smsCanManageCoordinatorAssignments($roleKey)) {
     header('Location: ' . BASE_URL . '/modules/crad/index.php');
     exit;
+}
+if (!smsIsGrantedAdminRole($roleKey)) {
+    requireModuleAccess('crad');
 }
 
 $rcPanelPageSlug = $rcPanelPageSlug ?? 'retrieve-defense-ready-research';
@@ -33,8 +36,11 @@ if (!isset($rcPanelPages[$rcPanelPageSlug])) {
 $pageTitle = $rcPanelPages[$rcPanelPageSlug];
 $activeModule = 'crad';
 $activePage = $rcPanelPageSlug;
+$rcPanelNavLabel = getCurrentUserRoleKey() === 'department_head' ? 'Research Management' : 'Research Coordinator';
 $breadcrumbs = [
-    ['label' => 'Research Coordinator', 'url' => BASE_URL . '/modules/crad/index.php'],
+    ['label' => $rcPanelNavLabel, 'url' => getCurrentUserRoleKey() === 'department_head'
+        ? BASE_URL . '/modules/crad/pages/research-coordinator-management.php'
+        : BASE_URL . '/modules/crad/index.php'],
     ['label' => 'Panel Assignment', 'url' => rdPanelPageUrl('retrieve-defense-ready-research')],
     ['label' => $pageTitle, 'url' => null],
 ];

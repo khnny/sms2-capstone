@@ -4,8 +4,6 @@
  * Module: Faculty Management
  */
 require_once __DIR__ . '/../../../config/config.php';
-require_once __DIR__ . '/../includes/require-hr-access.php';
-smsRequireFacultyHrAccess();
 
 $pageTitle    = 'Attendance Monitoring';
 $activeModule = 'faculty';

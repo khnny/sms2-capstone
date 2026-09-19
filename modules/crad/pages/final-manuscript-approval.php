@@ -19,7 +19,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!$submission || !fpIsManuscriptApproved($crad, $groupId)) $error = 'The latest manuscript must be evaluated as approved first.';
         elseif (!fpIsEligibleForFinalApproval($crad, $groupId)) $error = 'Final Defense evaluation or revision compliance is not complete.';
         else {
-            $stmt = $crad->prepare("INSERT INTO crad_final_manuscript_approvals (research_group_id, defense_schedule_id, approved_by_user, approved_by_name, status, remarks, approved_at) VALUES (?, ?, ?, ?, 'Approved', ?, NOW()) ON DUPLICATE KEY UPDATE defense_schedule_id = VALUES(defense_schedule_id), approved_by_user = VALUES(approved_by_user), approved_by_name = VALUES(approved_by_name), status = 'Approved', remarks = VALUES(remarks), approved_at = NOW()");
+            $stmt = $crad->prepare("INSERT INTO final_manuscript_approvals (research_group_id, defense_schedule_id, approved_by_user, approved_by_name, status, remarks, approved_at) VALUES (?, ?, ?, ?, 'Approved', ?, NOW()) ON DUPLICATE KEY UPDATE defense_schedule_id = VALUES(defense_schedule_id), approved_by_user = VALUES(approved_by_user), approved_by_name = VALUES(approved_by_name), status = 'Approved', remarks = VALUES(remarks), approved_at = NOW()");
             $stmt->execute([$groupId, (int) (fpGetFinalDefenseSchedule($crad, $groupId)['id'] ?? 0) ?: null, (int) ($_SESSION['user_id'] ?? 0), (string) ($_SESSION['full_name'] ?? $_SESSION['username'] ?? ''), $remarks]);
             fpNotifyFinalManuscriptApproval(
                 $crad,
@@ -31,7 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
-$rows = $crad->query("SELECT ms.*, rg.group_number, rg.group_name, rg.research_title, fma.status AS approval_status FROM crad_manuscript_submissions ms INNER JOIN crad_research_groups rg ON rg.id = ms.research_group_id INNER JOIN (SELECT research_group_id, MAX(version_number) version_number FROM crad_manuscript_submissions GROUP BY research_group_id) latest ON latest.research_group_id = ms.research_group_id AND latest.version_number = ms.version_number LEFT JOIN crad_final_manuscript_approvals fma ON fma.research_group_id = ms.research_group_id ORDER BY ms.updated_at DESC")->fetchAll(PDO::FETCH_ASSOC) ?: [];
+$rows = $crad->query("SELECT ms.*, rg.group_number, rg.group_name, rg.research_title, fma.status AS approval_status FROM manuscript_submissions ms INNER JOIN research_groups rg ON rg.id = ms.research_group_id INNER JOIN (SELECT research_group_id, MAX(version_number) version_number FROM manuscript_submissions GROUP BY research_group_id) latest ON latest.research_group_id = ms.research_group_id AND latest.version_number = ms.version_number LEFT JOIN final_manuscript_approvals fma ON fma.research_group_id = ms.research_group_id ORDER BY ms.updated_at DESC")->fetchAll(PDO::FETCH_ASSOC) ?: [];
 foreach ($rows as &$row) {
     $row['manuscript_approved'] = (string) ($row['status'] ?? '') === 'Approved' && fpIsManuscriptApproved($crad, (int) $row['research_group_id']);
     $row['final_approval_eligible'] = $row['manuscript_approved'] && fpIsEligibleForFinalApproval($crad, (int) $row['research_group_id']);

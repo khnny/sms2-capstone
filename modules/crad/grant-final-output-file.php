@@ -31,8 +31,8 @@ try {
     grantEnsureFinalOutputTables($crad);
     $stmt = $crad->prepare("
         SELECT s.*, ga.applicant_user_id, ga.status AS application_status
-          FROM crad_grant_final_output_submissions s
-         INNER JOIN crad_grant_applications ga ON ga.id = s.grant_application_id
+          FROM grant_final_output_submissions s
+         INNER JOIN grant_applications ga ON ga.id = s.grant_application_id
          WHERE s.id = ?
          LIMIT 1
     ");

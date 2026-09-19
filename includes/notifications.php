@@ -11,7 +11,7 @@ require_once __DIR__ . '/../modules/crad/includes/chapter-evaluation-workflow.ph
 
 function smsAssignmentNotificationEnsureSentSchema(PDO $crad): void
 {
-    foreach (['crad_research_adviser_assignments'] as $table) {
+    foreach (['research_adviser_assignments'] as $table) {
         try {
             $sentAt = $crad->query("SHOW COLUMNS FROM {$table} LIKE 'notification_sent_at'")->fetch();
             if (!$sentAt) {
@@ -108,8 +108,8 @@ function smsMarkResearchAdviserAssignmentNotificationSent(PDO $crad, string $gro
 
     $groupStmt = $crad->prepare("
         SELECT g.id, g.proposal_id, g.group_number
-        FROM crad_research_groups g
-        LEFT JOIN crad_title_approvals t ON t.id = g.title_approval_id
+        FROM research_groups g
+        LEFT JOIN title_approvals t ON t.id = g.title_approval_id
         WHERE g.group_number = :group_number
           AND (g.title_approval_id IS NULL OR g.title_approval_id = 0 OR t.id IS NOT NULL)
         LIMIT 1
@@ -129,7 +129,7 @@ function smsMarkResearchAdviserAssignmentNotificationSent(PDO $crad, string $gro
 
     $adviserStmt = $crad->prepare("
         SELECT COUNT(*)
-        FROM crad_research_adviser_assignments a
+        FROM research_adviser_assignments a
         WHERE a.assignment_status = 'Assigned'
           AND (
             a.research_group_id = :research_group_id
@@ -143,7 +143,7 @@ function smsMarkResearchAdviserAssignmentNotificationSent(PDO $crad, string $gro
     }
 
     $crad->prepare("
-        UPDATE crad_research_adviser_assignments a
+        UPDATE research_adviser_assignments a
            SET a.notification_sent_at = NOW(),
                a.notification_sent_by = :sent_by,
                a.updated_at = NOW()
@@ -169,7 +169,7 @@ function smsCurrentUserNotifications(int $limit = 8): array
     }
 
     try {
-        $table = $crad->query("SHOW TABLES LIKE 'crad_chapter_evaluation_notifications'")->fetchColumn();
+        $table = $crad->query("SHOW TABLES LIKE 'chapter_evaluation_notifications'")->fetchColumn();
         if (!$table) {
             return [];
         }
@@ -189,7 +189,7 @@ function smsCurrentUserNotifications(int $limit = 8): array
                AND cs.research_group_id = :registered_group_id
                AND cs.id = (
                     SELECT latest_cs.id
-                    FROM crad_chapter_submissions latest_cs
+                    FROM chapter_submissions latest_cs
                     WHERE latest_cs.research_group_id = cs.research_group_id
                       AND latest_cs.chapter_number = cs.chapter_number
                     ORDER BY latest_cs.version_number DESC, latest_cs.id DESC
@@ -216,7 +216,7 @@ function smsCurrentUserNotifications(int $limit = 8): array
                     AND " . chapterRegistryGroupGateSql('rg') . "
                     AND NOT EXISTS (
                         SELECT 1
-                        FROM crad_chapter_evaluation_notifications newer_n
+                        FROM chapter_evaluation_notifications newer_n
                         WHERE newer_n.submission_id = n.submission_id
                           AND newer_n.type = n.type
                           AND COALESCE(newer_n.recipient_user_id, 0) = COALESCE(n.recipient_user_id, 0)
@@ -229,10 +229,10 @@ function smsCurrentUserNotifications(int $limit = 8): array
         }
         $stmt = $crad->prepare(
             "SELECT n.id, n.event_key, n.type, n.title, n.body, n.url, n.is_read, n.created_at
-             FROM crad_chapter_evaluation_notifications n
-             LEFT JOIN crad_chapter_submissions cs ON cs.id = n.submission_id
-             LEFT JOIN crad_research_groups rg ON rg.id = cs.research_group_id
-             LEFT JOIN crad_chapter_evaluations ce ON ce.submission_id = cs.id
+             FROM chapter_evaluation_notifications n
+             LEFT JOIN chapter_submissions cs ON cs.id = n.submission_id
+             LEFT JOIN research_groups rg ON rg.id = cs.research_group_id
+             LEFT JOIN chapter_evaluations ce ON ce.submission_id = cs.id
              WHERE {$where['sql']}
              {$studentChapterFilter}
              {$evaluatorChapterFilter}
@@ -249,14 +249,14 @@ function smsCurrentUserNotifications(int $limit = 8): array
         $stmt->execute();
         $rows = $stmt->fetchAll() ?: [];
 
-        $panelTable = $crad->query("SHOW TABLES LIKE 'crad_panel_assignment_notifications'")->fetchColumn();
+        $panelTable = $crad->query("SHOW TABLES LIKE 'panel_assignment_notifications'")->fetchColumn();
         if ($panelTable) {
             $panelRegistryFilter = function_exists('cradOfficialRegistryGroupWhereSql')
                 ? "AND (
                     research_group_id IS NULL
                     OR EXISTS (
                         SELECT 1
-                        FROM crad_research_groups panel_rg
+                        FROM research_groups panel_rg
                         WHERE panel_rg.id = panel_assignment_notifications.research_group_id
                           AND " . cradOfficialRegistryGroupWhereSql('panel_rg') . "
                     )
@@ -264,7 +264,7 @@ function smsCurrentUserNotifications(int $limit = 8): array
                 : '';
             $panelStmt = $crad->prepare(
                 "SELECT id, event_key, 'panel_assignment' AS type, title, body, url, is_read, created_at
-                 FROM crad_panel_assignment_notifications
+                 FROM panel_assignment_notifications
                  WHERE {$where['sql']}
                  {$panelRegistryFilter}
                  ORDER BY created_at DESC, id DESC
@@ -281,16 +281,40 @@ function smsCurrentUserNotifications(int $limit = 8): array
             });
             $rows = array_slice($rows, 0, max(1, min(50, $limit)));
         }
+
+        $clearanceTable = $crad->query("SHOW TABLES LIKE 'research_clearance_notifications'")->fetchColumn();
+        if ($clearanceTable) {
+            $clearanceStmt = $crad->prepare(
+                "SELECT id, event_key, type, title, body, url, is_read, created_at
+                 FROM research_clearance_notifications
+                 WHERE {$where['sql']}
+                 ORDER BY created_at DESC, id DESC
+                 LIMIT :limit"
+            );
+            foreach ($where['params'] as $key => $value) {
+                $clearanceStmt->bindValue($key, $value);
+            }
+            $clearanceStmt->bindValue(':limit', max(1, min(50, $limit)), PDO::PARAM_INT);
+            $clearanceStmt->execute();
+            $rows = array_merge($rows, $clearanceStmt->fetchAll() ?: []);
+            usort($rows, static function (array $a, array $b): int {
+                return strcmp((string) ($b['created_at'] ?? ''), (string) ($a['created_at'] ?? ''));
+            });
+            $rows = array_slice($rows, 0, max(1, min(50, $limit)));
+        }
     } catch (Throwable $e) {
         error_log('Chapter notification load failed: ' . $e->getMessage());
         return [];
     }
 
     return array_map(static function (array $row): array {
+        $type = (string) ($row['type'] ?? '');
+        $isPanel = $type === 'panel_assignment';
+        $isClearance = in_array($type, ['sent_to_adviser', 'adviser_signed', 'mis_aa_signed', 'clearance_done', 'payment_approved'], true);
         return [
-            'id' => (string) ($row['type'] ?? '') === 'panel_assignment' ? -1 * (int) $row['id'] : (int) $row['id'],
+            'id' => $isPanel ? -1 * (int) $row['id'] : ($isClearance ? (800000000 + (int) $row['id']) : (int) $row['id']),
             'batch_key' => (string) ($row['event_key'] ?? ''),
-            'icon' => (string) ($row['type'] ?? '') === 'panel_assignment' ? 'fa-user-friends' : 'fa-file-alt',
+            'icon' => $isClearance ? 'fa-stamp' : ($isPanel ? 'fa-user-friends' : 'fa-file-alt'),
             'status' => ((int) ($row['is_read'] ?? 0) === 1) ? 'read' : 'unread',
             'title' => (string) ($row['title'] ?? 'Notification'),
             'body' => (string) ($row['body'] ?? ''),
@@ -329,14 +353,35 @@ function smsMarkCurrentUserNotificationRead(int $notificationId): void
         return;
     }
 
+    if ($notificationId >= 800000000 && $notificationId < 900000000) {
+        try {
+            $where = smsCurrentUserNotificationWhere();
+            $stmt = $crad->prepare(
+                "UPDATE research_clearance_notifications
+                 SET is_read = 1
+                 WHERE id = :notification_id
+                   AND {$where['sql']}
+                 LIMIT 1"
+            );
+            $stmt->bindValue(':notification_id', $notificationId - 800000000, PDO::PARAM_INT);
+            foreach ($where['params'] as $key => $value) {
+                $stmt->bindValue($key, $value);
+            }
+            $stmt->execute();
+        } catch (Throwable $e) {
+            error_log('Clearance notification mark-read failed: ' . $e->getMessage());
+        }
+        return;
+    }
+
     try {
-        $table = $crad->query("SHOW TABLES LIKE 'crad_chapter_evaluation_notifications'")->fetchColumn();
+        $table = $crad->query("SHOW TABLES LIKE 'chapter_evaluation_notifications'")->fetchColumn();
         if (!$table) {
             return;
         }
         $where = smsCurrentUserNotificationWhere();
         $stmt = $crad->prepare(
-            "UPDATE crad_chapter_evaluation_notifications
+            "UPDATE chapter_evaluation_notifications
              SET is_read = 1
              WHERE id = :notification_id
                AND {$where['sql']}
@@ -405,7 +450,7 @@ function smsMarkCurrentUserSyntheticNotificationRead(string $batchKey): void
             grantEnsureEvaluationTables($crad);
             $where = smsCurrentUserNotificationWhere();
             $stmt = $crad->prepare(
-                "UPDATE crad_grant_proposal_notifications
+                "UPDATE grant_proposal_notifications
                  SET is_read = 1
                  WHERE event_key = :event_key
                    AND {$where['sql']}
@@ -430,7 +475,7 @@ function smsMarkCurrentUserSyntheticNotificationRead(string $batchKey): void
         try {
             $where = smsCurrentUserNotificationWhere();
             $stmt = $crad->prepare(
-                "UPDATE crad_chapter_evaluation_notifications
+                "UPDATE chapter_evaluation_notifications
                  SET is_read = 1
                  WHERE event_key = :event_key
                    AND {$where['sql']}
@@ -666,17 +711,17 @@ function smsCurrentUserAssignmentNotifications(int $limit = 8): array
                 a.adviser_name,
                 a.adviser_email,
                 COALESCE(a.notification_sent_at, '1000-01-01 00:00:00') AS completed_at
-             FROM crad_research_groups g
-             LEFT JOIN crad_research_proposals p ON p.id = g.proposal_id
-             LEFT JOIN crad_title_approvals t ON t.id = g.title_approval_id
-             INNER JOIN crad_research_adviser_assignments a
+             FROM research_groups g
+             LEFT JOIN research_proposals p ON p.id = g.proposal_id
+             LEFT JOIN title_approvals t ON t.id = g.title_approval_id
+             INNER JOIN research_adviser_assignments a
                 ON a.assignment_status = 'Assigned'
                AND (a.research_group_id = g.id OR a.group_number = g.group_number OR a.proposal_id = g.proposal_id)
              WHERE a.notification_sent_at IS NOT NULL
                AND (g.title_approval_id IS NULL OR g.title_approval_id = 0 OR t.id IS NOT NULL)
                AND NOT EXISTS (
                     SELECT 1
-                    FROM crad_research_adviser_assignments pending_a
+                    FROM research_adviser_assignments pending_a
                     WHERE pending_a.assignment_status = 'Assigned'
                       AND pending_a.notification_sent_at IS NULL
                       AND (
@@ -781,10 +826,10 @@ function smsCurrentUserAssignmentNotificationDetail(string $groupNumber = '', st
                 a.adviser_name,
                 a.adviser_email,
                 a.notification_sent_at
-            FROM crad_research_groups g
-            LEFT JOIN crad_research_proposals p ON p.id = g.proposal_id
-            LEFT JOIN crad_title_approvals t ON t.id = g.title_approval_id
-            INNER JOIN crad_research_adviser_assignments a
+            FROM research_groups g
+            LEFT JOIN research_proposals p ON p.id = g.proposal_id
+            LEFT JOIN title_approvals t ON t.id = g.title_approval_id
+            INNER JOIN research_adviser_assignments a
                ON a.assignment_status = 'Assigned'
               AND (
                     a.research_group_id = g.id
@@ -1044,9 +1089,9 @@ function smsStudentResearchStatusNotifications(): array
                     COALESCE(p.proposal_number, t.proposal_number, g.proposal_number) AS proposal_number,
                     COALESCE(p.research_title, t.proposed_title, g.research_title) AS research_title,
                     g.title_approval_id, g.group_number, g.group_name, g.created_at, g.date_assigned
-             FROM crad_research_groups g
-             LEFT JOIN crad_research_proposals p ON p.id = g.proposal_id
-             LEFT JOIN crad_title_approvals t ON t.id = g.title_approval_id
+             FROM research_groups g
+             LEFT JOIN research_proposals p ON p.id = g.proposal_id
+             LEFT JOIN title_approvals t ON t.id = g.title_approval_id
              WHERE g.group_number IS NOT NULL
                AND g.group_number <> ''
                AND (g.title_approval_id IS NULL OR g.title_approval_id = 0 OR t.id IS NOT NULL)
@@ -1139,7 +1184,7 @@ function smsStudentReturnedTitleApprovalNotifications(): array
     try {
         $stmt = $crad->prepare(
             "SELECT id, proposed_title, adviser_remarks, coordinator_remarks, reviewed_at, coordinator_reviewed_at, sent_at
-             FROM crad_title_approvals
+             FROM title_approvals
              WHERE status = 'Returned'
                AND (
                     (:student_id_value <> '' AND student_id = :student_id_match)

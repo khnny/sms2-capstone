@@ -1,26 +1,22 @@
-<?php
+﻿<?php
 /**
  * SMS 2 - Capstone Group/Student Registry
  * Module: CRAD
  *
- * Official registry of finalized / registered Capstone Research Groups.
+ * Official registry of Capstone Research Groups.
  *
  * This page is READ-ONLY. It does NOT insert, update, or delete any rows.
  * It derives every displayed record from the existing CRAD workflow tables so
  * the registry is always real-time and accurate:
  *
- *   - research_groups                       -> the registered research group
- *   - title_approvals                       -> fully approved title gate (Adviser,
- *                                              Coordinator & CRAD signatures present)
+ *   - research_groups                       -> generated Research Group Number
+ *   - title_approvals                       -> title / members when linked
  *   - research_coordinator_assignments      -> official (Active) Research Coordinator
  *   - research_adviser_assignments          -> official (Assigned) Adviser
  *   - proposal_members / title_approvals    -> group leader + members
  *
- * Eligibility: a group only appears once its finalized information is available
- * (fully approved title, official adviser, official coordinator, members,
- * program/department and academic year). Incomplete / pending groups never show
- * up here. Because nothing is stored, there are no duplicates and no stale or
- * "ghost" records - every refresh reflects the live source data.
+ * A group appears here as soon as CRAD generates its Research Group Number
+ * (RG-YYYY-NNN). Placeholder assignment groups (STU-*) stay hidden.
  */
 require_once __DIR__ . '/../../../config/config.php';
 require_once __DIR__ . '/../config/config.php';
@@ -44,37 +40,24 @@ $breadcrumbs  = [
     ['label' => 'Capstone Group/Student Registry', 'url' => null],
 ];
 $pageBannerIcon        = 'fa-clipboard-list';
-$pageBannerDescription = 'Official registry of finalized research groups and their members. Only groups with a fully approved title, official adviser and research coordinator, complete members, program, and academic year are listed.';
+$pageBannerDescription = 'Official registry of research groups and their members. Groups appear here in real time as soon as a Research Group Number is generated.';
 
 require_once __DIR__ . '/../../../includes/breadcrumbs.php';
 
 $pdo = getCradDatabaseConnection();
+if (!function_exists('cradEnsureAssigneeSchema')) {
+    require_once __DIR__ . '/../includes/title-approval-assignees.php';
+}
+try {
+    cradEnsureAssigneeSchema($pdo);
+} catch (Throwable $e) {
+    error_log('Capstone registry schema ensure skipped: ' . $e->getMessage());
+}
 
 /**
- * SQL gate reused from the existing Title Approval workflow: the group's
- * Title Approval Form must be fully approved by the Adviser, the Research
- * Coordinator, and CRAD (all three signatures present).
- */
-function cgsrFullyApprovedClause(string $alias = 't'): string
-{
-    return "{$alias}.status = 'Approved'
-        AND {$alias}.coordinator_status = 'Approved'
-        AND {$alias}.crad_status = 'Approved'
-        AND {$alias}.adviser_signature_data IS NOT NULL AND {$alias}.adviser_signature_data <> ''
-        AND {$alias}.coordinator_signature_data IS NOT NULL AND {$alias}.coordinator_signature_data <> ''
-        AND {$alias}.crad_signature_data IS NOT NULL AND {$alias}.crad_signature_data <> ''";
-}
-/**
- * Returns only the research groups that are fully qualified to appear in the
- * official registry. A group qualifies when:
- *   - it has a Title Approval Form that is fully approved (gate above), AND
- *   - it has an official (Active) Research Coordinator assignment, AND
- *   - it has an official Adviser assignment, AND
- *   - its finalized title, program/department and academic year are present.
- *
- * De-duplication is inherent: research_groups.group_number is unique and the
- * latest assignment per group is joined via a correlated sub-query, so there is
- * exactly one registry row per group.
+ * Returns generated research groups for the official registry.
+ * A group qualifies as soon as CRAD has generated a Research Group Number.
+ * Placeholder STU-* assignment rows are excluded.
  *
  * @return array<int, array<string, mixed>>
  */
@@ -86,6 +69,7 @@ function cgsrRegistryRows(PDO $pdo): array
                 g.group_name,
                 g.research_title,
                 g.college_dept,
+                g.adviser          AS group_adviser,
                 g.academic_year,
                 g.leader_name,
                 g.leader_id,
@@ -105,37 +89,36 @@ function cgsrRegistryRows(PDO $pdo): array
                 aa.adviser_name,
                 aa.adviser_email,
                 aa.assigned_at     AS adviser_assigned_at
-            FROM crad_research_groups g
-            JOIN crad_title_approvals t ON t.id = g.title_approval_id
-            LEFT JOIN crad_research_coordinator_assignments ca ON ca.id = (
+            FROM research_groups g
+            LEFT JOIN title_approvals t ON t.id = g.title_approval_id
+            LEFT JOIN research_coordinator_assignments ca ON ca.id = (
                 SELECT ca2.id
-                FROM crad_research_coordinator_assignments ca2
+                FROM research_coordinator_assignments ca2
                 WHERE ca2.status = 'Active'
                   AND (
                         ca2.research_group_id = g.id
-                     OR (ca2.research_group_id IS NULL AND ca2.group_number = g.group_number)
+                     OR (ca2.group_number IS NOT NULL AND ca2.group_number <> '' AND ca2.group_number = g.group_number)
+                     OR (g.leader_id IS NOT NULL AND g.leader_id <> '' AND ca2.student_id = g.leader_id)
                   )
                 ORDER BY ca2.updated_at DESC, ca2.id DESC
                 LIMIT 1
             )
-            LEFT JOIN crad_research_adviser_assignments aa ON aa.id = (
+            LEFT JOIN research_adviser_assignments aa ON aa.id = (
                 SELECT aa2.id
-                FROM crad_research_adviser_assignments aa2
-                WHERE (
+                FROM research_adviser_assignments aa2
+                WHERE aa2.assignment_status IN ('Assigned', 'Confirmed')
+                  AND (
                         aa2.research_group_id = g.id
-                     OR (aa2.research_group_id IS NULL AND aa2.group_number = g.group_number)
+                     OR (aa2.group_number IS NOT NULL AND aa2.group_number <> '' AND aa2.group_number = g.group_number)
+                     OR (g.leader_id IS NOT NULL AND g.leader_id <> '' AND aa2.student_id = g.leader_id)
                   )
-                ORDER BY (aa2.assignment_status = 'Assigned') DESC, aa2.updated_at DESC, aa2.id DESC
+                ORDER BY (aa2.assignment_status = 'Confirmed') DESC, (aa2.assignment_status = 'Assigned') DESC, aa2.updated_at DESC, aa2.id DESC
                 LIMIT 1
             )
-            WHERE g.title_approval_id IS NOT NULL
-              AND " . cgsrFullyApprovedClause('t') . "
-              AND ca.id IS NOT NULL
-              AND aa.id IS NOT NULL
-              AND TRIM(COALESCE(g.research_title, '')) <> ''
-              AND TRIM(COALESCE(g.academic_year, '')) <> ''
-              AND (TRIM(COALESCE(g.college_dept, '')) <> '' OR TRIM(COALESCE(t.department, '')) <> '')
-            ORDER BY g.group_number ASC";
+            WHERE g.group_number IS NOT NULL
+              AND TRIM(g.group_number) <> ''
+              AND g.group_number NOT LIKE 'STU-%'
+            ORDER BY g.date_assigned DESC, g.id DESC";
 
     try {
         return $pdo->query($sql)->fetchAll() ?: [];
@@ -159,7 +142,7 @@ function cgsrResolveMembers(PDO $pdo, array $g): array
         try {
             $stmt = $pdo->prepare(
                 "SELECT sort_order, student_id, student_name
-                 FROM crad_proposal_members
+                 FROM proposal_members
                  WHERE proposal_id = ?
                  ORDER BY sort_order ASC, id ASC"
             );
@@ -245,9 +228,14 @@ function cgsrDisplayRow(PDO $pdo, array $g): array
         $program = trim((string) ($g['approval_department'] ?? ''));
     }
 
+    $title = trim((string) ($g['research_title'] ?? ''));
+    if ($title === '') {
+        $title = trim((string) ($g['proposed_title'] ?? ''));
+    }
+
     $adviser = trim((string) ($g['adviser_name'] ?? ''));
     if ($adviser === '') {
-        $adviser = (string) ($g['adviser'] ?? '');
+        $adviser = trim((string) ($g['group_adviser'] ?? ($g['adviser'] ?? '')));
     }
 
     $coordinator = trim((string) ($g['coordinator_name'] ?? ''));
@@ -256,7 +244,7 @@ function cgsrDisplayRow(PDO $pdo, array $g): array
         'group_id'          => (int) ($g['group_id'] ?? 0),
         'group_number'      => (string) ($g['group_number'] ?? ''),
         'group_name'        => (string) ($g['group_name'] ?? ''),
-        'research_title'    => (string) ($g['research_title'] ?? ''),
+        'research_title'    => $title,
         'proposal_number'   => (string) ($g['proposal_number'] ?? ''),
         'program'           => $program,
         'academic_year'     => (string) ($g['academic_year'] ?? ''),
@@ -540,7 +528,7 @@ sort($programs, SORT_STRING);
                         <tr><td colspan="8">
                             <div class="cgsr-empty" data-cgsr-empty>
                                 <strong>No Registered Groups Yet</strong>
-                                <small>Groups appear here once their Title Approval Form is fully approved and an official Adviser and Research Coordinator are assigned.</small>
+                                <small>Groups appear here in real time as soon as a Research Group Number is generated.</small>
                             </div>
                         </td></tr>
                     <?php else: ?>
@@ -564,28 +552,28 @@ sort($programs, SORT_STRING);
                                     <?php endif; ?>
                                 </td>
                                 <td>
-                                    <div class="cgsr-title"><?= htmlspecialchars($r['research_title']) ?></div>
+                                    <div class="cgsr-title"><?= htmlspecialchars($r['research_title'] !== '' ? $r['research_title'] : 'Untitled research') ?></div>
                                     <span class="cgsr-meta-block"><?= htmlspecialchars($r['program']) ?></span>
                                 </td>
                                 <td>
-                                    <div class="cgsr-title"><?= htmlspecialchars($r['leader']['name']) ?></div>
+                                    <div class="cgsr-title"><?= htmlspecialchars($r['leader']['name'] !== '' ? $r['leader']['name'] : '—') ?></div>
                                     <?php if (trim((string) $r['leader']['id']) !== ''): ?>
                                         <span class="cgsr-meta-block"><?= htmlspecialchars($r['leader']['id']) ?></span>
                                     <?php endif; ?>
                                 </td>
                                 <td>
-                                    <div class="cgsr-title"><?= htmlspecialchars($r['adviser']) ?></div>
+                                    <div class="cgsr-title"><?= htmlspecialchars($r['adviser'] !== '' ? $r['adviser'] : '—') ?></div>
                                     <?php if (trim((string) $r['adviser_email']) !== ''): ?>
                                         <span class="cgsr-meta-block"><?= htmlspecialchars($r['adviser_email']) ?></span>
                                     <?php endif; ?>
                                 </td>
                                 <td>
-                                    <div class="cgsr-title"><?= htmlspecialchars($r['coordinator']) ?></div>
+                                    <div class="cgsr-title"><?= htmlspecialchars($r['coordinator'] !== '' ? $r['coordinator'] : '—') ?></div>
                                     <?php if (trim((string) $r['coordinator_email']) !== ''): ?>
                                         <span class="cgsr-meta-block"><?= htmlspecialchars($r['coordinator_email']) ?></span>
                                     <?php endif; ?>
                                 </td>
-                                <td><div class="cgsr-title"><?= htmlspecialchars($r['academic_year']) ?></div></td>
+                                    <td><div class="cgsr-title"><?= htmlspecialchars($r['academic_year'] !== '' ? $r['academic_year'] : '—') ?></div></td>
                                 <td><span class="cgsr-badge cgsr-badge-registered"><?= smsIcon('check') ?> Registered</span></td>
                                 <td>
                                     <button type="button" class="cgsr-btn cgsr-btn-primary" data-cgsr-view="<?= htmlspecialchars($r['group_number']) ?>">
@@ -660,7 +648,8 @@ document.addEventListener('DOMContentLoaded', function () {
         });
 
         if (rows.length === 0) {
-            // Keep the friendly server-rendered empty state.
+            tbody.innerHTML = '<tr><td colspan="8"><div class="cgsr-empty" data-cgsr-empty>' +
+                '<strong>No Registered Groups Yet</strong><small>Groups appear here in real time as soon as a Research Group Number is generated.</small></div></td></tr>';
         } else if (filtered.length === 0) {
             tbody.innerHTML = '<tr><td colspan="8"><div class="cgsr-empty" data-cgsr-empty>' +
                 '<strong>No Match</strong><small>No registered groups match your search or filters.</small></div></td></tr>';
@@ -668,18 +657,22 @@ document.addEventListener('DOMContentLoaded', function () {
             tbody.innerHTML = filtered.map(function (r) {
                 const leader = (r.leader && r.leader.name) || '\u2014';
                 const leaderId = (r.leader && r.leader.id) || '';
+                const title = r.research_title || 'Untitled research';
+                const adviser = r.adviser || '\u2014';
+                const coordinator = r.coordinator || '\u2014';
+                const year = r.academic_year || '\u2014';
                 return '<tr data-cgsr-row data-group-number="' + esc(r.group_number) + '">' +
                     '<td><div class="cgsr-code">' + esc(r.group_number) + '</div>' +
                         (r.group_name ? '<span class="cgsr-meta-block">' + esc(r.group_name) + '</span>' : '') + '</td>' +
-                    '<td><div class="cgsr-title">' + esc(r.research_title) + '</div>' +
+                    '<td><div class="cgsr-title">' + esc(title) + '</div>' +
                         '<span class="cgsr-meta-block">' + esc(r.program) + '</span></td>' +
                     '<td><div class="cgsr-title">' + esc(leader) + '</div>' +
                         (leaderId ? '<span class="cgsr-meta-block">' + esc(leaderId) + '</span>' : '') + '</td>' +
-                    '<td><div class="cgsr-title">' + esc(r.adviser) + '</div>' +
+                    '<td><div class="cgsr-title">' + esc(adviser) + '</div>' +
                         (r.adviser_email ? '<span class="cgsr-meta-block">' + esc(r.adviser_email) + '</span>' : '') + '</td>' +
-                    '<td><div class="cgsr-title">' + esc(r.coordinator) + '</div>' +
+                    '<td><div class="cgsr-title">' + esc(coordinator) + '</div>' +
                         (r.coordinator_email ? '<span class="cgsr-meta-block">' + esc(r.coordinator_email) + '</span>' : '') + '</td>' +
-                    '<td><div class="cgsr-title">' + esc(r.academic_year) + '</div></td>' +
+                    '<td><div class="cgsr-title">' + esc(year) + '</div></td>' +
                     '<td><span class="cgsr-badge cgsr-badge-registered"><?= smsIcon('check') ?> Registered</span></td>' +
                     '<td><button type="button" class="cgsr-btn cgsr-btn-primary" data-cgsr-view="' + esc(r.group_number) + '"><?= smsIcon('eye') ?> View</button></td>' +
                 '</tr>';
@@ -760,6 +753,23 @@ document.addEventListener('DOMContentLoaded', function () {
         modal.hidden = true;
         document.body.style.overflow = '';
     };
+    const fillFilter = function (select, values, allLabel) {
+        if (!select) return;
+        const current = select.value;
+        const unique = [];
+        values.forEach(function (v) {
+            const s = String(v || '').trim();
+            if (s !== '' && unique.indexOf(s) === -1) unique.push(s);
+        });
+        unique.sort();
+        select.innerHTML = '<option value="">' + esc(allLabel) + '</option>' + unique.map(function (v) {
+            return '<option value="' + esc(v) + '"' + (v === current ? ' selected' : '') + '>' + esc(v) + '</option>';
+        }).join('');
+        if (current && unique.indexOf(current) !== -1) {
+            select.value = current;
+        }
+    };
+
     const refresh = async function () {
         if (refreshing) return;
         refreshing = true;
@@ -772,7 +782,9 @@ document.addEventListener('DOMContentLoaded', function () {
             const data = await res.json();
             if (!data.ok) throw new Error('Sync failed');
             rows = Array.isArray(data.rows) ? data.rows : [];
-            renderStats(data.stats || {});
+            renderStats(data);
+            fillFilter(ayFilter, rows.map(function (r) { return r.academic_year; }), 'All Academic Years');
+            fillFilter(pgFilter, rows.map(function (r) { return r.program; }), 'All Programs');
             renderTable();
             if (sync) {
                 const d = new Date();
@@ -794,13 +806,14 @@ document.addEventListener('DOMContentLoaded', function () {
         document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !modal.hidden) closeModal(); });
     }
     renderTable();
+    refresh();
 
-    let timer = window.setInterval(refresh, 10000);
+    let timer = window.setInterval(refresh, 2000);
     document.addEventListener('visibilitychange', function () {
         if (timer) window.clearInterval(timer);
         if (document.hidden) { timer = null; return; }
         refresh();
-        timer = window.setInterval(refresh, 10000);
+        timer = window.setInterval(refresh, 2000);
     });
 });
 </script>

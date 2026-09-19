@@ -31,6 +31,8 @@ function umRoleBadgeClass(string $role, string $label = ''): string
         'research_grant' => 'research_grant',
         'review_committee' => 'review_committee',
         'research_coordinator' => 'research_coordinator',
+        'department_head' => 'department_head',
+        'departmenthead' => 'department_head',
         'department_chair' => 'department_chair',
         'research_office' => 'research_office',
         'vpaa' => 'vpaa',
@@ -83,6 +85,12 @@ function umNormalizeOverviewUser(array $u): array
     if ($role === 'superadmin') {
         $u['roleLabel'] = 'Super Admin';
     }
+    if ($role === 'sms_admin') {
+        $u['roleLabel'] = 'Admin';
+    }
+    if (empty($u['roleLabel'])) {
+        $u['roleLabel'] = $role;
+    }
     if (
         ($role === 'admin' && $username !== 'superadmin')
         || $role === 'admission'
@@ -113,15 +121,15 @@ $overviewUsers = [];
 $pdo = db();
 if ($pdo) {
     try {
-        $statsRaw['total'] = (int) $pdo->query('SELECT COUNT(*) FROM sms_users')->fetchColumn();
+        $statsRaw['total'] = (int) $pdo->query('SELECT COUNT(*) FROM users')->fetchColumn();
         $statsRaw['inactive'] = (int) $pdo->query(
-            "SELECT COUNT(*) FROM sms_users WHERE status IN ('inactive', 'suspended')"
+            "SELECT COUNT(*) FROM users WHERE status IN ('inactive', 'suspended')"
         )->fetchColumn();
         $statsRaw['locked'] = (int) $pdo->query(
-            "SELECT COUNT(*) FROM sms_users WHERE status = 'locked' OR (locked_until IS NOT NULL AND locked_until > NOW())"
+            "SELECT COUNT(*) FROM users WHERE status = 'locked' OR (locked_until IS NOT NULL AND locked_until > NOW())"
         )->fetchColumn();
         $statsRaw['active'] = (int) $pdo->query(
-            "SELECT COUNT(*) FROM sms_users
+            "SELECT COUNT(*) FROM users
              WHERE status = 'active'
                AND (locked_until IS NULL OR locked_until <= NOW())"
         )->fetchColumn();
@@ -129,8 +137,8 @@ if ($pdo) {
         $stmt = $pdo->query(
             'SELECT u.id, u.full_name AS name, u.username, u.email, u.role_key AS role,
                     r.label AS roleLabel, u.status, u.last_login_at, u.locked_until
-             FROM sms_users u
-             INNER JOIN sms_roles r ON r.role_key = u.role_key
+             FROM users u
+             LEFT JOIN roles r ON r.role_key = u.role_key
              ORDER BY
                 CASE WHEN u.status = "active" THEN 0 WHEN u.status = "locked" THEN 1 ELSE 2 END,
                 COALESCE(u.last_login_at, u.created_at) DESC,
@@ -184,7 +192,7 @@ $subpages = [
 ];
 ?>
 
-<link href="<?= BASE_URL ?>/modules/user-management/assets/css/user-management.css?v=grant-role-badges-1" rel="stylesheet">
+<link href="<?= BASE_URL ?>/modules/user-management/assets/css/user-management.css?v=dept-head-badge-2" rel="stylesheet">
 
 <?php
 $pageBannerIcon        = 'user-cog';

@@ -31,7 +31,6 @@ header('Content-Type: application/json');
 
 require_once __DIR__ . '/../../../config/config.php';
 require_once __DIR__ . '/../../../includes/authentication.php';
-require_once __DIR__ . '/../../../includes/security.php';
 require_once __DIR__ . '/../../../includes/uploads.php';
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../includes/grant-helpers.php';
@@ -48,15 +47,12 @@ $method = $_SERVER['REQUEST_METHOD'];
 
 // Action may arrive in GET params, POST body (form-data), or JSON body.
 $action = trim((string) ($_GET['action'] ?? ($_POST['action'] ?? '')));
-$jsonBody = null;
-if ($method === 'POST') {
+if ($action === '' && $method === 'POST') {
     $raw     = file_get_contents('php://input');
     $decoded = json_decode((string) $raw, true);
-    $jsonBody = is_array($decoded) ? $decoded : $_POST;
-    if ($action === '' && is_array($jsonBody)) {
-        $action = trim((string) ($jsonBody['action'] ?? ''));
+    if (is_array($decoded)) {
+        $action = trim((string) ($decoded['action'] ?? ''));
     }
-    smsRequireMutatingCsrf(is_array($jsonBody) ? $jsonBody : null);
 }
 
 try {
@@ -172,7 +168,14 @@ switch ($action) {
             exit;
         }
 
-        $input = is_array($jsonBody) && $jsonBody !== [] ? $jsonBody : $_POST;
+        $input = $_POST;
+        if (empty($input)) {
+            $raw     = file_get_contents('php://input');
+            $decoded = json_decode((string) $raw, true);
+            if (is_array($decoded)) {
+                $input = $decoded;
+            }
+        }
 
         // Token validation
         $token       = trim((string) ($input['token'] ?? ''));

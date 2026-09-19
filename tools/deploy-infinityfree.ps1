@@ -17,7 +17,7 @@ if (-not $FtpPass) {
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 [Net.ServicePointManager]::ServerCertificateValidationCallback = { $true }
 
-$ftpUser = if ($env:SMS2_FTP_USER) { $env:SMS2_FTP_USER } else { 'YOUR_INFINITYFREE_FTP_USER' }
+$ftpUser = 'if0_42794375'
 $remoteDir = '/htdocs'
 
 if (-not (Test-Path $ZipPath)) {
@@ -102,5 +102,4 @@ $FtpHost = $connectedHost
 Write-Host "Uploading via FTPS to ftp://${FtpHost}${remoteDir} ..."
 Upload-FtpTree $Staging $remoteDir
 Write-Host 'Upload complete.'
-$tokenHint = if ($env:SMS2_DEPLOY_TOKEN) { $env:SMS2_DEPLOY_TOKEN } else { 'YOUR_SMS2_DEPLOY_TOKEN' }
-Write-Host "Open: https://YOUR_SITE/setup/deploy-db.php?token=$tokenHint"
+Write-Host 'Open: https://bestlinksms2portal.free.nf/setup/deploy-db.php?token=bcp-sms2-deploy-2026'

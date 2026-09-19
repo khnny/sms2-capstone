@@ -327,27 +327,13 @@
         });
     }
 
-    function readLoginCaptchaFields() {
-        var fields = {};
-        var token = document.getElementById('smsCaptchaToken');
-        var ok = document.getElementById('smsCaptchaOk');
-        var hp = document.querySelector('input[name="captcha_hp"]');
-        var turnstile = document.querySelector('input[name="cf-turnstile-response"], textarea[name="cf-turnstile-response"]');
-        if (token) fields.captcha_token = token.value || '';
-        if (ok) fields.captcha_ok = ok.value || '';
-        if (hp) fields.captcha_hp = hp.value || '';
-        if (turnstile) fields['cf-turnstile-response'] = turnstile.value || '';
-        return fields;
-    }
-
     async function login(api, username) {
         assertCanUsePasskeys('login');
         username = (username || '').trim();
-        var captcha = readLoginCaptchaFields();
-        var optRes = await postJson(api, Object.assign({
+        var optRes = await postJson(api, {
             action: 'login_options',
             username: username
-        }, captcha));
+        });
         var assertion;
         try {
             assertion = await navigator.credentials.get({
@@ -364,11 +350,7 @@
             authenticatorData: bufToB64url(assertion.response.authenticatorData),
             signature: bufToB64url(assertion.response.signature)
         };
-        return postJson(api, Object.assign({
-            action: 'login_verify',
-            username: username,
-            credential: payload
-        }, captcha));
+        return postJson(api, { action: 'login_verify', credential: payload });
     }
 
     async function removeKey(api, csrf, id, proof) {

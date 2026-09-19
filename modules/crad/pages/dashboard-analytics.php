@@ -4,8 +4,8 @@
  * Module: CRAD
  *
  * Real-time grant management analytics for the CRAD Officer.
- * All counts and chart data come from crad_grant_opportunities and
- * crad_grant_applications — no hardcoded values.
+ * All counts and chart data come from grant_opportunities and
+ * grant_applications in crad_db — no hardcoded values.
  */
 require_once __DIR__ . '/../../../config/config.php';
 require_once __DIR__ . '/../config/config.php';
@@ -55,7 +55,7 @@ if ($crad) {
         // ── Total funding cap (sum of all open grants)
         $capStmt = $crad->query(
             "SELECT COALESCE(SUM(max_funding_cap), 0) AS total_cap
-               FROM crad_grant_opportunities
+               FROM grant_opportunities
               WHERE status = 'Open for Application'"
         );
         $stats['total_funding_cap'] = (float) ($capStmt ? $capStmt->fetchColumn() : 0);
@@ -63,7 +63,7 @@ if ($crad) {
         // ── Application status breakdown for donut chart
         $sdStmt = $crad->query(
             "SELECT status, COUNT(*) AS cnt
-               FROM crad_grant_applications
+               FROM grant_applications
               GROUP BY status
               ORDER BY cnt DESC"
         );
@@ -72,7 +72,7 @@ if ($crad) {
         // ── Eligibility breakdown for bar chart (grant opportunities by eligibility)
         $elStmt = $crad->query(
             "SELECT eligibility, COUNT(*) AS cnt
-               FROM crad_grant_opportunities
+               FROM grant_opportunities
               GROUP BY eligibility
               ORDER BY cnt DESC"
         );

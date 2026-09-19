@@ -78,9 +78,9 @@ function smsNotificationResearchGroupDetail(): ?array
                     COALESCE(p.proposal_number, t.proposal_number, g.proposal_number) AS proposal_number,
                     COALESCE(p.research_title, t.proposed_title, g.research_title) AS research_title,
                     g.title_approval_id, g.group_number, g.group_name, g.status, g.created_at, g.date_assigned
-             FROM crad_research_groups g
-             LEFT JOIN crad_research_proposals p ON p.id = g.proposal_id
-             LEFT JOIN crad_title_approvals t ON t.id = g.title_approval_id
+             FROM research_groups g
+             LEFT JOIN research_proposals p ON p.id = g.proposal_id
+             LEFT JOIN title_approvals t ON t.id = g.title_approval_id
              WHERE g.group_number IS NOT NULL
                AND g.group_number <> ''
                AND (g.title_approval_id IS NULL OR g.title_approval_id = 0 OR t.id IS NOT NULL)
@@ -131,7 +131,7 @@ function smsNotificationResearchGroupDetail(): ?array
             "SELECT
                 (
                     SELECT adviser_name
-                    FROM crad_research_adviser_assignments
+                    FROM research_adviser_assignments
                     WHERE assignment_status = 'Assigned'
                       AND (research_group_id = :adviser_group_id OR group_number = :adviser_group_number OR proposal_number = :adviser_proposal_number)
                     ORDER BY assigned_at DESC, updated_at DESC, id DESC
@@ -200,7 +200,7 @@ function smsNotificationReturnedTitleApprovalDetail(): ?array
 
     try {
         $sql = "SELECT id, proposed_title, adviser_name, adviser_remarks, coordinator_remarks, reviewed_at, coordinator_reviewed_at, sent_at
-                FROM crad_title_approvals
+                FROM title_approvals
                 WHERE (status = 'Returned' OR (status = 'Approved' AND coordinator_status = 'Returned'))
                   AND (
                        (:student_id_value <> '' AND student_id = :student_id_match)

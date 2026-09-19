@@ -26,15 +26,15 @@ if (!function_exists('smsModulePageUi')) {
                             return '0';
                         }
                     };
-                    $totalGroups = $count($crad, 'SELECT COUNT(*) FROM crad_research_groups');
-                    $approvedTitles = $count($crad, "SELECT COUNT(*) FROM crad_title_approvals WHERE status = 'Approved'");
-                    $withAdvisers = $count($crad, "SELECT COUNT(DISTINCT research_group_id) FROM crad_research_adviser_assignments WHERE assignment_status IN ('Assigned', 'Confirmed') AND research_group_id IS NOT NULL");
-                    $preOralCompleted = $count($crad, "SELECT COUNT(*) FROM crad_research_defense_schedules WHERE defense_type = 'Pre-Oral' AND LOWER(status) IN ('scheduled', 'finalized', 'final', 'completed', 'passed')");
-                    $finalDefenseCompleted = $count($crad, "SELECT COUNT(*) FROM crad_research_defense_schedules WHERE defense_type = 'Final Defense' AND LOWER(status) IN ('scheduled', 'finalized', 'final', 'completed', 'passed')");
-                    $finalApproved = $count($crad, "SELECT COUNT(*) FROM crad_final_manuscript_approvals WHERE status = 'Approved'");
-                    $forRevision = $count($crad, "SELECT COUNT(*) FROM crad_research_revision_cycles WHERE revision_status IN ('Needs Revision', 'Under Review')");
+                    $totalGroups = $count($crad, 'SELECT COUNT(*) FROM research_groups');
+                    $approvedTitles = $count($crad, "SELECT COUNT(*) FROM title_approvals WHERE status = 'Approved'");
+                    $withAdvisers = $count($crad, "SELECT COUNT(DISTINCT research_group_id) FROM research_adviser_assignments WHERE assignment_status IN ('Assigned', 'Confirmed') AND research_group_id IS NOT NULL");
+                    $preOralCompleted = $count($crad, "SELECT COUNT(*) FROM research_defense_schedules WHERE defense_type = 'Pre-Oral' AND LOWER(status) IN ('scheduled', 'finalized', 'final', 'completed', 'passed')");
+                    $finalDefenseCompleted = $count($crad, "SELECT COUNT(*) FROM research_defense_schedules WHERE defense_type = 'Final Defense' AND LOWER(status) IN ('scheduled', 'finalized', 'final', 'completed', 'passed')");
+                    $finalApproved = $count($crad, "SELECT COUNT(*) FROM final_manuscript_approvals WHERE status = 'Approved'");
+                    $forRevision = $count($crad, "SELECT COUNT(*) FROM research_revision_cycles WHERE revision_status IN ('Needs Revision', 'Under Review')");
                     $validPublicationTitleSql = function_exists('cradValidTitleApprovalWhereSql') ? cradValidTitleApprovalWhereSql('pub_ta') : "pub_ta.status = 'Approved'";
-                    $published = $count($crad, "SELECT COUNT(*) FROM crad_publications p INNER JOIN crad_research_groups pub_rg ON pub_rg.id = p.research_group_id INNER JOIN crad_title_approvals pub_ta ON pub_ta.id = pub_rg.title_approval_id AND {$validPublicationTitleSql} WHERE p.status = 'Published'");
+                    $published = $count($crad, "SELECT COUNT(*) FROM publications p INNER JOIN research_groups pub_rg ON pub_rg.id = p.research_group_id INNER JOIN title_approvals pub_ta ON pub_ta.id = pub_rg.title_approval_id AND {$validPublicationTitleSql} WHERE p.status = 'Published'");
                     $page['stats'] = [
                         ['label' => 'Total Groups', 'value' => $totalGroups, 'icon' => 'fa-users', 'tone' => 'blue'],
                         ['label' => 'Approved Titles', 'value' => $approvedTitles, 'icon' => 'fa-check-circle', 'tone' => 'green'],

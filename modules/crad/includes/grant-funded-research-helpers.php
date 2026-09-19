@@ -49,7 +49,7 @@ function grantEnsureFundedResearchTables(PDO $crad): void
     $done = true;
 
     $crad->exec("
-        CREATE TABLE IF NOT EXISTS crad_grant_funded_progress_evidence (
+        CREATE TABLE IF NOT EXISTS grant_funded_progress_evidence (
             id                    INT UNSIGNED NOT NULL AUTO_INCREMENT,
             grant_application_id  INT UNSIGNED NOT NULL,
             milestone_id          INT UNSIGNED NULL DEFAULT NULL,
@@ -88,7 +88,7 @@ function grantGetFundedResearchOverview(PDO $crad): array
     $evidenceMap = [];
     $evStmt = $crad->prepare("
         SELECT grant_application_id, COUNT(*) AS evidence_count, MAX(created_at) AS evidence_updated_at
-          FROM crad_grant_funded_progress_evidence
+          FROM grant_funded_progress_evidence
          WHERE grant_application_id IN ({$placeholders})
          GROUP BY grant_application_id
     ");
@@ -197,8 +197,8 @@ function grantGetFundedResearchEvidence(PDO $crad, int $applicationId): array
 
     $stmt = $crad->prepare("
         SELECT e.*, m.milestone_name
-          FROM crad_grant_funded_progress_evidence e
-          LEFT JOIN crad_grant_funded_project_milestones m ON m.id = e.milestone_id
+          FROM grant_funded_progress_evidence e
+          LEFT JOIN grant_funded_project_milestones m ON m.id = e.milestone_id
          WHERE e.grant_application_id = ?
          ORDER BY e.created_at DESC, e.id DESC
     ");
@@ -344,7 +344,7 @@ function grantSubmitFundedProgressEvidence(
 
     try {
         $crad->prepare("
-            INSERT INTO crad_grant_funded_progress_evidence
+            INSERT INTO grant_funded_progress_evidence
                 (grant_application_id, milestone_id, evidence_title, notes,
                  file_path, file_original, submitted_by_user_id, submitted_by_name, status, created_at, updated_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Submitted', NOW(), NOW())

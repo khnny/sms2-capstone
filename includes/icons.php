@@ -29,6 +29,7 @@ if (!function_exists('smsTablerIconName')) {
             'id-badge' => 'badge',
             'phone-alt' => 'phone',
             'file-signature' => 'signature',
+            'stamp' => 'rubber-stamp',
             'scroll' => 'scroll',
             'user-tie' => 'tie',
             'hand-holding-usd' => 'coins',

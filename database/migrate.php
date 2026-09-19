@@ -5,7 +5,6 @@
  * CLI:
  *   php database/migrate.php
  *   php database/migrate.php --fresh
- *   php database/migrate.php --force --sms2-only
  *
  * Web (InfinityFree / no SSH):
  *   /setup/deploy-db.php?token=YOUR_SMS2_DEPLOY_TOKEN
@@ -30,7 +29,6 @@ require_once __DIR__ . '/migrate-lib.php';
 $options = [
     'fresh' => in_array('--fresh', $argv ?? [], true),
     'force' => in_array('--force', $argv ?? [], true),
-    'skip_crad' => in_array('--sms2-only', $argv ?? [], true) || in_array('--skip-crad', $argv ?? [], true),
 ];
 
 try {

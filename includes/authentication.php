@@ -23,7 +23,7 @@ function smsNeedsSetup(): bool
         return false;
     }
     try {
-        $count = (int) $pdo->query('SELECT COUNT(*) AS c FROM sms_users')->fetch()['c'];
+        $count = (int) $pdo->query('SELECT COUNT(*) AS c FROM users')->fetch()['c'];
         return $count === 0;
     } catch (Throwable $e) {
         return false;
@@ -72,6 +72,25 @@ function smsIsGrantedAdminRole(string $roleKey): bool
     $normalized = smsNormalizeRoleKey($roleKey);
 
     return in_array($normalized, ['superadmin', 'sms_admin'], true);
+}
+
+function smsIsPanelDefenseRole(?string $roleKey = null): bool
+{
+    $roleKey = smsNormalizeRoleKey($roleKey ?? getCurrentUserRoleKey());
+
+    return in_array($roleKey, ['panel', 'department_chair'], true);
+}
+
+function smsPanelDefenseWorkflowPaths(): array
+{
+    return [
+        '/modules/faculty/pages/assigned-defenses.php',
+        '/modules/faculty/pages/defense-details.php',
+        '/modules/faculty/pages/panel-evaluation-scoring.php',
+        '/modules/faculty/pages/panel-evaluation-history.php',
+        '/modules/faculty/pages/panel-final-defense-evaluation.php',
+        '/modules/faculty/api/panel-defense.php',
+    ];
 }
 
 /**
@@ -138,6 +157,8 @@ function requireAuth(): void
         header('Location: ' . BASE_URL . '/login/login.php');
         exit;
     }
+    // Keep the signed-in name/role in sync with User Accounts edits.
+    smsRefreshCurrentUserSession();
     // Mark online first so status stays accurate even if we redirect next
     smsTouchUserPresence();
     require_once __DIR__ . '/module-controls.php';
@@ -167,6 +188,59 @@ function getCurrentUserId(): ?int
 }
 
 /**
+ * Reload the signed-in user's name, email, and role from the users table
+ * so Super Admin edits appear on the live account without re-login.
+ */
+function smsRefreshCurrentUserSession(): void
+{
+    $userId = (int) ($_SESSION['user_id'] ?? 0);
+    if ($userId <= 0) {
+        return;
+    }
+
+    $pdo = db();
+    if (!$pdo) {
+        return;
+    }
+
+    try {
+        $stmt = $pdo->prepare(
+            'SELECT u.full_name, u.email, u.role_key, u.student_id, u.must_change_password,
+                    r.label AS role_label
+             FROM users u
+             LEFT JOIN roles r ON r.role_key = u.role_key
+             WHERE u.id = ?
+             LIMIT 1'
+        );
+        $stmt->execute([$userId]);
+        $user = $stmt->fetch() ?: null;
+        if (!$user) {
+            return;
+        }
+
+        $name = trim((string) ($user['full_name'] ?? ''));
+        if ($name !== '') {
+            $_SESSION['user_name'] = $name;
+        }
+        $_SESSION['user_email'] = (string) ($user['email'] ?? '');
+        $roleKey = trim((string) ($user['role_key'] ?? ''));
+        if ($roleKey !== '') {
+            $_SESSION['user_role_key'] = $roleKey;
+            $roleLabel = trim((string) ($user['role_label'] ?? ''));
+            $_SESSION['user_role'] = $roleLabel !== '' ? $roleLabel : $roleKey;
+        }
+        $_SESSION['must_change_password'] = (int) ($user['must_change_password'] ?? 0);
+        if (!empty($user['student_id'])) {
+            $_SESSION['student_id'] = (string) $user['student_id'];
+        } else {
+            unset($_SESSION['student_id']);
+        }
+    } catch (Throwable $e) {
+        error_log('smsRefreshCurrentUserSession: ' . $e->getMessage());
+    }
+}
+
+/**
  * Default module access when DB permissions are empty (fallback).
  */
 function smsDefaultModulesForRole(string $roleKey): array
@@ -181,6 +255,7 @@ function smsDefaultModulesForRole(string $roleKey): array
         'registrar'    => ['registrar', 'curriculum', 'scheduling'],
         'crad_officer' => ['crad'],
         'research_coordinator' => ['crad'],
+        'department_head' => ['crad'],
         'department_chair' => ['crad'],
         'research_office' => ['crad'],
         'research_grant' => ['crad_grant'],
@@ -215,7 +290,7 @@ function smsAllowedModuleKeysForRole(string $roleKey): array
             $lookupKeys = smsRolePermissionLookupKeys($roleKey);
             $placeholders = implode(',', array_fill(0, count($lookupKeys), '?'));
             $stmt = $pdo->prepare(
-                "SELECT module_key, granted FROM sms_role_permissions WHERE role_key IN ($placeholders)"
+                "SELECT module_key, granted FROM role_permissions WHERE role_key IN ($placeholders)"
             );
             $stmt->execute($lookupKeys);
             $rows = $stmt->fetchAll();
@@ -319,21 +394,338 @@ function requireAdminAccountSettings(): void
     }
 }
 
+function smsRemoveModuleNavSlug(array $module, string $slug): array
+{
+    if (!empty($module['groups']) && is_array($module['groups'])) {
+        foreach ($module['groups'] as $groupLabel => $slugs) {
+            $filtered = array_values(array_filter(
+                (array) $slugs,
+                static fn($item): bool => (string) $item !== $slug
+            ));
+            if ($filtered === []) {
+                unset($module['groups'][$groupLabel]);
+            } else {
+                $module['groups'][$groupLabel] = $filtered;
+            }
+        }
+    }
+    if (!empty($module['pages']) && is_array($module['pages'])) {
+        $module['pages'] = array_values(array_filter(
+            $module['pages'],
+            static fn(array $page): bool => ($page['slug'] ?? '') !== $slug
+        ));
+    }
+
+    return $module;
+}
+
+function smsMergeModuleNav(array $base, array $extra): array
+{
+    $baseGroups = isset($base['groups']) && is_array($base['groups']) ? $base['groups'] : [];
+    $extraGroups = isset($extra['groups']) && is_array($extra['groups']) ? $extra['groups'] : [];
+    $base['groups'] = $baseGroups + $extraGroups;
+    foreach ($extraGroups as $label => $slugs) {
+        if (isset($baseGroups[$label]) && is_array($baseGroups[$label])) {
+            $base['groups'][$label] = array_values(array_unique(array_merge(
+                (array) $baseGroups[$label],
+                (array) $slugs
+            )));
+        }
+    }
+
+    $pages = isset($base['pages']) && is_array($base['pages']) ? $base['pages'] : [];
+    $existing = [];
+    foreach ($pages as $page) {
+        $existing[(string) ($page['slug'] ?? '')] = true;
+    }
+    foreach ($extra['pages'] ?? [] as $page) {
+        $slug = (string) ($page['slug'] ?? '');
+        if ($slug === '' || isset($existing[$slug])) {
+            continue;
+        }
+        $pages[] = $page;
+        $existing[$slug] = true;
+    }
+    $base['pages'] = $pages;
+
+    return $base;
+}
+
+function smsAdminCoordinatorAssignmentNav(): array
+{
+    return [
+        'groups' => [
+            'A. Adviser Assignment' => [
+                'retrieve-approved-research',
+                'find-contact-adviser',
+                'adviser-availability',
+                'assign-research-adviser',
+            ],
+            'B. Panel Assignment' => [
+                'retrieve-defense-ready-research',
+                'select-panel-members',
+                'check-panel-availability',
+                'assign-panel-members',
+            ],
+            'Coordination' => [
+                'manage-assignments',
+            ],
+        ],
+        'pages' => [
+            ['slug' => 'retrieve-approved-research', 'title' => 'Retrieve Approved Research'],
+            ['slug' => 'find-contact-adviser', 'title' => 'Find/Contact Adviser'],
+            ['slug' => 'adviser-availability', 'title' => 'Check Adviser Availability'],
+            ['slug' => 'assign-research-adviser', 'title' => 'Assign Research Adviser'],
+            ['slug' => 'retrieve-defense-ready-research', 'title' => 'Retrieve Defense-Ready Research'],
+            ['slug' => 'select-panel-members', 'title' => 'Select Panel Members'],
+            ['slug' => 'check-panel-availability', 'title' => 'Check Panel Availability'],
+            ['slug' => 'assign-panel-members', 'title' => 'Assign Panel Members'],
+            ['slug' => 'manage-assignments', 'title' => 'View/Manage Assignments'],
+        ],
+    ];
+}
+
+function smsAdminDefenseSchedulingNav(): array
+{
+    return [
+        'groups' => [
+            'PRE-ORAL DEFENSE' => [
+                'defense-scheduling-queue',
+                'manual-scheduling-optimizer',
+                'proposed-schedules',
+                'alternative-time-slots',
+                'calendar',
+                'venues',
+                'finalize-defense-schedule',
+            ],
+            'FINAL DEFENSE SCHEDULING' => [
+                'final-defense-scheduling-queue',
+                'final-defense-manual-scheduling',
+                'final-defense-proposed-schedules',
+                'final-defense-finalize-schedule',
+            ],
+        ],
+        'pages' => [
+            ['slug' => 'defense-scheduling-queue', 'title' => 'Ready for Scheduling'],
+            ['slug' => 'manual-scheduling-optimizer', 'title' => 'AI Scheduling Optimizer'],
+            ['slug' => 'proposed-schedules', 'title' => 'Proposed Schedules'],
+            ['slug' => 'alternative-time-slots', 'title' => 'Alternative Time Slots'],
+            ['slug' => 'calendar', 'title' => 'Calendar'],
+            ['slug' => 'venues', 'title' => 'Venues'],
+            ['slug' => 'finalize-defense-schedule', 'title' => 'Finalize Schedule'],
+            ['slug' => 'final-defense-scheduling-queue', 'title' => 'Ready for Scheduling'],
+            ['slug' => 'final-defense-manual-scheduling', 'title' => 'AI Scheduling Optimizer'],
+            ['slug' => 'final-defense-proposed-schedules', 'title' => 'Proposed Schedules'],
+            ['slug' => 'final-defense-finalize-schedule', 'title' => 'Finalize Schedule'],
+        ],
+    ];
+}
+
+function smsAdminDefenseSchedulingHref(string $slug): ?string
+{
+    $map = [
+        'defense-scheduling-queue' => ['view' => 'defense-scheduling-queue'],
+        'manual-scheduling-optimizer' => ['view' => 'manual-scheduling-optimizer'],
+        'proposed-schedules' => ['view' => 'proposed-schedules'],
+        'alternative-time-slots' => ['view' => 'alternative-time-slots'],
+        'calendar' => ['view' => 'calendar'],
+        'venues' => ['view' => 'venues'],
+        'finalize-defense-schedule' => ['view' => 'finalize-defense-schedule'],
+        'final-defense-scheduling-queue' => ['view' => 'defense-scheduling-queue', 'defense_type' => 'Final Defense'],
+        'final-defense-manual-scheduling' => ['view' => 'manual-scheduling-optimizer', 'defense_type' => 'Final Defense'],
+        'final-defense-proposed-schedules' => ['view' => 'proposed-schedules', 'defense_type' => 'Final Defense'],
+        'final-defense-finalize-schedule' => ['view' => 'finalize-defense-schedule', 'defense_type' => 'Final Defense'],
+    ];
+    if (!isset($map[$slug])) {
+        return null;
+    }
+
+    return BASE_URL . '/modules/faculty/pages/research-director.php?' . http_build_query($map[$slug]);
+}
+
+function smsAdminCoreSystemNav(): array
+{
+    return [
+        'groups' => [
+            'Research Clearance' => [
+                'approval-clearance-payment',
+            ],
+            'Core System' => [
+                'dashboard-analytics',
+                'grant-opportunities',
+                'proposals-applications',
+            ],
+        ],
+        'pages' => [
+            ['slug' => 'approval-clearance-payment', 'title' => 'Approval Clearance Payment'],
+            ['slug' => 'dashboard-analytics', 'title' => 'Dashboard & Analytics'],
+            ['slug' => 'grant-opportunities', 'title' => 'Grant Opportunities'],
+            ['slug' => 'proposals-applications', 'title' => 'Proposals & Applications'],
+        ],
+    ];
+}
+
+function smsAdminCoordinatorWorkflowPaths(): array
+{
+    return [
+        '/modules/crad/pages/research-coordinator-management.php',
+        '/modules/crad/pages/dashboard-analytics.php',
+        '/modules/crad/pages/approval-clearance-payment.php',
+        '/modules/crad/api/clearance-payment.php',
+        '/modules/crad/pages/grant-opportunities.php',
+        '/modules/crad/pages/proposals-applications.php',
+        '/modules/crad/api/grant-management.php',
+        '/modules/crad/pages/retrieve-approved-research.php',
+        '/modules/crad/pages/find-contact-adviser.php',
+        '/modules/crad/pages/adviser-availability.php',
+        '/modules/crad/pages/assign-research-adviser.php',
+        '/modules/crad/pages/retrieve-defense-ready-research.php',
+        '/modules/crad/pages/select-panel-members.php',
+        '/modules/crad/pages/check-panel-availability.php',
+        '/modules/crad/pages/assign-panel-members.php',
+        '/modules/crad/pages/manage-assignments.php',
+        '/modules/faculty/pages/research-director.php',
+    ];
+}
+
+function smsCanManageCoordinatorAssignments(?string $roleKey = null): bool
+{
+    $roleKey = $roleKey ?? getCurrentUserRoleKey();
+
+    return smsIsGrantedAdminRole($roleKey)
+        || $roleKey === 'research_coordinator'
+        || $roleKey === 'department_head';
+}
+
+function smsDepartmentHeadWorkflowPaths(): array
+{
+    return [
+        '/account/module-security.php',
+        '/account/security.php',
+        '/modules/crad/pages/research-coordinator-management.php',
+        '/modules/crad/pages/retrieve-approved-research.php',
+        '/modules/crad/pages/find-contact-adviser.php',
+        '/modules/crad/pages/adviser-availability.php',
+        '/modules/crad/pages/assign-research-adviser.php',
+        '/modules/crad/pages/retrieve-defense-ready-research.php',
+        '/modules/crad/pages/select-panel-members.php',
+        '/modules/crad/pages/check-panel-availability.php',
+        '/modules/crad/pages/assign-panel-members.php',
+        '/modules/crad/pages/manage-assignments.php',
+        '/modules/crad/pages/send-notifications.php',
+    ];
+}
+
+function smsDepartmentHeadCradModule(): array
+{
+    return [
+        'label' => 'Research Management',
+        'icon'  => 'fa-flask',
+        'hide_overview' => true,
+        'show_ungrouped_pages' => true,
+        'groups' => [
+            'A. Adviser Assignment' => [
+                'retrieve-approved-research',
+                'find-contact-adviser',
+                'adviser-availability',
+                'assign-research-adviser',
+                'manage-assignments',
+            ],
+            'B. Panel Assignment' => [
+                'retrieve-defense-ready-research',
+                'select-panel-members',
+                'check-panel-availability',
+                'assign-panel-members',
+            ],
+        ],
+        'pages' => [
+            ['slug' => 'research-coordinator-management', 'title' => 'Research Coordinator Management'],
+            ['slug' => 'retrieve-approved-research', 'title' => 'Retrieve Approved Research'],
+            ['slug' => 'find-contact-adviser', 'title' => 'Find/Contact Adviser'],
+            ['slug' => 'adviser-availability', 'title' => 'Check Adviser Availability'],
+            ['slug' => 'assign-research-adviser', 'title' => 'Assign Research Adviser'],
+            ['slug' => 'manage-assignments', 'title' => 'View/Manage Adviser Assignments'],
+            ['slug' => 'retrieve-defense-ready-research', 'title' => 'Retrieve Defense-Ready Research'],
+            ['slug' => 'select-panel-members', 'title' => 'Select Panel Members'],
+            ['slug' => 'check-panel-availability', 'title' => 'Check Panel Availability'],
+            ['slug' => 'assign-panel-members', 'title' => 'Assign Panel Members'],
+        ],
+    ];
+}
+
+function smsCanManageDefenseScheduling(?string $roleKey = null): bool
+{
+    $roleKey = $roleKey ?? getCurrentUserRoleKey();
+
+    return smsIsGrantedAdminRole($roleKey) || $roleKey === 'research_director';
+}
+
 function getVisibleModules(array $modules): array
 {
     $allowedModules = getAllowedModuleKeys();
     $visible = array_intersect_key($modules, array_flip($allowedModules));
 
+    if (getCurrentUserRoleKey() === 'crad_officer' && isset($visible['crad'])) {
+        $visible['crad'] = smsRemoveModuleNavSlug($visible['crad'], 'research-coordinator-management');
+        $visible['crad'] = smsRemoveModuleNavSlug($visible['crad'], 'dashboard-analytics');
+        $visible['crad'] = smsRemoveModuleNavSlug($visible['crad'], 'grant-opportunities');
+        $visible['crad'] = smsRemoveModuleNavSlug($visible['crad'], 'proposals-applications');
+        $cradGroups = isset($visible['crad']['groups']) && is_array($visible['crad']['groups']) ? $visible['crad']['groups'] : [];
+        $visible['crad']['groups'] = ['Research Clearance' => ['research-clearance']] + $cradGroups;
+        $hasClearancePage = false;
+        foreach ((array) ($visible['crad']['pages'] ?? []) as $cradPage) {
+            if (($cradPage['slug'] ?? '') === 'research-clearance') {
+                $hasClearancePage = true;
+                break;
+            }
+        }
+        if (!$hasClearancePage) {
+            $visible['crad']['pages'][] = ['slug' => 'research-clearance', 'title' => 'Research Services Clearance'];
+        }
+    }
+
     if (getCurrentUserRoleKey() === 'research_coordinator' && isset($visible['crad'])) {
         $visible['crad'] = smsResearchCoordinatorCradModule();
+    }
+
+    if (getCurrentUserRoleKey() === 'department_head') {
+        $visible['crad'] = smsDepartmentHeadCradModule();
     }
 
     if (getCurrentUserRoleKey() === 'department_chair' && isset($visible['crad'])) {
         unset($visible['crad']);
     }
 
+    if (getCurrentUserRoleKey() === 'research_office' && isset($visible['crad'])) {
+        unset($visible['crad']);
+    }
+
+    if (getCurrentUserRoleKey() === 'vpaa' && isset($visible['accreditation'])) {
+        unset($visible['accreditation']);
+    }
+
     if (getCurrentUserRoleKey() === 'review_committee' && isset($visible['crad_grant'])) {
         $visible['crad_grant'] = smsReviewCommitteeGrantModule();
+    }
+
+    if (smsIsGrantedAdminRole(getCurrentUserRoleKey())) {
+        $assignmentNav = smsMergeModuleNav(
+            smsAdminCoreSystemNav(),
+            smsAdminDefenseSchedulingNav()
+        );
+        if (!isset($visible['crad'])) {
+            $visible['crad'] = smsMergeModuleNav([
+                'label' => 'CRAD',
+                'icon'  => 'fa-flask',
+                'hide_overview' => true,
+            ], $assignmentNav);
+        } else {
+            $visible['crad'] = smsMergeModuleNav($visible['crad'], $assignmentNav);
+        }
+        $visible['crad'] = smsRemoveModuleNavSlug($visible['crad'], 'research-coordinator-management');
+        if (isset($visible['crad']['groups']['Research Management'])) {
+            unset($visible['crad']['groups']['Research Management']);
+        }
     }
 
     if (in_array('student_portal', $allowedModules, true) && !isset($visible['student_portal'])) {
@@ -347,6 +739,7 @@ function getVisibleModules(array $modules): array
                 'Academics' => ['class-schedule', 'academic-records', 'subjects-professors', 'grades-portal'],
                 'Research' => ['research-proposal-submission'],
                 'Document Submission' => ['submit-chapters', 'my-submissions', 'submission-status', 'submission-history'],
+                'Research Clearance' => ['college-payment', 'research-clearance'],
             ],
             'pages' => [
                 ['slug' => 'dashboard', 'title' => 'Dashboard'],
@@ -360,6 +753,8 @@ function getVisibleModules(array $modules): array
                 ['slug' => 'grades-portal', 'title' => 'Grades Portal'],
                 ['slug' => 'research-proposal-submission', 'title' => 'Research Proposal'],
                 ['slug' => 'submit-chapters', 'title' => 'Submit Chapter 1-3'],
+                ['slug' => 'college-payment', 'title' => 'Upload Collage Payment'],
+                ['slug' => 'research-clearance', 'title' => 'Research Services Clearance'],
                 ['slug' => 'my-submissions', 'title' => 'My Submissions'],
                 ['slug' => 'submission-status', 'title' => 'Submission Status'],
                 ['slug' => 'submission-history', 'title' => 'Submission History'],
@@ -391,37 +786,9 @@ function smsResearchCoordinatorCradModule(): array
             'Approved Research' => [
                 'approved-research',
             ],
-            'A. Adviser Assignment' => [
-                'retrieve-approved-research',
-                'find-contact-adviser',
-                'adviser-availability',
-                'assign-research-adviser',
-            ],
-            'B. Panel Assignment' => [
-                'retrieve-defense-ready-research',
-                'select-panel-members',
-                'check-panel-availability',
-                'assign-panel-members',
-            ],
-            'Coordination' => [
-                'manage-assignments',
-            ],
-            'System' => [
-                'security-settings',
-            ],
         ],
         'pages' => [
             ['slug' => 'approved-research', 'title' => 'View Approved Research'],
-            ['slug' => 'retrieve-approved-research', 'title' => 'Retrieve Approved Research'],
-            ['slug' => 'find-contact-adviser', 'title' => 'Find/Contact Adviser'],
-            ['slug' => 'adviser-availability', 'title' => 'Check Adviser Availability'],
-            ['slug' => 'assign-research-adviser', 'title' => 'Assign Research Adviser'],
-            ['slug' => 'retrieve-defense-ready-research', 'title' => 'Retrieve Defense-Ready Research'],
-            ['slug' => 'select-panel-members', 'title' => 'Select Panel Members'],
-            ['slug' => 'check-panel-availability', 'title' => 'Check Panel Availability'],
-            ['slug' => 'assign-panel-members', 'title' => 'Assign Panel Members'],
-            ['slug' => 'manage-assignments', 'title' => 'View/Manage Assignments'],
-            ['slug' => 'security-settings', 'title' => 'Security Settings'],
         ],
     ];
 }
@@ -478,6 +845,20 @@ function requireModuleAccess(string $moduleKey): void
     ) {
         header('Location: ' . BASE_URL . '/account/module-unavailable.php?module=' . rawurlencode($key));
         exit;
+    }
+
+    if ($key === 'crad' && getCurrentUserRoleKey() === 'department_head') {
+        $isAllowedDepartmentHeadPage = false;
+        foreach (smsDepartmentHeadWorkflowPaths() as $allowedPath) {
+            if (str_ends_with($scriptPath, $allowedPath)) {
+                $isAllowedDepartmentHeadPage = true;
+                break;
+            }
+        }
+        if (!$isAllowedDepartmentHeadPage) {
+            header('Location: ' . BASE_URL . '/modules/crad/pages/research-coordinator-management.php');
+            exit;
+        }
     }
 
     if ($key === 'crad' && getCurrentUserRoleKey() === 'research_coordinator') {
@@ -555,6 +936,13 @@ function requireModuleAccess(string $moduleKey): void
             '/modules/crad/grant-proposal-file.php',
         ];
         $roleKey = getCurrentUserRoleKey();
+        if (smsIsGrantedAdminRole($roleKey)) {
+            foreach (smsAdminCoordinatorWorkflowPaths() as $adminPath) {
+                if (str_ends_with($scriptPath, $adminPath)) {
+                    return;
+                }
+            }
+        }
         if (in_array($roleKey, ['student', 'adviser'], true)) {
             foreach ($grantResearcherPages as $allowedPath) {
                 if (str_ends_with($scriptPath, $allowedPath)) {
@@ -564,6 +952,13 @@ function requireModuleAccess(string $moduleKey): void
         }
         if (in_array($roleKey, ['review_committee', 'adviser'], true)) {
             foreach ($grantReviewerPages as $allowedPath) {
+                if (str_ends_with($scriptPath, $allowedPath)) {
+                    return;
+                }
+            }
+        }
+        if (smsIsPanelDefenseRole($roleKey)) {
+            foreach (smsPanelDefenseWorkflowPaths() as $allowedPath) {
                 if (str_ends_with($scriptPath, $allowedPath)) {
                     return;
                 }
@@ -592,9 +987,53 @@ function requireModuleAccess(string $moduleKey): void
             }
         }
 
+        if (str_ends_with($scriptPath, '/dashboard/index.php')) {
+            return;
+        }
         header('Location: ' . BASE_URL . '/dashboard/index.php');
         exit;
     }
+}
+
+/**
+ * Compact a login identifier for alias matching (letters/digits only).
+ */
+function smsCompactLoginKey(string $input): string
+{
+    $input = strtolower(trim($input));
+    if (str_contains($input, '@')) {
+        $input = explode('@', $input, 2)[0];
+    }
+
+    return preg_replace('/[^a-z0-9]/', '', $input) ?? '';
+}
+
+/**
+ * @return list<string>
+ */
+function smsLoginUsernameCandidates(string $input): array
+{
+    $raw = strtolower(trim($input));
+    $local = $raw;
+    if (str_contains($raw, '@')) {
+        $local = explode('@', $raw, 2)[0];
+    }
+    $compact = smsCompactLoginKey($raw);
+
+    $alias = [
+        'reviewcommitee' => 'reviewcommittee',
+        'reviewcommitte' => 'reviewcommittee',
+        'reviewcommitteemember' => 'reviewcommittee',
+        'reviewcommitteeember' => 'reviewcommittee',
+        'reviewcommittee' => 'reviewcommittee',
+    ];
+
+    $candidates = [$raw, $local, $compact];
+    if ($compact !== '' && isset($alias[$compact])) {
+        $candidates[] = $alias[$compact];
+    }
+
+    return array_values(array_unique(array_filter($candidates, static fn($v) => $v !== '')));
 }
 
 /**
@@ -612,39 +1051,40 @@ function smsFindUserByLogin(string $input): ?array
         return null;
     }
 
-    $username = $input;
-    $isStudentId = (bool) preg_match('/^s\d+$/i', $input);
-
-    if (str_ends_with($input, '@bestlink.edu.ph')) {
-        $username = substr($input, 0, (int) strpos($input, '@bestlink.edu.ph'));
+    $candidates = smsLoginUsernameCandidates($input);
+    $emailGuesses = [];
+    foreach ($candidates as $candidate) {
+        if (!str_contains($candidate, '@')) {
+            $emailGuesses[] = $candidate . '@bestlink.edu.ph';
+        }
+    }
+    $lookups = array_values(array_unique(array_merge($candidates, $emailGuesses, [$input])));
+    $compact = smsCompactLoginKey($input);
+    if ($lookups === []) {
+        return null;
     }
 
     try {
-        if (str_contains($input, '@')) {
-            $stmt = $pdo->prepare(
-                'SELECT u.*, r.label AS role_label
-                 FROM sms_users u
-                 INNER JOIN sms_roles r ON r.role_key = u.role_key
-                 WHERE LOWER(u.email) = ? OR LOWER(u.username) = ?
-                 LIMIT 1'
-            );
-            $stmt->execute([$input, $username]);
-        } else {
-            // Allow bare username (staff) or student ID
-            $stmt = $pdo->prepare(
-                'SELECT u.*, r.label AS role_label
-                 FROM sms_users u
-                 INNER JOIN sms_roles r ON r.role_key = u.role_key
-                 WHERE LOWER(u.username) = ?
-                    OR LOWER(u.student_id) = ?
-                    OR LOWER(u.email) = ?
-                 LIMIT 1'
-            );
-            $emailGuess = $username . '@bestlink.edu.ph';
-            $stmt->execute([$username, $username, $emailGuess]);
+        $placeholders = implode(',', array_fill(0, count($lookups), '?'));
+        $sql = "SELECT u.*, r.label AS role_label
+             FROM users u
+             LEFT JOIN roles r ON r.role_key = u.role_key
+             WHERE LOWER(TRIM(u.username)) IN ($placeholders)
+                OR LOWER(TRIM(u.email)) IN ($placeholders)
+                OR LOWER(TRIM(IFNULL(u.student_id, ''))) IN ($placeholders)";
+        $params = array_merge($lookups, $lookups, $lookups);
+        if (strlen($compact) >= 10) {
+            $sql .= " OR REPLACE(LOWER(TRIM(u.full_name)), ' ', '') = ?";
+            $params[] = $compact;
+        }
+        $sql .= ' LIMIT 1';
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
+        $row = $stmt->fetch() ?: null;
+        if ($row && ($row['role_label'] ?? '') === '') {
+            $row['role_label'] = (string) ($row['role_key'] ?? '');
         }
 
-        $row = $stmt->fetch();
         return $row ?: null;
     } catch (Throwable $e) {
         error_log('SMS2 find user failed: ' . $e->getMessage());
@@ -684,7 +1124,7 @@ function smsClearLockIfExpired(array $user): void
     }
 
     $pdo->prepare(
-        'UPDATE sms_users SET locked_until = NULL, failed_login_attempts = 0,
+        'UPDATE users SET locked_until = NULL, failed_login_attempts = 0,
          status = CASE WHEN status = \'locked\' THEN \'active\' ELSE status END
          WHERE id = ?'
     )->execute([(int) $user['id']]);
@@ -737,40 +1177,41 @@ function smsLockRemainingSeconds(array $user): int
     return max(1, $until - time());
 }
 
-function smsLoginThrottleIpKey(): string
-{
-    return hash('sha256', 'ip|' . smsClientIp());
-}
-
 function smsLoginThrottleKey(string $loginInput = ''): string
 {
     $ip = smsClientIp();
     $norm = strtolower(trim($loginInput));
+    // IP-wide key (anti-spam for random emails) — primary gate
     if ($norm === '') {
-        return smsLoginThrottleIpKey();
+        return hash('sha256', 'ip|' . $ip);
     }
-    return hash('sha256', 'ipuser|' . $ip . '|' . $norm);
-}
-
-/**
- * Dual keys: IP aggregate (credential stuffing) + IP+username (account lockout).
- *
- * @return list<string>
- */
-function smsLoginThrottleKeys(string $loginInput = ''): array
-{
-    $keys = [smsLoginThrottleIpKey()];
-    $norm = strtolower(trim($loginInput));
-    if ($norm !== '') {
-        $keys[] = smsLoginThrottleKey($loginInput);
-    }
-    return array_values(array_unique($keys));
+    return hash('sha256', 'ip|' . $ip);
 }
 
 function smsEnsureLoginThrottleTables(): void
 {
-    if (function_exists('smsEnsureSecurityTables')) {
-        smsEnsureSecurityTables();
+    $pdo = db();
+    if (!$pdo) {
+        return;
+    }
+
+    try {
+        $pdo->exec(
+            'CREATE TABLE IF NOT EXISTS login_throttles (
+                id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+                throttle_key CHAR(64) NOT NULL,
+                ip_address VARCHAR(45) NOT NULL,
+                attempts INT UNSIGNED NOT NULL DEFAULT 0,
+                locked_until DATETIME NULL,
+                updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                UNIQUE KEY uq_login_throttle_key (throttle_key),
+                KEY idx_login_throttle_ip (ip_address),
+                KEY idx_login_throttle_locked (locked_until)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
+        );
+    } catch (Throwable $e) {
+        error_log('smsEnsureLoginThrottleTables: ' . $e->getMessage());
     }
 }
 
@@ -795,50 +1236,43 @@ function smsGetLoginThrottle(string $loginInput = ''): array
         return $empty;
     }
 
-    $keys = smsLoginThrottleKeys($loginInput);
-    $worst = null;
-    foreach ($keys as $key) {
-        $stmt = $pdo->prepare('SELECT attempts, locked_until FROM sms_login_throttles WHERE throttle_key = ? LIMIT 1');
-        $stmt->execute([$key]);
-        $row = $stmt->fetch();
-        if (!$row) {
-            continue;
-        }
+    $key = smsLoginThrottleKey($loginInput);
+    $stmt = $pdo->prepare('SELECT attempts, locked_until FROM login_throttles WHERE throttle_key = ? LIMIT 1');
+    $stmt->execute([$key]);
+    $row = $stmt->fetch();
+    if (!$row) {
+        return $empty;
+    }
 
-        $lockedUntil = $row['locked_until'] ?? null;
-        if ($lockedUntil) {
-            $untilTs = strtotime((string) $lockedUntil);
-            if ($untilTs !== false && $untilTs <= time()) {
-                $pdo->prepare('UPDATE sms_login_throttles SET attempts = 0, locked_until = NULL WHERE throttle_key = ?')
-                    ->execute([$key]);
-                continue;
-            }
-            if ($untilTs !== false && $untilTs > time()) {
-                return [
-                    'attempts' => (int) $row['attempts'],
-                    'max' => $maxFails,
-                    'remaining' => 0,
-                    'locked' => true,
-                    'lock_seconds' => $lockSeconds,
-                    'locked_until' => (string) $lockedUntil,
-                ];
-            }
+    $lockedUntil = $row['locked_until'] ?? null;
+    if ($lockedUntil) {
+        $untilTs = strtotime((string) $lockedUntil);
+        if ($untilTs !== false && $untilTs <= time()) {
+            $pdo->prepare('UPDATE login_throttles SET attempts = 0, locked_until = NULL WHERE throttle_key = ?')
+                ->execute([$key]);
+            return $empty;
         }
-
-        $attempts = (int) $row['attempts'];
-        if ($worst === null || $attempts > (int) $worst['attempts']) {
-            $worst = [
-                'attempts' => $attempts,
+        if ($untilTs !== false && $untilTs > time()) {
+            return [
+                'attempts' => (int) $row['attempts'],
                 'max' => $maxFails,
-                'remaining' => $maxFails > 0 ? max(0, $maxFails - $attempts) : null,
-                'locked' => false,
+                'remaining' => 0,
+                'locked' => true,
                 'lock_seconds' => $lockSeconds,
-                'locked_until' => null,
+                'locked_until' => (string) $lockedUntil,
             ];
         }
     }
 
-    return $worst ?? $empty;
+    $attempts = (int) $row['attempts'];
+    return [
+        'attempts' => $attempts,
+        'max' => $maxFails,
+        'remaining' => $maxFails > 0 ? max(0, $maxFails - $attempts) : null,
+        'locked' => false,
+        'lock_seconds' => $lockSeconds,
+        'locked_until' => null,
+    ];
 }
 
 /**
@@ -850,7 +1284,7 @@ function smsRegisterLoginThrottleFailure(string $loginInput = ''): array
     $pdo = db();
     $maxFails = max(0, (int) smsSetting('max_failed_logins', '3'));
     $lockSeconds = smsLockoutSeconds();
-    $keys = smsLoginThrottleKeys($loginInput);
+    $key = smsLoginThrottleKey($loginInput);
     $ip = smsClientIp();
 
     $result = [
@@ -871,46 +1305,38 @@ function smsRegisterLoginThrottleFailure(string $loginInput = ''): array
         return $current;
     }
 
-    foreach ($keys as $key) {
-        try {
-            $pdo->prepare(
-                'INSERT INTO sms_login_throttles (throttle_key, ip_address, attempts, locked_until)
-                 VALUES (?, ?, 1, NULL)
-                 ON DUPLICATE KEY UPDATE
-                    attempts = attempts + 1,
-                    ip_address = VALUES(ip_address),
-                    locked_until = IF(locked_until IS NOT NULL AND locked_until > NOW(), locked_until, NULL)'
-            )->execute([$key, $ip]);
-        } catch (Throwable $e) {
-            error_log('SMS2 login throttle insert: ' . $e->getMessage());
-            return $result;
-        }
-    }
+    // Atomic increment — prevents spam/race from skipping the lock threshold
+    $pdo->prepare(
+        'INSERT INTO login_throttles (throttle_key, ip_address, attempts, locked_until)
+         VALUES (?, ?, 1, NULL)
+         ON DUPLICATE KEY UPDATE
+            attempts = attempts + 1,
+            ip_address = VALUES(ip_address),
+            locked_until = IF(locked_until IS NOT NULL AND locked_until > NOW(), locked_until, NULL)'
+    )->execute([$key, $ip]);
 
-    $attempts = 1;
-    foreach ($keys as $key) {
-        $stmt = $pdo->prepare('SELECT attempts FROM sms_login_throttles WHERE throttle_key = ? LIMIT 1');
-        $stmt->execute([$key]);
-        $attempts = max($attempts, (int) ($stmt->fetchColumn() ?: 1));
-    }
-
+    $stmt = $pdo->prepare('SELECT attempts, locked_until FROM login_throttles WHERE throttle_key = ? LIMIT 1');
+    $stmt->execute([$key]);
+    $row = $stmt->fetch() ?: [];
+    $attempts = max(1, (int) ($row['attempts'] ?? 1));
     $lockedUntil = null;
     $locked = false;
 
     if ($maxFails > 0 && $attempts >= $maxFails) {
         $locked = true;
-        foreach ($keys as $key) {
-            try {
-                $pdo->prepare(
-                    'UPDATE sms_login_throttles
-                     SET locked_until = DATE_ADD(NOW(), INTERVAL ? SECOND)
-                     WHERE throttle_key = ?'
-                )->execute([$lockSeconds, $key]);
-            } catch (Throwable $e) {
-                error_log('SMS2 login throttle lock: ' . $e->getMessage());
-            }
+        $pdo->prepare(
+            'UPDATE login_throttles
+             SET locked_until = DATE_ADD(NOW(), INTERVAL ? SECOND)
+             WHERE throttle_key = ?'
+        )->execute([$lockSeconds, $key]);
+        $fresh = $pdo->prepare('SELECT locked_until FROM login_throttles WHERE throttle_key = ? LIMIT 1');
+        $fresh->execute([$key]);
+        $lockedUntil = $fresh->fetchColumn() ?: null;
+        if (is_string($lockedUntil) && $lockedUntil !== '') {
+            $lockedUntil = (string) $lockedUntil;
+        } else {
+            $lockedUntil = null;
         }
-        $lockedUntil = date('Y-m-d H:i:s', time() + $lockSeconds);
     }
 
     return [
@@ -930,10 +1356,8 @@ function smsClearLoginThrottle(string $loginInput = ''): void
         return;
     }
     smsEnsureLoginThrottleTables();
-    foreach (smsLoginThrottleKeys($loginInput) as $key) {
-        $pdo->prepare('DELETE FROM sms_login_throttles WHERE throttle_key = ?')
-            ->execute([$key]);
-    }
+    $pdo->prepare('DELETE FROM login_throttles WHERE throttle_key = ?')
+        ->execute([smsLoginThrottleKey($loginInput)]);
 }
 
 /**
@@ -948,29 +1372,20 @@ function smsForceLoginThrottleLock(string $loginInput = '', ?int $lockSeconds = 
     }
     $seconds = max(1, $lockSeconds ?? smsLockoutSeconds());
     $attempts = max(1, $minAttempts ?? max(1, (int) smsSetting('max_failed_logins', '3')));
-    $until = null;
-    foreach (smsLoginThrottleKeys($loginInput) as $key) {
-        try {
-            $pdo->prepare(
-                'INSERT INTO sms_login_throttles (throttle_key, ip_address, attempts, locked_until)
-                 VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL ? SECOND))
-                 ON DUPLICATE KEY UPDATE
-                    attempts = GREATEST(attempts, VALUES(attempts)),
-                    locked_until = DATE_ADD(NOW(), INTERVAL ? SECOND),
-                    ip_address = VALUES(ip_address)'
-            )->execute([$key, smsClientIp(), $attempts, $seconds, $seconds]);
+    $key = smsLoginThrottleKey($loginInput);
+    $pdo->prepare(
+        'INSERT INTO login_throttles (throttle_key, ip_address, attempts, locked_until)
+         VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL ? SECOND))
+         ON DUPLICATE KEY UPDATE
+            attempts = GREATEST(attempts, VALUES(attempts)),
+            locked_until = DATE_ADD(NOW(), INTERVAL ? SECOND),
+            ip_address = VALUES(ip_address)'
+    )->execute([$key, smsClientIp(), $attempts, $seconds, $seconds]);
 
-            $stmt = $pdo->prepare('SELECT locked_until FROM sms_login_throttles WHERE throttle_key = ? LIMIT 1');
-            $stmt->execute([$key]);
-            $rowUntil = $stmt->fetchColumn();
-            if ($rowUntil) {
-                $until = (string) $rowUntil;
-            }
-        } catch (Throwable $e) {
-            error_log('SMS2 force login throttle: ' . $e->getMessage());
-        }
-    }
-    return $until;
+    $stmt = $pdo->prepare('SELECT locked_until FROM login_throttles WHERE throttle_key = ? LIMIT 1');
+    $stmt->execute([$key]);
+    $until = $stmt->fetchColumn();
+    return $until ? (string) $until : null;
 }
 
 function smsLoginGateSet(?string $lockedUntil, string $message, string $alert = 'warning', ?int $lockSeconds = null): void
@@ -1093,11 +1508,11 @@ function smsRegisterFailedLogin(array $user): array
 
     // Atomic increment — rapid spam clicks must still hit the lock threshold
     $pdo->prepare(
-        'UPDATE sms_users SET failed_login_attempts = failed_login_attempts + 1 WHERE id = ?'
+        'UPDATE users SET failed_login_attempts = failed_login_attempts + 1 WHERE id = ?'
     )->execute([(int) $user['id']]);
 
     $fresh = $pdo->prepare(
-        'SELECT failed_login_attempts, locked_until, status FROM sms_users WHERE id = ? LIMIT 1'
+        'SELECT failed_login_attempts, locked_until, status FROM users WHERE id = ? LIMIT 1'
     );
     $fresh->execute([(int) $user['id']]);
     $row = $fresh->fetch() ?: [];
@@ -1107,14 +1522,14 @@ function smsRegisterFailedLogin(array $user): array
 
     if ($maxFails > 0 && $attempts >= $maxFails) {
         $pdo->prepare(
-            'UPDATE sms_users
+            'UPDATE users
              SET locked_until = DATE_ADD(NOW(), INTERVAL ? SECOND), status = \'locked\'
              WHERE id = ?'
         )->execute([$lockSeconds, (int) $user['id']]);
 
         $result['locked'] = true;
         $result['remaining'] = 0;
-        $untilStmt = $pdo->prepare('SELECT locked_until FROM sms_users WHERE id = ? LIMIT 1');
+        $untilStmt = $pdo->prepare('SELECT locked_until FROM users WHERE id = ? LIMIT 1');
         $untilStmt->execute([(int) $user['id']]);
         $result['locked_until'] = $untilStmt->fetchColumn() ?: null;
 
@@ -1140,7 +1555,7 @@ function smsRegisterSuccessfulLogin(array $user): void
     }
 
     $pdo->prepare(
-        'UPDATE sms_users
+        'UPDATE users
          SET failed_login_attempts = 0, locked_until = NULL,
              last_login_at = NOW(), last_login_ip = ?,
              status = CASE WHEN status = \'locked\' THEN \'active\' ELSE status END
@@ -1178,24 +1593,6 @@ function smsLoginAttempt(string $username, string $password): array
         return $pack('empty', 'Please enter your email and password.');
     }
 
-    if (!db()) {
-        return $pack(
-            'db_unavailable',
-            'Database unavailable. Set DB_HOST, DB_PORT, and DB_DATABASE in HostForge Environment Variables, redeploy, then open /setup/health.php to verify.',
-            'danger'
-        );
-    }
-
-    if (!smsUsersTableExists(db())) {
-        return $pack(
-            'schema_missing',
-            'The attached database has no sms_users table. Import database/sms2_db.sql into '
-            . DB_NAME
-            . ' (HostForge DB_DATABASE), then try again.',
-            'danger'
-        );
-    }
-
     // IP / login gate first (covers random spam emails too)
     $throttle = smsGetLoginThrottle($username);
     if (!empty($throttle['locked'])) {
@@ -1221,7 +1618,7 @@ function smsLoginAttempt(string $username, string $password): array
         $failInfo = smsRegisterLoginThrottleFailure($username);
         logActivity(
             'login_failed',
-            'Invalid login attempt (unknown credentials)',
+            'Invalid login attempt (unknown credentials: ' . substr($username, 0, 80) . ')',
             'System',
             null,
             'Unknown',
@@ -1337,7 +1734,7 @@ function smsLoginAttempt(string $username, string $password): array
     if (password_needs_rehash((string) $user['password_hash'], PASSWORD_DEFAULT)) {
         $pdo = db();
         if ($pdo) {
-            $pdo->prepare('UPDATE sms_users SET password_hash = ?, password_changed_at = password_changed_at WHERE id = ?')
+            $pdo->prepare('UPDATE users SET password_hash = ?, password_changed_at = password_changed_at WHERE id = ?')
                 ->execute([password_hash($password, PASSWORD_DEFAULT), (int) $user['id']]);
         }
     }
@@ -1447,11 +1844,11 @@ function smsCreatePasswordResetToken(int $userId): ?string
 
     // Invalidate previous unused tokens
     $pdo->prepare(
-        'UPDATE sms_password_resets SET used_at = NOW() WHERE user_id = ? AND used_at IS NULL'
+        'UPDATE password_resets SET used_at = NOW() WHERE user_id = ? AND used_at IS NULL'
     )->execute([$userId]);
 
     $pdo->prepare(
-        'INSERT INTO sms_password_resets (user_id, token_hash, expires_at, created_ip)
+        'INSERT INTO password_resets (user_id, token_hash, expires_at, created_ip)
          VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 1 HOUR), ?)'
     )->execute([$userId, $hash, smsClientIp()]);
 
@@ -1470,7 +1867,7 @@ function smsResetPasswordWithToken(string $rawToken, string $newPassword): bool
 
     $hash = hash('sha256', $rawToken);
     $stmt = $pdo->prepare(
-        'SELECT * FROM sms_password_resets
+        'SELECT * FROM password_resets
          WHERE token_hash = ? AND used_at IS NULL AND expires_at > NOW()
          LIMIT 1'
     );
@@ -1484,14 +1881,14 @@ function smsResetPasswordWithToken(string $rawToken, string $newPassword): bool
     $pdo->beginTransaction();
     try {
         $pdo->prepare(
-            'UPDATE sms_users
+            'UPDATE users
              SET password_hash = ?, must_change_password = 0, password_changed_at = NOW(),
                  failed_login_attempts = 0, locked_until = NULL,
                  status = CASE WHEN status = \'locked\' THEN \'active\' ELSE status END
              WHERE id = ?'
         )->execute([password_hash($newPassword, PASSWORD_DEFAULT), $userId]);
 
-        $pdo->prepare('UPDATE sms_password_resets SET used_at = NOW() WHERE id = ?')
+        $pdo->prepare('UPDATE password_resets SET used_at = NOW() WHERE id = ?')
             ->execute([(int) $row['id']]);
 
         $pdo->commit();
@@ -1516,15 +1913,29 @@ function smsSetUserPassword(int $userId, string $newPassword, bool $forceChange 
     }
 
     $pdo->prepare(
-        'UPDATE sms_users
+        'UPDATE users
          SET password_hash = ?, must_change_password = ?, password_changed_at = NOW(),
-             failed_login_attempts = 0, locked_until = NULL
+             failed_login_attempts = 0, locked_until = NULL,
+             status = CASE WHEN status = \'locked\' THEN \'active\' ELSE status END
          WHERE id = ?'
     )->execute([
         password_hash($newPassword, PASSWORD_DEFAULT),
         $forceChange ? 1 : 0,
         $userId,
     ]);
+
+    try {
+        $user = $pdo->prepare('SELECT username, email FROM users WHERE id = ? LIMIT 1');
+        $user->execute([$userId]);
+        $row = $user->fetch() ?: [];
+        if (function_exists('smsClearLoginThrottle')) {
+            smsClearLoginThrottle((string) ($row['username'] ?? ''));
+            smsClearLoginThrottle((string) ($row['email'] ?? ''));
+            smsClearLoginThrottle('');
+        }
+    } catch (Throwable $e) {
+        error_log('smsSetUserPassword throttle clear skipped: ' . $e->getMessage());
+    }
 
     return true;
 }
@@ -1575,10 +1986,10 @@ function smsEnsureUserPresenceColumn(): void
         return;
     }
     try {
-        $col = $pdo->query("SHOW COLUMNS FROM sms_users LIKE 'last_seen_at'")->fetch();
+        $col = $pdo->query("SHOW COLUMNS FROM users LIKE 'last_seen_at'")->fetch();
         if (!$col) {
             $pdo->exec(
-                'ALTER TABLE sms_users
+                'ALTER TABLE users
                  ADD COLUMN last_seen_at DATETIME NULL AFTER last_login_at,
                  ADD KEY idx_users_last_seen (last_seen_at)'
             );
@@ -1611,7 +2022,7 @@ function smsTouchUserPresence(?int $userId = null): void
         return;
     }
     try {
-        $stmt = $pdo->prepare('UPDATE sms_users SET last_seen_at = ? WHERE id = ? LIMIT 1');
+        $stmt = $pdo->prepare('UPDATE users SET last_seen_at = ? WHERE id = ? LIMIT 1');
         $stmt->execute([date('Y-m-d H:i:s', $now), $userId]);
         $_SESSION['presence_touched_at'] = $now;
     } catch (Throwable $e) {
@@ -1630,7 +2041,7 @@ function smsMarkUserOffline(int $userId): void
         return;
     }
     try {
-        $stmt = $pdo->prepare('UPDATE sms_users SET last_seen_at = NULL WHERE id = ? LIMIT 1');
+        $stmt = $pdo->prepare('UPDATE users SET last_seen_at = NULL WHERE id = ? LIMIT 1');
         $stmt->execute([$userId]);
     } catch (Throwable $e) {
         // ignore

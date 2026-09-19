@@ -32,7 +32,7 @@ if (!$canAccess && grantUserCanApply()) {
     $cradCheck = cradDb();
     if ($cradCheck) {
         $ownerStmt = $cradCheck->prepare(
-            'SELECT id FROM crad_grant_applications WHERE id = ? AND applicant_user_id = ? LIMIT 1'
+            'SELECT id FROM grant_applications WHERE id = ? AND applicant_user_id = ? LIMIT 1'
         );
         $ownerStmt->execute([$applicationId, (int) ($_SESSION['user_id'] ?? 0)]);
         $canAccess = (bool) $ownerStmt->fetchColumn();

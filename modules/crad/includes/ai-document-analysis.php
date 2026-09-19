@@ -30,7 +30,7 @@ function rpCursorApiKey(): string
 function rpEnsureAiAnalysisSchema(PDO $crad): void
 {
     $crad->exec(
-        "CREATE TABLE IF NOT EXISTS crad_research_progress_ai_analyses (
+        "CREATE TABLE IF NOT EXISTS research_progress_ai_analyses (
             id INT UNSIGNED NOT NULL AUTO_INCREMENT,
             progress_update_id INT UNSIGNED NOT NULL,
             attachment_id INT UNSIGNED NOT NULL DEFAULT 0,
@@ -57,7 +57,7 @@ function rpLatestAiAnalysisForUpdate(PDO $crad, int $progressUpdateId): ?array
     rpEnsureAiAnalysisSchema($crad);
     $stmt = $crad->prepare(
         "SELECT *
-         FROM crad_research_progress_ai_analyses
+         FROM research_progress_ai_analyses
          WHERE progress_update_id = ?
          ORDER BY id DESC
          LIMIT 1"
@@ -78,7 +78,7 @@ function rpSaveAiAnalysis(PDO $crad, array $data): int
 {
     rpEnsureAiAnalysisSchema($crad);
     $stmt = $crad->prepare(
-        "INSERT INTO crad_research_progress_ai_analyses (
+        "INSERT INTO research_progress_ai_analyses (
             progress_update_id, attachment_id, milestone_name, verdict, grammar_quality,
             summary, notes_json, source, analyzed_by, analyzed_by_name
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"

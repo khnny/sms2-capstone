@@ -3,16 +3,16 @@
  * CRAD API — Send Title Approval Form to Adviser
  *
  * POST /modules/crad/api/send-to-adviser.php
- * 1. Validates the adviser exists in sms_users
+ * 1. Validates the adviser exists in sms2_db.users
  * 2. Returns {ok:false, no_account:true} when adviser has no account
- * 3. Inserts into crad_title_approvals when all is well
+ * 3. Inserts into crad_db.title_approvals when all is well
  */
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../../config/config.php';
 require_once __DIR__ . '/../config/config.php';
 require_once ROOT_PATH . '/includes/authentication.php';
-require_once ROOT_PATH . '/includes/security.php';
+require_once __DIR__ . '/../includes/title-approval-assignees.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -28,11 +28,6 @@ if (!isAuthenticated()) {
     saJson(false, 'Not authenticated.');
 }
 
-if (getCurrentUserRoleKey() !== 'student') {
-    http_response_code(403);
-    saJson(false, 'Only students can submit title approvals.');
-}
-
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
     saJson(false, 'Method not allowed.');
@@ -45,19 +40,13 @@ if (!is_array($body)) {
     saJson(false, 'Invalid JSON body.');
 }
 
-requireCsrfJson($body);
-
-// Bind identity to the authenticated session — never trust client-supplied student fields.
-$sessionUserId = (int) (getCurrentUserId() ?? 0);
-$studentId     = trim((string) ($_SESSION['student_id'] ?? ''));
-$studentUserId = $sessionUserId > 0 ? $sessionUserId : null;
-$studentName   = trim((string) ($_SESSION['user_name'] ?? $_SESSION['full_name'] ?? ''));
-if ($studentName === '') {
-    $studentName = trim((string) ($_SESSION['username'] ?? 'Student'));
-}
-$adviserName   = trim((string) ($body['adviser_name']     ?? ''));
-$adviserEmail  = trim((string) ($body['adviser_email']    ?? ''));
-$coordName     = trim((string) ($body['coordinator_name'] ?? ''));
+$studentId     = trim((string) ($body['student_id']       ?? ''));
+$studentUserId = isset($body['student_user_id']) && $body['student_user_id'] !== ''
+                    ? (int) $body['student_user_id'] : null;
+$studentName   = trim((string) ($body['student_name']     ?? ''));
+$adviserName   = '';
+$adviserEmail  = '';
+$coordName     = '';
 $title         = trim((string) ($body['research_title']   ?? ''));
 $dept          = trim((string) ($body['department']       ?? ''));
 $dateStr       = trim((string) ($body['submission_date']  ?? date('Y-m-d')));
@@ -68,62 +57,9 @@ $justification = trim((string) ($body['justification']    ?? ''));
 $membersRaw    = $body['members'] ?? '[]';
 $submissionId  = (int) ($body['submission_id'] ?? 0);
 
-if ($studentId === '' && $sessionUserId <= 0) {
-    http_response_code(422);
-    saJson(false, 'Your student profile is incomplete. Contact the registrar.');
-}
-
-if ($coordName === '' || strcasecmp($coordName, 'Research Coordinator') === 0 || strcasecmp($coordName, 'Program Research Coordinator') === 0) {
-    $coordName = 'Mrs. Kris Guevarra';
-}
-
 if ($title === '') {
     http_response_code(422);
     saJson(false, 'Research title is required.');
-}
-if ($adviserName === '' && $adviserEmail === '') {
-    http_response_code(422);
-    saJson(false, 'No assigned adviser found for this student.');
-}
-
-/* ── Check adviser has an account in sms2_db ─────────────── */
-try {
-    $mainPdo = db();
-    if (!$mainPdo) {
-        saJson(false, 'Unable to verify adviser account right now. Please try again shortly.', [
-            'db_unavailable' => true,
-        ]);
-    }
-
-    /* Match by email first (most reliable), then by full_name */
-    $chk = $mainPdo->prepare(
-        "SELECT id, full_name, email FROM sms_users
-         WHERE status = 'active'
-           AND (
-                (email != '' AND LOWER(email) = LOWER(:email))
-             OR LOWER(full_name) = LOWER(:name)
-           )
-         LIMIT 1"
-    );
-    $chk->execute([':email' => $adviserEmail, ':name' => $adviserName]);
-    $adviserUser = $chk->fetch();
-
-    if (!$adviserUser) {
-        /* Adviser has no account — tell the client */
-        saJson(false, 'The message cannot be sent because the adviser does not have an account.', [
-            'no_account' => true,
-            'adviser'    => $adviserName ?: $adviserEmail,
-        ]);
-    }
-
-    /* Use the exact name/email from the system account */
-    $adviserName  = (string) $adviserUser['full_name'];
-    $adviserEmail = (string) $adviserUser['email'];
-} catch (Throwable $e) {
-    error_log('Adviser account check failed: ' . $e->getMessage());
-    saJson(false, 'Unable to verify adviser account right now. Please try again shortly.', [
-        'db_unavailable' => true,
-    ]);
 }
 
 /* ── Normalise date ──────────────────────────────────────── */
@@ -145,23 +81,62 @@ try {
     saJson(false, 'Database unavailable: ' . $e->getMessage());
 }
 
+$official = cradStudentOfficialAssignees($pdo, $studentId);
+$adviserName = trim((string) ($official['adviser_name'] ?? ''));
+$adviserEmail = trim((string) ($official['adviser_email'] ?? ''));
+$coordName = trim((string) ($official['coordinator_name'] ?? ''));
+if ($adviserName === '' || $coordName === '') {
+    http_response_code(422);
+    saJson(false, 'Wait until Admin assigns both a Research Coordinator (from the Coordinator Roster) and a Research Adviser. Names stay blank on the Title Approval Form until then.');
+}
+
+/* ── Check adviser has an account in sms2_db ─────────────── */
 try {
-    $sigCol = $pdo->query("SHOW COLUMNS FROM crad_title_approvals LIKE 'adviser_signature_data'")->fetch();
+    $mainPdo = db();
+    if ($mainPdo) {
+        $chk = $mainPdo->prepare(
+            "SELECT id, full_name, email FROM users
+             WHERE status = 'active'
+               AND (
+                    (email != '' AND LOWER(email) = LOWER(:email))
+                 OR LOWER(full_name) = LOWER(:name)
+               )
+             LIMIT 1"
+        );
+        $chk->execute([':email' => $adviserEmail, ':name' => $adviserName]);
+        $adviserUser = $chk->fetch();
+
+        if (!$adviserUser) {
+            saJson(false, 'The message cannot be sent because the adviser does not have an account.', [
+                'no_account' => true,
+                'adviser'    => $adviserName ?: $adviserEmail,
+            ]);
+        }
+
+        $adviserName  = (string) $adviserUser['full_name'];
+        $adviserEmail = (string) $adviserUser['email'];
+    }
+} catch (Throwable $e) {
+    error_log('Adviser account check failed: ' . $e->getMessage());
+}
+
+try {
+    $sigCol = $pdo->query("SHOW COLUMNS FROM title_approvals LIKE 'adviser_signature_data'")->fetch();
     if (!$sigCol) {
-        $pdo->exec("ALTER TABLE crad_title_approvals ADD COLUMN adviser_signature_data MEDIUMTEXT NULL DEFAULT NULL AFTER adviser_remarks");
+        $pdo->exec("ALTER TABLE title_approvals ADD COLUMN adviser_signature_data MEDIUMTEXT NULL DEFAULT NULL AFTER adviser_remarks");
     }
     $workflowColumns = [
-        'coordinator_status' => "ALTER TABLE crad_title_approvals ADD COLUMN coordinator_status VARCHAR(30) NOT NULL DEFAULT 'Not Ready' AFTER adviser_signature_data",
-        'coordinator_remarks' => "ALTER TABLE crad_title_approvals ADD COLUMN coordinator_remarks TEXT NULL DEFAULT NULL AFTER coordinator_status",
-        'coordinator_screening_json' => "ALTER TABLE crad_title_approvals ADD COLUMN coordinator_screening_json TEXT NULL DEFAULT NULL AFTER coordinator_remarks",
-        'coordinator_signature_data' => "ALTER TABLE crad_title_approvals ADD COLUMN coordinator_signature_data MEDIUMTEXT NULL DEFAULT NULL AFTER coordinator_remarks",
-        'coordinator_reviewed_at' => "ALTER TABLE crad_title_approvals ADD COLUMN coordinator_reviewed_at DATETIME NULL DEFAULT NULL AFTER coordinator_signature_data",
-        'crad_status' => "ALTER TABLE crad_title_approvals ADD COLUMN crad_status VARCHAR(30) NOT NULL DEFAULT 'Not Ready' AFTER coordinator_reviewed_at",
-        'crad_signature_data' => "ALTER TABLE crad_title_approvals ADD COLUMN crad_signature_data MEDIUMTEXT NULL DEFAULT NULL AFTER crad_status",
-        'crad_reviewed_at' => "ALTER TABLE crad_title_approvals ADD COLUMN crad_reviewed_at DATETIME NULL DEFAULT NULL AFTER crad_signature_data",
+        'coordinator_status' => "ALTER TABLE title_approvals ADD COLUMN coordinator_status VARCHAR(30) NOT NULL DEFAULT 'Not Ready' AFTER adviser_signature_data",
+        'coordinator_remarks' => "ALTER TABLE title_approvals ADD COLUMN coordinator_remarks TEXT NULL DEFAULT NULL AFTER coordinator_status",
+        'coordinator_screening_json' => "ALTER TABLE title_approvals ADD COLUMN coordinator_screening_json TEXT NULL DEFAULT NULL AFTER coordinator_remarks",
+        'coordinator_signature_data' => "ALTER TABLE title_approvals ADD COLUMN coordinator_signature_data MEDIUMTEXT NULL DEFAULT NULL AFTER coordinator_remarks",
+        'coordinator_reviewed_at' => "ALTER TABLE title_approvals ADD COLUMN coordinator_reviewed_at DATETIME NULL DEFAULT NULL AFTER coordinator_signature_data",
+        'crad_status' => "ALTER TABLE title_approvals ADD COLUMN crad_status VARCHAR(30) NOT NULL DEFAULT 'Not Ready' AFTER coordinator_reviewed_at",
+        'crad_signature_data' => "ALTER TABLE title_approvals ADD COLUMN crad_signature_data MEDIUMTEXT NULL DEFAULT NULL AFTER crad_status",
+        'crad_reviewed_at' => "ALTER TABLE title_approvals ADD COLUMN crad_reviewed_at DATETIME NULL DEFAULT NULL AFTER crad_signature_data",
     ];
     foreach ($workflowColumns as $column => $sql) {
-        if (!$pdo->query("SHOW COLUMNS FROM crad_title_approvals LIKE " . $pdo->quote($column))->fetch()) {
+        if (!$pdo->query("SHOW COLUMNS FROM title_approvals LIKE " . $pdo->quote($column))->fetch()) {
             $pdo->exec($sql);
         }
     }
@@ -174,7 +149,7 @@ $existingId = 0;
 if ($submissionId > 0) {
     $byId = $pdo->prepare(
         "SELECT id, status, coordinator_status
-         FROM crad_title_approvals
+         FROM title_approvals
          WHERE id = :id AND student_id = :sid
          LIMIT 1"
     );
@@ -194,7 +169,7 @@ if ($submissionId > 0) {
 if ($existingId === 0) {
     $findExisting = $pdo->prepare(
         "SELECT id, status, coordinator_status
-         FROM crad_title_approvals
+         FROM title_approvals
          WHERE student_id = :sid AND proposed_title = :title
          ORDER BY id DESC
          LIMIT 1"
@@ -214,7 +189,7 @@ if ($existingId === 0) {
 
 if ($existingId > 0) {
     $update = $pdo->prepare("
-        UPDATE crad_title_approvals
+        UPDATE title_approvals
         SET student_user_id = :student_user_id,
             student_name = :student_name,
             submission_date = :submission_date,
@@ -271,7 +246,7 @@ if ($existingId > 0) {
 }
 
 $stmt = $pdo->prepare("
-    INSERT INTO crad_title_approvals
+    INSERT INTO title_approvals
         (student_id, student_user_id, student_name, submission_date, department,
          proposed_title, discipline_cluster, primary_sdg, research_agenda,
          sdg_justification, members_json, adviser_name, adviser_email,

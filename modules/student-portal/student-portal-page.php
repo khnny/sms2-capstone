@@ -7,9 +7,20 @@ $studentPortalPage = $studentPortalPage ?? 'my-profile';
 require_once __DIR__ . '/../../config/config.php';
 require_once ROOT_PATH . '/includes/authentication.php';
 require_once ROOT_PATH . '/modules/crad/config/config.php';
+require_once ROOT_PATH . '/includes/announcements.php';
 require_once __DIR__ . '/../../includes/breadcrumbs.php';
+require_once __DIR__ . '/includes/student-profile.php';
 
-$studentId = $_SESSION['student_id'] ?? 'S230000001';
+$studentUserId = (int) ($_SESSION['user_id'] ?? 0);
+$studentId = strtoupper(trim((string) ($_SESSION['student_id'] ?? '')));
+$studentProfile = studentPortalLoadProfile(
+    db(),
+    $studentUserId,
+    $studentId,
+    getCurrentUserName() ?: 'Student',
+    (string) ($_SESSION['user_email'] ?? '')
+);
+$studentId = (string) ($studentProfile['student_id'] ?: $studentId);
 
 $latestTitleApproval = null;
 $researchCurrentStatus = 'Not Started';
@@ -23,7 +34,7 @@ try {
     $titleStmt = $cradPdo->prepare(
         "SELECT proposed_title, status, adviser_name, coordinator_status, crad_status,
                 sent_at, reviewed_at, coordinator_reviewed_at, crad_reviewed_at, updated_at
-         FROM crad_title_approvals
+         FROM title_approvals
          WHERE student_id = :student_id
          ORDER BY id DESC
          LIMIT 1"
@@ -79,32 +90,24 @@ if (($_GET['ajax'] ?? '') === 'research-status') {
 }
 
 // ── Research Forum payment check ─────────────────────────────────────────────
-// Payment Management has no live gateway yet. Do not invent "Paid" OR rows.
-// Keep research flows open until a real ledger exists; show an honest notice.
-$paymentModuleLive = false;
-$paymentTransactions = [];
-$researchForumPaid = true;
-$paymentSystemNotice = 'Online payment is not connected yet. Research Forum fee is not verified from a live ledger.';
-if ($paymentModuleLive) {
-    // Future: query payments table for this student and set $researchForumPaid accordingly.
-    $researchForumPaid = false;
-}
-
-$studentProfile = [
-    'name' => getCurrentUserName() ?: 'Student',
-    'student_id' => $studentId,
-    'program' => 'Bachelor of Science in Information Technology',
-    'year_level' => '4th Year',
-    'section' => 'BSIT 4A',
-    'semester' => '1st Semester',
-    'school_year' => '2026-2027',
-    'status' => 'Enrolled',
-    'email' => (string) ($_SESSION['user_email'] ?? 'student@bcp.edu.ph'),
-    'mobile' => '0917 000 0001',
-    'address' => 'Novaliches, Quezon City',
-    'guardian' => 'Maria Dela Cruz',
-    'guardian_contact' => '0918 000 0002',
+// In production, query your payments table. Here we check against the
+// hardcoded payment history transactions (the "Research Forum" row).
+$paymentTransactions = [
+    ['ref' => 'OR-2026-0018', 'description' => 'Tuition Down Payment',  'amount' => 5000.00, 'status' => 'Paid', 'date' => 'Jul 5, 2026'],
+    ['ref' => 'OR-2026-0009', 'description' => 'Registration Fee',       'amount' => 1500.00, 'status' => 'Paid', 'date' => 'Jun 20, 2026'],
+    ['ref' => 'OR-2026-0003', 'description' => 'Laboratory Fee',         'amount' => 2500.00, 'status' => 'Paid', 'date' => 'Jun 15, 2026'],
+    ['ref' => 'OR-2026-0001', 'description' => 'Research Forum',         'amount' => 800.00,  'status' => 'Paid', 'date' => 'May 28, 2026'],
 ];
+$researchForumPaid = false;
+foreach ($paymentTransactions as $txn) {
+    if (
+        stripos($txn['description'], 'Research Forum') !== false &&
+        strtolower($txn['status']) === 'paid'
+    ) {
+        $researchForumPaid = true;
+        break;
+    }
+}
 
 if (!function_exists('spProfileInitials')) {
     function spProfileInitials(string $name): string
@@ -223,6 +226,45 @@ require_once __DIR__ . '/../../includes/layout-start.php';
     <?php endif; ?>
 
     <?php if ($studentPortalPage === 'dashboard'): ?>
+        <?php
+        $studentAnnouncements = smsAnnouncementPublicRows(smsAnnouncementFetch(true, 20));
+        $studentAnnStamp = smsAnnouncementStamp($studentAnnouncements);
+        ?>
+        <section class="academic-notices-panel student-announcements-panel mb-3"
+                 id="studentAnnouncements"
+                 aria-labelledby="studentAnnouncementsTitle"
+                 data-live-url="<?= htmlspecialchars(BASE_URL . '/account/announcements-data.php') ?>"
+                 data-stamp="<?= htmlspecialchars($studentAnnStamp) ?>">
+            <div class="academic-notices-icon" aria-hidden="true"><?= smsIcon('bullhorn') ?></div>
+            <div class="student-announcements-body">
+                <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+                    <div>
+                        <span class="ai-insight-kicker">Admin announcements</span>
+                        <h2 class="ai-insight-title" id="studentAnnouncementsTitle">From the administration</h2>
+                    </div>
+                    <span class="um-live-badge" id="studentAnnLiveBadge">
+                        <span class="um-live-dot" aria-hidden="true"></span>
+                        <span data-live-label>Live</span>
+                    </span>
+                </div>
+                <div id="studentAnnouncementsList">
+                    <?php foreach ($studentAnnouncements as $announcement): ?>
+                        <article class="student-ann-item">
+                            <h3><?= htmlspecialchars((string) $announcement['title']) ?></h3>
+                            <?php if (!empty($announcement['image_url'])): ?>
+                                <img class="student-ann-image" src="<?= htmlspecialchars((string) $announcement['image_url']) ?>" alt="">
+                            <?php endif; ?>
+                            <p><?= nl2br(htmlspecialchars((string) $announcement['body'])) ?></p>
+                            <small><?= htmlspecialchars((string) $announcement['posted_by']) ?> · <?= htmlspecialchars((string) $announcement['posted_at']) ?></small>
+                        </article>
+                    <?php endforeach; ?>
+                </div>
+                <p class="ai-insight-copy mb-0" id="studentAnnouncementsEmpty" <?= $studentAnnouncements ? 'hidden' : '' ?>>
+                    No announcements right now.
+                </p>
+            </div>
+        </section>
+
         <div class="row g-3 mb-3 dashboard-stats">
             <div class="col-md-3">
                 <section class="card stat-card primary">
@@ -252,8 +294,7 @@ require_once __DIR__ . '/../../includes/layout-start.php';
                         <div class="stat-icon me-3"><?= smsIcon('wallet') ?></div>
                         <div>
                             <h6 class="text-muted">Balance</h6>
-                            <h4 class="fw-bold mb-0">—</h4>
-                            <small class="text-muted">Ledger not connected</small>
+                            <h4 class="fw-bold mb-0">PHP 8,450.00</h4>
                         </div>
                     </div>
                 </section>
@@ -364,7 +405,7 @@ require_once __DIR__ . '/../../includes/layout-start.php';
                         <div class="stat-icon me-3"><?= smsIcon('star') ?></div>
                         <div>
                             <h6 class="text-muted">Standing</h6>
-                            <h4 class="fw-bold mb-0 fs-6">Good Standing</h4>
+                            <h4 class="fw-bold mb-0 fs-6"><?= htmlspecialchars($studentProfile['standing']) ?></h4>
                         </div>
                     </div>
                 </section>
@@ -492,18 +533,15 @@ require_once __DIR__ . '/../../includes/layout-start.php';
             </div>
         </div>
     <?php elseif ($studentPortalPage === 'account-balance'): ?>
-        <?php if (!empty($paymentSystemNotice)): ?>
-            <div class="alert alert-warning mb-3"><?= htmlspecialchars($paymentSystemNotice) ?></div>
-        <?php endif; ?>
         <div class="row g-3 mb-3 dashboard-stats">
             <div class="col-md-4">
-                <section class="card stat-card warning"><div class="card-body d-flex align-items-center"><div class="stat-icon me-3"><?= smsIcon('file-invoice-dollar') ?></div><div><h6 class="text-muted">Total Assessment</h6><h4 class="fw-bold mb-0">—</h4></div></div></section>
+                <section class="card stat-card warning"><div class="card-body d-flex align-items-center"><div class="stat-icon me-3"><?= smsIcon('file-invoice-dollar') ?></div><div><h6 class="text-muted">Total Assessment</h6><h4 class="fw-bold mb-0">PHP 24,950.00</h4></div></div></section>
             </div>
             <div class="col-md-4">
-                <section class="card stat-card success"><div class="card-body d-flex align-items-center"><div class="stat-icon me-3"><?= smsIcon('check-circle') ?></div><div><h6 class="text-muted">Total Paid</h6><h4 class="fw-bold mb-0">—</h4></div></div></section>
+                <section class="card stat-card success"><div class="card-body d-flex align-items-center"><div class="stat-icon me-3"><?= smsIcon('check-circle') ?></div><div><h6 class="text-muted">Total Paid</h6><h4 class="fw-bold mb-0">PHP 16,500.00</h4></div></div></section>
             </div>
             <div class="col-md-4">
-                <section class="card stat-card primary"><div class="card-body d-flex align-items-center"><div class="stat-icon me-3"><?= smsIcon('wallet') ?></div><div><h6 class="text-muted">Balance</h6><h4 class="fw-bold mb-0">—</h4></div></div></section>
+                <section class="card stat-card primary"><div class="card-body d-flex align-items-center"><div class="stat-icon me-3"><?= smsIcon('wallet') ?></div><div><h6 class="text-muted">Balance</h6><h4 class="fw-bold mb-0">PHP 8,450.00</h4></div></div></section>
             </div>
         </div>
         <section class="card">
@@ -513,15 +551,15 @@ require_once __DIR__ . '/../../includes/layout-start.php';
                     <table class="table student-table align-middle mb-0">
                         <thead><tr><th>Fee</th><th class="text-end">Amount</th><th>Status</th></tr></thead>
                         <tbody>
-                            <tr>
-                                <td colspan="3" class="text-muted">No fee ledger is connected yet. Amounts and Paid status will appear when Payment Management is live.</td>
-                            </tr>
+                            <tr><td>Tuition Fee</td><td class="text-end">PHP 18,000.00</td><td><span class="badge text-bg-warning">Partial</span></td></tr>
+                            <tr><td>Miscellaneous Fee</td><td class="text-end">PHP 4,450.00</td><td><span class="badge text-bg-warning">Partial</span></td></tr>
+                            <tr><td>Laboratory Fee</td><td class="text-end">PHP 2,500.00</td><td><span class="badge text-bg-success">Paid</span></td></tr>
                         </tbody>
                     </table>
                 </div>
                 <div class="student-process-bar">
-                    <button type="button" class="btn btn-sms-primary" disabled title="Online payment is not connected yet"><?= smsIcon('credit-card', ['class' => 'me-2']) ?>Proceed to Payment</button>
-                    <button type="button" class="btn btn-outline-primary" disabled title="Statement of account requires a live ledger"><?= smsIcon('file-invoice', ['class' => 'me-2']) ?>Request Statement of Account</button>
+                    <a class="btn btn-sms-primary" href="?process=pay-now"><?= smsIcon('credit-card', ['class' => 'me-2']) ?>Proceed to Payment</a>
+                    <a class="btn btn-outline-primary" href="?process=soa"><?= smsIcon('file-invoice', ['class' => 'me-2']) ?>Request Statement of Account</a>
                 </div>
             </div>
         </section>
@@ -605,18 +643,10 @@ require_once __DIR__ . '/../../includes/layout-start.php';
         <section class="card">
             <div class="card-body">
                 <h5 class="card-title fw-semibold mb-3">Official Payment Transactions</h5>
-                <?php if (!empty($paymentSystemNotice)): ?>
-                    <div class="alert alert-warning"><?= htmlspecialchars($paymentSystemNotice) ?></div>
-                <?php endif; ?>
                 <div class="table-responsive">
                     <table class="table student-table align-middle mb-0">
                         <thead><tr><th>Date</th><th>Reference No.</th><th>Description</th><th class="text-end">Amount</th><th>Status</th></tr></thead>
                         <tbody>
-                            <?php if ($paymentTransactions === []): ?>
-                            <tr>
-                                <td colspan="5" class="text-muted">No payment ledger is connected yet.</td>
-                            </tr>
-                            <?php endif; ?>
                             <?php foreach ($paymentTransactions as $txn): ?>
                             <tr>
                                 <td><?= htmlspecialchars($txn['date']) ?></td>
@@ -693,4 +723,7 @@ require_once __DIR__ . '/../../includes/layout-start.php';
     <?php endif; ?>
 </div>
 
+<?php if ($studentPortalPage === 'dashboard'): ?>
+<script src="<?= BASE_URL ?>/assets/js/student-announcements-live.js?v=2"></script>
+<?php endif; ?>
 <?php require_once __DIR__ . '/../../includes/layout-end.php'; ?>

@@ -31,7 +31,6 @@ $backup = [
     'admission' => ['hash' => '$2y$10$1M./oyAWOwzHhIjWoxGCWu5wm/6F/Jc3bzmYeF7hLt/jnhzg6KW9u', 'changed_at' => '2026-08-31 07:50:19'],
     'researchcoordinator' => ['hash' => '$2y$10$f6AGY/ZDFdykQTCiSK5YYePxBGti0SMMIqIOBuLU0OtnNY6Xwpcn2', 'changed_at' => '2026-08-31 08:04:22'],
     'rsantos' => ['hash' => '$2y$10$8K5JenMWtmwLwKeqq2086.AXlEED4PzOs/BZvilw.zVzq2Wdc0M.u', 'changed_at' => '2026-08-31 08:04:55'],
-    'researchdirector' => ['hash' => '$2y$10$xyO2oPPFEo9x3xs.Jpx12.TyHHtvsiniPa7/qVH6AIiQI.v5O14ZK', 'changed_at' => '2026-08-31 08:06:29'],
     'researchgrant' => ['hash' => '$2y$10$Kmx3XLgjIdLL3S4rP0Bs.uKL0oqNZyDRN4DpDwhtbYc249mAcYx8i', 'changed_at' => '2026-08-10 20:07:43'],
     'grammarian' => ['hash' => '$2y$10$DOubhW7dlaxRDFenQkOz2u0I.zVI3mF17NAGenmLyYU8cvYS4x9CS', 'changed_at' => '2026-08-31 08:06:20'],
     'jobert.valentino' => ['hash' => '$2y$10$AkCzL7RmKfYgXNwrujBK6.nJh7BRnDK3Lb.iwkgJ8r8SVYSJU5.Ge', 'changed_at' => '2026-08-31 08:06:08'],
@@ -42,7 +41,7 @@ $backup = [
 ];
 
 $stmt = $pdo->prepare(
-    'UPDATE sms_users
+    'UPDATE users
         SET password_hash = ?,
             password_changed_at = ?,
             must_change_password = 0,

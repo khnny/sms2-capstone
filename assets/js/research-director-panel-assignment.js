@@ -81,20 +81,43 @@
         var form = document.querySelector('[data-rd-panel-select-form]');
         var endpoint = root.getAttribute('data-selection-endpoint');
         if (!form || !endpoint) return;
-        fetch(endpoint, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+        fetch(endpoint, { headers: { 'X-Requested-With': 'XMLHttpRequest' }, cache: 'no-store' })
             .then(function (response) { return response.json(); })
             .then(function (payload) {
                 if (!payload || !payload.ok || !Array.isArray(payload.panels)) return;
+                var grid = form.querySelector('[data-rd-panel-grid]') || form.querySelector('.rdpa-panel-grid');
+                var seen = {};
                 payload.panels.forEach(function (panel) {
-                    var card = form.querySelector('[data-rd-panel-card][data-panel-id="' + panel.id + '"]');
+                    var id = String(panel.id || '');
+                    seen[id] = true;
+                    var card = form.querySelector('[data-rd-panel-card][data-panel-id="' + id + '"]');
+                    if (!card && grid && panel.html) {
+                        grid.insertAdjacentHTML('beforeend', panel.html);
+                        card = form.querySelector('[data-rd-panel-card][data-panel-id="' + id + '"]');
+                    }
                     if (!card) return;
                     var badge = card.querySelector('[data-rd-panel-availability]');
                     var assignments = card.querySelector('[data-rd-panel-assignments]');
+                    var name = card.querySelector('[data-rd-panel-name]');
+                    var email = card.querySelector('[data-rd-panel-email]');
+                    var role = card.querySelector('[data-rd-panel-role]');
+                    var expertise = card.querySelector('[data-rd-panel-expertise]');
+                    if (name && panel.full_name) name.textContent = panel.full_name;
+                    if (email && panel.email) email.textContent = panel.email;
+                    if (role && panel.role_label) role.textContent = panel.role_label;
+                    if (expertise && panel.expertise) expertise.textContent = panel.expertise;
                     if (badge) {
                         badge.textContent = panel.availability_status || 'Pending';
                         setBadgeClass(badge, panel.badge_class || 'warning');
                     }
                     if (assignments) assignments.textContent = String(panel.current_assignments || 0);
+                });
+                form.querySelectorAll('[data-rd-panel-card]').forEach(function (card) {
+                    var id = card.getAttribute('data-panel-id') || '';
+                    var checked = card.querySelector('input[name="panel_ids[]"]');
+                    if (!seen[id] && (!checked || !checked.checked)) {
+                        card.remove();
+                    }
                 });
                 updateSelectState(form);
                 var sync = root.querySelector('[data-rd-panel-sync]');
@@ -136,7 +159,7 @@
     updateSelectState();
     pollSelectionState();
     pollCheckAvailability();
-    window.setInterval(poll, 10000);
-    window.setInterval(pollSelectionState, 10000);
-    window.setInterval(pollCheckAvailability, 10000);
+    window.setInterval(poll, 2000);
+    window.setInterval(pollSelectionState, 2000);
+    window.setInterval(pollCheckAvailability, 2000);
 })();

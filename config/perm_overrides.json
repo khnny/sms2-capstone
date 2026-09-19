@@ -1,0 +1,14 @@
+{
+    "sms_admin": {
+        "enrollment": false,
+        "registrar": false,
+        "curriculum": false,
+        "accreditation": false,
+        "payment": false,
+        "faculty": false,
+        "scheduling": false,
+        "cocurricular": false,
+        "lms": false,
+        "crad": false
+    }
+}

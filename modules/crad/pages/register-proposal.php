@@ -10,20 +10,6 @@ require_once ROOT_PATH . '/includes/authentication.php';
 require_once ROOT_PATH . '/includes/security.php';
 
 requireAuth();
-requireModuleAccess('crad');
-
-$rpAjax = (string) ($_GET['ajax'] ?? '');
-$rpCanManageTitleApprovals = smsRoleAllowedForModule(
-    ['crad_officer', 'superadmin', 'sms_admin'],
-    'crad'
-);
-
-if ($rpAjax !== '' && !$rpCanManageTitleApprovals) {
-    http_response_code(403);
-    header('Content-Type: application/json; charset=utf-8');
-    echo json_encode(['ok' => false, 'error' => 'Access denied.']);
-    exit;
-}
 
 $pageTitle    = 'Register Proposal';
 $activeModule = 'crad';
@@ -36,11 +22,30 @@ $pageBannerIcon = 'fa-file-signature';
 $pageBannerDescription = 'Approved proposals appear here first. Click Register to generate the official proposal number.';
 
 require_once __DIR__ . '/../../../includes/breadcrumbs.php';
-require_once __DIR__ . '/../includes/schema-ensure.php';
 
 function rpEnsureTitleApprovalColumns(PDO $pdo): void
 {
-    cradEnsureTitleApprovalColumns($pdo);
+    $columns = [
+        'adviser_signature_data' => "ALTER TABLE title_approvals ADD COLUMN adviser_signature_data MEDIUMTEXT NULL DEFAULT NULL AFTER adviser_remarks",
+        'coordinator_status' => "ALTER TABLE title_approvals ADD COLUMN coordinator_status VARCHAR(30) NOT NULL DEFAULT 'Not Ready' AFTER adviser_signature_data",
+        'coordinator_remarks' => "ALTER TABLE title_approvals ADD COLUMN coordinator_remarks TEXT NULL DEFAULT NULL AFTER coordinator_status",
+        'coordinator_screening_json' => "ALTER TABLE title_approvals ADD COLUMN coordinator_screening_json TEXT NULL DEFAULT NULL AFTER coordinator_remarks",
+        'coordinator_signature_data' => "ALTER TABLE title_approvals ADD COLUMN coordinator_signature_data MEDIUMTEXT NULL DEFAULT NULL AFTER coordinator_remarks",
+        'coordinator_reviewed_at' => "ALTER TABLE title_approvals ADD COLUMN coordinator_reviewed_at DATETIME NULL DEFAULT NULL AFTER coordinator_signature_data",
+        'crad_status' => "ALTER TABLE title_approvals ADD COLUMN crad_status VARCHAR(30) NOT NULL DEFAULT 'Not Ready' AFTER coordinator_reviewed_at",
+        'crad_signature_data' => "ALTER TABLE title_approvals ADD COLUMN crad_signature_data MEDIUMTEXT NULL DEFAULT NULL AFTER crad_status",
+        'crad_reviewed_at' => "ALTER TABLE title_approvals ADD COLUMN crad_reviewed_at DATETIME NULL DEFAULT NULL AFTER crad_signature_data",
+    ];
+
+    foreach ($columns as $column => $sql) {
+        try {
+            if (!$pdo->query("SHOW COLUMNS FROM title_approvals LIKE " . $pdo->quote($column))->fetch()) {
+                $pdo->exec($sql);
+            }
+        } catch (Throwable $e) {
+            error_log('CRAD officer title approval schema failed: ' . $e->getMessage());
+        }
+    }
 }
 
 function rpTitleApprovalRows(PDO $pdo): array
@@ -54,7 +59,7 @@ function rpTitleApprovalRows(PDO $pdo): array
                 coordinator_status, coordinator_remarks, coordinator_screening_json, coordinator_signature_data,
                 coordinator_reviewed_at, crad_status, crad_signature_data,
                 crad_reviewed_at, sent_at, reviewed_at
-         FROM crad_title_approvals
+         FROM title_approvals
          WHERE status = 'Approved'
            AND coordinator_status = 'Approved'
          ORDER BY FIELD(crad_status, 'Pending', 'Approved', 'Not Ready'),
@@ -89,7 +94,7 @@ function rpTitleApprovalApprove(int $id, string $signature): bool
     $pdo = getCradDatabaseConnection();
     rpEnsureTitleApprovalColumns($pdo);
     $stmt = $pdo->prepare(
-        "UPDATE crad_title_approvals
+        "UPDATE title_approvals
          SET crad_status = 'Approved',
              crad_signature_data = :signature,
              crad_reviewed_at = NOW()
@@ -128,7 +133,6 @@ if (($_GET['ajax'] ?? '') === 'title-approval-approve' && $_SERVER['REQUEST_METH
     header('Content-Type: application/json; charset=utf-8');
     try {
         $body = json_decode((string) file_get_contents('php://input'), true) ?: [];
-        smsRequireMutatingCsrf($body);
         $ok = rpTitleApprovalApprove(
             (int) ($body['id'] ?? 0),
             trim((string) ($body['crad_signature_data'] ?? ''))
@@ -136,14 +140,8 @@ if (($_GET['ajax'] ?? '') === 'title-approval-approve' && $_SERVER['REQUEST_METH
         echo json_encode(['ok' => $ok]);
     } catch (Throwable $e) {
         error_log('CRAD officer title approval update failed: ' . $e->getMessage());
-        $msg = $e->getMessage();
-        if (stripos($msg, 'csrf') !== false || stripos($msg, 'Forbidden') !== false) {
-            http_response_code(403);
-            echo json_encode(['ok' => false, 'error' => 'Invalid CSRF token']);
-        } else {
-            http_response_code(500);
-            echo json_encode(['ok' => false, 'error' => 'Failed to save CRAD officer signature.']);
-        }
+        http_response_code(500);
+        echo json_encode(['ok' => false, 'error' => 'Failed to save CRAD officer signature.']);
     }
     exit;
 }
@@ -158,7 +156,7 @@ if ($cradPdo instanceof PDO) {
         $proposalStmt = $cradPdo->query(
             "SELECT id, proposal_number, research_title, rep_name, college_department,
                     registered_at, approved_at AS approved_on, registration_status, ref_code
-             FROM crad_research_proposals
+             FROM research_proposals
              WHERE status = 'Approved'
              ORDER BY approved_on DESC, id DESC"
         );
@@ -902,10 +900,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 <div style="padding:3mm;border:1px solid #8998ab;border-radius:4px;font-size:8pt;text-align:center;background:#fbfdff;">
                     <div style="font-size:8pt;font-weight:800;background:#17366f;color:#fff;padding:2px 6px;margin:-3mm -3mm 3mm;border-radius:3px 3px 0 0;text-align:left;">IX. Approval (Name, signature and date)</div>
                     <div style="position:relative;width:80%;margin:4mm auto 0;height:54px;"><div style="position:absolute;bottom:0;left:0;right:0;border-bottom:1px solid #111;"></div>${adviserSig}</div>
-                    <strong style="display:block;font-size:8.5pt;margin-top:1mm;">${esc(row.adviser_name || 'Research Adviser')}</strong>
+                    <strong style="display:block;font-size:8.5pt;margin-top:1mm;">${esc(row.adviser_name || '')}</strong>
                     <span style="font-size:7.5pt;color:#555;">Research Adviser</span>
                     <div style="position:relative;width:80%;margin:5mm auto 0;height:54px;"><div style="position:absolute;bottom:0;left:0;right:0;border-bottom:1px solid #111;"></div>${coordSig}</div>
-                    <strong style="display:block;font-size:8.5pt;margin-top:1mm;">${esc(row.coordinator_name || 'Mrs. Kris Guevarra')}</strong>
+                    <strong style="display:block;font-size:8.5pt;margin-top:1mm;">${esc(row.coordinator_name || '')}</strong>
                     <span style="font-size:7.5pt;color:#555;">Program Research Coordinator</span>
                     <div style="margin:5mm 0 2mm;border-top:1px dashed #7c8da5;padding-top:3mm;text-align:left;font-size:7pt;color:#475569;">Received:</div>
                     <div style="position:relative;width:80%;margin:2mm auto 0;height:42px;"><div style="position:absolute;bottom:0;left:0;right:0;border-bottom:1px solid #111;"></div>${cradSig}</div>

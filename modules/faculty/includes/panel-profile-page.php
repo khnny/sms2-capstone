@@ -21,7 +21,7 @@ function panelProfileAvailability(): array
         return ['availability_status' => 'Pending', 'notes' => ''];
     }
     try {
-        $stmt = $crad->prepare("SELECT availability_status, notes, updated_at FROM crad_panel_member_availability WHERE panel_user_id = ?");
+        $stmt = $crad->prepare("SELECT availability_status, notes, updated_at FROM panel_member_availability WHERE panel_user_id = ?");
         $stmt->execute([(int) getCurrentUserId()]);
         return $stmt->fetch() ?: ['availability_status' => 'Pending', 'notes' => '', 'updated_at' => null];
     } catch (Throwable $e) {
@@ -48,7 +48,7 @@ function panelProfileSaveAvailability(): ?array
     }
     try {
         $stmt = $crad->prepare(
-            "INSERT INTO crad_panel_member_availability
+            "INSERT INTO panel_member_availability
                 (panel_user_id, availability_status, notes, created_at, updated_at)
              VALUES
                 (?, ?, '', NOW(), NOW())

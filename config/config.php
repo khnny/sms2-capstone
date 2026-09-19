@@ -21,39 +21,20 @@ if (!defined('ROOT_PATH')) {
     define('ROOT_PATH', dirname(__DIR__));
 }
 
-if (!function_exists('sms2_env_raw')) {
-    /**
-     * Read an environment variable from getenv(), $_ENV, or $_SERVER (PHP-FPM / Docker).
-     *
-     * @return string|false
-     */
-    function sms2_env_raw(string $key): string|false
-    {
-        $value = getenv($key);
-        if ($value !== false && $value !== '') {
-            return trim((string) $value);
-        }
-
-        if (isset($_ENV[$key]) && $_ENV[$key] !== '') {
-            return trim((string) $_ENV[$key]);
-        }
-
-        if (isset($_SERVER[$key]) && $_SERVER[$key] !== '' && !str_starts_with($key, 'HTTP_')) {
-            return trim((string) $_SERVER[$key]);
-        }
-
-        return false;
-    }
+// Optional machine-specific overrides. Copy config/local.example.php to
+// config/local.php on another computer if its MySQL settings are different.
+$sms2LocalConfig = __DIR__ . '/local.php';
+if (is_readable($sms2LocalConfig)) {
+    require_once $sms2LocalConfig;
 }
 
 if (!function_exists('sms2_env')) {
     function sms2_env(string $key, ?string $default = null): ?string
     {
-        $value = sms2_env_raw($key);
+        $value = getenv($key);
         if ($value === false || $value === '') {
             return $default;
         }
-
         return $value;
     }
 }
@@ -69,105 +50,6 @@ if (!function_exists('sms2_env_first')) {
         }
 
         return $default;
-    }
-}
-
-if (!function_exists('sms2_load_dotenv')) {
-    /**
-     * Load KEY=VALUE pairs from a .env file into the process environment.
-     * Existing getenv / $_ENV / $_SERVER values win (HostForge injects those).
-     */
-    function sms2_load_dotenv(string $path): void
-    {
-        if (!is_readable($path)) {
-            return;
-        }
-
-        $lines = file($path, FILE_IGNORE_NEW_LINES);
-        if ($lines === false) {
-            return;
-        }
-
-        foreach ($lines as $line) {
-            $line = trim($line);
-            if ($line === '' || str_starts_with($line, '#')) {
-                continue;
-            }
-
-            if (!str_contains($line, '=')) {
-                continue;
-            }
-
-            [$key, $value] = explode('=', $line, 2);
-            $key = trim($key);
-            $value = trim($value);
-            if ($key === '' || !preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $key)) {
-                continue;
-            }
-
-            if (sms2_env_raw($key) !== false) {
-                continue;
-            }
-
-            if (
-                (str_starts_with($value, '"') && str_ends_with($value, '"'))
-                || (str_starts_with($value, "'") && str_ends_with($value, "'"))
-            ) {
-                $value = substr($value, 1, -1);
-            }
-
-            putenv($key . '=' . $value);
-            $_ENV[$key] = $value;
-            $_SERVER[$key] = $value;
-        }
-    }
-}
-
-if (!function_exists('sms2_has_cloud_db_env')) {
-    function sms2_has_cloud_db_env(): bool
-    {
-        foreach (['DB_HOST', 'DB_DATABASE', 'SMS2_DB_HOST', 'SMS2_DB_NAME', 'DATABASE_URL', 'SMS2_DATABASE_URL'] as $key) {
-            $value = sms2_env_raw($key);
-            if ($value !== false && $value !== '') {
-                return true;
-            }
-        }
-
-        return false;
-    }
-}
-
-// Optional .env (gitignored). HostForge Environment Variables still take priority.
-sms2_load_dotenv(ROOT_PATH . DIRECTORY_SEPARATOR . '.env');
-
-// Optional machine-specific overrides. Copy config/local.example.php to
-// config/local.php on another computer if its MySQL settings are different.
-// On HostForge and other cloud hosts, skip local.php when DB env vars are injected.
-$sms2LocalConfig = __DIR__ . '/local.php';
-if (is_readable($sms2LocalConfig) && !sms2_has_cloud_db_env()) {
-    require_once $sms2LocalConfig;
-}
-
-if (!defined('SMS2_DEPLOY_TOKEN')) {
-    $sms2DeployToken = sms2_env('SMS2_DEPLOY_TOKEN');
-    if ($sms2DeployToken !== null && $sms2DeployToken !== '') {
-        define('SMS2_DEPLOY_TOKEN', $sms2DeployToken);
-    }
-}
-
-if (!function_exists('sms2_request_is_https')) {
-    function sms2_request_is_https(): bool
-    {
-        if (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') {
-            return true;
-        }
-
-        $proto = $_SERVER['HTTP_X_FORWARDED_PROTO'] ?? $_SERVER['HTTP_X_FORWARDED_SSL'] ?? '';
-        if (strtolower((string) $proto) === 'https') {
-            return true;
-        }
-
-        return (int) ($_SERVER['SERVER_PORT'] ?? 0) === 443;
     }
 }
 
@@ -650,6 +532,9 @@ $MODULES = [
         'label' => 'CRAD',
         'icon'  => 'fa-flask',
         'groups' => [
+            'Research Clearance' => [
+                'research-clearance',
+            ],
             'Research Proposal' => [
                 'register-proposal',
                 'research-group-number',
@@ -707,6 +592,8 @@ $MODULES = [
             ['slug' => 'project-milestones', 'title' => 'Project Milestones'],
             ['slug' => 'publications-ip', 'title' => 'Publications & IP'],
             ['slug' => 'document-repository', 'title' => 'Document Repository'],
+            ['slug' => 'research-clearance', 'title' => 'Research Services Clearance'],
+            ['slug' => 'approval-clearance-payment', 'title' => 'Approval Clearance Payment'],
             ['slug' => 'documentation-publication-management', 'title' => 'Documentation & Publication Management'],
             ['slug' => 'final-manuscript-review', 'title' => 'Final Manuscript Review'],
             ['slug' => 'revision-compliance', 'title' => 'Revision & Compliance'],
@@ -751,40 +638,67 @@ $MODULES = [
         'groups' => [
             'Grant Management' => [
                 'grant-opportunities',
-                'proposals-applications',
+                'post-publish-grant-call',
+                'grant-applications',
             ],
             'Review & Workflow' => [
                 'reviewer-evaluation',
+            ],
+            'Proposal Evaluation' => [
+                'for-evaluation',
+                'evaluation-scoring',
+                'evaluation-history',
+            ],
+            'Approval Workflow' => [
                 'approval-workflows',
             ],
             'Funding Management' => [
                 'approved-funded',
                 'budget-disbursement',
                 'project-milestones',
+                'fund-release',
+                'disbursement-records',
+                'funding-status',
             ],
             'Research Monitoring' => [
                 'funded-research',
+                'progress-tracking',
             ],
             'Outputs & Records' => [
                 'publications-ip',
                 'document-repository',
             ],
             'Reports' => [
-                'research-analytics-reporting',
+                'grant-reports',
+                'funding-reports',
+                'research-analytics',
             ],
         ],
         'pages' => [
-            ['slug' => 'grant-opportunities',            'title' => 'Grant Opportunities'],
-            ['slug' => 'proposals-applications',          'title' => 'Proposals & Applications'],
-            ['slug' => 'reviewer-evaluation',             'title' => 'Reviewer Evaluation'],
-            ['slug' => 'approval-workflows',              'title' => 'Approval Workflows'],
-            ['slug' => 'approved-funded',                 'title' => 'Approved & Funded'],
-            ['slug' => 'budget-disbursement',             'title' => 'Budget & Disbursement'],
-            ['slug' => 'project-milestones',              'title' => 'Project Milestones'],
-            ['slug' => 'funded-research',                 'title' => 'Funded Research'],
-            ['slug' => 'publications-ip',                 'title' => 'Publications & IP'],
-            ['slug' => 'document-repository',             'title' => 'Document Repository'],
-            ['slug' => 'research-analytics-reporting',    'title' => 'Research Analytics & Reporting'],
+            ['slug' => 'grant-opportunities',       'title' => 'Grant Opportunities'],
+            ['slug' => 'post-publish-grant-call',   'title' => 'Post / Publish Grant Call'],
+            ['slug' => 'grant-applications',        'title' => 'Grant Applications'],
+            ['slug' => 'reviewer-evaluation',       'title' => 'Reviewer Evaluation'],
+            ['slug' => 'for-evaluation',            'title' => 'For Evaluation'],
+            ['slug' => 'evaluation-scoring',        'title' => 'Evaluation & Scoring'],
+            ['slug' => 'evaluation-history',        'title' => 'Evaluation History'],
+            ['slug' => 'approval-workflows',         'title' => 'Approval Workflows'],
+            ['slug' => 'pending-approvals',         'title' => 'Pending Approvals'],
+            ['slug' => 'approval-status',           'title' => 'Approval Status'],
+            ['slug' => 'approval-history',          'title' => 'Approval History'],
+            ['slug' => 'approved-funded',           'title' => 'Approved & Funded'],
+            ['slug' => 'budget-disbursement',       'title' => 'Budget & Disbursement'],
+            ['slug' => 'fund-release',              'title' => 'Fund Release'],
+            ['slug' => 'disbursement-records',      'title' => 'Disbursement Records'],
+            ['slug' => 'funding-status',            'title' => 'Funding Status'],
+            ['slug' => 'funded-research',           'title' => 'Funded Research'],
+            ['slug' => 'project-milestones',        'title' => 'Project Milestones'],
+            ['slug' => 'progress-tracking',         'title' => 'Progress Tracking'],
+            ['slug' => 'publications-ip',           'title' => 'Publications & IP'],
+            ['slug' => 'document-repository',      'title' => 'Document Repository'],
+            ['slug' => 'grant-reports',             'title' => 'Grant Reports'],
+            ['slug' => 'funding-reports',           'title' => 'Funding Reports'],
+            ['slug' => 'research-analytics',        'title' => 'Research Analytics'],
         ],
     ],
 

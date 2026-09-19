@@ -161,6 +161,7 @@ if (!function_exists('smsShowsMainDashboard')) {
             'grammarian',
             'research_director',
             'research_coordinator',
+            'department_head',
             'research_grant',
             'review_committee',
             'department_chair',
@@ -188,6 +189,7 @@ if (!function_exists('smsRoleHomeUrl')) {
         $homes = [
             'student'              => BASE_URL . '/modules/student-portal/pages/dashboard.php',
             'research_coordinator' => BASE_URL . '/modules/crad/index.php',
+            'department_head'      => BASE_URL . '/modules/crad/pages/research-coordinator-management.php',
             'department_chair'     => grantReviewWorkflowPageUrl('approval-workflows', 0, 'crad'),
             'research_office'      => grantReviewWorkflowPageUrl('approval-workflows', 0, 'crad'),
             'vpaa'                 => grantReviewWorkflowPageUrl('approval-workflows', 0, 'accreditation'),
@@ -232,6 +234,7 @@ if (!function_exists('smsRoleHomeLabel')) {
         $labels = [
             'student'              => 'Home',
             'research_coordinator' => 'Home',
+            'department_head'      => 'Home',
             'grammarian'           => 'Home',
             'panel'                => 'Home',
             'research_director'    => 'Home',
@@ -249,6 +252,14 @@ if (!function_exists('smsRoleHomeLabel')) {
 if (!function_exists('smsRoleHomeIsActive')) {
     function smsRoleHomeIsActive(string $roleKey, string $scriptPath, string $activePage): bool
     {
+        $roleKey = function_exists('smsNormalizeRoleKey')
+            ? smsNormalizeRoleKey($roleKey)
+            : $roleKey;
+
+        if ($roleKey === 'department_head') {
+            return false;
+        }
+
         $homeUrl = smsRoleHomeUrl($roleKey);
         $homePath = (string) (parse_url($homeUrl, PHP_URL_PATH) ?? '');
         if ($homePath !== '' && str_ends_with($scriptPath, $homePath)) {

@@ -34,7 +34,8 @@ renderBreadcrumbs($breadcrumbs);
                         <hr><div class="small"><strong>Evaluation Result:</strong> <?= e(ucwords(strtolower((string) $row['result']))) ?></div>
                         <div class="small"><strong>Evaluator:</strong> <?= e($row['evaluator_name']) ?></div>
                         <div class="small"><strong>Date:</strong> <?= e(chapterFormatDate((string) $row['evaluated_at'])) ?></div>
-                        <div class="small mt-2">Content: <?= e((string) $row['content_score']) ?> · Methodology: <?= e((string) $row['methodology_score']) ?> · References: <?= e((string) $row['references_score']) ?> · Format: <?= e((string) $row['format_score']) ?></div>
+                        <div class="small mt-2">Content (20%): <?= e((string) $row['content_score']) ?> · Methodology (20%): <?= e((string) $row['methodology_score']) ?> · References (20%): <?= e((string) $row['references_score']) ?> · Format (20%): <?= e((string) $row['format_score']) ?> · Grammar (20%): <?= e((string) ($row['grammar_score'] ?? '0')) ?></div>
+                        <div class="small fw-bold mt-1">Total: <?= e(number_format((float) ($row['overall_score'] ?? 0), 2)) ?> / 100%</div>
                         <?php if ((string) ($row['overall_feedback'] ?? '') !== ''): ?><div class="alert alert-light mt-3 mb-0"><?= nl2br(e((string) $row['overall_feedback'])) ?></div><?php endif; ?>
                     <?php endif; ?>
                 <?php endif; ?>

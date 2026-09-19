@@ -22,9 +22,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 $rows = $crad->query("SELECT rc.*, rg.group_number, rg.research_title,
-    (SELECT rpu.update_title FROM crad_research_progress_updates rpu WHERE rpu.research_group_id = rc.research_group_id AND rpu.submitted_at >= rc.opened_at ORDER BY rpu.submitted_at DESC, rpu.id DESC LIMIT 1) AS revision_update_title,
-    (SELECT rpu.submitted_at FROM crad_research_progress_updates rpu WHERE rpu.research_group_id = rc.research_group_id AND rpu.submitted_at >= rc.opened_at ORDER BY rpu.submitted_at DESC, rpu.id DESC LIMIT 1) AS revision_update_submitted_at
-    FROM crad_research_revision_cycles rc LEFT JOIN crad_research_groups rg ON rg.id = rc.research_group_id ORDER BY rc.updated_at DESC, rc.id DESC")->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    (SELECT rpu.update_title FROM research_progress_updates rpu WHERE rpu.research_group_id = rc.research_group_id AND rpu.submitted_at >= rc.opened_at ORDER BY rpu.submitted_at DESC, rpu.id DESC LIMIT 1) AS revision_update_title,
+    (SELECT rpu.submitted_at FROM research_progress_updates rpu WHERE rpu.research_group_id = rc.research_group_id AND rpu.submitted_at >= rc.opened_at ORDER BY rpu.submitted_at DESC, rpu.id DESC LIMIT 1) AS revision_update_submitted_at
+    FROM research_revision_cycles rc LEFT JOIN research_groups rg ON rg.id = rc.research_group_id ORDER BY rc.updated_at DESC, rc.id DESC")->fetchAll(PDO::FETCH_ASSOC) ?: [];
 $breadcrumbs = [['label' => 'CRAD', 'url' => BASE_URL . '/modules/crad/index.php'], ['label' => 'Revision & Compliance', 'url' => null]];
 require_once ROOT_PATH . '/includes/layout-start.php'; renderBreadcrumbs($breadcrumbs);
 ?>

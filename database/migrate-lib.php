@@ -137,9 +137,6 @@ function sms2MigrateApplySqlFile(PDO $pdo, string $sqlFile): int
     }
 
     $sql = (string) file_get_contents($sqlFile);
-    // Always import into the connected DB_DATABASE / CRAD_DB_NAME.
-    $sql = preg_replace('/^\s*CREATE\s+DATABASE\b.*$/im', '', $sql) ?? $sql;
-    $sql = preg_replace('/^\s*USE\s+`?[^;`]+`?\s*;?\s*$/im', '', $sql) ?? $sql;
     $statements = sms2MigrateSplitSql($sql);
     $applied = 0;
 
@@ -151,53 +148,10 @@ function sms2MigrateApplySqlFile(PDO $pdo, string $sqlFile): int
     return $applied;
 }
 
-/**
- * Tables the app may create before the dump is imported (failed-login lockout).
- *
- * @return list<string>
- */
-function sms2MigrateLeftoverOnlyTables(): array
-{
-    return ['sms_login_throttles', 'sms_schema_migrations'];
-}
-
-/**
- * @return list<string>
- */
-function sms2MigrateExistingTableNames(PDO $pdo): array
-{
-    $stmt = $pdo->query('SHOW TABLES');
-    $names = [];
-    while ($row = $stmt->fetch(PDO::FETCH_NUM)) {
-        if (!empty($row[0])) {
-            $names[] = (string) $row[0];
-        }
-    }
-
-    return $names;
-}
-
-/**
- * @param list<string> $tables
- */
-function sms2MigrateDropTables(PDO $pdo, array $tables, ?callable $sink = null): void
-{
-    $pdo->exec('SET FOREIGN_KEY_CHECKS=0');
-    foreach ($tables as $table) {
-        $table = trim($table);
-        if ($table === '') {
-            continue;
-        }
-        $pdo->exec('DROP TABLE IF EXISTS ' . sms2MigrateQuoteIdentifier($table));
-        sms2MigrateOut('Dropped table if existed: ' . $table, $sink);
-    }
-    $pdo->exec('SET FOREIGN_KEY_CHECKS=1');
-}
-
 function sms2MigrateEnsureTrackingTable(PDO $pdo): void
 {
     $pdo->exec(
-        'CREATE TABLE IF NOT EXISTS `sms_schema_migrations` (
+        'CREATE TABLE IF NOT EXISTS `schema_migrations` (
             `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT,
             `migration_key` varchar(120) NOT NULL,
             `source_file` varchar(255) NOT NULL,
@@ -214,7 +168,7 @@ function sms2MigrateWasRecorded(PDO $pdo, string $migrationKey): bool
     sms2MigrateEnsureTrackingTable($pdo);
 
     $stmt = $pdo->prepare(
-        'SELECT 1 FROM `sms_schema_migrations` WHERE `migration_key` = ? LIMIT 1'
+        'SELECT 1 FROM `schema_migrations` WHERE `migration_key` = ? LIMIT 1'
     );
     $stmt->execute([$migrationKey]);
 
@@ -226,7 +180,7 @@ function sms2MigrateRecord(PDO $pdo, string $migrationKey, string $sourceFile): 
     sms2MigrateEnsureTrackingTable($pdo);
 
     $stmt = $pdo->prepare(
-        'INSERT INTO `sms_schema_migrations` (`migration_key`, `source_file`, `source_sha256`)
+        'INSERT INTO `schema_migrations` (`migration_key`, `source_file`, `source_sha256`)
          VALUES (?, ?, ?)
          ON DUPLICATE KEY UPDATE
              `source_file` = VALUES(`source_file`),
@@ -267,42 +221,24 @@ function sms2MigrateOneDatabase(array $target, array $options, ?callable $sink =
     sms2MigrateEnsureDatabase($pdo, $database, $sink);
     $pdo->exec('USE ' . $quotedDatabase);
 
-    $targetTables = sms2MigrateSqlCreateTables($target['sql_file']);
-    $existingNames = sms2MigrateExistingTableNames($pdo);
-    // Unified schema uses sms_users; accept legacy `users` during transitional dumps.
-    $usersPresent = in_array('sms_users', $existingNames, true)
-        || in_array('users', $existingNames, true);
-
-    if (!empty($options['force'])) {
-        sms2MigrateOut('Force re-import: dropping dump tables in ' . $database . '...', $sink);
-        sms2MigrateDropTables($pdo, array_values(array_unique(array_merge(
-            $targetTables,
-            sms2MigrateLeftoverOnlyTables()
-        ))), $sink);
-    } elseif (!$options['fresh']) {
-        if (sms2MigrateWasRecorded($pdo, $target['migration_key']) && $usersPresent) {
+    if (!$options['fresh'] && !$options['force']) {
+        if (sms2MigrateWasRecorded($pdo, $target['migration_key'])) {
             sms2MigrateOut('Skipped: migration was already recorded. Use --force to re-apply.', $sink);
             return;
         }
 
+        $targetTables = sms2MigrateSqlCreateTables($target['sql_file']);
         $existingTargetTables = sms2MigrateExistingTargetTableCount($pdo, $targetTables);
-        if ($targetTables && $existingTargetTables === count($targetTables) && $usersPresent) {
+        if ($targetTables && $existingTargetTables === count($targetTables)) {
             sms2MigrateRecord($pdo, $target['migration_key'], $target['sql_file']);
             sms2MigrateOut('Skipped: target tables already exist; recorded this migration as applied.', $sink);
             return;
         }
 
-        // HostForge often has only login_throttles (created by failed logins) and no users table.
-        if ($existingTargetTables > 0 && !$usersPresent) {
-            sms2MigrateOut('Incomplete schema (sms_users missing). Clearing leftover tables before import...', $sink);
-            sms2MigrateDropTables($pdo, array_values(array_unique(array_merge(
-                $targetTables,
-                sms2MigrateLeftoverOnlyTables()
-            ))), $sink);
-        } elseif ($existingTargetTables > 0) {
+        if ($existingTargetTables > 0) {
             throw new RuntimeException(
                 'Partial schema detected for ' . $label .
-                '. Use --force to re-import ' . basename($target['sql_file']) . ' into ' . $database . '.'
+                '. Use --fresh to rebuild, or fix the existing tables before migrating.'
             );
         }
     }
@@ -310,7 +246,7 @@ function sms2MigrateOneDatabase(array $target, array $options, ?callable $sink =
     $applied = sms2MigrateApplySqlFile($pdo, $target['sql_file']);
     sms2MigrateRecord($pdo, $target['migration_key'], $target['sql_file']);
 
-    sms2MigrateOut('Applied ' . $applied . ' SQL statement(s) into ' . $database . '.', $sink);
+    sms2MigrateOut('Applied ' . $applied . ' SQL statement(s).', $sink);
 }
 
 /**
@@ -321,7 +257,7 @@ function sms2RunMigrations(array $options = []): array
     require_once __DIR__ . '/../config/database.php';
     require_once __DIR__ . '/../modules/crad/config/config.php';
 
-    $options = array_merge(['fresh' => false, 'force' => false, 'skip_crad' => false], $options);
+    $options = array_merge(['fresh' => false, 'force' => false], $options);
     $lines = [];
     $sink = static function (string $message) use (&$lines): void {
         $lines[] = $message;
@@ -329,8 +265,8 @@ function sms2RunMigrations(array $options = []): array
 
     $targets = [
         [
-            'label' => 'SMS2 unified database (sms_* + crad_*)',
-            'migration_key' => '2026_09_16_sms2_unified_prefixed',
+            'label' => 'SMS2 main database',
+            'migration_key' => '2026_08_28_sms2_db_dump',
             'host' => DB_HOST,
             'port' => DB_PORT,
             'database' => DB_NAME,
@@ -339,13 +275,9 @@ function sms2RunMigrations(array $options = []): array
             'charset' => DB_CHARSET,
             'sql_file' => __DIR__ . '/sms2_db.sql',
         ],
-    ];
-
-    // Only apply legacy separate crad_db.sql when CRAD still uses a different database.
-    if (strcasecmp((string) DB_NAME, (string) CRAD_DB_NAME) !== 0) {
-        $targets[] = [
-            'label' => 'CRAD module database (legacy separate)',
-            'migration_key' => '2026_09_16_crad_db_prefixed',
+        [
+            'label' => 'CRAD module database',
+            'migration_key' => '2026_08_28_crad_db_dump',
             'host' => CRAD_DB_HOST,
             'port' => CRAD_DB_PORT,
             'database' => CRAD_DB_NAME,
@@ -353,8 +285,8 @@ function sms2RunMigrations(array $options = []): array
             'pass' => CRAD_DB_PASS,
             'charset' => CRAD_DB_CHARSET,
             'sql_file' => dirname(__DIR__) . '/modules/crad/database/crad_db.sql',
-        ];
-    }
+        ],
+    ];
 
     $connection = strtolower((string) sms2_env_first(['SMS2_DB_CONNECTION', 'DB_CONNECTION'], 'mysql'));
     if (!in_array($connection, ['mysql', 'mariadb'], true)) {
@@ -364,30 +296,8 @@ function sms2RunMigrations(array $options = []): array
     }
 
     sms2MigrateOut('SMS 2 deployment migration started.', $sink);
-    if (strcasecmp((string) DB_NAME, (string) CRAD_DB_NAME) === 0) {
-        sms2MigrateOut('CRAD tables target the main database (' . DB_NAME . ') — single-DB mode.', $sink);
-    } else {
-        sms2MigrateOut(
-            'CRAD uses a separate database (' . CRAD_DB_NAME . '). Prefer CRAD_DB_NAME=' . DB_NAME . ' unless intentionally split.',
-            $sink
-        );
-    }
     foreach ($targets as $target) {
-        $isCrad = str_contains((string) $target['migration_key'], 'crad_db');
-        if ($isCrad && !empty($options['skip_crad'])) {
-            sms2MigrateOut('', $sink);
-            sms2MigrateOut('Skipped CRAD database (sms2-only import).', $sink);
-            continue;
-        }
-        try {
-            sms2MigrateOneDatabase($target, $options, $sink);
-        } catch (Throwable $e) {
-            if ($isCrad) {
-                sms2MigrateOut('CRAD import skipped: ' . $e->getMessage(), $sink);
-                continue;
-            }
-            throw $e;
-        }
+        sms2MigrateOneDatabase($target, $options, $sink);
     }
     sms2MigrateOut('', $sink);
     sms2MigrateOut('Migration complete.', $sink);

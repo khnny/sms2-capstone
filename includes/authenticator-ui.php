@@ -24,7 +24,7 @@ function smsHandleAuthenticatorPost(int $userId, string $action, array $post, st
     $pdo = db();
     $row = null;
     if ($pdo) {
-        $stmt = $pdo->prepare('SELECT id, email, full_name, password_hash FROM sms_users WHERE id = ? LIMIT 1');
+        $stmt = $pdo->prepare('SELECT id, email, full_name, password_hash FROM users WHERE id = ? LIMIT 1');
         $stmt->execute([$userId]);
         $row = $stmt->fetch() ?: null;
     }
@@ -193,7 +193,7 @@ function smsRenderAuthenticatorCard(int $userId, string $formActionUrl, string $
 
     $pdo = db();
     if ($pdo) {
-        $st = $pdo->prepare('SELECT email, full_name FROM sms_users WHERE id = ? LIMIT 1');
+        $st = $pdo->prepare('SELECT email, full_name FROM users WHERE id = ? LIMIT 1');
         $st->execute([$userId]);
         $u = $st->fetch() ?: [];
         $label = ((string) ($u['email'] ?? '')) !== ''

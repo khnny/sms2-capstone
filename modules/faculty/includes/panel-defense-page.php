@@ -9,7 +9,7 @@ require_once ROOT_PATH . '/modules/crad/includes/chapter-evaluation-workflow.php
 function panelRequirePanelMember(): void
 {
     requireAuth();
-    if (getCurrentUserRoleKey() !== 'panel') {
+    if (!smsIsPanelDefenseRole()) {
         http_response_code(403);
         exit('Forbidden');
     }
@@ -89,22 +89,22 @@ function panelDefenseRows(bool $history = false): array
                 ev.result AS panel_result,
                 ev.overall_score AS panel_score,
                 ev.submitted_at
-             FROM crad_research_defense_schedules rds
-             LEFT JOIN crad_research_groups rg ON rg.id = rds.research_group_id OR rg.group_number = rds.group_number
-             LEFT JOIN crad_research_venues rv ON rv.id = rds.venue_id
-             LEFT JOIN crad_research_panel_assignments rpa_self
+             FROM research_defense_schedules rds
+             LEFT JOIN research_groups rg ON rg.id = rds.research_group_id OR rg.group_number = rds.group_number
+             LEFT JOIN research_venues rv ON rv.id = rds.venue_id
+             LEFT JOIN research_panel_assignments rpa_self
                ON rpa_self.research_group_id = rds.research_group_id
               AND rpa_self.defense_schedule_id = rds.id
               AND rpa_self.panel_user_id = :panel_user_id_match
               AND rpa_self.defense_phase = 'Pre-Oral Defense'
               AND rpa_self.assignment_status = 'Assigned'
-             LEFT JOIN crad_research_panel_assignments rpa_all
+             LEFT JOIN research_panel_assignments rpa_all
                ON rpa_all.research_group_id = rds.research_group_id
               AND rpa_all.defense_schedule_id = rds.id
               AND rpa_all.defense_phase = 'Pre-Oral Defense'
               AND rpa_all.assignment_status = 'Assigned'
-             LEFT JOIN sms_users u_all ON u_all.id = rpa_all.panel_user_id
-             LEFT JOIN crad_preoral_defense_evaluations ev
+             LEFT JOIN sms2_db.users u_all ON u_all.id = rpa_all.panel_user_id
+             LEFT JOIN preoral_defense_evaluations ev
                ON ev.defense_schedule_id = rds.id
               AND ev.panel_user_id = :panel_user_id
               AND ev.status = 'Submitted'
@@ -114,7 +114,7 @@ function panelDefenseRows(bool $history = false): array
                AND rpa_self.id IS NOT NULL
                AND EXISTS (
                      SELECT 1
-                     FROM crad_research_groups rg_gate
+                     FROM research_groups rg_gate
                      WHERE rg_gate.id = rds.research_group_id
                        AND " . cradOfficialRegistryGroupWhereSql('rg_gate') . "
                )
@@ -125,7 +125,7 @@ function panelDefenseRows(bool $history = false): array
                      NOT :history_gate
                      OR EXISTS (
                            SELECT 1
-                           FROM crad_research_groups rg_gate
+                           FROM research_groups rg_gate
                            WHERE rg_gate.id = rds.research_group_id
                              AND " . cradOfficialRegistryGroupWhereSql('rg_gate') . "
                      )
@@ -161,7 +161,7 @@ function panelDefenseRows(bool $history = false): array
 
 function chapterPanelCanAccessSubmission(PDO $crad, array $submission): bool
 {
-    if (getCurrentUserRoleKey() !== 'panel') {
+    if (!smsIsPanelDefenseRole()) {
         return false;
     }
 
@@ -173,13 +173,13 @@ function chapterPanelCanAccessSubmission(PDO $crad, array $submission): bool
     try {
         $stmt = $crad->prepare(
             "SELECT id, panel_members, panel_chair, status, defense_datetime
-             FROM crad_research_defense_schedules
+             FROM research_defense_schedules
              WHERE research_group_id = ?
                AND defense_datetime IS NOT NULL
                AND LOWER(status) IN ('scheduled', 'finalized', 'final', 'completed', 'passed', 'failed')
                AND EXISTS (
                     SELECT 1
-                    FROM crad_research_panel_assignments rpa
+                    FROM research_panel_assignments rpa
                     WHERE rpa.research_group_id = research_defense_schedules.research_group_id
                       AND rpa.defense_schedule_id = research_defense_schedules.id
                       AND rpa.panel_user_id = ?
@@ -188,7 +188,7 @@ function chapterPanelCanAccessSubmission(PDO $crad, array $submission): bool
                )
                AND EXISTS (
                     SELECT 1
-                    FROM crad_research_groups rg_gate
+                    FROM research_groups rg_gate
                     WHERE rg_gate.id = research_defense_schedules.research_group_id
                       AND " . cradOfficialRegistryGroupWhereSql('rg_gate') . "
                )
@@ -238,7 +238,7 @@ function panelHydrateDefenseRow(array $row): array
     if ($crad instanceof PDO) {
         try {
             $stmt = $crad->prepare(
-                "SELECT result FROM crad_preoral_defense_evaluations
+                "SELECT result FROM preoral_defense_evaluations
                  WHERE defense_schedule_id = ? AND status = 'Submitted'
                  ORDER BY submitted_at ASC, id ASC"
             );
@@ -267,14 +267,72 @@ function panelFinalResultFromResults(array $results): string
     return 'APPROVED';
 }
 
+/**
+ * Pre-Oral panel scoring: five criteria at 20% each = 100%.
+ *
+ * @return list<array{key:string,label:string,min:float,max:float}>
+ */
 function panelRubric(): array
 {
     return [
-        ['key' => 'content', 'label' => 'Content', 'min' => 0, 'max' => 100],
-        ['key' => 'methodology', 'label' => 'Methodology', 'min' => 0, 'max' => 100],
-        ['key' => 'references', 'label' => 'References', 'min' => 0, 'max' => 100],
-        ['key' => 'format', 'label' => 'Format', 'min' => 0, 'max' => 100],
+        ['key' => 'content', 'label' => 'Content', 'min' => 0, 'max' => 20],
+        ['key' => 'methodology', 'label' => 'Methodology', 'min' => 0, 'max' => 20],
+        ['key' => 'references', 'label' => 'References', 'min' => 0, 'max' => 20],
+        ['key' => 'format', 'label' => 'Format', 'min' => 0, 'max' => 20],
+        ['key' => 'defense', 'label' => 'Defense', 'min' => 0, 'max' => 20],
     ];
+}
+
+function panelEvaluationTotalMax(): float
+{
+    $total = 0.0;
+    foreach (panelRubric() as $criterion) {
+        $total += (float) $criterion['max'];
+    }
+    return $total;
+}
+
+function panelEnsureEvaluationSchema(?PDO $crad = null): void
+{
+    $crad = $crad ?: panelDb();
+    if (!$crad instanceof PDO) {
+        return;
+    }
+    $crad->exec(
+        "CREATE TABLE IF NOT EXISTS preoral_defense_evaluations (
+            id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+            defense_schedule_id INT UNSIGNED NOT NULL,
+            research_group_id INT UNSIGNED DEFAULT NULL,
+            panel_user_id INT UNSIGNED NOT NULL,
+            panel_name VARCHAR(150) NOT NULL DEFAULT '',
+            content_score DECIMAL(5,2) NOT NULL,
+            methodology_score DECIMAL(5,2) NOT NULL,
+            references_score DECIMAL(5,2) NOT NULL,
+            format_score DECIMAL(5,2) NOT NULL,
+            defense_score DECIMAL(5,2) NOT NULL DEFAULT 0,
+            remarks TEXT DEFAULT NULL,
+            result ENUM('APPROVED','APPROVED WITH REVISION','FAILED') NOT NULL,
+            overall_score DECIMAL(5,2) NOT NULL,
+            status VARCHAR(30) NOT NULL DEFAULT 'Submitted',
+            submitted_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            UNIQUE KEY uniq_preoral_panel_submission (defense_schedule_id, panel_user_id),
+            KEY idx_preoral_group (research_group_id),
+            KEY idx_preoral_panel (panel_user_id),
+            KEY idx_preoral_status (status)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
+    try {
+        if (!$crad->query("SHOW COLUMNS FROM preoral_defense_evaluations LIKE 'defense_score'")->fetch()) {
+            $crad->exec(
+                "ALTER TABLE preoral_defense_evaluations
+                 ADD COLUMN defense_score DECIMAL(5,2) NOT NULL DEFAULT 0 AFTER format_score"
+            );
+        }
+    } catch (Throwable $e) {
+        // keep going if the column already exists
+    }
 }
 
 function panelFormatDate(?string $value, string $format = 'M j, Y h:i A'): string
@@ -295,7 +353,7 @@ function panelChapterDocuments(int $groupId): array
         foreach ([1, 2, 3] as $chapter) {
             $stmt = $crad->prepare(
                 "SELECT id, chapter_number, version_number, status, original_name, submitted_at
-                 FROM crad_chapter_submissions
+                 FROM chapter_submissions
                  WHERE research_group_id = ?
                    AND chapter_number = ?
                    AND status = 'Accepted'
@@ -326,7 +384,7 @@ function panelStudentMembers(array $defense): array
     try {
         $stmt = $crad->prepare(
             "SELECT student_name, student_id, email
-             FROM crad_proposal_members
+             FROM proposal_members
              WHERE proposal_id = ?
              ORDER BY sort_order ASC, id ASC"
         );
@@ -344,6 +402,7 @@ function panelSubmitEvaluation(int $scheduleId, array $data): array
     if (!$crad instanceof PDO) {
         return ['ok' => false, 'error' => 'CRAD database unavailable.'];
     }
+    panelEnsureEvaluationSchema($crad);
 
     $defense = panelDefenseById($scheduleId, false);
     if (!$defense) {
@@ -358,10 +417,14 @@ function panelSubmitEvaluation(int $scheduleId, array $data): array
             return ['ok' => false, 'error' => 'Please enter a valid score for ' . $criterion['label'] . '.'];
         }
         $score = (float) $raw;
-        if ($score < (float) $criterion['min'] || $score > (float) $criterion['max']) {
-            return ['ok' => false, 'error' => $criterion['label'] . ' score must be between ' . $criterion['min'] . ' and ' . $criterion['max'] . '.'];
+        $max = (float) $criterion['max'];
+        if ($score < (float) $criterion['min']) {
+            return ['ok' => false, 'error' => $criterion['label'] . ' Score cannot be below ' . $criterion['min'] . '.'];
         }
-        $scores[$criterion['key']] = $score;
+        if ($score > $max) {
+            return ['ok' => false, 'error' => $criterion['label'] . ' Score cannot exceed ' . number_format($max, 0) . '%. Evaluation was not submitted.'];
+        }
+        $scores[$criterion['key']] = round($score, 2);
     }
 
     $result = strtoupper(trim((string) ($data['result'] ?? '')));
@@ -369,19 +432,23 @@ function panelSubmitEvaluation(int $scheduleId, array $data): array
         return ['ok' => false, 'error' => 'Please select a valid result.'];
     }
 
-    $overall = round(array_sum($scores) / max(1, count($scores)), 2);
+    $overall = round(array_sum($scores), 2);
+    $totalMax = panelEvaluationTotalMax();
+    if ($overall > $totalMax) {
+        return ['ok' => false, 'error' => 'Total score cannot exceed ' . number_format($totalMax, 0) . '%. Evaluation was not submitted.'];
+    }
     $remarks = trim((string) ($data['remarks'] ?? ''));
 
     try {
         $crad->beginTransaction();
         $stmt = $crad->prepare(
-            "INSERT INTO crad_preoral_defense_evaluations
+            "INSERT INTO preoral_defense_evaluations
                 (defense_schedule_id, research_group_id, panel_user_id, panel_name,
-                 content_score, methodology_score, references_score, format_score,
+                 content_score, methodology_score, references_score, format_score, defense_score,
                  remarks, result, overall_score, status, submitted_at, created_at)
              VALUES
                 (:schedule_id, :group_id, :panel_user_id, :panel_name,
-                 :content_score, :methodology_score, :references_score, :format_score,
+                 :content_score, :methodology_score, :references_score, :format_score, :defense_score,
                  :remarks, :result, :overall_score, 'Submitted', NOW(), NOW())"
         );
         $stmt->execute([
@@ -393,6 +460,7 @@ function panelSubmitEvaluation(int $scheduleId, array $data): array
             ':methodology_score' => $scores['methodology'],
             ':references_score' => $scores['references'],
             ':format_score' => $scores['format'],
+            ':defense_score' => $scores['defense'],
             ':remarks' => $remarks,
             ':result' => $result,
             ':overall_score' => $overall,
@@ -534,19 +602,38 @@ function panelRenderScoring(?array $defense, string $message = '', string $error
             <div class="col-md-3"><small class="text-muted">Venue</small><div><?= e((string) (($defense['venue'] ?? '') ?: 'TBA')) ?></div></div>
             <div class="col-md-3"><small class="text-muted">Panel Member</small><div><?= e(getCurrentUserName()) ?></div></div>
         </div>
-        <form method="post" data-panel-evaluation-form>
+        <form method="post" data-panel-evaluation-form data-total-max="<?= e((string) panelEvaluationTotalMax()) ?>">
             <?= csrfField() ?>
             <input type="hidden" name="action" value="submit_evaluation">
             <input type="hidden" name="schedule_id" value="<?= (int) $defense['id'] ?>">
             <?php foreach (panelRubric() as $criterion): ?>
                 <div class="row g-2 align-items-end mb-3">
-                    <div class="col-md-4"><label class="form-label"><?= e($criterion['label']) ?> Score</label><input type="number" class="form-control" name="<?= e($criterion['key']) ?>_score" min="<?= (int) $criterion['min'] ?>" max="<?= (int) $criterion['max'] ?>" step="0.01" required></div>
+                    <div class="col-md-4">
+                        <label class="form-label"><?= e($criterion['label']) ?> Score <span class="text-muted fw-normal">(max <?= (int) $criterion['max'] ?>%)</span></label>
+                        <input type="number"
+                               class="form-control js-panel-score"
+                               name="<?= e($criterion['key']) ?>_score"
+                               min="<?= (int) $criterion['min'] ?>"
+                               max="<?= (int) $criterion['max'] ?>"
+                               step="0.01"
+                               data-max="<?= (int) $criterion['max'] ?>"
+                               data-label="<?= e($criterion['label']) ?>"
+                               required>
+                        <div class="invalid-feedback js-score-feedback"></div>
+                    </div>
                     <div class="col-md-8"><label class="form-label"><?= e($criterion['label']) ?> Remarks</label><input type="text" class="form-control" maxlength="1000"></div>
                 </div>
             <?php endforeach; ?>
             <div class="mb-3"><label class="form-label">Remarks</label><textarea class="form-control" name="remarks" rows="4"></textarea></div>
+            <div id="panelScoreError" class="alert alert-danger d-none" role="alert"></div>
             <div class="row g-3 mb-3">
-                <div class="col-md-6"><label class="form-label">Overall Score</label><input type="text" class="form-control" data-panel-overall readonly value="0.00"></div>
+                <div class="col-md-6">
+                    <label class="form-label">Overall Score</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control" data-panel-overall readonly value="0.00">
+                        <span class="input-group-text">/ <?= number_format(panelEvaluationTotalMax(), 0) ?>%</span>
+                    </div>
+                </div>
                 <div class="col-md-6"><label class="form-label">Possible Result</label><select class="form-select" name="result" required><option value="">Select result...</option><option value="APPROVED">APPROVED</option><option value="APPROVED WITH REVISION">APPROVED WITH REVISION</option><option value="FAILED">FAILED</option></select></div>
             </div>
             <button type="button" class="btn btn-sms-primary" data-panel-open-confirm><?= smsIcon('check', ['class' => 'me-2']) ?>Submit Evaluation</button>
@@ -593,6 +680,7 @@ function panelRenderHistoryRows(array $rows): void
 function renderPanelDefensePage(string $mode, string $message = '', string $error = ''): void
 {
     panelRequirePanelMember();
+    panelEnsureEvaluationSchema();
     $id = (int) ($_GET['id'] ?? 0);
     $defense = $id > 0 ? panelDefenseById($id, true) : null;
     if ($mode === 'details' && $id <= 0) {
@@ -631,6 +719,6 @@ function renderPanelDefensePage(string $mode, string $message = '', string $erro
             </section>
         <?php endif; ?>
     </div>
-    <script src="<?= BASE_URL ?>/assets/js/panel-defense-live.js"></script>
+    <script src="<?= BASE_URL ?>/assets/js/panel-defense-live.js?v=panel-defense-20-1"></script>
     <?php
 }

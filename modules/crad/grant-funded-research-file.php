@@ -27,8 +27,8 @@ try {
     grantEnsureFundedResearchTables($crad);
     $stmt = $crad->prepare("
         SELECT e.*, ga.applicant_user_id, ga.status AS application_status
-          FROM crad_grant_funded_progress_evidence e
-         INNER JOIN crad_grant_applications ga ON ga.id = e.grant_application_id
+          FROM grant_funded_progress_evidence e
+         INNER JOIN grant_applications ga ON ga.id = e.grant_application_id
          WHERE e.id = ?
          LIMIT 1
     ");

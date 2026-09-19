@@ -6,27 +6,78 @@
 require_once __DIR__ . '/../../../config/config.php';
 require_once __DIR__ . '/../../../modules/crad/config/config.php';
 require_once ROOT_PATH . '/includes/authentication.php';
-require_once ROOT_PATH . '/includes/security.php';
 require_once ROOT_PATH . '/includes/breadcrumbs.php';
+require_once ROOT_PATH . '/modules/crad/includes/title-approval-assignees.php';
 
-$studentId     = trim((string) ($_SESSION['student_id'] ?? ''));
+$studentId     = $_SESSION['student_id'] ?? 'S230000001';
 $studentUserId = $_SESSION['user_id']    ?? null;
-$studentName   = trim((string) ($_SESSION['user_name']  ?? ''));
-if ($studentName === '') {
-    $studentName = trim((string) ($_SESSION['username'] ?? 'Student'));
-}
-$nameParts = array_values(array_filter(preg_split('/\s+/', trim($studentName)) ?: []));
-if (count($nameParts) >= 3) {
-    $lastName = $nameParts[count($nameParts) - 2] . ' ' . $nameParts[count($nameParts) - 1];
-    $firstNames = implode(' ', array_slice($nameParts, 0, -2));
-} elseif (count($nameParts) === 2) {
-    $lastName = $nameParts[1];
-    $firstNames = $nameParts[0];
-} else {
-    $lastName = $nameParts[0] ?? 'Dela Cruz';
-    $firstNames = 'Juan';
-}
-$defaultMemberName = $lastName . ', ' . $firstNames . ' A.';
+$studentName   = $_SESSION['user_name']  ?? 'Juan Dela Cruz';
+
+/**
+ * Format a person name as "Last, First M.I." (CRAD Form S2).
+ * Example: John Kenneth C. Abejuela → Abejuela, John Kenneth C.
+ */
+$smsFormatLastFirstMi = static function (string $fullName): string {
+    $fullName = trim(preg_replace('/\s+/', ' ', $fullName) ?? '');
+    if ($fullName === '') {
+        return '';
+    }
+
+    $isMiddleInitial = static function (string $token): bool {
+        return (bool) preg_match('/^[A-Za-z]\.?$/', $token);
+    };
+    $isSurnameParticle = static function (string $token): bool {
+        return in_array(strtolower(rtrim($token, '.')), [
+            'de', 'del', 'dela', 'da', 'das', 'do', 'dos',
+            'la', 'las', 'los', 'van', 'von', 'san', 'santa', 'sta', 'sto',
+        ], true);
+    };
+    $normalizeMi = static function (string $token): string {
+        return strtoupper(substr($token, 0, 1)) . '.';
+    };
+
+    $lastName = '';
+    $given = '';
+    $middleInitial = '';
+
+    if (str_contains($fullName, ',')) {
+        [$lastName, $rest] = array_pad(array_map('trim', explode(',', $fullName, 2)), 2, '');
+        $restParts = array_values(array_filter(preg_split('/\s+/', $rest) ?: [], static fn($p) => $p !== ''));
+        if ($restParts !== [] && $isMiddleInitial($restParts[count($restParts) - 1])) {
+            $middleInitial = $normalizeMi(array_pop($restParts));
+        }
+        $given = implode(' ', $restParts);
+    } else {
+        $parts = array_values(array_filter(preg_split('/\s+/', $fullName) ?: [], static fn($p) => $p !== ''));
+        if ($parts === []) {
+            return '';
+        }
+        if (count($parts) === 1) {
+            return $parts[0];
+        }
+
+        $lastParts = [array_pop($parts)];
+        while ($parts !== [] && $isSurnameParticle($parts[count($parts) - 1])) {
+            array_unshift($lastParts, array_pop($parts));
+        }
+        $lastName = implode(' ', $lastParts);
+
+        if ($parts !== [] && $isMiddleInitial($parts[count($parts) - 1])) {
+            $middleInitial = $normalizeMi(array_pop($parts));
+        }
+        $given = implode(' ', $parts);
+    }
+
+    $formatted = trim($lastName);
+    $suffix = trim($given . ($middleInitial !== '' ? ' ' . $middleInitial : ''));
+    if ($suffix !== '') {
+        $formatted .= ', ' . $suffix;
+    }
+
+    return $formatted;
+};
+
+$defaultMemberName = $smsFormatLastFirstMi($studentName);
 $defaultOrNumber = 'OR-' . date('y') . str_pad((string) random_int(10000, 99999), 5, '0', STR_PAD_LEFT);
 $requestedResubmitId = (int) ($_GET['resubmit_title_approval'] ?? 0);
 $submitted = ($_GET['process'] ?? '') === 'submit-proposal';
@@ -39,7 +90,7 @@ try {
     $cradPdoEarly = getCradDatabaseConnection();
     if ($requestedResubmitId > 0) {
         $exStmt = $cradPdoEarly->prepare(
-            "SELECT * FROM crad_title_approvals
+            "SELECT * FROM title_approvals
              WHERE student_id = :sid AND id = :id
              LIMIT 1"
         );
@@ -47,7 +98,7 @@ try {
         $resubmitSubmission = $exStmt->fetch(PDO::FETCH_ASSOC) ?: null;
     } else {
         $exStmt = $cradPdoEarly->prepare(
-            "SELECT * FROM crad_title_approvals
+            "SELECT * FROM title_approvals
              WHERE student_id = :sid
              ORDER BY id DESC
              LIMIT 1"
@@ -122,99 +173,45 @@ if ($resubmitSubmission && ((string) ($resubmitSubmission['status'] ?? '') === '
 $assignedAdviserName  = '';
 $assignedAdviserEmail = '';
 $assignedCoordName    = '';
-$defaultCoordinatorName = 'Mrs. Kris Guevarra';
 
-/* Restore adviser info directly from the saved submission row when available */
+/* Restore signatures from the saved submission; names always come from Admin assignments. */
 $adviserSignatureData = ''; // base64 PNG of the adviser's digital signature (if approved)
 $coordinatorSignatureData = '';
 $cradSignatureData = '';
 $coordinatorScreening = [];
 if ($existingSubmission) {
-    $assignedAdviserName  = (string) ($existingSubmission['adviser_name']  ?? '');
-    $assignedAdviserEmail = (string) ($existingSubmission['adviser_email'] ?? '');
-    $assignedCoordName    = (string) ($existingSubmission['coordinator_name'] ?? '');
     $adviserSignatureData = (string) ($existingSubmission['adviser_signature_data'] ?? '');
     $coordinatorSignatureData = (string) ($existingSubmission['coordinator_signature_data'] ?? '');
     $cradSignatureData = (string) ($existingSubmission['crad_signature_data'] ?? '');
     $decodedScreening = json_decode((string) ($existingSubmission['coordinator_screening_json'] ?? '{}'), true);
     $coordinatorScreening = is_array($decodedScreening) ? $decodedScreening : [];
-} elseif ($resubmitSubmission) {
-    $assignedAdviserName  = (string) ($resubmitSubmission['adviser_name']  ?? '');
-    $assignedAdviserEmail = (string) ($resubmitSubmission['adviser_email'] ?? '');
-    $assignedCoordName    = (string) ($resubmitSubmission['coordinator_name'] ?? '');
 }
 
-if ($submitted && $assignedAdviserName === '') {
-    try {
-        $cradPdo = getCradDatabaseConnection();
-        // Find the adviser assigned (assignment_status='Assigned') for the
-        // most recent research group this student leads.
-        $advStmt = $cradPdo->prepare(
-            "SELECT a.adviser_name, a.adviser_email
-             FROM crad_research_groups g
-             JOIN crad_research_adviser_assignments a
-               ON (
-                    a.research_group_id = g.id
-                 OR (a.group_number IS NOT NULL AND a.group_number <> '' AND a.group_number = g.group_number)
-                 OR (a.proposal_id IS NOT NULL AND a.proposal_id = g.proposal_id)
-               )
-             WHERE g.leader_id = :sid
-               AND a.assignment_status = 'Assigned'
-             ORDER BY g.id DESC
-             LIMIT 1"
-        );
-        $advStmt->execute([':sid' => $studentId]);
-        $advRow = $advStmt->fetch();
-        if ($advRow) {
-            $assignedAdviserName  = (string) $advRow['adviser_name'];
-            $assignedAdviserEmail = (string) $advRow['adviser_email'];
-        }
-
-        // Fallback: any adviser linked to this student (Pending is OK)
-        if ($assignedAdviserName === '') {
-            $advStmt2 = $cradPdo->prepare(
-                "SELECT a.adviser_name, a.adviser_email
-                 FROM crad_research_groups g
-                 JOIN crad_research_adviser_assignments a
-                   ON (
-                        a.research_group_id = g.id
-                     OR (a.group_number IS NOT NULL AND a.group_number <> '' AND a.group_number = g.group_number)
-                     OR (a.proposal_id IS NOT NULL AND a.proposal_id = g.proposal_id)
-                   )
-                 WHERE g.leader_id = :sid
-                 ORDER BY g.id DESC, a.id ASC
-                 LIMIT 1"
-            );
-            $advStmt2->execute([':sid' => $studentId]);
-            $advRow2 = $advStmt2->fetch();
-            if ($advRow2) {
-                $assignedAdviserName  = (string) $advRow2['adviser_name'];
-                $assignedAdviserEmail = (string) $advRow2['adviser_email'];
-            }
-        }
-
-        // Coordinator name (first research_coordinator in users)
-        try {
-            $mainPdo  = db();
-            $coordRow = $mainPdo?->query(
-                "SELECT full_name FROM sms_users WHERE role_key = 'research_coordinator' LIMIT 1"
-            )?->fetch();
-            $assignedCoordName = $coordRow ? (string) $coordRow['full_name'] : $defaultCoordinatorName;
-        } catch (Throwable) {
-            $assignedCoordName = $defaultCoordinatorName;
-        }
-    } catch (Throwable $e) {
-        // Silently fall through — button will show but adviser_name may be empty
-        error_log('Adviser lookup failed: ' . $e->getMessage());
-    }
+try {
+    $cradPdoAssign = (isset($cradPdoEarly) && $cradPdoEarly instanceof PDO)
+        ? $cradPdoEarly
+        : getCradDatabaseConnection();
+    $officialAssignees = cradStudentOfficialAssignees($cradPdoAssign, (string) $studentId);
+    $assignedAdviserName  = (string) ($officialAssignees['adviser_name'] ?? '');
+    $assignedAdviserEmail = (string) ($officialAssignees['adviser_email'] ?? '');
+    $assignedCoordName    = (string) ($officialAssignees['coordinator_name'] ?? '');
+    cradSyncTitleApprovalAssigneeNames($cradPdoAssign, (string) $studentId);
+} catch (Throwable $e) {
+    error_log('Title approval assignee lookup failed: ' . $e->getMessage());
 }
-// Hardcoded fallback so the print preview always shows someone
-if ($assignedAdviserName === '') {
-    $assignedAdviserName  = 'Dr. Roberto M. Santos';
-    $assignedAdviserEmail = 'rsantos@bestlink.edu.ph';
-}
-if ($assignedCoordName === '') {
-    $assignedCoordName = $defaultCoordinatorName;
+
+if (isset($_GET['ajax']) && (string) $_GET['ajax'] === 'assignees') {
+    requireAuth();
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode([
+        'ok' => true,
+        'adviser_name' => $assignedAdviserName,
+        'adviser_email' => $assignedAdviserEmail,
+        'coordinator_name' => $assignedCoordName,
+        'ready' => $assignedAdviserName !== '' && $assignedCoordName !== '',
+        'server_time' => date('c'),
+    ]);
+    exit;
 }
 
 $pageTitle = 'Research Proposal Submission';
@@ -415,7 +412,7 @@ require_once ROOT_PATH . '/includes/layout-start.php';
                                     <img class="print-adviser-sig-img" src="<?= htmlspecialchars($adviserSignatureData) ?>" alt="Adviser Signature">
                                 <?php endif; ?>
                             </div>
-                            <strong class="print-approver-name"><?= htmlspecialchars($assignedAdviserName) ?></strong>
+                            <strong class="print-approver-name" id="tafAdviserName"><?= htmlspecialchars($assignedAdviserName) ?></strong>
                             <span class="print-approver-role">Research Adviser</span>
                         </div>
                         <div class="print-approval-block">
@@ -425,7 +422,7 @@ require_once ROOT_PATH . '/includes/layout-start.php';
                                     <img class="print-adviser-sig-img" src="<?= htmlspecialchars($coordinatorSignatureData) ?>" alt="Coordinator Signature">
                                 <?php endif; ?>
                             </div>
-                            <strong class="print-approver-name"><?= htmlspecialchars($assignedCoordName) ?></strong>
+                            <strong class="print-approver-name" id="tafCoordinatorName"><?= htmlspecialchars($assignedCoordName) ?></strong>
                             <span class="print-approver-role">Program Research Coordinator</span>
                         </div>
                         <div class="print-approval-divider"></div>
@@ -447,11 +444,12 @@ require_once ROOT_PATH . '/includes/layout-start.php';
             </article>
 
             <div class="crad-below-sheet">
+                <?php $approvalNamesReady = trim($assignedAdviserName) !== '' && trim($assignedCoordName) !== ''; ?>
                 <button
                     type="button"
                     id="sendToAdviserBtn"
-                    class="crad-btn-send-adviser<?= $alreadySentToAdviser ? ' is-sent' : '' ?>"
-                    <?= $alreadySentToAdviser ? 'disabled' : '' ?>
+                    class="crad-btn-send-adviser<?= $alreadySentToAdviser ? ' is-sent' : ($approvalNamesReady ? '' : ' is-waiting-names') ?>"
+                    <?= ($alreadySentToAdviser || !$approvalNamesReady) ? 'disabled' : '' ?>
                     data-already-sent="<?= $alreadySentToAdviser ? '1' : '0' ?>"
                     data-submission-id="<?= (int) (($resubmitSubmission['id'] ?? null) ?: ($existingSubmission['id'] ?? 0)) ?>"
                     data-resubmit="<?= $isResubmitMode ? '1' : '0' ?>"
@@ -473,6 +471,12 @@ require_once ROOT_PATH . '/includes/layout-start.php';
                     <span class="crad-btn-send-icon"><?= smsIcon($alreadySentToAdviser ? 'check' : 'paper-plane') ?></span>
                     <span class="crad-btn-send-text"><?= $alreadySentToAdviser ? 'Document Packet Sent' : ($isResubmitMode ? 'Resubmit to Adviser' : 'Send to Adviser') ?></span>
                 </button>
+                <?php if (!$alreadySentToAdviser): ?>
+                    <div class="crad-waiting-names-note" id="tafWaitingNamesNote"<?= $approvalNamesReady ? ' hidden' : '' ?> role="status">
+                        <?= smsIcon('lock') ?>
+                        <span>Sending is not available yet. Wait until Admin assigns a Research Adviser and Research Coordinator in Section IX.</span>
+                    </div>
+                <?php endif; ?>
             </div>
             <?php if ($alreadySentToAdviser): ?>
                 <div class="crad-document-packet-note" role="status">
@@ -558,7 +562,7 @@ require_once ROOT_PATH . '/includes/layout-start.php';
                         <div class="crad-field-row crad-field-row-3">
                             <div class="crad-field">
                                 <label>Full Name (Last, First, M.I.) <span>*</span></label>
-                                <input type="text" name="member_name[]" value="<?= htmlspecialchars($defaultMemberName) ?>" required>
+                                <input type="text" name="member_name[]" value="<?= htmlspecialchars($defaultMemberName) ?>" placeholder="Abejuela, John Kenneth C." required>
                             </div>
                             <div class="crad-field">
                                 <label>Section <span>*</span></label>
@@ -962,7 +966,7 @@ require_once ROOT_PATH . '/includes/layout-start.php';
 /* Below-sheet button row */
 .crad-below-sheet {
     width: 210mm; max-width: 100%; margin: 0 auto;
-    display: flex; justify-content: flex-end;
+    display: flex; flex-direction: column; align-items: flex-end;
     padding: 0.85rem 0 0;
 }
 .crad-returned-note {
@@ -994,6 +998,19 @@ require_once ROOT_PATH . '/includes/layout-start.php';
     opacity: 0.6; cursor: not-allowed; transform: none;
     box-shadow: none;
 }
+.crad-btn-send-adviser.is-waiting-names {
+    background: linear-gradient(135deg, #94a3b8 0%, #64748b 100%);
+    box-shadow: none;
+    pointer-events: none;
+}
+.crad-waiting-names-note {
+    width: 210mm; max-width: 100%; margin: .65rem auto 0;
+    display: flex; align-items: flex-start; gap: .55rem;
+    padding: .7rem 1rem; border-radius: 10px;
+    background: #fff7ed; color: #9a3412; border: 1px solid #fdba74;
+    font-size: .86rem; font-weight: 700; line-height: 1.4;
+}
+.crad-waiting-names-note[hidden] { display: none; }
 .crad-btn-send-adviser.is-sent {
     background: linear-gradient(135deg, #0e7490 0%, #0c6380 100%);
     box-shadow: 0 4px 18px rgba(14,116,144,0.4);
@@ -1191,6 +1208,13 @@ require_once ROOT_PATH . '/includes/layout-start.php';
 }
 .print-approver-name {
     color: #111 !important; font-size: 8pt !important; font-weight: 800 !important;
+}
+.print-approver-name.is-live-flash {
+    animation: tafNameFlash 1.2s ease;
+}
+@keyframes tafNameFlash {
+    0% { background: #fef3c7; }
+    100% { background: transparent; }
 }
 .print-approver-role {
     display: block; color: #334155; font-size: 7pt;
@@ -1696,7 +1720,7 @@ require_once ROOT_PATH . '/includes/layout-start.php';
         card.innerHTML =
             '<h3><span>' + n + '</span> Group Member Profile</h3>' +
             '<div class="crad-field-row crad-field-row-3">' +
-            '  <div class="crad-field"><label>Full Name (Last, First, M.I.) <span>*</span></label><input type="text" name="member_name[]" required></div>' +
+            '  <div class="crad-field"><label>Full Name (Last, First, M.I.) <span>*</span></label><input type="text" name="member_name[]" placeholder="Abejuela, John Kenneth C." required></div>' +
             '  <div class="crad-field"><label>Section <span>*</span></label><input type="text" name="member_section[]" required></div>' +
             '  <div class="crad-field"><label>Research Forum Receipt OR</label><input type="text" name="member_or[]" value="' + generateOrNumber() + '" readonly class="crad-or-field" data-auto-or></div>' +
             '</div>';
@@ -1850,8 +1874,32 @@ require_once ROOT_PATH . '/includes/layout-start.php';
         notice.style.display = 'block';
     }
 
+    function hasApprovalNames() {
+        var adviser = String(btn.dataset.adviser || '').trim();
+        var coordinator = String(btn.dataset.coordinator || '').trim();
+        return adviser !== '' && coordinator !== '';
+    }
+
+    function syncSendButton() {
+        if (btn.classList.contains('is-sent') || btn.dataset.alreadySent === '1') {
+            return;
+        }
+        var ready = hasApprovalNames();
+        btn.disabled = !ready;
+        btn.classList.toggle('is-waiting-names', !ready);
+        var waitNote = document.getElementById('tafWaitingNamesNote');
+        if (waitNote) waitNote.hidden = ready;
+    }
+    window.tafSyncSendButton = syncSendButton;
+    syncSendButton();
+
     btn.addEventListener('click', function () {
-        if (btn.disabled || btn.classList.contains('is-sent')) return;
+        if (btn.disabled || btn.classList.contains('is-sent') || btn.classList.contains('is-waiting-names')) return;
+        if (!hasApprovalNames()) {
+            showNotice('Sending is not available yet. Research Adviser and Research Coordinator names are still blank in Section IX.', 'error');
+            syncSendButton();
+            return;
+        }
 
         btn.disabled = true;
         notice.style.display = 'none';
@@ -1875,8 +1923,7 @@ require_once ROOT_PATH . '/includes/layout-start.php';
             primary_sdg:      btn.dataset.sdg,
             research_agenda:  btn.dataset.agenda,
             justification:    btn.dataset.justification,
-            members:          btn.dataset.members,
-            csrf_token:       <?= json_encode(csrfToken()) ?>
+            members:          btn.dataset.members
         };
 
         fetch('<?= BASE_URL ?>/modules/crad/api/send-to-adviser.php', {
@@ -1889,10 +1936,10 @@ require_once ROOT_PATH . '/includes/layout-start.php';
         .then(function (data) {
             /* Adviser has no account */
             if (!data.ok && data.no_account) {
-                btn.disabled = false;
                 if (icon) icon.className = 'fas fa-paper-plane';
                 if (text) text.textContent = 'Send to Adviser';
                 showNotice('The message cannot be sent because the adviser does not have an account.', 'error');
+                syncSendButton();
                 return;
             }
             if (!data.ok) throw new Error(data.message || 'Server error');
@@ -1913,19 +1960,75 @@ require_once ROOT_PATH . '/includes/layout-start.php';
             showNotice('<strong>Document Packet Sent</strong><br>Current status: Document Packet Sent. This status is shown on your dashboard.', 'success');
 
             /* Replace the URL so refresh / back still shows the submitted view
-               (PHP will load the data from crad_title_approvals — no GET params needed) */
+               (PHP will load the data from title_approvals — no GET params needed) */
             try {
                 var cleanUrl = window.location.pathname + '?process=submit-proposal';
                 history.replaceState(null, '', cleanUrl);
             } catch (e) { /* ignore */ }
         })
         .catch(function (err) {
-            btn.disabled = false;
             if (icon) icon.className = 'fas fa-paper-plane';
             if (text) text.textContent = 'Send to Adviser';
             showNotice('Could not send: ' + err.message, 'error');
+            syncSendButton();
         });
     });
+})();
+</script>
+
+<script>
+(function () {
+    var adviserEl = document.getElementById('tafAdviserName');
+    var coordEl = document.getElementById('tafCoordinatorName');
+    var sendBtn = document.getElementById('sendToAdviserBtn');
+    if (!adviserEl && !coordEl && !sendBtn) return;
+
+    var endpoint = <?= json_encode(BASE_URL . '/modules/student-portal/pages/research-proposal-submission.php?ajax=assignees') ?>;
+
+    function applyNames(data) {
+        if (!data || !data.ok) return;
+        var adviserName = String(data.adviser_name || '').trim();
+        var adviserEmail = String(data.adviser_email || '').trim();
+        var coordName = String(data.coordinator_name || '').trim();
+        if (adviserEl) {
+            if (adviserEl.textContent !== adviserName) {
+                adviserEl.textContent = adviserName;
+                adviserEl.classList.remove('is-live-flash');
+                void adviserEl.offsetWidth;
+                adviserEl.classList.add('is-live-flash');
+            }
+        }
+        if (coordEl) {
+            if (coordEl.textContent !== coordName) {
+                coordEl.textContent = coordName;
+                coordEl.classList.remove('is-live-flash');
+                void coordEl.offsetWidth;
+                coordEl.classList.add('is-live-flash');
+            }
+        }
+        if (sendBtn) {
+            sendBtn.dataset.adviser = adviserName;
+            sendBtn.dataset.adviserEmail = adviserEmail;
+            sendBtn.dataset.coordinator = coordName;
+            if (typeof window.tafSyncSendButton === 'function') {
+                window.tafSyncSendButton();
+            }
+        }
+    }
+
+    function poll() {
+        fetch(endpoint + '&t=' + Date.now(), {
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'fetch' },
+            credentials: 'same-origin',
+            cache: 'no-store'
+        })
+            .then(function (res) { return res.json(); })
+            .then(applyNames)
+            .catch(function () {});
+    }
+
+    poll();
+    setInterval(poll, 2000);
 })();
 </script>
 

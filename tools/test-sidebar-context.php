@@ -15,6 +15,7 @@ $roles = [
     'finance' => ['mode' => 'admin_modules', 'module' => 'payment', 'dashboard' => true, 'home' => '/dashboard/index.php'],
     'crad_officer' => ['mode' => 'admin_modules', 'module' => 'crad', 'dashboard' => true, 'home' => '/dashboard/index.php'],
     'research_coordinator' => ['mode' => 'admin_modules', 'module' => 'crad', 'dashboard' => false, 'home' => '/modules/crad/index.php'],
+    'department_head' => ['mode' => 'admin_modules', 'module' => 'crad', 'dashboard' => false, 'home' => '/modules/crad/pages/research-coordinator-management.php'],
     'panel' => ['mode' => 'faculty_workspace', 'module' => 'faculty', 'dashboard' => false, 'home' => '/modules/faculty/pages/assigned-defenses.php'],
     'grammarian' => ['mode' => 'faculty_workspace', 'module' => 'faculty', 'dashboard' => false, 'home' => '/modules/faculty/pages/for-evaluation.php'],
     'research_director' => ['mode' => 'faculty_workspace', 'module' => 'faculty', 'dashboard' => false, 'home' => '/modules/faculty/pages/research-director.php'],

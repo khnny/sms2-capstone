@@ -2,12 +2,6 @@
 config/local.php
 config/local.infinityfree.php
 
-# HostForge / local secrets (copy from .env.example — never commit real passwords)
-.env
-.env.local
-.env.*.local
-!.env.example
-
 # Secrets and generated keys
 storage/keys/*
 !storage/keys/.gitignore

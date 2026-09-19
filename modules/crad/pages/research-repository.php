@@ -79,10 +79,10 @@ function repositoryRows(PDO $crad, string $validTitleApprovalSql, string $status
             rg.college_dept,
             fma.status AS final_approval_status,
             fma.approved_at AS final_approved_at
-         FROM crad_publications p
-         INNER JOIN crad_research_groups rg ON rg.id = p.research_group_id
-         INNER JOIN crad_title_approvals ta ON ta.id = rg.title_approval_id AND {$validTitleApprovalSql}
-         LEFT JOIN crad_final_manuscript_approvals fma ON fma.research_group_id = p.research_group_id
+         FROM publications p
+         INNER JOIN research_groups rg ON rg.id = p.research_group_id
+         INNER JOIN title_approvals ta ON ta.id = rg.title_approval_id AND {$validTitleApprovalSql}
+         LEFT JOIN final_manuscript_approvals fma ON fma.research_group_id = p.research_group_id
          WHERE p.status IN ('For Publication', 'Published', 'Archived')
            {$statusSql}
          ORDER BY p.updated_at DESC, p.id DESC"
@@ -96,9 +96,9 @@ function repositoryMetrics(PDO $crad, string $validTitleApprovalSql): array
     $metrics = ['total' => 0, 'for_publication' => 0, 'published' => 0, 'archived' => 0];
     $stmt = $crad->query(
         "SELECT p.status, COUNT(*) AS total
-         FROM crad_publications p
-         INNER JOIN crad_research_groups rg ON rg.id = p.research_group_id
-         INNER JOIN crad_title_approvals ta ON ta.id = rg.title_approval_id AND {$validTitleApprovalSql}
+         FROM publications p
+         INNER JOIN research_groups rg ON rg.id = p.research_group_id
+         INNER JOIN title_approvals ta ON ta.id = rg.title_approval_id AND {$validTitleApprovalSql}
          WHERE p.status IN ('For Publication', 'Published', 'Archived')
          GROUP BY p.status"
     );
@@ -135,20 +135,20 @@ function repositoryRecord(PDO $crad, string $validTitleApprovalSql, int $id): ?a
             me.result AS manuscript_result,
             me.overall_score AS manuscript_score,
             me.evaluated_at AS manuscript_evaluated_at
-         FROM crad_publications p
-         INNER JOIN crad_research_groups rg ON rg.id = p.research_group_id
-         INNER JOIN crad_title_approvals ta ON ta.id = rg.title_approval_id AND {$validTitleApprovalSql}
-         LEFT JOIN crad_final_manuscript_approvals fma ON fma.research_group_id = p.research_group_id
-         LEFT JOIN crad_manuscript_submissions ms ON ms.id = (
+         FROM publications p
+         INNER JOIN research_groups rg ON rg.id = p.research_group_id
+         INNER JOIN title_approvals ta ON ta.id = rg.title_approval_id AND {$validTitleApprovalSql}
+         LEFT JOIN final_manuscript_approvals fma ON fma.research_group_id = p.research_group_id
+         LEFT JOIN manuscript_submissions ms ON ms.id = (
             SELECT ms2.id
-            FROM crad_manuscript_submissions ms2
+            FROM manuscript_submissions ms2
             WHERE ms2.research_group_id = p.research_group_id
             ORDER BY ms2.version_number DESC, ms2.id DESC
             LIMIT 1
          )
-         LEFT JOIN crad_manuscript_evaluations me ON me.id = (
+         LEFT JOIN manuscript_evaluations me ON me.id = (
             SELECT me2.id
-            FROM crad_manuscript_evaluations me2
+            FROM manuscript_evaluations me2
             WHERE me2.submission_id = ms.id
             ORDER BY me2.id DESC
             LIMIT 1

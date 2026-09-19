@@ -9,16 +9,22 @@
 
 declare(strict_types=1);
 
-// CLI only — never expose schema install over HTTP.
-if (PHP_SAPI !== 'cli') {
-    http_response_code(403);
-    header('Content-Type: text/plain; charset=utf-8');
-    echo "Forbidden. Run from CLI:\n  php modules/crad/database/install_progress_module.php\n";
-    exit(1);
-}
-
 // Require existing CRAD configuration
 require_once __DIR__ . '/../config/config.php';
+
+if (PHP_SAPI !== 'cli') {
+    // Web-based execution with basic protection
+    session_start();
+    require_once __DIR__ . '/../../../config/config.php';
+    require_once ROOT_PATH . '/includes/authentication.php';
+    $isAuthorized = !empty($_SESSION['user_role_key'])
+        && (smsRoleAllowedForModule(['crad_officer'], 'crad') || smsCanBypassSystemControls((string) $_SESSION['user_role_key']));
+    
+    if (!$isAuthorized) {
+        http_response_code(403);
+        die('Access denied. Admin/CRAD Officer authentication required.');
+    }
+}
 
 // Get database connection
 try {
@@ -113,9 +119,9 @@ try {
         SELECT rg.id, rg.group_number, rg.group_name, rg.research_title, 
                rg.adviser, rg.academic_year,
                raa.adviser_user_id, raa.adviser_name, raa.adviser_email
-        FROM crad_research_groups rg
-        LEFT JOIN crad_research_plans rp ON rp.research_group_id = rg.id
-        LEFT JOIN crad_research_adviser_assignments raa ON raa.group_number = rg.group_number 
+        FROM research_groups rg
+        LEFT JOIN research_plans rp ON rp.research_group_id = rg.id
+        LEFT JOIN research_adviser_assignments raa ON raa.group_number = rg.group_number 
             AND raa.assignment_status = 'Confirmed'
         WHERE rp.id IS NULL 
           AND rg.status = 'Approved'
@@ -147,7 +153,7 @@ try {
                 $groupName = $group['group_name'];
                 
                 // Create research plan (with duplicate check)
-                $checkPlan = $crad->prepare("SELECT id FROM crad_research_plans WHERE research_group_id = ?");
+                $checkPlan = $crad->prepare("SELECT id FROM research_plans WHERE research_group_id = ?");
                 $checkPlan->execute([$groupId]);
                 
                 if ($checkPlan->fetch()) {
@@ -156,7 +162,7 @@ try {
                 }
                 
                 $insertPlan = $crad->prepare("
-                    INSERT INTO crad_research_plans (
+                    INSERT INTO research_plans (
                         research_group_id, group_number, research_title, 
                         adviser_user_id, adviser_name, start_date, status
                     ) VALUES (?, ?, ?, ?, ?, CURDATE(), 'Active')
@@ -186,7 +192,7 @@ try {
                 ];
                 
                 $insertMilestone = $crad->prepare("
-                    INSERT IGNORE INTO crad_research_milestones (
+                    INSERT IGNORE INTO research_milestones (
                         research_plan_id, milestone_name, milestone_order, description, status
                     ) VALUES (?, ?, ?, ?, 'Not Started')
                 ");

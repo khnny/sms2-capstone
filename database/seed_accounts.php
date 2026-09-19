@@ -31,11 +31,11 @@ $roles = [
     ['qa', 'QA Office', 'Accreditation and quality'],
     ['crad_officer', 'CRAD Officer', 'Research and development'],
     ['research_coordinator', 'Research Coordinator', 'Research coordination access'],
+    ['department_head', 'Department Head', 'Adviser and panel assignment'],
     ['department_chair', 'Department Chair', 'Grant approval — department chair sign-off'],
     ['research_office', 'Research Office', 'Grant approval — research office sign-off'],
     ['vpaa', 'VPAA', 'Grant approval — VPAA sign-off'],
     ['research_director', 'Research Director', 'Research defense scheduling director account'],
-    ['adviser', 'Adviser', 'Research adviser faculty account'],
     ['grammarian', 'Grammarian', 'Research grammar and manuscript evaluation account'],
     ['review_committee', 'Review Committee', 'Grant proposal review and rubric evaluation'],
     ['panel', 'Panel Member', 'Research defense panel account'],
@@ -43,7 +43,7 @@ $roles = [
 ];
 
 $insRole = $pdo->prepare(
-    'INSERT INTO sms_roles (role_key, label, description) VALUES (?, ?, ?)
+    'INSERT INTO roles (role_key, label, description) VALUES (?, ?, ?)
      ON DUPLICATE KEY UPDATE label = VALUES(label), description = VALUES(description)'
 );
 foreach ($roles as $role) {
@@ -52,7 +52,7 @@ foreach ($roles as $role) {
 
 echo "Updating role permissions…" . PHP_EOL;
 
-$pdo->exec('DELETE FROM sms_role_permissions');
+$pdo->exec('DELETE FROM role_permissions');
 
 $perms = [
     'superadmin'   => ['user-management'],
@@ -60,10 +60,10 @@ $perms = [
     'registrar'    => ['registrar', 'curriculum', 'scheduling'],
     'crad_officer' => ['crad'],
     'research_coordinator' => ['crad'],
+    'department_head' => ['crad'],
     'department_chair' => ['crad'],
     'research_office' => ['crad'],
     'research_director' => ['faculty'],
-    'adviser'      => ['faculty'],
     'grammarian'   => ['faculty'],
     'review_committee' => ['crad_grant'],
     'panel'        => ['faculty'],
@@ -77,7 +77,7 @@ $perms = [
 ];
 
 $insPerm = $pdo->prepare(
-    'INSERT INTO sms_role_permissions (role_key, module_key, granted) VALUES (?, ?, 1)'
+    'INSERT INTO role_permissions (role_key, module_key, granted) VALUES (?, ?, 1)'
 );
 foreach ($perms as $role => $modules) {
     foreach ($modules as $mod) {
@@ -89,6 +89,14 @@ foreach ($perms as $role => $modules) {
 echo "Creating / updating accounts…" . PHP_EOL;
 
 $accounts = [
+    [
+        'username' => 'depthead',
+        'email' => 'depthead@bestlink.edu.ph',
+        'password' => '@Depthead123',
+        'full_name' => 'Department Head',
+        'role_key' => 'department_head',
+        'student_id' => null,
+    ],
     [
         'username' => 'deptchair',
         'email' => 'deptchair@bestlink.edu.ph',
@@ -139,7 +147,7 @@ $accounts = [
     ],
     [
         'username' => 'cradofficer',
-        'email' => 'cradofficer@bestlink.edu.ph',
+        'email' => 'cradofficer@bestlink.ph',
         'password' => '@Cradofficer123',
         'full_name' => 'CRAD Officer',
         'role_key' => 'crad_officer',
@@ -151,14 +159,6 @@ $accounts = [
         'password' => '@Coordinator123',
         'full_name' => 'Mrs. Kris Guevarra',
         'role_key' => 'research_coordinator',
-        'student_id' => null,
-    ],
-    [
-        'username' => 'researchdirector',
-        'email' => 'research.director@bestlink.edu.ph',
-        'password' => '@Director123',
-        'full_name' => 'Research Director',
-        'role_key' => 'research_director',
         'student_id' => null,
     ],
     [
@@ -175,14 +175,6 @@ $accounts = [
         'password' => '@Committee123',
         'full_name' => 'Review Committee Member',
         'role_key' => 'review_committee',
-        'student_id' => null,
-    ],
-    [
-        'username' => 'researchgrant',
-        'email' => 'researchgrant@bestlink.edu.ph',
-        'password' => '@Grant123',
-        'full_name' => 'Research Grant',
-        'role_key' => 'research_grant',
         'student_id' => null,
     ],
     [
@@ -268,20 +260,18 @@ $accounts = [
 ];
 
 $upsert = $pdo->prepare(
-    'INSERT INTO sms_users
+    'INSERT INTO users
         (username, email, password_hash, full_name, role_key, student_id, status, password_changed_at, must_change_password, failed_login_attempts, locked_until)
-     VALUES (?, ?, ?, ?, ?, ?, \'active\', NOW(), 1, 0, NULL)
+     VALUES (?, ?, ?, ?, ?, ?, \'active\', NOW(), 0, 0, NULL)
      ON DUPLICATE KEY UPDATE
         email = VALUES(email),
-        password_hash = VALUES(password_hash),
         full_name = VALUES(full_name),
         role_key = VALUES(role_key),
         student_id = VALUES(student_id),
         status = \'active\',
-        must_change_password = 1,
+        must_change_password = 0,
         failed_login_attempts = 0,
-        locked_until = NULL,
-        password_changed_at = NOW()'
+        locked_until = NULL'
 );
 
 foreach ($accounts as $a) {
@@ -304,7 +294,7 @@ if (is_file($permFile)) {
 }
 
 $pdo->prepare(
-    'INSERT INTO sms_activity_logs (user_id, user_name, role_key, action, module_key, detail, ip_address)
+    'INSERT INTO activity_logs (user_id, user_name, role_key, action, module_key, detail, ip_address)
      VALUES (NULL, ?, ?, ?, ?, ?, ?)'
 )->execute(['System', 'admin', 'seed', 'System', 'Official role accounts seeded', 'cli']);
 

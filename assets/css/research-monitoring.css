@@ -777,6 +777,103 @@
     color: var(--sms-heading);
 }
 
+.rm-ai-generate-btn {
+    background: #4f46e5;
+    border: 1.5px solid #4f46e5;
+    color: #fff;
+    font-weight: 800;
+}
+.rm-ai-generate-btn:hover,
+.rm-ai-generate-btn:focus {
+    background: #4338ca;
+    border-color: #4338ca;
+    color: #fff;
+}
+.rm-ai-generate-btn:disabled {
+    opacity: 0.7;
+    cursor: wait;
+}
+
+.rm-ai-panel {
+    margin-top: 0.85rem;
+    padding: 1rem 1.05rem;
+    border-radius: 12px;
+    background: #eef2ff;
+    border: 1px solid #c7d2fe;
+}
+.rm-ai-panel-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.75rem;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    margin-bottom: 0.6rem;
+}
+.rm-ai-panel-title {
+    font-size: 0.92rem;
+    font-weight: 850;
+    color: #312e81;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+.rm-ai-panel-sub {
+    font-size: 0.78rem;
+    color: #4338ca;
+    font-weight: 600;
+    margin-top: 0.15rem;
+}
+.rm-ai-verdict {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 0.22rem 0.7rem;
+    font-size: 0.72rem;
+    font-weight: 800;
+    background: #fee2e2;
+    color: #b91c1c;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+.rm-ai-panel[data-verdict="acceptable"] .rm-ai-verdict {
+    background: #dcfce7;
+    color: #047857;
+}
+.rm-ai-summary {
+    font-size: 0.88rem;
+    color: #1e1b4b;
+    margin-bottom: 0.7rem;
+    line-height: 1.5;
+}
+.rm-ai-notes {
+    margin: 0 0 0.8rem;
+    padding-left: 1.1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+}
+.rm-ai-notes li {
+    font-size: 0.85rem;
+    color: #312e81;
+    line-height: 1.45;
+}
+.rm-ai-example {
+    margin-top: 0.2rem;
+    font-size: 0.78rem;
+    color: #4338ca;
+    font-style: italic;
+}
+.rm-ai-gate-note {
+    flex-basis: 100%;
+    background: #eef2ff;
+    color: #3730a3;
+    border: 1px solid #c7d2fe;
+    border-radius: 8px;
+    padding: 0.55rem 0.75rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
 /* Feedback thread */
 .rm-feedback-thread {
     margin-top: 1rem;
@@ -1267,100 +1364,4 @@
         width: 100%;
         justify-content: flex-end;
     }
-}
-
-/* AI grammar review (ported from Kenneth) */
-.rm-ai-generate-btn {
-    background: #4f46e5;
-    border: 1.5px solid #4f46e5;
-    color: #fff;
-    font-weight: 800;
-}
-.rm-ai-generate-btn:hover,
-.rm-ai-generate-btn:focus {
-    background: #4338ca;
-    border-color: #4338ca;
-    color: #fff;
-}
-.rm-ai-generate-btn:disabled {
-    opacity: 0.7;
-    cursor: wait;
-}
-
-.rm-ai-panel {
-    margin-top: 0.85rem;
-    padding: 1rem 1.05rem;
-    border-radius: 12px;
-    background: #eef2ff;
-    border: 1px solid #c7d2fe;
-}
-.rm-ai-panel-head {
-    display: flex;
-    justify-content: space-between;
-    gap: 0.75rem;
-    align-items: flex-start;
-    flex-wrap: wrap;
-    margin-bottom: 0.6rem;
-}
-.rm-ai-panel-title {
-    font-size: 0.92rem;
-    font-weight: 850;
-    color: #312e81;
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-}
-.rm-ai-panel-sub {
-    font-size: 0.78rem;
-    color: #4338ca;
-    font-weight: 600;
-    margin-top: 0.15rem;
-}
-.rm-ai-verdict {
-    display: inline-flex;
-    align-items: center;
-    border-radius: 999px;
-    padding: 0.22rem 0.7rem;
-    font-size: 0.72rem;
-    font-weight: 800;
-    background: #fee2e2;
-    color: #b91c1c;
-}
-.rm-ai-panel[data-verdict="acceptable"] .rm-ai-verdict {
-    background: #dcfce7;
-    color: #047857;
-}
-.rm-ai-summary {
-    font-size: 0.88rem;
-    color: #1e1b4b;
-    margin-bottom: 0.7rem;
-    line-height: 1.5;
-}
-.rm-ai-notes {
-    margin: 0 0 0.8rem;
-    padding-left: 1.1rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.55rem;
-}
-.rm-ai-notes li {
-    font-size: 0.85rem;
-    color: #312e81;
-    line-height: 1.45;
-}
-.rm-ai-example {
-    margin-top: 0.2rem;
-    font-size: 0.78rem;
-    color: #4338ca;
-    font-style: italic;
-}
-.rm-ai-gate-note {
-    flex-basis: 100%;
-    background: #eef2ff;
-    color: #3730a3;
-    border: 1px solid #c7d2fe;
-    border-radius: 8px;
-    padding: 0.55rem 0.75rem;
-    font-size: 0.8rem;
-    font-weight: 600;
 }

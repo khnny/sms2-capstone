@@ -22,22 +22,22 @@ $analytics = [
     'for_revision' => 0,
     'active_studies' => 0,
     'approval_rate' => 0,
-    'crad_publications' => 0,
+    'publications' => 0,
     'final_defenses' => 0,
 ];
 $analyticsRows = [];
 try {
     $validTitleApprovalSql = cradValidTitleApprovalWhereSql('pub_ta');
-    $analytics['total_groups'] = (int) $crad->query("SELECT COUNT(*) FROM crad_research_groups")->fetchColumn();
-    $analytics['approved_titles'] = (int) $crad->query("SELECT COUNT(*) FROM crad_title_approvals WHERE status = 'Approved'")->fetchColumn();
-    $analytics['with_advisers'] = (int) $crad->query("SELECT COUNT(DISTINCT research_group_id) FROM crad_research_adviser_assignments WHERE assignment_status IN ('Assigned', 'Confirmed') AND research_group_id IS NOT NULL")->fetchColumn();
-    $analytics['pre_oral_completed'] = (int) $crad->query("SELECT COUNT(*) FROM crad_research_defense_schedules WHERE defense_type = 'Pre-Oral' AND LOWER(status) IN ('scheduled', 'finalized', 'final', 'completed', 'passed')")->fetchColumn();
-    $analytics['final_approved'] = (int) $crad->query("SELECT COUNT(*) FROM crad_final_manuscript_approvals WHERE status = 'Approved'")->fetchColumn();
-    $analytics['for_revision'] = (int) $crad->query("SELECT COUNT(*) FROM crad_research_revision_cycles WHERE revision_status IN ('Needs Revision', 'Under Review')")->fetchColumn();
-    $analytics['active_studies'] = (int) $crad->query("SELECT COUNT(*) FROM crad_research_groups WHERE status IS NULL OR LOWER(status) NOT IN ('completed', 'archived', 'cancelled')")->fetchColumn();
-    $analytics['approval_rate'] = (int) ($crad->query("SELECT COALESCE(ROUND(100 * AVG(result = 'APPROVED')), 0) FROM crad_manuscript_evaluations")->fetchColumn() ?: 0);
-    $analytics['crad_publications'] = (int) $crad->query("SELECT COUNT(*) FROM crad_publications p INNER JOIN crad_research_groups pub_rg ON pub_rg.id = p.research_group_id INNER JOIN crad_title_approvals pub_ta ON pub_ta.id = pub_rg.title_approval_id AND {$validTitleApprovalSql} WHERE p.status IN ('For Publication', 'Published', 'Archived')")->fetchColumn();
-    $analytics['final_defenses'] = (int) $crad->query("SELECT COUNT(*) FROM crad_research_defense_schedules WHERE defense_type = 'Final Defense' AND LOWER(status) IN ('scheduled', 'finalized', 'final', 'completed', 'passed')")->fetchColumn();
+    $analytics['total_groups'] = (int) $crad->query("SELECT COUNT(*) FROM research_groups")->fetchColumn();
+    $analytics['approved_titles'] = (int) $crad->query("SELECT COUNT(*) FROM title_approvals WHERE status = 'Approved'")->fetchColumn();
+    $analytics['with_advisers'] = (int) $crad->query("SELECT COUNT(DISTINCT research_group_id) FROM research_adviser_assignments WHERE assignment_status IN ('Assigned', 'Confirmed') AND research_group_id IS NOT NULL")->fetchColumn();
+    $analytics['pre_oral_completed'] = (int) $crad->query("SELECT COUNT(*) FROM research_defense_schedules WHERE defense_type = 'Pre-Oral' AND LOWER(status) IN ('scheduled', 'finalized', 'final', 'completed', 'passed')")->fetchColumn();
+    $analytics['final_approved'] = (int) $crad->query("SELECT COUNT(*) FROM final_manuscript_approvals WHERE status = 'Approved'")->fetchColumn();
+    $analytics['for_revision'] = (int) $crad->query("SELECT COUNT(*) FROM research_revision_cycles WHERE revision_status IN ('Needs Revision', 'Under Review')")->fetchColumn();
+    $analytics['active_studies'] = (int) $crad->query("SELECT COUNT(*) FROM research_groups WHERE status IS NULL OR LOWER(status) NOT IN ('completed', 'archived', 'cancelled')")->fetchColumn();
+    $analytics['approval_rate'] = (int) ($crad->query("SELECT COALESCE(ROUND(100 * AVG(result = 'APPROVED')), 0) FROM manuscript_evaluations")->fetchColumn() ?: 0);
+    $analytics['publications'] = (int) $crad->query("SELECT COUNT(*) FROM publications p INNER JOIN research_groups pub_rg ON pub_rg.id = p.research_group_id INNER JOIN title_approvals pub_ta ON pub_ta.id = pub_rg.title_approval_id AND {$validTitleApprovalSql} WHERE p.status IN ('For Publication', 'Published', 'Archived')")->fetchColumn();
+    $analytics['final_defenses'] = (int) $crad->query("SELECT COUNT(*) FROM research_defense_schedules WHERE defense_type = 'Final Defense' AND LOWER(status) IN ('scheduled', 'finalized', 'final', 'completed', 'passed')")->fetchColumn();
     $analyticsRows = $crad->query(
         "SELECT rg.group_number AS reference, rg.research_title AS title,
                 COALESCE(rg.group_name, 'Capstone') AS owner,
@@ -48,15 +48,15 @@ try {
                     ELSE 'In Progress'
                 END AS status,
                 COALESCE(fma.updated_at, ms.updated_at, rds.updated_at, rg.updated_at) AS updated
-         FROM crad_research_groups rg
-         LEFT JOIN crad_final_manuscript_approvals fma ON fma.research_group_id = rg.id
-         LEFT JOIN crad_manuscript_submissions ms ON ms.id = (
-             SELECT ms2.id FROM crad_manuscript_submissions ms2
+         FROM research_groups rg
+         LEFT JOIN final_manuscript_approvals fma ON fma.research_group_id = rg.id
+         LEFT JOIN manuscript_submissions ms ON ms.id = (
+             SELECT ms2.id FROM manuscript_submissions ms2
              WHERE ms2.research_group_id = rg.id
              ORDER BY ms2.version_number DESC, ms2.id DESC LIMIT 1
          )
-         LEFT JOIN crad_research_defense_schedules rds ON rds.id = (
-             SELECT rds2.id FROM crad_research_defense_schedules rds2
+         LEFT JOIN research_defense_schedules rds ON rds.id = (
+             SELECT rds2.id FROM research_defense_schedules rds2
              WHERE rds2.research_group_id = rg.id AND rds2.defense_type = 'Final Defense'
              ORDER BY rds2.id DESC LIMIT 1
          )
@@ -82,7 +82,7 @@ $cradProcess = [
         ['label' => 'Active Studies', 'value' => (string) $analytics['active_studies'], 'icon' => 'fa-flask', 'tone' => 'blue'],
         ['label' => 'Approval Rate', 'value' => $analytics['approval_rate'] . '%', 'icon' => 'fa-percent', 'tone' => 'green'],
         ['label' => 'Final Defenses', 'value' => (string) $analytics['final_defenses'], 'icon' => 'fa-gavel', 'tone' => 'amber'],
-        ['label' => 'Publications', 'value' => (string) $analytics['crad_publications'], 'icon' => 'fa-book-open', 'tone' => 'purple'],
+        ['label' => 'Publications', 'value' => (string) $analytics['publications'], 'icon' => 'fa-book-open', 'tone' => 'purple'],
     ],
     'steps' => [
         ['Define Report Scope', 'Select the time period, college, and research metric for the report.'],
@@ -148,12 +148,12 @@ require_once __DIR__ . '/../../../includes/layout-start.php';
 $step20Dashboard = [
     'donut' => [
         'labels' => ['Approved Titles', 'With Advisers', 'Pre-Oral Completed', 'Final Defense Completed', 'Final Approved', 'For Revision', 'Published'],
-        'values' => [$analytics['approved_titles'], $analytics['with_advisers'], $analytics['pre_oral_completed'], $analytics['final_defenses'], $analytics['final_approved'], $analytics['for_revision'], $analytics['crad_publications']],
+        'values' => [$analytics['approved_titles'], $analytics['with_advisers'], $analytics['pre_oral_completed'], $analytics['final_defenses'], $analytics['final_approved'], $analytics['for_revision'], $analytics['publications']],
         'colors' => ['#22c55e', '#3b82f6', '#f59e0b', '#0ea5e9', '#14b8a6', '#ef4444', '#8b5cf6'],
     ],
     'bar' => [
         'labels' => ['Groups', 'Titles', 'Advisers', 'Pre-Oral', 'Final Defense', 'Final Approved', 'Published'],
-        'values' => [$analytics['total_groups'], $analytics['approved_titles'], $analytics['with_advisers'], $analytics['pre_oral_completed'], $analytics['final_defenses'], $analytics['final_approved'], $analytics['crad_publications']],
+        'values' => [$analytics['total_groups'], $analytics['approved_titles'], $analytics['with_advisers'], $analytics['pre_oral_completed'], $analytics['final_defenses'], $analytics['final_approved'], $analytics['publications']],
     ],
 ];
 ?>

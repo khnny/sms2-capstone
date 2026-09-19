@@ -37,8 +37,8 @@ function smsFindUserByEmailExact(string $email): ?array
     }
     $stmt = $pdo->prepare(
         'SELECT u.*, r.label AS role_label
-         FROM sms_users u
-         INNER JOIN sms_roles r ON r.role_key = u.role_key
+         FROM users u
+         LEFT JOIN roles r ON r.role_key = u.role_key
          WHERE LOWER(u.email) = ?
          LIMIT 1'
     );
@@ -84,8 +84,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     if (in_array($status, ['active', 'locked'], true) && $sendTo !== '') {
                         $token = smsCreatePasswordResetToken((int) $user['id']);
                         if ($token) {
-                            $resetScheme = (function_exists('sms2_request_is_https') && sms2_request_is_https()) ? 'https' : 'http';
-                            $resetUrl = $resetScheme
+                            $resetUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' : 'http')
                                 . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost')
                                 . BASE_URL . '/login/reset-password.php?token=' . urlencode($token);
 

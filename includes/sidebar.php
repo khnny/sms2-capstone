@@ -27,12 +27,26 @@ $roleHomeActive = smsRoleHomeIsActive($roleKey, str_replace('\\', '/', (string) 
 $showMainDashboard = smsShowsMainDashboard($roleKey);
 $visibleModules = getVisibleModules($MODULES);
 $securitySettingsModule = '';
-if (!smsIsGrantedAdminRole($roleKey)) {
+$securitySettingsHrefOverride = '';
+if (smsIsGrantedAdminRole($roleKey)) {
+    $securitySettingsModule = 'admin';
+    $securitySettingsHrefOverride = BASE_URL . '/account/profile.php?tab=security';
+} else {
     foreach ($visibleModules as $securityModuleKey => $_securityModule) {
         if ($securityModuleKey !== 'user-management') {
             $securitySettingsModule = (string) $securityModuleKey;
             break;
         }
+    }
+    if ($securitySettingsModule === '' && in_array($roleKey, ['vpaa', 'research_office', 'department_chair', 'department_head', 'research_coordinator'], true)) {
+        if (!function_exists('smsPrimaryModuleForRole')) {
+            require_once __DIR__ . '/security-workflow.php';
+        }
+        $securitySettingsModule = (string) smsPrimaryModuleForRole($roleKey);
+    }
+    if ($roleKey === 'research_coordinator' || $roleKey === 'department_head') {
+        $securitySettingsModule = $securitySettingsModule !== '' ? $securitySettingsModule : 'crad';
+        $securitySettingsHrefOverride = BASE_URL . '/account/module-security.php?module=crad';
     }
 }
 $moduleHasSecuritySettingsPage = false;
@@ -45,15 +59,32 @@ if ($securitySettingsModule !== '' && isset($visibleModules[$securitySettingsMod
     }
 }
 
-// ── For students: Research Forum fee gate ───────────────────────────────────
-// Until Payment Management has a real ledger, do not hardcode "Paid".
-$researchForumPaid = true;
+// ── For students: check if Research Forum is paid ───────────────────────────
+$researchForumPaid = false;
 $studentReturnedTitleApprovalId = 0;
 if ($sidebarMode === 'student') {
-    if (isset($paymentModuleLive) && $paymentModuleLive === true && isset($researchForumPaid)) {
-        // page already computed from live ledger
+    // If student-portal-page.php already computed this, use it.
+    // Otherwise check independently from the payment data source.
+    if (isset($researchForumPaid) && $researchForumPaid === true) {
+        // already set by student-portal-page.php context
     } else {
-        $researchForumPaid = true;
+        // Standalone check: mirror the same transaction list.
+        // In production, replace with a real DB query against payment table.
+        $sidebarPayments = [
+            ['description' => 'Tuition Down Payment',  'status' => 'Paid'],
+            ['description' => 'Registration Fee',       'status' => 'Paid'],
+            ['description' => 'Laboratory Fee',         'status' => 'Paid'],
+            ['description' => 'Research Forum',         'status' => 'Paid'],
+        ];
+        foreach ($sidebarPayments as $txn) {
+            if (
+                stripos($txn['description'], 'Research Forum') !== false &&
+                strtolower($txn['status']) === 'paid'
+            ) {
+                $researchForumPaid = true;
+                break;
+            }
+        }
     }
 
     try {
@@ -65,7 +96,7 @@ if ($sidebarMode === 'student') {
             $sidebarStudentUserId = (int) ($_SESSION['user_id'] ?? 0);
             $titleStmt = $sidebarCrad->prepare(
                 "SELECT id
-                 FROM crad_title_approvals
+                 FROM title_approvals
                  WHERE status = 'Returned'
                    AND (
                         (:student_id_value <> '' AND student_id = :student_id_match)
@@ -108,9 +139,9 @@ $studentHasResearchGroup = false;
 if ($sidebarMode === 'student' && isset($sidebarCrad) && $sidebarCrad instanceof PDO) {
     try {
         $checkGroupStmt = $sidebarCrad->prepare("
-            SELECT COUNT(*) FROM crad_research_groups 
+            SELECT COUNT(*) FROM research_groups 
             WHERE status = 'Approved'
-              AND (leader_id = :student_id OR leader_id = (SELECT student_id FROM sms_users WHERE id = :user_id LIMIT 1))
+              AND (leader_id = :student_id OR leader_id = (SELECT student_id FROM sms2_db.users WHERE id = :user_id LIMIT 1))
             LIMIT 1
         ");
         $checkGroupStmt->execute([
@@ -150,6 +181,10 @@ $studentNavGroups = [
         ['slug' => 'my-submissions', 'href' => BASE_URL . '/modules/student-portal/pages/my-submissions.php', 'icon' => 'fa-folder-open', 'label' => 'My Submissions', 'locked' => false],
         ['slug' => 'submission-status', 'href' => BASE_URL . '/modules/student-portal/pages/submission-status.php', 'icon' => 'fa-chart-line', 'label' => 'Submission Status', 'locked' => false],
         ['slug' => 'submission-history', 'href' => BASE_URL . '/modules/student-portal/pages/submission-history.php', 'icon' => 'fa-history', 'label' => 'Submission History', 'locked' => false],
+    ],
+    'Research Clearance' => [
+        ['slug' => 'college-payment', 'href' => BASE_URL . '/modules/student-portal/pages/college-payment.php', 'icon' => 'fa-receipt', 'label' => 'Upload Collage Payment', 'locked' => false],
+        ['slug' => 'research-clearance', 'href' => BASE_URL . '/modules/student-portal/pages/research-clearance.php', 'icon' => 'fa-stamp', 'label' => 'Research Services Clearance', 'locked' => false],
     ],
     'Core System' => [
         ['slug' => 'grant-opportunities', 'href' => BASE_URL . '/modules/crad/pages/grant-opportunities.php', 'icon' => 'fa-hand-holding-usd', 'label' => 'Grant Opportunities', 'locked' => false],
@@ -252,6 +287,13 @@ $facultyAccountNavGroups += [
 if ($roleKey === 'adviser' && isset($facultyAccountNavGroups['My Research'])) {
     unset($facultyAccountNavGroups['My Research']);
 }
+if ($roleKey === 'adviser' && !isset($facultyAccountNavGroups['Research Clearance'])) {
+    $facultyAccountNavGroups = [
+        'Research Clearance' => [
+            ['slug' => 'research-clearance', 'href' => BASE_URL . '/modules/faculty/pages/research-clearance.php', 'icon' => 'fa-stamp', 'label' => 'Research Services Clearance'],
+        ],
+    ] + $facultyAccountNavGroups;
+}
 
 // ── Adviser: Core System grant pages (researchers apply to published calls) ──
 if ($roleKey === 'adviser') {
@@ -336,23 +378,7 @@ $panelNavGroups = [
     ],
 ];
 
-$researchDirectorBaseUrl = BASE_URL . '/modules/faculty/pages/research-director.php?view=';
 $researchDirectorNavGroups = [
-    'PRE-ORAL DEFENSE' => [
-        ['slug' => 'defense-scheduling-queue', 'href' => $researchDirectorBaseUrl . 'defense-scheduling-queue', 'icon' => 'fa-list-alt', 'label' => 'Ready for Scheduling'],
-        ['slug' => 'manual-scheduling-optimizer', 'href' => $researchDirectorBaseUrl . 'manual-scheduling-optimizer', 'icon' => 'fa-calendar-check', 'label' => 'Manual Scheduling Optimizer'],
-        ['slug' => 'proposed-schedules', 'href' => $researchDirectorBaseUrl . 'proposed-schedules', 'icon' => 'fa-calendar-plus', 'label' => 'Proposed Schedules'],
-        ['slug' => 'alternative-time-slots', 'href' => $researchDirectorBaseUrl . 'alternative-time-slots', 'icon' => 'fa-clock', 'label' => 'Alternative Time Slots'],
-        ['slug' => 'calendar', 'href' => $researchDirectorBaseUrl . 'calendar', 'icon' => 'fa-calendar-alt', 'label' => 'Calendar'],
-        ['slug' => 'venues', 'href' => $researchDirectorBaseUrl . 'venues', 'icon' => 'fa-map-marker-alt', 'label' => 'Venues'],
-        ['slug' => 'finalize-defense-schedule', 'href' => $researchDirectorBaseUrl . 'finalize-defense-schedule', 'icon' => 'fa-clipboard-check', 'label' => 'Finalize Schedule'],
-    ],
-    'FINAL DEFENSE SCHEDULING' => [
-        ['slug' => 'final-defense-scheduling-queue', 'href' => $researchDirectorBaseUrl . 'defense-scheduling-queue&defense_type=Final%20Defense', 'icon' => 'fa-list-alt', 'label' => 'Ready for Scheduling'],
-        ['slug' => 'final-defense-manual-scheduling', 'href' => $researchDirectorBaseUrl . 'manual-scheduling-optimizer&defense_type=Final%20Defense', 'icon' => 'fa-calendar-check', 'label' => 'Manual Scheduling Optimizer'],
-        ['slug' => 'final-defense-proposed-schedules', 'href' => $researchDirectorBaseUrl . 'proposed-schedules&defense_type=Final%20Defense', 'icon' => 'fa-calendar-plus', 'label' => 'Proposed Schedules'],
-        ['slug' => 'final-defense-finalize-schedule', 'href' => $researchDirectorBaseUrl . 'finalize-defense-schedule&defense_type=Final%20Defense', 'icon' => 'fa-clipboard-check', 'label' => 'Finalize Schedule'],
-    ],
     'SYSTEM' => [
         ['slug' => 'security-settings', 'href' => BASE_URL . '/account/module-security.php?module=faculty', 'icon' => 'fa-shield-alt', 'label' => 'Security Settings'],
     ],
@@ -527,6 +553,52 @@ $researchDirectorNavGroups = [
                 </li>
                 <?php endif; ?>
 
+                <?php if ($roleKey === 'department_chair'): ?>
+                    <?php
+                    $chairDefenseItems = $panelNavGroups['DEFENSE'];
+                    $chairDefenseActive = false;
+                    $chairDefenseOverview = (string) ($chairDefenseItems[0]['href'] ?? '');
+                    foreach ($chairDefenseItems as $chairDefenseProbe) {
+                        if (($activePage ?? '') === ($chairDefenseProbe['slug'] ?? '')) {
+                            $chairDefenseActive = true;
+                            break;
+                        }
+                    }
+                    $chairDefenseCollapseId = 'navGrp_dept_chair_defense';
+                    ?>
+                    <li class="nav-item admin-module-item">
+                        <button type="button"
+                                class="nav-link sidebar-parent admin-module-toggle <?= $chairDefenseActive ? 'active' : '' ?>"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#<?= htmlspecialchars($chairDefenseCollapseId) ?>"
+                                aria-expanded="<?= $chairDefenseActive ? 'true' : 'false' ?>"
+                                aria-controls="<?= htmlspecialchars($chairDefenseCollapseId) ?>"
+                                data-overview-url="<?= htmlspecialchars($chairDefenseOverview) ?>"
+                                data-title="DEFENSE"
+                                title="DEFENSE">
+                            <?= smsIcon((string) ($chairDefenseItems[0]['icon'] ?? 'fa-clipboard-list'), ['aria-hidden' => 'true']) ?>
+                            <span>DEFENSE</span>
+                            <?= smsIcon('chevron-down', ['class' => 'sidebar-chevron ms-auto', 'aria-hidden' => 'true']) ?>
+                        </button>
+                        <div class="collapse admin-module-body sidebar-submenu <?= $chairDefenseActive ? 'show' : '' ?>"
+                             id="<?= htmlspecialchars($chairDefenseCollapseId) ?>">
+                            <ul class="nav flex-column">
+                                <?php foreach ($chairDefenseItems as $chairDefenseItem): ?>
+                                <li class="nav-item">
+                                    <a class="nav-link sidebar-sub <?= (($activePage ?? '') === $chairDefenseItem['slug']) ? 'active' : '' ?>"
+                                       href="<?= htmlspecialchars($chairDefenseItem['href']) ?>"
+                                       data-title="<?= htmlspecialchars($chairDefenseItem['label']) ?>"
+                                       title="<?= htmlspecialchars($chairDefenseItem['label']) ?>">
+                                        <?= smsIcon($chairDefenseItem['icon'], ['aria-hidden' => 'true']) ?>
+                                        <span><?= htmlspecialchars($chairDefenseItem['label']) ?></span>
+                                    </a>
+                                </li>
+                                <?php endforeach; ?>
+                            </ul>
+                        </div>
+                    </li>
+                <?php endif; ?>
+
                 <?php if ($sidebarMode === 'admin_modules' && in_array($roleKey, $grantApprovalSidebarRoles, true)): ?>
                     <?php
                     $grantApprovalSidebarItems = grantReviewWorkflowSidebarItems($roleKey);
@@ -571,12 +643,21 @@ $researchDirectorNavGroups = [
                 <?php foreach ($visibleModules as $navModuleKey => $module): ?>
                     <?php
                     $isModuleActive = ($highlightModule === $navModuleKey);
+                    if (
+                        $roleKey === 'department_head'
+                        && $navModuleKey === 'crad'
+                        && $activePage !== 'security-settings'
+                    ) {
+                        $isModuleActive = true;
+                    }
                     $moduleFolder = match ($navModuleKey) {
                         'student_portal' => 'student-portal',
                         'crad_grant'     => 'crad',
                         default          => $navModuleKey,
                     };
-                    $overviewUrl = BASE_URL . '/modules/' . $moduleFolder . '/index.php';
+                    $overviewUrl = !empty($module['hide_overview'])
+                        ? $roleHomeUrl
+                        : (BASE_URL . '/modules/' . $moduleFolder . '/index.php');
                     $moduleInMaint = smsIsModuleInMaintenance((string) $navModuleKey);
                     $moduleIcon = (string) ($module['icon'] ?? 'fa-folder');
                     $moduleCollapseId = 'adminMod_' . preg_replace('/[^a-z0-9_]/', '_', (string) $navModuleKey);
@@ -591,7 +672,8 @@ $researchDirectorNavGroups = [
                         }
                     }
                     $pageTitles = [];
-                    foreach ($module['pages'] as $p) {
+                    $modulePages = isset($module['pages']) && is_array($module['pages']) ? $module['pages'] : [];
+                    foreach ($modulePages as $p) {
                         $pageTitles[$p['slug']] = $p['title'];
                     }
                     $showModuleOverview = empty($module['hide_overview']);
@@ -630,6 +712,40 @@ $researchDirectorNavGroups = [
                                     </a>
                                 </li>
                                 <?php endif; ?>
+                                <?php
+                                $groupedSlugSet = [];
+                                if ($showModuleGroups) {
+                                    foreach ($module['groups'] as $groupSlugsForSet) {
+                                        foreach ((array) $groupSlugsForSet as $groupedSlug) {
+                                            $groupedSlugSet[(string) $groupedSlug] = true;
+                                        }
+                                    }
+                                }
+                                ?>
+                                <?php if (!empty($module['show_ungrouped_pages'])): ?>
+                                    <?php foreach ($modulePages as $page): ?>
+                                        <?php
+                                        $ungroupedSlug = (string) ($page['slug'] ?? '');
+                                        if ($ungroupedSlug === '' || isset($groupedSlugSet[$ungroupedSlug])) {
+                                            continue;
+                                        }
+                                        $isPageActive = ($isModuleActive && $activePage === $ungroupedSlug);
+                                        $pageHref = BASE_URL . '/modules/' . $moduleFolder . '/pages/' . $ungroupedSlug . '.php';
+                                        if ($ungroupedSlug === 'security-settings') {
+                                            $pageHref = BASE_URL . '/account/module-security.php?module=' . urlencode((string) $navModuleKey);
+                                        }
+                                        ?>
+                                        <li class="nav-item">
+                                            <a class="nav-link sidebar-sub <?= $isPageActive ? 'active' : '' ?>"
+                                               href="<?= htmlspecialchars($pageHref) ?>"
+                                               data-title="<?= htmlspecialchars((string) $page['title']) ?>"
+                                               title="<?= htmlspecialchars((string) $page['title']) ?>">
+                                                <?= smsIcon(smsNavPageIcon($ungroupedSlug), ['aria-hidden' => 'true']) ?>
+                                                <span><?= htmlspecialchars((string) $page['title']) ?></span>
+                                            </a>
+                                        </li>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
                                 <?php if ($showModuleGroups): ?>
                                     <?php foreach ($module['groups'] as $groupLabel => $groupSlugs): ?>
                                         <?php
@@ -661,6 +777,12 @@ $researchDirectorNavGroups = [
                                                     data-admin-subgroup="#<?= htmlspecialchars($groupCollapseId) ?>"
                                                     aria-expanded="<?= $isGroupActive ? 'true' : 'false' ?>"
                                                     aria-controls="<?= htmlspecialchars($groupCollapseId) ?>">
+                                                <?= smsIcon(
+                                                    (string) $groupLabel === 'Research Clearance'
+                                                        ? 'fa-stamp'
+                                                        : smsNavPageIcon((string) ($groupSlugs[0] ?? '')),
+                                                    ['aria-hidden' => 'true']
+                                                ) ?>
                                                 <span><?= htmlspecialchars((string) $groupLabel) ?></span>
                                                 <?= smsIcon('chevron-down', ['class' => 'sidebar-chevron ms-auto', 'aria-hidden' => 'true']) ?>
                                             </button>
@@ -688,6 +810,10 @@ $researchDirectorNavGroups = [
                                                             $pageHref = BASE_URL . '/modules/' . $moduleFolder . '/pages/' . $slug . '.php';
                                                             $sidebarPageTitle = $pageTitles[$slug];
                                                             $pageIcon = smsNavPageIcon($slug);
+                                                            $defenseHref = smsAdminDefenseSchedulingHref($slug);
+                                                            if ($defenseHref !== null) {
+                                                                $pageHref = $defenseHref;
+                                                            }
                                                             if ($slug === 'security-settings') {
                                                                 $pageHref = BASE_URL . '/account/module-security.php?module=' . urlencode((string) $navModuleKey);
                                                             }
@@ -711,7 +837,7 @@ $researchDirectorNavGroups = [
                                         </li>
                                     <?php endforeach; ?>
                                 <?php else: ?>
-                                    <?php foreach ($module['pages'] as $page): ?>
+                                    <?php foreach ($modulePages as $page): ?>
                                         <?php
                                         $isPageActive = ($isModuleActive && $activePage === $page['slug']);
                                         $pageHref = BASE_URL . '/modules/' . $moduleFolder . '/pages/' . $page['slug'] . '.php';
@@ -739,9 +865,27 @@ $researchDirectorNavGroups = [
                         </div>
                     </li>
                 <?php endforeach; ?>
+                <?php if (smsIsGrantedAdminRole($roleKey)): ?>
+                    <?php
+                    $announcementsHref = BASE_URL . '/account/announcements.php';
+                    $announcementsActive = ($activePage === 'announcements');
+                    ?>
+                    <li class="nav-item sidebar-home-item">
+                        <a class="nav-link sidebar-home-link <?= $announcementsActive ? 'active' : '' ?>"
+                           href="<?= htmlspecialchars($announcementsHref) ?>"
+                           data-overview-url="<?= htmlspecialchars($announcementsHref) ?>"
+                           data-title="Announcements"
+                           title="Announcements">
+                            <?= smsIcon('bullhorn', ['aria-hidden' => 'true']) ?>
+                            <span>Announcements</span>
+                        </a>
+                    </li>
+                <?php endif; ?>
                 <?php if ($securitySettingsModule !== '' && !$moduleHasSecuritySettingsPage): ?>
                     <?php $secSettingsActive = ($activePage === 'security-settings'); ?>
-                    <?php $secSettingsHref = BASE_URL . '/account/module-security.php?module=' . urlencode($securitySettingsModule); ?>
+                    <?php $secSettingsHref = $securitySettingsHrefOverride !== ''
+                        ? $securitySettingsHrefOverride
+                        : BASE_URL . '/account/module-security.php?module=' . urlencode($securitySettingsModule); ?>
                     <li class="nav-item admin-module-item">
                         <button type="button"
                                 class="nav-link sidebar-parent admin-module-toggle <?= $secSettingsActive ? 'active' : '' ?>"

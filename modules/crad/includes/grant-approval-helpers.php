@@ -210,7 +210,7 @@ function grantNotifyFinancePendingSignoff(PDO $crad, array $application): void
     }
 
     $financeUsers = $mainDb->query("
-        SELECT id FROM sms_users WHERE role_key = 'finance' AND status = 'active'
+        SELECT id FROM users WHERE role_key = 'finance' AND status = 'active'
     ")->fetchAll(PDO::FETCH_ASSOC) ?: [];
 
     if ($financeUsers === []) {
@@ -329,7 +329,7 @@ function grantEnsureApprovalTables(PDO $crad): void
     $done = true;
 
     $crad->exec("
-        CREATE TABLE IF NOT EXISTS crad_grant_proposal_approval_workflows (
+        CREATE TABLE IF NOT EXISTS grant_proposal_approval_workflows (
             id                    INT UNSIGNED NOT NULL AUTO_INCREMENT,
             grant_application_id  INT UNSIGNED NOT NULL,
             current_step_key      VARCHAR(40)  NOT NULL DEFAULT 'adviser',
@@ -345,7 +345,7 @@ function grantEnsureApprovalTables(PDO $crad): void
     ");
 
     $crad->exec("
-        CREATE TABLE IF NOT EXISTS crad_grant_proposal_approval_steps (
+        CREATE TABLE IF NOT EXISTS grant_proposal_approval_steps (
             id                    INT UNSIGNED NOT NULL AUTO_INCREMENT,
             workflow_id           INT UNSIGNED NOT NULL,
             grant_application_id  INT UNSIGNED NOT NULL,
@@ -386,24 +386,24 @@ function grantMigrateEnsureFinanceApprovalStep(PDO $crad): void
     try {
         $workflows = $crad->query("
             SELECT id, grant_application_id, current_step_key, workflow_status
-              FROM crad_grant_proposal_approval_workflows
+              FROM grant_proposal_approval_workflows
         ")->fetchAll(PDO::FETCH_ASSOC) ?: [];
 
         $hasStep = $crad->prepare(
-            "SELECT id FROM crad_grant_proposal_approval_steps WHERE workflow_id = ? AND step_key = ? LIMIT 1"
+            "SELECT id FROM grant_proposal_approval_steps WHERE workflow_id = ? AND step_key = ? LIMIT 1"
         );
         $stepStatuses = $crad->prepare(
-            "SELECT step_key, status FROM crad_grant_proposal_approval_steps
+            "SELECT step_key, status FROM grant_proposal_approval_steps
               WHERE workflow_id = ? AND step_key IN ('research_office', 'vpaa', 'finance')"
         );
         $insertStep = $crad->prepare("
-            INSERT INTO crad_grant_proposal_approval_steps
+            INSERT INTO grant_proposal_approval_steps
                 (workflow_id, grant_application_id, step_key, step_order, step_label,
                  approver_role_key, status, created_at, updated_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
         ");
         $normalizeOrder = $crad->prepare("
-            UPDATE crad_grant_proposal_approval_steps
+            UPDATE grant_proposal_approval_steps
                SET step_order = ?, step_label = ?, updated_at = NOW()
              WHERE workflow_id = ? AND step_key = ?
         ");
@@ -467,7 +467,7 @@ function grantFixApprovalWorkflowStepPointer(PDO $crad, int $workflowId, array $
 
     $stmt = $crad->prepare("
         SELECT step_key, status
-          FROM crad_grant_proposal_approval_steps
+          FROM grant_proposal_approval_steps
          WHERE workflow_id = ?
            AND step_key IN ('research_office', 'vpaa', 'finance')
     ");
@@ -484,7 +484,7 @@ function grantFixApprovalWorkflowStepPointer(PDO $crad, int $workflowId, array $
 
     if ($wfStatus === 'Completed' && $vpaaStatus === 'Approved' && $financeStatus !== 'Approved') {
         $crad->prepare("
-            UPDATE crad_grant_proposal_approval_workflows
+            UPDATE grant_proposal_approval_workflows
                SET workflow_status = 'In Progress',
                    current_step_key = 'finance',
                    completed_at = NULL,
@@ -492,13 +492,13 @@ function grantFixApprovalWorkflowStepPointer(PDO $crad, int $workflowId, array $
              WHERE id = ?
         ")->execute([$workflowId]);
         $crad->prepare("
-            UPDATE crad_grant_proposal_approval_steps
+            UPDATE grant_proposal_approval_steps
                SET status = 'Pending', updated_at = NOW()
              WHERE workflow_id = ? AND step_key = 'finance' AND status != 'Approved'
         ")->execute([$workflowId]);
         if ($appId > 0) {
             $crad->prepare("
-                UPDATE crad_grant_applications
+                UPDATE grant_applications
                    SET status = 'Under Review', updated_at = NOW()
                  WHERE id = ? AND status = 'Approved'
             ")->execute([$appId]);
@@ -513,20 +513,20 @@ function grantFixApprovalWorkflowStepPointer(PDO $crad, int $workflowId, array $
 
     if ($currentStep === 'finance' && $vpaaStatus !== 'Approved') {
         $crad->prepare("
-            UPDATE crad_grant_proposal_approval_workflows
+            UPDATE grant_proposal_approval_workflows
                SET current_step_key = 'vpaa', updated_at = NOW()
              WHERE id = ?
         ")->execute([$workflowId]);
         if ($roStatus === 'Approved' && in_array($vpaaStatus, ['Queued', 'Pending'], true)) {
             $crad->prepare("
-                UPDATE crad_grant_proposal_approval_steps
+                UPDATE grant_proposal_approval_steps
                    SET status = 'Pending', updated_at = NOW()
                  WHERE workflow_id = ? AND step_key = 'vpaa'
             ")->execute([$workflowId]);
         }
         if ($financeStatus === 'Pending') {
             $crad->prepare("
-                UPDATE crad_grant_proposal_approval_steps
+                UPDATE grant_proposal_approval_steps
                    SET status = 'Queued', updated_at = NOW()
                  WHERE workflow_id = ? AND step_key = 'finance'
             ")->execute([$workflowId]);
@@ -539,13 +539,13 @@ function grantFixApprovalWorkflowStepPointer(PDO $crad, int $workflowId, array $
         && in_array($financeStatus, ['Queued', 'Pending'], true)
         && $currentStep === 'vpaa') {
         $crad->prepare("
-            UPDATE crad_grant_proposal_approval_workflows
+            UPDATE grant_proposal_approval_workflows
                SET current_step_key = 'finance', updated_at = NOW()
              WHERE id = ?
         ")->execute([$workflowId]);
         if ($financeStatus === 'Queued') {
             $crad->prepare("
-                UPDATE crad_grant_proposal_approval_steps
+                UPDATE grant_proposal_approval_steps
                    SET status = 'Pending', updated_at = NOW()
                  WHERE workflow_id = ? AND step_key = 'finance'
             ")->execute([$workflowId]);
@@ -596,14 +596,14 @@ function grantStartApprovalWorkflow(PDO $crad, int $applicationId): array
         $crad->beginTransaction();
 
         $crad->prepare("
-            INSERT INTO crad_grant_proposal_approval_workflows
+            INSERT INTO grant_proposal_approval_workflows
                 (grant_application_id, current_step_key, workflow_status, started_at, updated_at)
             VALUES (?, 'adviser', 'In Progress', NOW(), NOW())
         ")->execute([$applicationId]);
         $workflowId = (int) $crad->lastInsertId();
 
         $insertStep = $crad->prepare("
-            INSERT INTO crad_grant_proposal_approval_steps
+            INSERT INTO grant_proposal_approval_steps
                 (workflow_id, grant_application_id, step_key, step_order, step_label,
                  approver_role_key, status, created_at, updated_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
@@ -623,7 +623,7 @@ function grantStartApprovalWorkflow(PDO $crad, int $applicationId): array
         }
 
         $crad->prepare("
-            UPDATE crad_grant_applications
+            UPDATE grant_applications
                SET status = 'Under Review', updated_at = NOW()
              WHERE id = ?
         ")->execute([$applicationId]);
@@ -656,20 +656,20 @@ function grantBackfillApprovalWorkflows(PDO $crad): void
         $committeeType = grantEvaluationTypeCommittee();
         $stmt = $crad->prepare("
             SELECT DISTINCT ga.id
-              FROM crad_grant_applications ga
-              JOIN crad_grant_proposal_evaluations e
+              FROM grant_applications ga
+              JOIN grant_proposal_evaluations e
                 ON e.grant_application_id = ga.id
                AND e.recommendation = 'recommend'
                AND e.evaluation_type = ?
                AND e.proposal_version = COALESCE(NULLIF(ga.current_version, 0), 1)
                AND e.id = (
                     SELECT MAX(e2.id)
-                      FROM crad_grant_proposal_evaluations e2
+                      FROM grant_proposal_evaluations e2
                      WHERE e2.grant_application_id = ga.id
                        AND e2.evaluation_type = ?
                        AND e2.proposal_version = COALESCE(NULLIF(ga.current_version, 0), 1)
                )
-              LEFT JOIN crad_grant_proposal_approval_workflows w
+              LEFT JOIN grant_proposal_approval_workflows w
                 ON w.grant_application_id = ga.id
              WHERE w.id IS NULL
                AND ga.status NOT IN ('Rejected', 'Revision Required', 'Denied', 'Withdrawn', 'Approved & Funded')
@@ -699,9 +699,9 @@ function grantGetApprovalWorkflowByApplicationId(PDO $crad, int $applicationId):
                ga.status AS application_status,
                ga.current_version,
                go.funding_title
-          FROM crad_grant_proposal_approval_workflows w
-          JOIN crad_grant_applications ga ON ga.id = w.grant_application_id
-          LEFT JOIN crad_grant_opportunities go ON go.id = ga.grant_opportunity_id
+          FROM grant_proposal_approval_workflows w
+          JOIN grant_applications ga ON ga.id = w.grant_application_id
+          LEFT JOIN grant_opportunities go ON go.id = ga.grant_opportunity_id
          WHERE w.grant_application_id = ?
          LIMIT 1
     ");
@@ -720,7 +720,7 @@ function grantGetApprovalSteps(PDO $crad, int $workflowId): array
 
     $stmt = $crad->prepare("
         SELECT *
-          FROM crad_grant_proposal_approval_steps
+          FROM grant_proposal_approval_steps
          WHERE workflow_id = ?
          ORDER BY step_order ASC
     ");
@@ -879,10 +879,10 @@ function grantApprovalWorkflowList(PDO $crad): array
                go.funding_title,
                cs.step_label AS current_step_label,
                cs.approver_role_key AS current_approver_role
-          FROM crad_grant_proposal_approval_workflows w
-          JOIN crad_grant_applications ga ON ga.id = w.grant_application_id
-          LEFT JOIN crad_grant_opportunities go ON go.id = ga.grant_opportunity_id
-          LEFT JOIN crad_grant_proposal_approval_steps cs
+          FROM grant_proposal_approval_workflows w
+          JOIN grant_applications ga ON ga.id = w.grant_application_id
+          LEFT JOIN grant_opportunities go ON go.id = ga.grant_opportunity_id
+          LEFT JOIN grant_proposal_approval_steps cs
             ON cs.workflow_id = w.id AND cs.step_key = w.current_step_key
     ";
 
@@ -899,7 +899,7 @@ function grantApprovalWorkflowList(PDO $crad): array
                       AND cs.status = 'Pending'
                       AND EXISTS (
                             SELECT 1
-                              FROM crad_grant_proposal_approval_steps vp
+                              FROM grant_proposal_approval_steps vp
                              WHERE vp.workflow_id = w.id
                                AND vp.step_key = 'vpaa'
                                AND vp.status = 'Approved'
@@ -1045,8 +1045,8 @@ function grantSubmitApprovalSignoff(
     try {
         $crad->beginTransaction();
 
-        $stepUpdate = $crad->prepare("
-            UPDATE crad_grant_proposal_approval_steps
+        $crad->prepare("
+            UPDATE grant_proposal_approval_steps
                SET status = 'Approved',
                    approver_user_id = ?,
                    approver_name = ?,
@@ -1054,9 +1054,8 @@ function grantSubmitApprovalSignoff(
                    signature_data = ?,
                    acted_at = NOW(),
                    updated_at = NOW()
-             WHERE workflow_id = ? AND step_key = ? AND status = 'Pending'
-        ");
-        $stepUpdate->execute([
+             WHERE workflow_id = ? AND step_key = ?
+        ")->execute([
             $userId > 0 ? $userId : null,
             $userName,
             $remarks !== '' ? $remarks : null,
@@ -1064,14 +1063,10 @@ function grantSubmitApprovalSignoff(
             $workflowId,
             $stepKey,
         ]);
-        if ($stepUpdate->rowCount() < 1) {
-            $crad->rollBack();
-            return ['ok' => false, 'error' => 'This approval step was already completed.'];
-        }
 
         if ($nextStep === null) {
             $crad->prepare("
-                UPDATE crad_grant_proposal_approval_workflows
+                UPDATE grant_proposal_approval_workflows
                    SET workflow_status = 'Completed',
                        completed_at = NOW(),
                        updated_at = NOW()
@@ -1080,7 +1075,7 @@ function grantSubmitApprovalSignoff(
 
             $finalStatus = grantStatusApprovedFunded();
             $crad->prepare("
-                UPDATE crad_grant_applications
+                UPDATE grant_applications
                    SET status = ?, updated_at = NOW()
                  WHERE id = ?
             ")->execute([$finalStatus, $applicationId]);
@@ -1100,13 +1095,13 @@ function grantSubmitApprovalSignoff(
         }
 
         $crad->prepare("
-            UPDATE crad_grant_proposal_approval_workflows
+            UPDATE grant_proposal_approval_workflows
                SET current_step_key = ?, updated_at = NOW()
              WHERE id = ?
         ")->execute([$nextStep['key'], $workflowId]);
 
         $crad->prepare("
-            UPDATE crad_grant_proposal_approval_steps
+            UPDATE grant_proposal_approval_steps
                SET status = 'Pending', updated_at = NOW()
              WHERE workflow_id = ? AND step_key = ?
         ")->execute([$workflowId, $nextStep['key']]);
@@ -1171,7 +1166,7 @@ function grantReturnProposalFromApproval(
         $crad->beginTransaction();
 
         $crad->prepare("
-            UPDATE crad_grant_proposal_approval_steps
+            UPDATE grant_proposal_approval_steps
                SET status = 'Returned',
                    approver_user_id = ?,
                    approver_name = ?,
@@ -1182,13 +1177,13 @@ function grantReturnProposalFromApproval(
         ")->execute([$userId > 0 ? $userId : null, $returnedByLabel, $remarks, $workflowId, $stepKey]);
 
         $crad->prepare("
-            UPDATE crad_grant_proposal_approval_workflows
+            UPDATE grant_proposal_approval_workflows
                SET workflow_status = 'Returned', updated_at = NOW()
              WHERE id = ?
         ")->execute([$workflowId]);
 
         $crad->prepare("
-            UPDATE crad_grant_applications
+            UPDATE grant_applications
                SET status = 'Revision Required', updated_at = NOW()
              WHERE id = ?
         ")->execute([$applicationId]);
@@ -1234,8 +1229,8 @@ function grantClearApprovalWorkflowForResubmit(PDO $crad, int $applicationId): v
         return;
     }
 
-    $crad->prepare('DELETE FROM crad_grant_proposal_approval_steps WHERE workflow_id = ?')->execute([$workflowId]);
-    $crad->prepare('DELETE FROM crad_grant_proposal_approval_workflows WHERE id = ?')->execute([$workflowId]);
+    $crad->prepare('DELETE FROM grant_proposal_approval_steps WHERE workflow_id = ?')->execute([$workflowId]);
+    $crad->prepare('DELETE FROM grant_proposal_approval_workflows WHERE id = ?')->execute([$workflowId]);
 }
 
 /**
@@ -1254,10 +1249,10 @@ function grantGetLatestApprovalReturnsForApplications(PDO $crad, array $applicat
     $placeholders = implode(',', array_fill(0, count($applicationIds), '?'));
     $stmt = $crad->prepare("
         SELECT s.*
-          FROM crad_grant_proposal_approval_steps s
+          FROM grant_proposal_approval_steps s
          INNER JOIN (
                 SELECT grant_application_id, MAX(id) AS max_id
-                  FROM crad_grant_proposal_approval_steps
+                  FROM grant_proposal_approval_steps
                  WHERE grant_application_id IN ({$placeholders})
                    AND status = 'Returned'
                  GROUP BY grant_application_id
@@ -1282,8 +1277,8 @@ function grantGetApprovedFundedApplications(PDO $crad): array
 
     $stmt = $crad->prepare("
         SELECT ga.*, go.funding_title, go.max_funding_cap
-          FROM crad_grant_applications ga
-         INNER JOIN crad_grant_opportunities go ON go.id = ga.grant_opportunity_id
+          FROM grant_applications ga
+         INNER JOIN grant_opportunities go ON go.id = ga.grant_opportunity_id
          WHERE ga.status = ?
          ORDER BY ga.updated_at DESC, ga.id DESC
     ");
@@ -1305,22 +1300,22 @@ function grantApprovalDashboardStats(PDO $crad): array
 
     $submitted = (int) $crad->query("
         SELECT COUNT(*)
-          FROM crad_grant_applications
+          FROM grant_applications
          WHERE status IN ('Submitted', 'Under Review', 'Approved')
     ")->fetchColumn();
 
     $inProgress = (int) $crad->query("
-        SELECT COUNT(*) FROM crad_grant_proposal_approval_workflows WHERE workflow_status = 'In Progress'
+        SELECT COUNT(*) FROM grant_proposal_approval_workflows WHERE workflow_status = 'In Progress'
     ")->fetchColumn();
 
     $completed = (int) $crad->query("
-        SELECT COUNT(*) FROM crad_grant_proposal_approval_workflows WHERE workflow_status = 'Completed'
+        SELECT COUNT(*) FROM grant_proposal_approval_workflows WHERE workflow_status = 'Completed'
     ")->fetchColumn();
 
     $committeeType = grantEvaluationTypeCommittee();
     $stmt = $crad->prepare("
         SELECT COUNT(DISTINCT grant_application_id)
-          FROM crad_grant_proposal_evaluations
+          FROM grant_proposal_evaluations
          WHERE evaluation_type = ?
            AND recommendation = 'recommend'
     ");

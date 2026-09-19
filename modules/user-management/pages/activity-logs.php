@@ -3,6 +3,8 @@
  * SMS 2 – User Management – Activity Logs (Super Admin full audit trail)
  */
 require_once __DIR__ . '/../../../config/config.php';
+require_once ROOT_PATH . '/includes/authentication.php';
+require_once __DIR__ . '/../includes/activity-logs-query.php';
 
 $pageTitle    = 'Activity Logs';
 $activeModule = 'user-management';
@@ -16,68 +18,22 @@ require_once __DIR__ . '/../../../includes/breadcrumbs.php';
 require_once __DIR__ . '/../../../includes/layout-start.php';
 requireSuperAdmin();
 
-$logs = [];
-$pdo = db();
-if ($pdo) {
-    $stmt = $pdo->query(
-        'SELECT id,
-                IFNULL(user_name, "System") AS user,
-                IFNULL(role_key, "") AS role,
-                action,
-                detail,
-                IFNULL(module_key, "System") AS module,
-                IFNULL(ip_address, "—") AS ip,
-                DATE_FORMAT(created_at, "%b %e, %Y %H:%i:%s") AS time,
-                DATE_FORMAT(created_at, "%Y-%m-%d") AS log_date
-         FROM sms_activity_logs
-         ORDER BY id DESC
-         LIMIT 200'
-    );
-    $logs = $stmt->fetchAll() ?: [];
-}
-
-$actionIcons = [
-    'login'  => 'fa-sign-in-alt',
-    'logout' => 'fa-sign-out-alt',
-    'login_failed' => 'fa-exclamation-triangle',
-    'lockout' => 'fa-user-lock',
-    'create' => 'fa-plus-circle',
-    'update' => 'fa-pen',
-    'delete' => 'fa-trash-alt',
-    'view'   => 'fa-eye',
-    'export' => 'fa-file-export',
-    'password_reset' => 'fa-key',
-    'password_reset_request' => 'fa-envelope',
-    'password_change' => 'fa-key',
-    'install' => 'fa-database',
-];
-
-$actionOptions = [];
-$moduleOptions = [];
-foreach ($logs as $log) {
-    $a = (string) ($log['action'] ?? '');
-    $m = (string) ($log['module'] ?? '');
-    if ($a !== '') {
-        $actionOptions[$a] = true;
-    }
-    if ($m !== '') {
-        $moduleOptions[$m] = true;
-    }
-}
-ksort($actionOptions);
-ksort($moduleOptions);
-
-$total   = count($logs);
-$logins  = count(array_filter($logs, static fn($l) => $l['action'] === 'login'));
-$changes = count(array_filter($logs, static fn($l) => in_array($l['action'], ['create', 'update', 'delete'], true)));
-$exports = count(array_filter($logs, static fn($l) => $l['action'] === 'export'));
+$payload = umActivityLogsPayload(db());
+$logs = $payload['logs'];
+$actionOptions = array_fill_keys($payload['actions'], true);
+$moduleOptions = array_fill_keys($payload['modules'], true);
+$total = (int) $payload['stats']['total'];
+$logins = (int) $payload['stats']['logins'];
+$changes = (int) $payload['stats']['changes'];
+$exports = (int) $payload['stats']['exports'];
+$liveEndpoint = BASE_URL . '/modules/user-management/includes/activity-logs-data.php';
 ?>
 
 <link href="<?= BASE_URL ?>/modules/user-management/assets/css/user-management.css" rel="stylesheet">
 
 <?php
 $pageBannerIcon        = 'history';
-$pageBannerDescription = 'Full Super Admin audit trail across all modules. Module Security shows each module\'s own logs separately.';
+$pageBannerDescription = 'Full Super Admin audit trail across all modules. Updates live as new events are recorded.';
 renderBreadcrumbs($breadcrumbs);
 ?>
 
@@ -93,10 +49,10 @@ renderBreadcrumbs($breadcrumbs);
 
 <div class="row g-3 mb-4 dashboard-stats">
     <?php foreach ([
-        ['label' => 'Total Events', 'value' => $total,   'icon' => 'list',        'type' => 'primary'],
-        ['label' => 'Login Events', 'value' => $logins,  'icon' => 'login',     'type' => 'info'],
-        ['label' => 'Data Changes', 'value' => $changes, 'icon' => 'database',  'type' => 'warning'],
-        ['label' => 'Exports',      'value' => $exports, 'icon' => 'file-export', 'type' => 'success'],
+        ['key' => 'total',   'label' => 'Total Events', 'value' => $total,   'icon' => 'list',        'type' => 'primary'],
+        ['key' => 'logins',  'label' => 'Login Events', 'value' => $logins,  'icon' => 'login',     'type' => 'info'],
+        ['key' => 'changes', 'label' => 'Data Changes', 'value' => $changes, 'icon' => 'database',  'type' => 'warning'],
+        ['key' => 'exports', 'label' => 'Exports',      'value' => $exports, 'icon' => 'file-export', 'type' => 'success'],
     ] as $sc): ?>
         <div class="col-6 col-xl-3">
             <section class="card stat-card <?= $sc['type'] ?>">
@@ -104,7 +60,7 @@ renderBreadcrumbs($breadcrumbs);
                     <div class="stat-icon me-3"><?= smsIcon($sc['icon']) ?></div>
                     <div>
                         <h6 class="text-muted mb-0 small"><?= $sc['label'] ?></h6>
-                        <h4 class="mb-0 fw-bold"><?= $sc['value'] ?></h4>
+                        <h4 class="mb-0 fw-bold" data-um-log-stat="<?= e($sc['key']) ?>"><?= $sc['value'] ?></h4>
                     </div>
                 </div>
             </section>
@@ -120,6 +76,11 @@ renderBreadcrumbs($breadcrumbs);
                 <p class="small text-muted mb-0">Search by user, then narrow by action, module, or date. Export downloads the currently visible rows.</p>
             </div>
             <div class="d-flex align-items-center gap-2">
+                <span class="um-live-badge" id="adminLogLiveBadge" title="Polling every 3 seconds">
+                    <span class="um-live-dot" aria-hidden="true"></span>
+                    <span id="adminLogLiveLabel">Live</span>
+                </span>
+                <span class="small text-muted" id="adminLogSynced"><?= e($payload['synced_at']) ?></span>
                 <span class="small text-muted" id="adminLogCount"><?= $total ?> shown</span>
                 <button type="button" class="btn btn-sm btn-outline-secondary" id="adminLogClear">Clear filters</button>
             </div>
@@ -165,7 +126,9 @@ renderBreadcrumbs($breadcrumbs);
 <section class="card sms-sec-card">
     <div class="card-body p-0">
         <div class="um-log-scroll table-responsive">
-            <table class="table submodule-table align-middle mb-0" id="adminLogTable">
+            <table class="table submodule-table align-middle mb-0" id="adminLogTable"
+                   data-live-url="<?= e($liveEndpoint) ?>"
+                   data-latest-id="<?= (int) $payload['latest_id'] ?>">
                 <thead class="um-log-thead">
                     <tr>
                         <th style="padding-left:1.2rem;width:42px;">#</th>
@@ -179,15 +142,15 @@ renderBreadcrumbs($breadcrumbs);
                 </thead>
                 <tbody id="logTableBody">
                     <?php if (!$logs): ?>
-                        <tr>
+                        <tr class="admin-log-empty">
                             <td colspan="7" class="text-center text-muted py-4">No activity logs yet.</td>
                         </tr>
                     <?php else: ?>
                         <?php foreach ($logs as $log):
-                            $icon = $actionIcons[$log['action']] ?? 'fa-circle';
                             $userLabel = (string) ($log['user'] ?: 'System');
                             ?>
                             <tr class="log-row"
+                                data-id="<?= (int) $log['id'] ?>"
                                 data-action="<?= e((string) $log['action']) ?>"
                                 data-user="<?= e(strtolower($userLabel)) ?>"
                                 data-module="<?= e((string) $log['module']) ?>"
@@ -204,8 +167,8 @@ renderBreadcrumbs($breadcrumbs);
                                 </td>
                                 <td>
                                     <span class="log-action-badge <?= e((string) $log['action']) ?>">
-                                        <?= smsIcon($icon) ?>
-                                        <?= e(ucfirst(str_replace('_', ' ', (string) $log['action']))) ?>
+                                        <?= $log['icon_html'] ?>
+                                        <?= e((string) $log['action_label']) ?>
                                     </span>
                                 </td>
                                 <td style="max-width:260px;font-size:.8rem;"><?= e((string) $log['detail']) ?></td>
@@ -214,15 +177,15 @@ renderBreadcrumbs($breadcrumbs);
                                 <td style="font-size:.75rem;white-space:nowrap;color:var(--sms-text-muted);"><?= e((string) $log['time']) ?></td>
                             </tr>
                         <?php endforeach; ?>
-                        <tr class="admin-log-empty-filter" hidden>
-                            <td colspan="7" class="text-center text-muted py-4">No logs match the selected filters.</td>
-                        </tr>
                     <?php endif; ?>
+                    <tr class="admin-log-empty-filter" hidden>
+                        <td colspan="7" class="text-center text-muted py-4">No logs match the selected filters.</td>
+                    </tr>
                 </tbody>
             </table>
         </div>
     </div>
 </section>
 
-<script src="<?= BASE_URL ?>/modules/user-management/assets/js/user-management.js?v=20260831"></script>
+<script src="<?= BASE_URL ?>/modules/user-management/assets/js/user-management.js?v=20260918"></script>
 <?php require_once __DIR__ . '/../../../includes/layout-end.php'; ?>

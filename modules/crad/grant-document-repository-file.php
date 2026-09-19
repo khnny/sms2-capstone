@@ -28,8 +28,8 @@ try {
     grantEnsureDocumentRepositoryTables($crad);
     $stmt = $crad->prepare("
         SELECT i.*, dr.grant_application_id
-          FROM crad_grant_document_repository_items i
-         INNER JOIN crad_grant_document_repository dr ON dr.id = i.repository_id
+          FROM grant_document_repository_items i
+         INNER JOIN grant_document_repository dr ON dr.id = i.repository_id
          WHERE i.id = ?
            AND i.item_type = 'file'
          LIMIT 1

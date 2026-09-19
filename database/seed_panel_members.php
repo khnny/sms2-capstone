@@ -19,19 +19,19 @@ require_once __DIR__ . '/official_accounts.php';
 $pdo = getDatabaseConnection();
 
 $pdo->prepare(
-    'INSERT INTO sms_roles (role_key, label, description) VALUES (?, ?, ?)
+    'INSERT INTO roles (role_key, label, description) VALUES (?, ?, ?)
      ON DUPLICATE KEY UPDATE label = VALUES(label), description = VALUES(description)'
 )->execute(['panel', 'Panel Member', 'Research defense panel account']);
 
 $pdo->prepare(
-    'INSERT INTO sms_role_permissions (role_key, module_key, granted) VALUES (?, ?, 1)
+    'INSERT INTO role_permissions (role_key, module_key, granted) VALUES (?, ?, 1)
      ON DUPLICATE KEY UPDATE granted = 1'
 )->execute(['panel', 'faculty']);
 
 $upsert = $pdo->prepare(
-    'INSERT INTO sms_users
+    'INSERT INTO users
         (username, email, password_hash, full_name, role_key, student_id, status, password_changed_at, must_change_password, failed_login_attempts, locked_until)
-     VALUES (?, ?, ?, ?, ?, NULL, \'active\', NOW(), 1, 0, NULL)
+     VALUES (?, ?, ?, ?, ?, NULL, \'active\', NOW(), 0, 0, NULL)
      ON DUPLICATE KEY UPDATE
         email = VALUES(email),
         password_hash = VALUES(password_hash),
@@ -39,7 +39,7 @@ $upsert = $pdo->prepare(
         role_key = VALUES(role_key),
         status = \'active\',
         password_changed_at = NOW(),
-        must_change_password = 1,
+        must_change_password = 0,
         failed_login_attempts = 0,
         locked_until = NULL'
 );

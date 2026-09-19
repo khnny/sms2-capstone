@@ -29,6 +29,8 @@ function umOverviewRoleBadgeClass(string $role, string $label = ''): string
         'research_grant' => 'research_grant',
         'review_committee' => 'review_committee',
         'research_coordinator' => 'research_coordinator',
+        'department_head' => 'department_head',
+        'departmenthead' => 'department_head',
         'department_chair' => 'department_chair',
         'research_office' => 'research_office',
         'vpaa' => 'vpaa',
@@ -79,6 +81,12 @@ function umOverviewNormalizeUser(array $u): array
     if ($role === 'superadmin') {
         $u['roleLabel'] = 'Super Admin';
     }
+    if ($role === 'sms_admin') {
+        $u['roleLabel'] = 'Admin';
+    }
+    if (empty($u['roleLabel'])) {
+        $u['roleLabel'] = $role;
+    }
     if (
         ($role === 'admin' && $username !== 'superadmin')
         || $role === 'admission'
@@ -106,30 +114,44 @@ if (!$pdo) {
 
 try {
     $stats = [
-        'total' => (int) $pdo->query('SELECT COUNT(*) FROM sms_users')->fetchColumn(),
+        'total' => (int) $pdo->query(
+            "SELECT COUNT(*) FROM users
+             WHERE role_key <> 'research_grant'
+               AND username <> 'researchgrant'"
+        )->fetchColumn(),
         'inactive' => (int) $pdo->query(
-            "SELECT COUNT(*) FROM sms_users WHERE status IN ('inactive', 'suspended')"
+            "SELECT COUNT(*) FROM users
+             WHERE status IN ('inactive', 'suspended')
+               AND role_key <> 'research_grant'
+               AND username <> 'researchgrant'"
         )->fetchColumn(),
         'locked' => (int) $pdo->query(
-            "SELECT COUNT(*) FROM sms_users WHERE status = 'locked' OR (locked_until IS NOT NULL AND locked_until > NOW())"
+            "SELECT COUNT(*) FROM users
+             WHERE (status = 'locked' OR (locked_until IS NOT NULL AND locked_until > NOW()))
+               AND role_key <> 'research_grant'
+               AND username <> 'researchgrant'"
         )->fetchColumn(),
         'active' => (int) $pdo->query(
-            "SELECT COUNT(*) FROM sms_users
+            "SELECT COUNT(*) FROM users
              WHERE status = 'active'
-               AND (locked_until IS NULL OR locked_until <= NOW())"
+               AND (locked_until IS NULL OR locked_until <= NOW())
+               AND role_key <> 'research_grant'
+               AND username <> 'researchgrant'"
         )->fetchColumn(),
     ];
 
     $stmt = $pdo->query(
-        'SELECT u.id, u.full_name AS name, u.username, u.email, u.role_key AS role,
+        "SELECT u.id, u.full_name AS name, u.username, u.email, u.role_key AS role,
                 r.label AS roleLabel, u.status, u.last_login_at, u.locked_until
-         FROM sms_users u
-         INNER JOIN sms_roles r ON r.role_key = u.role_key
+         FROM users u
+         LEFT JOIN roles r ON r.role_key = u.role_key
+         WHERE u.role_key <> 'research_grant'
+           AND u.username <> 'researchgrant'
          ORDER BY
-            CASE WHEN u.status = "active" THEN 0 WHEN u.status = "locked" THEN 1 ELSE 2 END,
+            CASE WHEN u.status = 'active' THEN 0 WHEN u.status = 'locked' THEN 1 ELSE 2 END,
             COALESCE(u.last_login_at, u.created_at) DESC,
             u.id ASC
-         LIMIT 10'
+         LIMIT 10"
     );
     $users = array_map('umOverviewNormalizeUser', $stmt->fetchAll() ?: []);
 

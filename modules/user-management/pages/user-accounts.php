@@ -32,12 +32,13 @@ $pdo = db();
 if ($pdo) {
     try {
         $pdo->prepare(
-            "INSERT IGNORE INTO sms_roles (role_key, label, description, is_system)
+            "INSERT IGNORE INTO roles (role_key, label, description, is_system)
              VALUES
                 ('superadmin', 'Super Admin', 'Full system access', 1),
                 ('admin', 'Super Admin', 'Legacy super admin access', 1),
                 ('sms_admin', 'Admin', 'General administrator account', 1),
                 ('research_coordinator', 'Research Coordinator', 'Research coordination access', 1),
+                ('department_head', 'Department Head', 'Adviser and panel assignment', 1),
                 ('department_chair', 'Department Chair', 'Grant approval department chair sign-off', 1),
                 ('research_office', 'Research Office', 'Grant approval research office sign-off', 1),
                 ('vpaa', 'VPAA', 'Grant approval VPAA sign-off', 1),
@@ -49,55 +50,63 @@ if ($pdo) {
                 ('review_committee', 'Review Committee', 'Grant proposal review and rubric evaluation', 1)"
         )->execute();
         $pdo->prepare(
-            "INSERT INTO sms_role_permissions (role_key, module_key, granted)
+            "INSERT INTO role_permissions (role_key, module_key, granted)
+             VALUES ('department_head', 'crad', 1)
+             ON DUPLICATE KEY UPDATE granted = VALUES(granted)"
+        )->execute();
+        $pdo->prepare(
+            "INSERT INTO role_permissions (role_key, module_key, granted)
              VALUES ('department_chair', 'crad', 1)
              ON DUPLICATE KEY UPDATE granted = VALUES(granted)"
         )->execute();
         $pdo->prepare(
-            "INSERT INTO sms_role_permissions (role_key, module_key, granted)
+            "INSERT INTO role_permissions (role_key, module_key, granted)
              VALUES ('research_office', 'crad', 1)
              ON DUPLICATE KEY UPDATE granted = VALUES(granted)"
         )->execute();
         $pdo->prepare(
-            "INSERT INTO sms_role_permissions (role_key, module_key, granted)
+            "INSERT INTO role_permissions (role_key, module_key, granted)
              VALUES ('vpaa', 'accreditation', 1)
              ON DUPLICATE KEY UPDATE granted = VALUES(granted)"
         )->execute();
         $pdo->prepare(
-            "UPDATE sms_users SET role_key = 'department_chair' WHERE username = 'deptchair' LIMIT 1"
+            "UPDATE users SET role_key = 'department_head' WHERE username = 'depthead' LIMIT 1"
         )->execute();
         $pdo->prepare(
-            "UPDATE sms_users SET role_key = 'research_office' WHERE username = 'researchoffice' LIMIT 1"
+            "UPDATE users SET role_key = 'department_chair' WHERE username = 'deptchair' LIMIT 1"
         )->execute();
         $pdo->prepare(
-            "UPDATE sms_users SET role_key = 'vpaa' WHERE username = 'vpaa' LIMIT 1"
+            "UPDATE users SET role_key = 'research_office' WHERE username = 'researchoffice' LIMIT 1"
         )->execute();
         $pdo->prepare(
-            "UPDATE sms_roles
+            "UPDATE users SET role_key = 'vpaa' WHERE username = 'vpaa' LIMIT 1"
+        )->execute();
+        $pdo->prepare(
+            "UPDATE roles
              SET label = 'Super Admin', description = 'Legacy super admin access'
              WHERE role_key = 'admin'"
         )->execute();
         $pdo->prepare(
-            "UPDATE sms_users
+            "UPDATE users
              SET role_key = 'superadmin'
              WHERE username = 'superadmin'
                AND role_key = 'admin'"
         )->execute();
         $pdo->prepare(
-            "UPDATE sms_users
-             SET full_name = 'Dean', username = 'dean', email = 'dean@bestlink.edu.ph'
+            "UPDATE users
+             SET username = 'dean'
              WHERE role_key = 'hr'
-               AND username IN ('hr', 'faculty', 'dean')"
+               AND username IN ('hr', 'faculty')"
         )->execute();
         $adminHash = password_hash('@admin123', PASSWORD_DEFAULT);
         $pdo->prepare(
-            "INSERT IGNORE INTO sms_users
+            "INSERT IGNORE INTO users
                 (username, email, password_hash, full_name, role_key, student_id, status, password_changed_at, must_change_password, failed_login_attempts, locked_until)
              VALUES
-                ('admin', 'admin@bestlink.edu.ph', ?, 'Admin', 'sms_admin', NULL, 'active', NOW(), 1, 0, NULL)"
+                ('admin', 'admin@bestlink.edu.ph', ?, 'Admin', 'sms_admin', NULL, 'active', NOW(), 0, 0, NULL)"
         )->execute([$adminHash]);
         $insAdminPerm = $pdo->prepare(
-            "INSERT INTO sms_role_permissions (role_key, module_key, granted)
+            "INSERT INTO role_permissions (role_key, module_key, granted)
              VALUES ('sms_admin', ?, 1)
              ON DUPLICATE KEY UPDATE granted = VALUES(granted)"
         );
@@ -106,19 +115,18 @@ if ($pdo) {
         }
         $facultyHash = password_hash('@faculty123', PASSWORD_DEFAULT);
         $seedFaculty = $pdo->prepare(
-            "INSERT IGNORE INTO sms_users
+            "INSERT IGNORE INTO users
                 (username, email, password_hash, full_name, role_key, student_id, status, notes, password_changed_at, must_change_password, failed_login_attempts, locked_until)
              VALUES
-                (?, ?, ?, ?, ?, NULL, 'active', ?, NOW(), 1, 0, NULL)"
+                (?, ?, ?, ?, ?, NULL, 'active', ?, NOW(), 0, 0, NULL)"
         );
         $seedFaculty->execute(['rsantos', 'rsantos@bestlink.edu.ph', password_hash('@Adviser123', PASSWORD_DEFAULT), 'Dr. Roberto M. Santos', 'adviser', 'Research Adviser']);
-        $seedFaculty->execute(['researchdirector', 'researchdirector@bestlink.edu.ph', password_hash('@Director123', PASSWORD_DEFAULT), 'Research Director', 'research_director', 'Research Director']);
         $seedFaculty->execute(['grammarian', 'grammarian@bestlink.edu.ph', password_hash('@Grammarian123', PASSWORD_DEFAULT), 'Grammarian', 'grammarian', 'Research grammar and manuscript evaluator']);
         $seedFaculty->execute(['jobertvalentino', 'jobertvalentino@bestlink.edu.ph', password_hash('@Adviser123', PASSWORD_DEFAULT), 'Dr. Jobert Valentino', 'panel', 'Panel Member']);
         $seedFaculty->execute(['jonathanestrada', 'jonathanestrada@bestlink.edu.ph', password_hash('@Adviser123', PASSWORD_DEFAULT), 'Dr. Jonathan Estrada', 'panel', 'Panel Member']);
         $seedFaculty->execute(['michelleguevarra', 'michelleguevarra@bestlink.edu.ph', password_hash('@Adviser123', PASSWORD_DEFAULT), 'Dr. Michelle Guevarra', 'panel', 'Panel Member']);
         $insFacultyPerm = $pdo->prepare(
-            "INSERT INTO sms_role_permissions (role_key, module_key, granted)
+            "INSERT INTO role_permissions (role_key, module_key, granted)
              VALUES (?, 'faculty', 1)
              ON DUPLICATE KEY UPDATE granted = VALUES(granted)"
         );
@@ -126,33 +134,52 @@ if ($pdo) {
             $insFacultyPerm->execute([$facultyRole]);
         }
 
-        // Research Grant account (CRAD Officer role)
-        $rgHash = password_hash('@Grant123', PASSWORD_DEFAULT);
-        $pdo->prepare(
-            "INSERT IGNORE INTO sms_users
-                (username, email, password_hash, full_name, role_key, student_id, status, password_changed_at, must_change_password, failed_login_attempts, locked_until)
-             VALUES
-                ('researchgrant', 'researchgrant@bestlink.edu.ph', ?, 'Research Grant', 'research_grant', NULL, 'active', NOW(), 1, 0, NULL)"
-        )->execute([$rgHash]);
-        $pdo->prepare(
-            "INSERT INTO sms_role_permissions (role_key, module_key, granted)
-             VALUES ('research_grant', 'crad_grant', 1)
-             ON DUPLICATE KEY UPDATE granted = VALUES(granted)"
-        )->execute();
+        // Research Grant login account is retired from User Management.
+        $pdo->exec(
+            "UPDATE users
+             SET status = 'inactive'
+             WHERE role_key = 'research_grant'
+                OR username = 'researchgrant'
+                OR email = 'researchgrant@bestlink.edu.ph'"
+        );
+        try {
+            $pdo->exec(
+                "DELETE FROM users
+                 WHERE role_key = 'research_grant'
+                    OR username = 'researchgrant'
+                    OR email = 'researchgrant@bestlink.edu.ph'"
+            );
+        } catch (Throwable $e) {
+            error_log('Research Grant account delete skipped: ' . $e->getMessage());
+        }
 
         // Review Committee account (grant proposal evaluator)
         $rcHash = password_hash('@Committee123', PASSWORD_DEFAULT);
         $pdo->prepare(
-            "INSERT IGNORE INTO sms_users
+            "INSERT IGNORE INTO users
                 (username, email, password_hash, full_name, role_key, student_id, status, password_changed_at, must_change_password, failed_login_attempts, locked_until)
              VALUES
-                ('reviewcommittee', 'reviewcommittee@bestlink.edu.ph', ?, 'Review Committee Member', 'review_committee', NULL, 'active', NOW(), 1, 0, NULL)"
+                ('reviewcommittee', 'reviewcommittee@bestlink.edu.ph', ?, 'Review Committee Member', 'review_committee', NULL, 'active', NOW(), 0, 0, NULL)"
         )->execute([$rcHash]);
         $pdo->prepare(
-            "INSERT INTO sms_role_permissions (role_key, module_key, granted)
+            "INSERT INTO role_permissions (role_key, module_key, granted)
              VALUES ('review_committee', 'crad_grant', 1)
              ON DUPLICATE KEY UPDATE granted = VALUES(granted)"
         )->execute();
+        $pdo->prepare(
+            "UPDATE users
+             SET role_key = 'review_committee'
+             WHERE username = 'reviewcommittee'
+               AND role_key <> 'review_committee'"
+        )->execute();
+
+        $deptHeadHash = password_hash('@Depthead123', PASSWORD_DEFAULT);
+        $pdo->prepare(
+            "INSERT IGNORE INTO users
+                (username, email, password_hash, full_name, role_key, student_id, status, password_changed_at, must_change_password, failed_login_attempts, locked_until)
+             VALUES
+                ('depthead', 'depthead@bestlink.edu.ph', ?, 'Department Head', 'department_head', NULL, 'active', NOW(), 0, 0, NULL)"
+        )->execute([$deptHeadHash]);
     } catch (Throwable $e) {
         error_log('Default user account ensure failed: ' . $e->getMessage());
     }
@@ -160,38 +187,51 @@ if ($pdo) {
     if ($isArchiveView) {
         $stmt = $pdo->query(
             'SELECT u.id, u.full_name AS name, u.username, u.email, u.role_key AS role,
-                    r.label AS roleLabel, u.status,
+                    r.label AS roleLabel, u.status, u.notes,
                     DATE_FORMAT(u.created_at, "%b %e, %Y") AS created,
                     IFNULL(DATE_FORMAT(u.last_login_at, "%b %e, %Y %H:%i"), "—") AS last_login
-             FROM sms_users u
-             INNER JOIN sms_roles r ON r.role_key = u.role_key
+             FROM users u
+             LEFT JOIN roles r ON r.role_key = u.role_key
              WHERE u.status IN (\'inactive\', \'suspended\')
+               AND u.role_key <> \'research_grant\'
+               AND u.username <> \'researchgrant\'
              ORDER BY u.full_name ASC'
         );
         $users = $stmt->fetchAll() ?: [];
         $archivedCount = count($users);
         $activeCount = (int) $pdo->query(
-            'SELECT COUNT(*) FROM sms_users WHERE status NOT IN (\'inactive\', \'suspended\')'
+            'SELECT COUNT(*) FROM users
+             WHERE status NOT IN (\'inactive\', \'suspended\')
+               AND role_key <> \'research_grant\'
+               AND username <> \'researchgrant\''
         )->fetchColumn();
     } else {
         $stmt = $pdo->query(
             'SELECT u.id, u.full_name AS name, u.username, u.email, u.role_key AS role,
-                    r.label AS roleLabel, u.status,
+                    r.label AS roleLabel, u.status, u.notes,
                     DATE_FORMAT(u.created_at, "%b %e, %Y") AS created,
                     IFNULL(DATE_FORMAT(u.last_login_at, "%b %e, %Y %H:%i"), "—") AS last_login
-             FROM sms_users u
-             INNER JOIN sms_roles r ON r.role_key = u.role_key
+             FROM users u
+             LEFT JOIN roles r ON r.role_key = u.role_key
              WHERE u.status NOT IN (\'inactive\', \'suspended\')
+               AND u.role_key <> \'research_grant\'
+               AND u.username <> \'researchgrant\'
              ORDER BY u.id ASC'
         );
         $users = $stmt->fetchAll() ?: [];
         $archivedCount = (int) $pdo->query(
-            'SELECT COUNT(*) FROM sms_users WHERE status IN (\'inactive\', \'suspended\')'
+            'SELECT COUNT(*) FROM users
+             WHERE status IN (\'inactive\', \'suspended\')
+               AND role_key <> \'research_grant\'
+               AND username <> \'researchgrant\''
         )->fetchColumn();
     }
 }
 
 foreach ($users as &$u) {
+    if (empty($u['roleLabel'])) {
+        $u['roleLabel'] = (string) ($u['role'] ?? '');
+    }
     if ($u['role'] === 'crad_officer') {
         $u['role'] = 'crad';
     }
@@ -208,9 +248,6 @@ foreach ($users as &$u) {
     ) {
         $u['role'] = 'admission';
         $u['roleLabel'] = 'Admission';
-        $u['name'] = 'Admission';
-        $u['username'] = 'admission';
-        $u['email'] = 'admission@bestlink.edu.ph';
     }
     if ($u['role'] === 'hr') {
         $u['roleLabel'] = 'Dean';
@@ -230,11 +267,23 @@ foreach ($users as &$u) {
     if ($u['role'] === 'panel') {
         $u['roleLabel'] = 'Panel Member';
     }
+    if ($u['role'] === 'department_head') {
+        $u['roleLabel'] = 'Department Head';
+    }
     if ($u['role'] === 'review_committee') {
         $u['roleLabel'] = 'Review Committee';
     }
 }
 unset($u);
+
+$users = array_values(array_filter($users, static function (array $u): bool {
+    $role = (string) ($u['role'] ?? '');
+    $username = strtolower((string) ($u['username'] ?? ''));
+    $email = strtolower((string) ($u['email'] ?? ''));
+    return $role !== 'research_grant'
+        && $username !== 'researchgrant'
+        && $email !== 'researchgrant@bestlink.edu.ph';
+}));
 
 function umRoleBadgeClass(string $role, string $label = ''): string
 {
@@ -251,6 +300,8 @@ function umRoleBadgeClass(string $role, string $label = ''): string
         'research_grant' => 'research_grant',
         'review_committee' => 'review_committee',
         'research_coordinator' => 'research_coordinator',
+        'department_head' => 'department_head',
+        'departmenthead' => 'department_head',
         'department_chair' => 'department_chair',
         'research_office' => 'research_office',
         'vpaa' => 'vpaa',
@@ -276,7 +327,7 @@ $archiveUrl  = $accountsUrl . '?view=archive';
 $currentUserId = (int) getCurrentUserId();
 ?>
 
-<link href="<?= BASE_URL ?>/modules/user-management/assets/css/user-management.css?v=grant-role-badges-1" rel="stylesheet">
+<link href="<?= BASE_URL ?>/modules/user-management/assets/css/user-management.css?v=dept-head-badge-2" rel="stylesheet">
 <meta name="csrf-token" content="<?= e($csrf) ?>">
 
 <?php
@@ -373,10 +424,10 @@ renderBreadcrumbs($breadcrumbs);
             <option value="qa">QA Office</option>
             <option value="crad">CRAD Officer</option>
             <option value="research_coordinator">Research Coordinator</option>
+            <option value="department_head">Department Head</option>
             <option value="department_chair">Department Chair</option>
             <option value="research_office">Research Office</option>
             <option value="vpaa">VPAA</option>
-            <option value="research_grant">Research Grant</option>
             <option value="review_committee">Review Committee</option>
             <option value="student">Student</option>
         </select>
@@ -418,16 +469,15 @@ renderBreadcrumbs($breadcrumbs);
                         </tr>
                     <?php else: ?>
                         <?php foreach ([
-                            ['label' => 'System Accounts', 'users' => $systemUsers],
-                            ['label' => 'Faculty Accounts', 'users' => $facultyUsers],
-                            ['label' => 'Students Account', 'users' => $studentUsers],
+                            ['key' => 'system', 'label' => 'System Accounts', 'users' => $systemUsers],
+                            ['key' => 'faculty', 'label' => 'Faculty Accounts', 'users' => $facultyUsers],
+                            ['key' => 'student', 'label' => 'Students Account', 'users' => $studentUsers],
                         ] as $group): ?>
-                            <?php if (empty($group['users'])) continue; ?>
-                            <tr class="um-group-row" data-group-row>
+                            <tr class="um-group-row" data-group-row data-group-key="<?= e($group['key']) ?>"<?= empty($group['users']) ? ' hidden' : '' ?>>
                                 <td colspan="7">
                                     <div class="um-group-title">
                                         <span><?= e($group['label']) ?></span>
-                                        <small><?= count($group['users']) ?> account<?= count($group['users']) === 1 ? '' : 's' ?></small>
+                                        <small data-group-count><?= count($group['users']) ?> account<?= count($group['users']) === 1 ? '' : 's' ?></small>
                                     </div>
                                 </td>
                             </tr>
@@ -437,14 +487,16 @@ renderBreadcrumbs($breadcrumbs);
                             $roleBadgeClass = umRoleBadgeClass((string) $u['role'], (string) $u['roleLabel']);
                         ?>
                         <tr class="um-user-row"
+                            data-uid="<?= (int) $u['id'] ?>"
                             data-name="<?= htmlspecialchars($u['name']) ?>"
                             data-username="<?= htmlspecialchars($u['username']) ?>"
                             data-email="<?= htmlspecialchars($u['email']) ?>"
                             data-role="<?= htmlspecialchars($u['role']) ?>"
-                            data-status="<?= htmlspecialchars($u['status']) ?>">
+                            data-status="<?= htmlspecialchars($u['status']) ?>"
+                            data-notes="<?= htmlspecialchars((string) ($u['notes'] ?? '')) ?>">
                             <td style="padding-left:1.2rem;">
                                 <div class="um-user-cell">
-                                    <span class="um-avatar <?= $col ?>"><?= strtoupper($u['name'][0]) ?></span>
+                                    <span class="um-avatar <?= $col ?>"><?= strtoupper(substr((string) ($u['name'] ?? '?'), 0, 1) ?: '?') ?></span>
                                     <div class="min-w-0">
                                         <span class="um-user-name"><?= htmlspecialchars($u['name']) ?></span>
                                         <span class="um-user-email"><?= htmlspecialchars($u['email']) ?></span>
@@ -489,7 +541,8 @@ renderBreadcrumbs($breadcrumbs);
                                                 data-username="<?= htmlspecialchars($u['username']) ?>"
                                                 data-email="<?= htmlspecialchars($u['email']) ?>"
                                                 data-role="<?= htmlspecialchars($u['role']) ?>"
-                                                data-status="<?= htmlspecialchars($u['status']) ?>">
+                                                data-status="<?= htmlspecialchars($u['status']) ?>"
+                                                data-notes="<?= htmlspecialchars((string) ($u['notes'] ?? '')) ?>">
                                             <?= smsIcon('pen', ['style' => 'font-size:.7rem;']) ?>
                                         </button>
                                         <?php if ($u['status'] === 'locked'): ?>
@@ -538,10 +591,14 @@ renderBreadcrumbs($breadcrumbs);
                 <h5 class="modal-title fw-bold" id="umModalTitle">Add New User</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form id="umUserForm" action="<?= BASE_URL ?>/modules/user-management/includes/save-user.php" method="POST" novalidate>
+            <form id="umUserForm" action="<?= BASE_URL ?>/modules/user-management/includes/save-user.php" method="POST" novalidate autocomplete="off">
                 <input type="hidden" name="user_id">
                 <input type="hidden" name="csrf_token" value="<?= e($csrf) ?>">
                 <input type="hidden" name="action" value="save">
+                <div class="um-autofill-trap" aria-hidden="true" style="position:absolute;left:-9999px;height:0;width:0;overflow:hidden;">
+                    <input type="text" name="um_prevent_autofill_user" value="" autocomplete="username" tabindex="-1">
+                    <input type="password" name="um_prevent_autofill_pass" value="" autocomplete="current-password" tabindex="-1">
+                </div>
                 <div class="modal-body">
                     <div class="um-modal-avatar-row mb-3">
                         <div class="um-modal-avatar">?</div>
@@ -564,11 +621,24 @@ renderBreadcrumbs($breadcrumbs);
                             <label class="form-label fw-semibold um-pw-label">Password <span class="text-danger um-pw-required">*</span></label>
                             <?= smsPasswordInput([
                                 'id' => 'um_password',
-                                'name' => 'password',
+                                'name' => 'new_password',
                                 'placeholder' => '••••••••',
                                 'required' => true,
                                 'minlength' => $minPasswordLen,
                                 'autocomplete' => 'new-password',
+                                'attrs' => 'data-lpignore="true" data-1p-ignore="true"',
+                            ]) ?>
+                        </div>
+                        <div class="col-md-6 um-pw-confirm-row">
+                            <label class="form-label fw-semibold um-pw-confirm-label">Confirm Password <span class="text-danger um-pw-required">*</span></label>
+                            <?= smsPasswordInput([
+                                'id' => 'um_password_confirm',
+                                'name' => 'new_password_confirm',
+                                'placeholder' => 'Re-type password',
+                                'required' => true,
+                                'minlength' => $minPasswordLen,
+                                'autocomplete' => 'new-password',
+                                'attrs' => 'data-lpignore="true" data-1p-ignore="true"',
                             ]) ?>
                         </div>
                         <div class="col-md-6">
@@ -590,10 +660,10 @@ renderBreadcrumbs($breadcrumbs);
                                 <option value="qa">QA Office</option>
                                 <option value="crad">CRAD Officer</option>
                                 <option value="research_coordinator">Research Coordinator</option>
+            <option value="department_head">Department Head</option>
             <option value="department_chair">Department Chair</option>
             <option value="research_office">Research Office</option>
             <option value="vpaa">VPAA</option>
-                                <option value="research_grant">Research Grant (CRAD Officer)</option>
                                 <option value="review_committee">Review Committee</option>
                                 <option value="student">Student</option>
                             </select>
@@ -626,7 +696,7 @@ renderBreadcrumbs($breadcrumbs);
 </div>
 <?php endif; ?>
 
-<script src="<?= BASE_URL ?>/modules/user-management/assets/js/user-management.js?v=20260831"></script>
+<script src="<?= BASE_URL ?>/modules/user-management/assets/js/user-management.js?v=20260919-live-edit-2"></script>
 <script>
 (function () {
     var ENDPOINT = '<?= BASE_URL ?>/modules/user-management/includes/save-user.php';
@@ -638,9 +708,18 @@ renderBreadcrumbs($breadcrumbs);
     function postJson(payload) {
         return fetch(ENDPOINT, {
             method: 'POST',
+            credentials: 'same-origin',
             headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
             body: JSON.stringify(Object.assign({ csrf_token: CSRF }, payload))
-        }).then(function (r) { return r.json(); });
+        }).then(function (r) {
+            return r.text().then(function (text) {
+                try {
+                    return JSON.parse(text);
+                } catch (err) {
+                    return { ok: false, error: 'Save failed' };
+                }
+            });
+        });
     }
 
     function passwordMeetsPolicy(form, password) {
@@ -654,6 +733,232 @@ renderBreadcrumbs($breadcrumbs);
             && /[^A-Za-z0-9]/.test(password);
     }
 
+    var FACULTY_ROLES = ['hr', 'adviser', 'grammarian', 'panel'];
+    var GROUP_LABELS = {
+        system: 'System Accounts',
+        faculty: 'Faculty Accounts',
+        student: 'Students Account'
+    };
+    var ROLE_BADGE_ALIASES = {
+        admin: 'superadmin',
+        super_admin: 'superadmin',
+        sms_admin: 'sms_admin',
+        crad_officer: 'crad',
+        crad: 'crad',
+        department_head: 'department_head',
+        departmenthead: 'department_head',
+        department_chair: 'department_chair',
+        research_office: 'research_office',
+        research_coordinator: 'research_coordinator',
+        review_committee: 'review_committee',
+        research_director: 'research_director'
+    };
+
+    function roleLabelFromSelect(form, role) {
+        var select = form.querySelector('[name="role"]');
+        if (!select) return role;
+        var opt = Array.prototype.find.call(select.options, function (o) {
+            return o.value === role;
+        });
+        return opt ? (opt.textContent || role).trim() : role;
+    }
+
+    function roleBadgeClass(role) {
+        var value = String(role || '').toLowerCase().replace(/[\s-]/g, '_');
+        value = ROLE_BADGE_ALIASES[value] || value;
+        return value.replace(/[^a-z0-9_]/g, '') || 'student';
+    }
+
+    function groupKeyForRole(role) {
+        role = String(role || '');
+        if (role === 'student') return 'student';
+        if (FACULTY_ROLES.indexOf(role) !== -1) return 'faculty';
+        return 'system';
+    }
+
+    function refreshGroupCounts() {
+        document.querySelectorAll('tr.um-group-row[data-group-key]').forEach(function (groupRow) {
+            var count = 0;
+            var cursor = groupRow.nextElementSibling;
+            while (cursor && !cursor.hasAttribute('data-group-row')) {
+                if (cursor.classList.contains('um-user-row')) count++;
+                cursor = cursor.nextElementSibling;
+            }
+            groupRow.hidden = count === 0;
+            var label = groupRow.querySelector('[data-group-count]');
+            if (label) {
+                label.textContent = count + ' account' + (count === 1 ? '' : 's');
+            }
+        });
+    }
+
+    function ensureGroupRow(key) {
+        var existing = document.querySelector('tr.um-group-row[data-group-key="' + key + '"]');
+        if (existing) return existing;
+        var tbody = document.getElementById('umTableBody');
+        if (!tbody) return null;
+        var tr = document.createElement('tr');
+        tr.className = 'um-group-row';
+        tr.setAttribute('data-group-row', '');
+        tr.setAttribute('data-group-key', key);
+        tr.innerHTML = '<td colspan="7"><div class="um-group-title"><span>'
+            + (GROUP_LABELS[key] || key)
+            + '</span><small data-group-count>0 accounts</small></div></td>';
+        var order = ['system', 'faculty', 'student'];
+        var idx = order.indexOf(key);
+        var inserted = false;
+        for (var i = idx + 1; i < order.length; i++) {
+            var next = document.querySelector('tr.um-group-row[data-group-key="' + order[i] + '"]');
+            if (next) {
+                tbody.insertBefore(tr, next);
+                inserted = true;
+                break;
+            }
+        }
+        if (!inserted) tbody.appendChild(tr);
+        return tr;
+    }
+
+    function moveRowToGroup(row, role) {
+        var groupRow = ensureGroupRow(groupKeyForRole(role));
+        if (!groupRow) return;
+        var insertAfter = groupRow;
+        var cursor = groupRow.nextElementSibling;
+        while (cursor && cursor.classList.contains('um-user-row')) {
+            if (cursor === row) {
+                refreshGroupCounts();
+                return;
+            }
+            insertAfter = cursor;
+            cursor = cursor.nextElementSibling;
+        }
+        insertAfter.after(row);
+        refreshGroupCounts();
+    }
+
+    function paintUserRow(row, user, form) {
+        if (!row || !user) return;
+        var name = user.full_name || user.name || '';
+        var username = user.username || '';
+        var email = user.email || '';
+        var role = user.role || '';
+        var status = user.status || 'active';
+        var notes = user.notes || '';
+        var roleLabel = form ? roleLabelFromSelect(form, role) : (user.roleLabel || role);
+        var statusLabel = status === 'inactive' ? 'Archived' : (status.charAt(0).toUpperCase() + status.slice(1));
+
+        row.dataset.name = name;
+        row.dataset.username = username;
+        row.dataset.email = email;
+        row.dataset.role = role;
+        row.dataset.status = status;
+        row.dataset.notes = notes;
+
+        var nameEl = row.querySelector('.um-user-name');
+        var emailEl = row.querySelector('.um-user-email');
+        var avatarEl = row.querySelector('.um-avatar');
+        var userCode = row.querySelector('td code');
+        var roleEl = row.querySelector('.role-badge');
+        var statusEl = row.querySelector('.user-status');
+        if (nameEl) nameEl.textContent = name;
+        if (emailEl) emailEl.textContent = email;
+        if (avatarEl) avatarEl.textContent = name.trim() ? name.trim().charAt(0).toUpperCase() : '?';
+        if (userCode) userCode.textContent = username;
+        if (roleEl) {
+            roleEl.textContent = roleLabel;
+            roleEl.className = 'role-badge ' + roleBadgeClass(role);
+        }
+        if (statusEl) {
+            statusEl.textContent = statusLabel;
+            statusEl.className = 'user-status ' + status;
+        }
+
+        var editBtn = row.querySelector('[data-um-action="edit"]');
+        if (editBtn) {
+            editBtn.dataset.name = name;
+            editBtn.dataset.username = username;
+            editBtn.dataset.email = email;
+            editBtn.dataset.role = role;
+            editBtn.dataset.status = status;
+            editBtn.dataset.notes = notes;
+        }
+
+        moveRowToGroup(row, role);
+        if (typeof window.umApplyUserFilters === 'function') {
+            window.umApplyUserFilters();
+        }
+    }
+
+    function userFromForm(form) {
+        var fd = new FormData(form);
+        return {
+            id: fd.get('user_id') || '',
+            full_name: String(fd.get('full_name') || ''),
+            username: String(fd.get('username') || ''),
+            email: String(fd.get('email') || ''),
+            role: String(fd.get('role') || ''),
+            status: String(fd.get('status') || 'active'),
+            notes: String(fd.get('notes') || '')
+        };
+    }
+
+    function findUserRow(userId) {
+        if (!userId) return null;
+        return document.querySelector('.um-user-row[data-uid="' + userId + '"]');
+    }
+
+    function applySavedUserRow(form, user) {
+        if (!user || !user.id) return;
+        var row = findUserRow(user.id);
+        if (!row) {
+            insertNewUserRow(user, form);
+            return;
+        }
+        paintUserRow(row, user, form);
+    }
+
+    function formatCreatedToday() {
+        var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        var d = new Date();
+        return months[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear();
+    }
+
+    function insertNewUserRow(user, form) {
+        var tbody = document.getElementById('umTableBody');
+        var template = document.querySelector('.um-user-row');
+        if (!tbody || !template || !user || !user.id) {
+            location.href = ACCOUNTS + '?created=1';
+            return;
+        }
+        var empty = tbody.querySelector('td.text-center');
+        if (empty && empty.parentElement) empty.parentElement.remove();
+
+        var row = template.cloneNode(true);
+        row.hidden = false;
+        row.setAttribute('data-uid', String(user.id));
+        row.querySelectorAll('[data-uid]').forEach(function (el) {
+            el.setAttribute('data-uid', String(user.id));
+            el.dataset.uid = String(user.id);
+        });
+        var lastLogin = row.children[4];
+        var created = row.children[5];
+        if (lastLogin) lastLogin.textContent = '—';
+        if (created) created.textContent = formatCreatedToday();
+        tbody.appendChild(row);
+        paintUserRow(row, user, form);
+        var totalEl = document.querySelector('.um-toolbar .ms-auto, .d-flex .ms-auto.text-muted');
+        var rows = document.querySelectorAll('.um-user-row');
+        if (totalEl) totalEl.textContent = rows.length + ' users';
+    }
+
+    function closeUserModal() {
+        var modalEl = document.getElementById('umUserModal');
+        if (modalEl && window.bootstrap) {
+            var inst = bootstrap.Modal.getInstance(modalEl);
+            if (inst) inst.hide();
+        }
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
         var form = document.getElementById('umUserForm');
         if (form) {
@@ -661,10 +966,23 @@ renderBreadcrumbs($breadcrumbs);
                 e.preventDefault();
                 var fd = new FormData(form);
                 var userId = fd.get('user_id') || '';
-                var password = fd.get('password') || '';
+                var pwInput = document.getElementById('um_password');
+                var pwConfirmInput = document.getElementById('um_password_confirm');
+                var typedPassword = pwInput ? String(pwInput.value || '') : '';
+                var typedConfirm = pwConfirmInput ? String(pwConfirmInput.value || '') : '';
+                var passwordDirty = form.dataset.pwDirty === '1';
+                var password = (!userId || passwordDirty) ? typedPassword : '';
+                var confirm = (!userId || passwordDirty) ? typedConfirm : '';
+                var submitBtn = form.querySelector('[type="submit"]');
+
                 if (!userId && !password) {
                     if (typeof umShowToast === 'function') umShowToast('Password is required for new users.', 'danger');
                     else alert('Password is required for new users.');
+                    return;
+                }
+                if (password && password !== confirm) {
+                    if (typeof umShowToast === 'function') umShowToast('New password and confirmation do not match.', 'danger');
+                    else alert('New password and confirmation do not match.');
                     return;
                 }
                 if ((!userId || password) && password && !passwordMeetsPolicy(form, password)) {
@@ -680,20 +998,101 @@ renderBreadcrumbs($breadcrumbs);
                     email: fd.get('email'),
                     role: fd.get('role'),
                     status: fd.get('status'),
-                    password: fd.get('password') || '',
+                    new_password: password,
+                    new_password_confirm: password ? confirm : '',
                     notes: fd.get('notes') || ''
                 };
+                if (submitBtn) submitBtn.disabled = true;
                 postJson(payload).then(function (data) {
-                    if (data.ok) {
-                        location.href = ACCOUNTS + '?' + (data.created ? 'created=1' : 'updated=1');
+                    if (data && data.ok) {
+                        var savedUser = data.user || {
+                            id: data.id || payload.user_id,
+                            full_name: payload.full_name,
+                            username: payload.username,
+                            email: payload.email,
+                            role: payload.role,
+                            status: payload.status,
+                            notes: payload.notes || ''
+                        };
+                        applySavedUserRow(form, savedUser);
+                        form.dataset.umSaved = '1';
+                        closeUserModal();
+                        if (typeof umShowToast === 'function') {
+                            umShowToast(
+                                data.created
+                                    ? 'User account created.'
+                                    : (data.password_updated
+                                        ? 'Password updated. The user can sign in with the new password now.'
+                                        : 'User account updated.'),
+                                'success'
+                            );
+                        }
+                        form.dataset.pwDirty = '0';
+                        if (pwInput) pwInput.value = '';
+                        if (pwConfirmInput) pwConfirmInput.value = '';
                     } else if (typeof umShowToast === 'function') {
-                        umShowToast(data.error || 'Save failed', 'danger');
+                        umShowToast((data && data.error) || 'Save failed', 'danger');
                     } else {
-                        alert(data.error || 'Save failed');
+                        alert((data && data.error) || 'Save failed');
                     }
                 }).catch(function () {
                     if (typeof umShowToast === 'function') umShowToast('Network error', 'danger');
+                }).finally(function () {
+                    if (submitBtn) submitBtn.disabled = false;
                 });
+            });
+        }
+
+        var modalEl = document.getElementById('umUserModal');
+        if (form && modalEl) {
+            function livePaintFromForm() {
+                if (form.dataset.umLive !== '1') return;
+                var user = userFromForm(form);
+                if (!user.id) return;
+                var row = findUserRow(user.id);
+                if (!row) return;
+                paintUserRow(row, user, form);
+            }
+
+            ['full_name', 'username', 'email', 'role', 'status', 'notes'].forEach(function (name) {
+                var field = form.querySelector('[name="' + name + '"]');
+                if (!field) return;
+                field.addEventListener('input', livePaintFromForm);
+                field.addEventListener('change', livePaintFromForm);
+            });
+
+            modalEl.addEventListener('show.bs.modal', function () {
+                form.dataset.umSaved = '0';
+                form.dataset.umLive = '0';
+            });
+
+            modalEl.addEventListener('shown.bs.modal', function () {
+                var user = userFromForm(form);
+                if (!user.id) return;
+                var row = findUserRow(user.id);
+                if (!row) return;
+                form.dataset.umSnapshot = JSON.stringify({
+                    id: user.id,
+                    full_name: row.dataset.name || '',
+                    username: row.dataset.username || '',
+                    email: row.dataset.email || '',
+                    role: row.dataset.role || '',
+                    status: row.dataset.status || 'active',
+                    notes: row.dataset.notes || ''
+                });
+                form.dataset.umLive = '1';
+                livePaintFromForm();
+            });
+
+            modalEl.addEventListener('hidden.bs.modal', function () {
+                form.dataset.umLive = '0';
+                if (form.dataset.umSaved === '1') return;
+                if (!form.dataset.umSnapshot) return;
+                try {
+                    var original = JSON.parse(form.dataset.umSnapshot);
+                    var row = findUserRow(original.id);
+                    if (row) paintUserRow(row, original, form);
+                } catch (err) { /* ignore */ }
             });
         }
 

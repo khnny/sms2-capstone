@@ -13,7 +13,15 @@ $visibleModules = getVisibleModules($MODULES);
 $isStudentPortal = getCurrentUserRoleKey() === 'student';
 
 if ($isStudentPortal):
-    $studentId = $_SESSION['student_id'] ?? 'S230000001';
+    require_once ROOT_PATH . '/modules/student-portal/includes/student-profile.php';
+    $studentProfile = studentPortalLoadProfile(
+        db(),
+        (int) ($_SESSION['user_id'] ?? 0),
+        (string) ($_SESSION['student_id'] ?? ''),
+        getCurrentUserName() ?: 'Student',
+        (string) ($_SESSION['user_email'] ?? '')
+    );
+    $studentId = $studentProfile['student_id'] !== '' ? $studentProfile['student_id'] : (string) ($_SESSION['student_id'] ?? '');
 ?>
 
 <?php renderBreadcrumbs($breadcrumbs); ?>
@@ -102,13 +110,13 @@ if ($isStudentPortal):
                     <div class="student-avatar mb-3">
                         <?= smsIcon('user-graduate') ?>
                     </div>
-                    <h5 class="fw-semibold mb-1"><?= htmlspecialchars(getCurrentUserName()) ?></h5>
-                    <p class="text-muted mb-3">Bachelor of Science in Information Technology</p>
+                    <h5 class="fw-semibold mb-1"><?= htmlspecialchars($studentProfile['name']) ?></h5>
+                    <p class="text-muted mb-3"><?= htmlspecialchars($studentProfile['program']) ?></p>
                     <div class="student-detail-list">
                         <div><span>Student ID</span><strong><?= htmlspecialchars($studentId) ?></strong></div>
-                        <div><span>Year Level</span><strong>2nd Year</strong></div>
-                        <div><span>Section</span><strong>BSIT 2A</strong></div>
-                        <div><span>Status</span><strong class="text-success">Enrolled</strong></div>
+                        <div><span>Year Level</span><strong><?= htmlspecialchars($studentProfile['year_level']) ?></strong></div>
+                        <div><span>Section</span><strong><?= htmlspecialchars($studentProfile['section']) ?></strong></div>
+                        <div><span>Status</span><strong class="text-success"><?= htmlspecialchars($studentProfile['status']) ?></strong></div>
                     </div>
                 </div>
             </section>
@@ -593,7 +601,7 @@ if (smsIsGrantedAdminRole($roleKey)) {
         'total_grant_calls' => 0, 'submitted_proposals' => 0, 'under_review' => 0,
         'revision_required' => 0, 'rejected_proposals' => 0, 'approved_funded_projects' => 0,
         'total_funding' => 0.0, 'ongoing_research' => 0, 'completed_research' => 0,
-        'crad_publications' => 0, 'ip_records' => 0, 'updated_at' => '',
+        'publications' => 0, 'ip_records' => 0, 'updated_at' => '',
     ];
     $grantDashStats = ['submitted' => 0, 'in_progress' => 0, 'completed' => 0, 'committee_scored' => 0];
     try {

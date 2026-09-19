@@ -8,19 +8,9 @@ require_once __DIR__ . '/../../../config/config.php';
 require_once __DIR__ . '/../config/config.php';
 require_once ROOT_PATH . '/includes/authentication.php';
 require_once ROOT_PATH . '/includes/security.php';
+require_once __DIR__ . '/../includes/title-approval-assignees.php';
 
 requireAuth();
-requireModuleAccess('crad');
-
-if (!smsRoleAllowedForModule(['crad_officer', 'research_coordinator', 'research_director'], 'crad')) {
-    http_response_code(403);
-    if (isset($_GET['ajax']) || str_contains($_SERVER['HTTP_ACCEPT'] ?? '', 'application/json')) {
-        header('Content-Type: application/json; charset=utf-8');
-        echo json_encode(['ok' => false, 'error' => 'Access denied.']);
-        exit;
-    }
-    exit('Access denied.');
-}
 
 $pageTitle    = 'Research Group Number';
 $activeModule = 'crad';
@@ -37,21 +27,21 @@ require_once __DIR__ . '/../../../includes/breadcrumbs.php';
 function rgnEnsureSchema(PDO $pdo): void
 {
     $proposalColumns = [
-        'proposal_number' => "ALTER TABLE crad_research_proposals ADD proposal_number VARCHAR(30) NULL AFTER ref_code",
-        'approved_at' => "ALTER TABLE crad_research_proposals ADD approved_at DATETIME NULL AFTER progress",
-        'registered_at' => "ALTER TABLE crad_research_proposals ADD registered_at DATETIME NULL AFTER approved_at",
-        'registration_status' => "ALTER TABLE crad_research_proposals ADD registration_status ENUM('Pending','Registered') NOT NULL DEFAULT 'Pending' AFTER registered_at",
+        'proposal_number' => "ALTER TABLE research_proposals ADD proposal_number VARCHAR(30) NULL AFTER ref_code",
+        'approved_at' => "ALTER TABLE research_proposals ADD approved_at DATETIME NULL AFTER progress",
+        'registered_at' => "ALTER TABLE research_proposals ADD registered_at DATETIME NULL AFTER approved_at",
+        'registration_status' => "ALTER TABLE research_proposals ADD registration_status ENUM('Pending','Registered') NOT NULL DEFAULT 'Pending' AFTER registered_at",
     ];
 
     foreach ($proposalColumns as $column => $sql) {
-        $exists = $pdo->query("SHOW COLUMNS FROM crad_research_proposals LIKE " . $pdo->quote($column))->fetch();
+        $exists = $pdo->query("SHOW COLUMNS FROM research_proposals LIKE " . $pdo->quote($column))->fetch();
         if (!$exists) {
             $pdo->exec($sql);
         }
     }
 
     $pdo->exec("
-        CREATE TABLE IF NOT EXISTS crad_research_groups (
+        CREATE TABLE IF NOT EXISTS research_groups (
             id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
             proposal_id     INT UNSIGNED DEFAULT NULL,
             proposal_number VARCHAR(30) DEFAULT NULL,
@@ -73,28 +63,28 @@ function rgnEnsureSchema(PDO $pdo): void
     ");
 
     $columns = [
-        'proposal_id' => "ALTER TABLE crad_research_groups ADD proposal_id INT UNSIGNED DEFAULT NULL AFTER id",
-        'title_approval_id' => "ALTER TABLE crad_research_groups ADD title_approval_id INT UNSIGNED DEFAULT NULL AFTER proposal_id",
-        'proposal_number' => "ALTER TABLE crad_research_groups ADD proposal_number VARCHAR(30) DEFAULT NULL AFTER proposal_id",
-        'group_name' => "ALTER TABLE crad_research_groups ADD group_name VARCHAR(40) NOT NULL DEFAULT '' AFTER group_number",
+        'proposal_id' => "ALTER TABLE research_groups ADD proposal_id INT UNSIGNED DEFAULT NULL AFTER id",
+        'title_approval_id' => "ALTER TABLE research_groups ADD title_approval_id INT UNSIGNED DEFAULT NULL AFTER proposal_id",
+        'proposal_number' => "ALTER TABLE research_groups ADD proposal_number VARCHAR(30) DEFAULT NULL AFTER proposal_id",
+        'group_name' => "ALTER TABLE research_groups ADD group_name VARCHAR(40) NOT NULL DEFAULT '' AFTER group_number",
     ];
 
     foreach ($columns as $column => $sql) {
-        $exists = $pdo->query("SHOW COLUMNS FROM crad_research_groups LIKE " . $pdo->quote($column))->fetch();
+        $exists = $pdo->query("SHOW COLUMNS FROM research_groups LIKE " . $pdo->quote($column))->fetch();
         if (!$exists) {
             $pdo->exec($sql);
         }
     }
 
     $indexes = [
-        'group_number' => "ALTER TABLE crad_research_groups ADD UNIQUE KEY group_number (group_number)",
-        'proposal_id' => "ALTER TABLE crad_research_groups ADD UNIQUE KEY proposal_id (proposal_id)",
-        'title_approval_id' => "ALTER TABLE crad_research_groups ADD UNIQUE KEY title_approval_id (title_approval_id)",
-        'idx_rg_proposal_number' => "ALTER TABLE crad_research_groups ADD KEY idx_rg_proposal_number (proposal_number)",
+        'group_number' => "ALTER TABLE research_groups ADD UNIQUE KEY group_number (group_number)",
+        'proposal_id' => "ALTER TABLE research_groups ADD UNIQUE KEY proposal_id (proposal_id)",
+        'title_approval_id' => "ALTER TABLE research_groups ADD UNIQUE KEY title_approval_id (title_approval_id)",
+        'idx_rg_proposal_number' => "ALTER TABLE research_groups ADD KEY idx_rg_proposal_number (proposal_number)",
     ];
 
     foreach ($indexes as $name => $sql) {
-        $exists = $pdo->query("SHOW INDEX FROM crad_research_groups WHERE Key_name = " . $pdo->quote($name))->fetch();
+        $exists = $pdo->query("SHOW INDEX FROM research_groups WHERE Key_name = " . $pdo->quote($name))->fetch();
         if (!$exists) {
             $pdo->exec($sql);
         }
@@ -109,15 +99,15 @@ function rgnEnsureSchema(PDO $pdo): void
 function rgnEnsureTitleApprovalSchema(PDO $pdo): void
 {
     $columns = [
-        'proposal_number' => "ALTER TABLE crad_title_approvals ADD COLUMN proposal_number VARCHAR(30) DEFAULT NULL AFTER coordinator_name",
-        'crad_status' => "ALTER TABLE crad_title_approvals ADD COLUMN crad_status VARCHAR(30) NOT NULL DEFAULT 'Not Ready' AFTER coordinator_reviewed_at",
-        'crad_signature_data' => "ALTER TABLE crad_title_approvals ADD COLUMN crad_signature_data MEDIUMTEXT NULL DEFAULT NULL AFTER crad_status",
-        'crad_reviewed_at' => "ALTER TABLE crad_title_approvals ADD COLUMN crad_reviewed_at DATETIME NULL DEFAULT NULL AFTER crad_signature_data",
+        'proposal_number' => "ALTER TABLE title_approvals ADD COLUMN proposal_number VARCHAR(30) DEFAULT NULL AFTER coordinator_name",
+        'crad_status' => "ALTER TABLE title_approvals ADD COLUMN crad_status VARCHAR(30) NOT NULL DEFAULT 'Not Ready' AFTER coordinator_reviewed_at",
+        'crad_signature_data' => "ALTER TABLE title_approvals ADD COLUMN crad_signature_data MEDIUMTEXT NULL DEFAULT NULL AFTER crad_status",
+        'crad_reviewed_at' => "ALTER TABLE title_approvals ADD COLUMN crad_reviewed_at DATETIME NULL DEFAULT NULL AFTER crad_signature_data",
     ];
 
     foreach ($columns as $column => $sql) {
         try {
-            if (!$pdo->query("SHOW COLUMNS FROM crad_title_approvals LIKE " . $pdo->quote($column))->fetch()) {
+            if (!$pdo->query("SHOW COLUMNS FROM title_approvals LIKE " . $pdo->quote($column))->fetch()) {
                 $pdo->exec($sql);
             }
         } catch (Throwable $e) {
@@ -149,8 +139,8 @@ function rgnTitleApprovalGroupRows(PDO $pdo): array
         "SELECT t.id, t.proposal_number, t.proposed_title, t.student_name, t.student_id,
                 t.department, t.adviser_name, t.crad_reviewed_at, t.crad_status,
                 g.group_number, g.group_name, g.date_assigned
-         FROM crad_title_approvals t
-         LEFT JOIN crad_research_groups g ON g.title_approval_id = t.id
+         FROM title_approvals t
+         LEFT JOIN research_groups g ON g.title_approval_id = t.id
          WHERE t.status = 'Approved'
            AND t.coordinator_status = 'Approved'
            AND t.crad_status = 'Approved'
@@ -188,7 +178,7 @@ try {
     rgnEnsureTitleApprovalSchema($cradPdo);
 } catch (Throwable $e) {
     error_log('CRAD research group setup error: ' . $e->getMessage());
-    $formError = 'Failed to prepare research group database. Please try again or contact support.';
+    $formError = 'Failed to prepare research group database. (' . htmlspecialchars($e->getMessage()) . ')';
 }
 
 if (($_GET['ajax'] ?? '') === 'title-approval-groups') {
@@ -212,7 +202,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (($_POST['process'] ?? '') === 'gen
             $stmt = $cradPdo->prepare(
                 "SELECT id, student_id, student_user_id, student_name, department,
                         proposed_title, adviser_name, proposal_number, crad_status
-                 FROM crad_title_approvals
+                 FROM title_approvals
                  WHERE id = :id
                  LIMIT 1
                  FOR UPDATE"
@@ -231,7 +221,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (($_POST['process'] ?? '') === 'gen
             if ($proposalNumber === '') {
                 $proposalNumber = rgnBuildTitleApprovalProposalNumber((int) $approval['id']);
                 $setProposal = $cradPdo->prepare(
-                    "UPDATE crad_title_approvals
+                    "UPDATE title_approvals
                      SET proposal_number = :proposal_number
                      WHERE id = :id
                      LIMIT 1"
@@ -242,20 +232,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (($_POST['process'] ?? '') === 'gen
                 ]);
             }
 
-            $existing = $cradPdo->prepare("SELECT group_number FROM crad_research_groups WHERE title_approval_id = :id LIMIT 1");
+            $existing = $cradPdo->prepare("SELECT group_number FROM research_groups WHERE title_approval_id = :id LIMIT 1");
             $existing->execute([':id' => (int) $approval['id']]);
             $existingGroup = $existing->fetch(PDO::FETCH_ASSOC);
 
             if ($existingGroup) {
                 $groupNumber = (string) $existingGroup['group_number'];
             } else {
-                $lastRow = $cradPdo->query("SELECT MAX(id) AS max_id FROM crad_research_groups")->fetch();
+                $lastRow = $cradPdo->query("SELECT MAX(id) AS max_id FROM research_groups")->fetch();
                 $seq = (int) ($lastRow['max_id'] ?? 0) + 1;
                 $groupNumber = rgnBuildGroupNumber($seq);
                 $groupName = rgnBuildGroupName($seq);
 
                 $ins = $cradPdo->prepare(
-                    "INSERT INTO crad_research_groups
+                    "INSERT INTO research_groups
                         (proposal_id, title_approval_id, proposal_number, group_number, group_name,
                          research_title, college_dept, adviser, academic_year,
                          leader_name, leader_id, leader_email, leader_contact,
@@ -284,6 +274,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (($_POST['process'] ?? '') === 'gen
 
             $cradPdo->commit();
 
+            try {
+                cradEnsureAssigneeSchema($cradPdo);
+                $officialId = (int) ($cradPdo->query(
+                    'SELECT id FROM research_groups WHERE title_approval_id = ' . (int) $approval['id'] . ' LIMIT 1'
+                )->fetchColumn() ?: 0);
+                cradMigrateStudentAssignmentsToOfficialGroup($cradPdo, (string) ($approval['student_id'] ?? ''), [
+                    'id' => $officialId,
+                    'group_number' => $groupNumber,
+                    'title_approval_id' => (int) $approval['id'],
+                ]);
+            } catch (Throwable $e) {
+                error_log('Title approval group assignment migrate skipped: ' . $e->getMessage());
+            }
+
             if (function_exists('logActivity')) {
                 logActivity('create', 'Generated title approval research group number: ' . $groupNumber, 'crad');
             }
@@ -294,7 +298,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (($_POST['process'] ?? '') === 'gen
                 $cradPdo->rollBack();
             }
             error_log('CRAD title approval group number error: ' . $e->getMessage());
-            $formError = 'Failed to generate title approval group number. Please try again or contact support.';
+            $formError = 'Failed to generate title approval group number. ' . htmlspecialchars($e->getMessage());
         }
     }
 }
@@ -314,7 +318,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (($_POST['process'] ?? '') === 'gen
                 "SELECT id, proposal_number, research_title, college_department,
                         research_adviser, academic_year, rep_name, rep_id,
                         rep_email, rep_contact, registration_status
-                 FROM crad_research_proposals
+                 FROM research_proposals
                  WHERE id = :id
                  LIMIT 1
                  FOR UPDATE"
@@ -329,20 +333,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (($_POST['process'] ?? '') === 'gen
                 throw new RuntimeException('Only registered proposals can receive a research group number.');
             }
 
-            $existing = $cradPdo->prepare("SELECT group_number FROM crad_research_groups WHERE proposal_id = :id LIMIT 1");
+            $existing = $cradPdo->prepare("SELECT group_number FROM research_groups WHERE proposal_id = :id LIMIT 1");
             $existing->execute([':id' => $proposalId]);
             $existingGroup = $existing->fetch();
 
             if ($existingGroup) {
                 $groupNumber = $existingGroup['group_number'];
             } else {
-                $lastRow = $cradPdo->query("SELECT MAX(id) AS max_id FROM crad_research_groups")->fetch();
+                $lastRow = $cradPdo->query("SELECT MAX(id) AS max_id FROM research_groups")->fetch();
                 $seq = (int) ($lastRow['max_id'] ?? 0) + 1;
                 $groupNumber = rgnBuildGroupNumber($seq);
                 $groupName = rgnBuildGroupName($seq);
 
                 $ins = $cradPdo->prepare(
-                    "INSERT INTO crad_research_groups
+                    "INSERT INTO research_groups
                         (proposal_id, proposal_number, group_number, group_name,
                          research_title, college_dept, adviser, academic_year,
                          leader_name, leader_id, leader_email, leader_contact,
@@ -373,6 +377,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (($_POST['process'] ?? '') === 'gen
 
             $cradPdo->commit();
 
+            try {
+                cradEnsureAssigneeSchema($cradPdo);
+                $officialId = (int) ($cradPdo->query(
+                    'SELECT id FROM research_groups WHERE proposal_id = ' . (int) $proposalId . ' LIMIT 1'
+                )->fetchColumn() ?: 0);
+                cradMigrateStudentAssignmentsToOfficialGroup($cradPdo, (string) ($proposal['rep_id'] ?? ''), [
+                    'id' => $officialId,
+                    'group_number' => $groupNumber,
+                    'title_approval_id' => 0,
+                ]);
+            } catch (Throwable $e) {
+                error_log('Proposal group assignment migrate skipped: ' . $e->getMessage());
+            }
+
             if (function_exists('logActivity')) {
                 logActivity('create', 'Generated research group number: ' . $groupNumber, 'crad');
             }
@@ -383,7 +401,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (($_POST['process'] ?? '') === 'gen
                 $cradPdo->rollBack();
             }
             error_log('CRAD generate research group error: ' . $e->getMessage());
-            $formError = 'Failed to generate research group number. Please try again or contact support.';
+            $formError = 'Failed to generate research group number. ' . htmlspecialchars($e->getMessage());
         }
     }
 }
@@ -405,8 +423,8 @@ try {
         "SELECT p.id, p.proposal_number, p.research_title, p.rep_name,
                 p.college_department, p.research_adviser, p.academic_year,
                 p.registered_at, g.group_number, g.group_name, g.date_assigned
-         FROM crad_research_proposals p
-         LEFT JOIN crad_research_groups g ON g.proposal_id = p.id
+         FROM research_proposals p
+         LEFT JOIN research_groups g ON g.proposal_id = p.id
          WHERE p.registration_status = 'Registered'
            AND p.proposal_number IS NOT NULL
          ORDER BY
@@ -424,7 +442,7 @@ try {
 } catch (Throwable $e) {
     error_log('CRAD research group list error: ' . $e->getMessage());
     if ($formError === '') {
-        $formError = 'Failed to load registered proposals. Please try again or contact support.';
+        $formError = 'Failed to load registered proposals. (' . htmlspecialchars($e->getMessage()) . ')';
     }
 }
 

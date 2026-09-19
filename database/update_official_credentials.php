@@ -42,9 +42,9 @@ function smsSyncCradEmails(PDO $crad, array $emails): void
     }
 
     $tables = [
-        ['crad_research_panel_assignments', 'panel_email'],
-        ['crad_research_adviser_assignments', 'adviser_email'],
-        ['crad_research_coordinator_assignments', 'coordinator_email'],
+        ['research_panel_assignments', 'panel_email'],
+        ['research_adviser_assignments', 'adviser_email'],
+        ['research_coordinator_assignments', 'coordinator_email'],
         ['crad_notifications', 'recipient_email'],
     ];
 
@@ -71,13 +71,13 @@ function smsSyncCradEmails(PDO $crad, array $emails): void
 }
 
 $find = $pdo->prepare(
-    'SELECT id, username, email FROM sms_users
+    'SELECT id, username, email FROM users
      WHERE username = :uname OR LOWER(email) = LOWER(:email)
      LIMIT 1'
 );
 
 $update = $pdo->prepare(
-    'UPDATE sms_users
+    'UPDATE users
         SET username = :username,
             email = :email,
             password_hash = :hash,
@@ -137,7 +137,7 @@ foreach ($accounts as $account) {
     }
 
     $pdo->prepare(
-        'INSERT INTO sms_users
+        'INSERT INTO users
             (username, email, password_hash, full_name, role_key, student_id, status, password_changed_at, must_change_password, failed_login_attempts, locked_until)
          VALUES (?, ?, ?, ?, ?, ?, \'active\', NOW(), 0, 0, NULL)'
     )->execute([

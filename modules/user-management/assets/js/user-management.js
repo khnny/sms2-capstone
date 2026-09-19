@@ -61,6 +61,7 @@
         if (searchInput)  searchInput.addEventListener('input',  applyFilters);
         if (roleFilter)   roleFilter.addEventListener('change',   applyFilters);
         if (statusFilter) statusFilter.addEventListener('change', applyFilters);
+        window.umApplyUserFilters = applyFilters;
     }
 
     /* ── Custom confirm modal ───────────────────────────────── */
@@ -193,17 +194,21 @@
             }
 
             if (action === 'edit' && form) {
-                form.querySelector('[name="full_name"]').value  = trigger.dataset.name   || '';
-                form.querySelector('[name="username"]').value   = trigger.dataset.username || '';
-                form.querySelector('[name="email"]').value      = trigger.dataset.email  || '';
-                form.querySelector('[name="role"]').value       = trigger.dataset.role   || '';
-                form.querySelector('[name="status"]').value     = trigger.dataset.status || 'active';
-                form.querySelector('[name="user_id"]').value    = trigger.dataset.uid    || '';
+                var row = trigger.closest ? trigger.closest('.um-user-row') : null;
+                form.querySelector('[name="full_name"]').value  = (row && row.dataset.name) || trigger.dataset.name || '';
+                form.querySelector('[name="username"]').value   = (row && row.dataset.username) || trigger.dataset.username || '';
+                form.querySelector('[name="email"]').value      = (row && row.dataset.email) || trigger.dataset.email || '';
+                form.querySelector('[name="role"]').value       = (row && row.dataset.role) || trigger.dataset.role || '';
+                form.querySelector('[name="status"]').value     = (row && row.dataset.status) || trigger.dataset.status || 'active';
+                form.querySelector('[name="user_id"]').value    = (row && row.dataset.uid) || trigger.dataset.uid || '';
+                var notesField = form.querySelector('[name="notes"]');
+                if (notesField) notesField.value = (row && row.dataset.notes) || trigger.dataset.notes || '';
 
                 var pwRow = form.querySelector('.um-pw-row');
                 var pwLabel = pwRow && pwRow.querySelector('.um-pw-label');
-                var pwInput = form.querySelector('[name="password"]');
-                var pwRequired = pwRow && pwRow.querySelector('.um-pw-required');
+                var pwInput = form.querySelector('#um_password, [name="new_password"]');
+                var pwConfirm = form.querySelector('#um_password_confirm, [name="new_password_confirm"]');
+                var pwRequired = form.querySelectorAll('.um-pw-required');
                 var pwStrength = form.querySelector('.um-pw-strength-row');
                 if (pwLabel) {
                     pwLabel.innerHTML = 'New Password <span class="text-muted fw-normal">(leave blank to keep current)</span>';
@@ -211,29 +216,46 @@
                 if (pwInput) {
                     pwInput.removeAttribute('required');
                     pwInput.value = '';
+                    pwInput.setAttribute('readonly', 'readonly');
                 }
-                if (pwRequired) pwRequired.hidden = true;
+                if (pwConfirm) {
+                    pwConfirm.removeAttribute('required');
+                    pwConfirm.value = '';
+                    pwConfirm.setAttribute('readonly', 'readonly');
+                }
+                pwRequired.forEach(function (el) { el.hidden = true; });
                 if (pwStrength) pwStrength.hidden = true;
+                form.dataset.pwDirty = '0';
             } else if (form) {
                 form.reset();
                 form.querySelector('[name="user_id"]').value = '';
                 var pwRow = form.querySelector('.um-pw-row');
                 var pwLabel = pwRow && pwRow.querySelector('.um-pw-label');
-                var pwInput = form.querySelector('[name="password"]');
-                var pwRequired = pwRow && pwRow.querySelector('.um-pw-required');
+                var pwInput = form.querySelector('#um_password, [name="new_password"]');
+                var pwConfirm = form.querySelector('#um_password_confirm, [name="new_password_confirm"]');
+                var pwRequired = form.querySelectorAll('.um-pw-required');
                 var pwStrength = form.querySelector('.um-pw-strength-row');
                 if (pwLabel) {
                     pwLabel.innerHTML = 'Password <span class="text-danger um-pw-required">*</span>';
                 }
-                if (pwInput) pwInput.setAttribute('required', 'required');
-                if (pwRequired) pwRequired.hidden = false;
+                if (pwInput) {
+                    pwInput.setAttribute('required', 'required');
+                    pwInput.removeAttribute('readonly');
+                }
+                if (pwConfirm) {
+                    pwConfirm.setAttribute('required', 'required');
+                    pwConfirm.removeAttribute('readonly');
+                }
+                pwRequired.forEach(function (el) { el.hidden = false; });
                 if (pwStrength) pwStrength.hidden = false;
+                form.dataset.pwDirty = '0';
             }
 
-            var pwField = form && form.querySelector('[name="password"]');
+            var pwField = form && form.querySelector('#um_password, [name="new_password"]');
             if (pwField) {
                 pwField.dispatchEvent(new Event('input', { bubbles: true }));
             }
+            if (form) form.dataset.pwDirty = '0';
 
             // Update avatar initial
             var avatarEl = modal.querySelector('.um-modal-avatar');
@@ -241,6 +263,24 @@
                 var n = form ? (form.querySelector('[name="full_name"]').value || '') : '';
                 avatarEl.textContent = n ? n.trim()[0].toUpperCase() : '?';
             }
+        });
+
+        modal.addEventListener('shown.bs.modal', function () {
+            var form = modal.querySelector('#umUserForm');
+            if (!form) return;
+            var uid = form.querySelector('[name="user_id"]');
+            if (!uid || !uid.value) return;
+            var pwInput = document.getElementById('um_password');
+            var pwConfirm = document.getElementById('um_password_confirm');
+            if (pwInput) {
+                pwInput.value = '';
+                pwInput.setAttribute('readonly', 'readonly');
+            }
+            if (pwConfirm) {
+                pwConfirm.value = '';
+                pwConfirm.setAttribute('readonly', 'readonly');
+            }
+            form.dataset.pwDirty = '0';
         });
 
         // Live update avatar initial while typing name
@@ -251,6 +291,20 @@
                 avatarEl.textContent = this.value.trim() ? this.value.trim()[0].toUpperCase() : '?';
             });
         }
+
+        ['um_password', 'um_password_confirm'].forEach(function (id) {
+            var field = document.getElementById(id);
+            if (!field) return;
+            field.addEventListener('focus', function () {
+                field.removeAttribute('readonly');
+            });
+            field.addEventListener('input', function () {
+                var userForm = document.getElementById('umUserForm');
+                if (userForm) userForm.dataset.pwDirty = '1';
+                var strength = document.querySelector('#umUserForm .um-pw-strength-row');
+                if (strength && field.value) strength.hidden = false;
+            });
+        });
     }
 
     /* ── Log filter (Admin Activity Logs) ───────────────────── */
@@ -265,8 +319,6 @@
         var tableBody    = document.getElementById('logTableBody');
         if (!tableBody) return;
 
-        var emptyFilter = tableBody.querySelector('.admin-log-empty-filter');
-
         function applyLog() {
             var action = actionFilter ? actionFilter.value.toLowerCase() : '';
             var module = moduleFilter ? moduleFilter.value.toLowerCase() : '';
@@ -275,6 +327,7 @@
             var to     = dateTo ? dateTo.value : '';
             var rows   = tableBody.querySelectorAll('tr.log-row');
             var visible = 0;
+            var emptyFilter = tableBody.querySelector('.admin-log-empty-filter');
 
             rows.forEach(function (row) {
                 var rowAction = (row.dataset.action || '').toLowerCase();
@@ -315,6 +368,156 @@
         if (dateTo) dateTo.addEventListener('change', applyLog);
         if (clearBtn) clearBtn.addEventListener('click', clearFilters);
         applyLog();
+        initActivityLogsLive(applyLog, {
+            actionFilter: actionFilter,
+            moduleFilter: moduleFilter,
+            tableBody: tableBody
+        });
+    }
+
+    function umEsc(value) {
+        return String(value == null ? '' : value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function umFillSelect(select, values, allLabel, pretty) {
+        if (!select) return;
+        var current = select.value;
+        var html = '<option value="">' + umEsc(allLabel) + '</option>';
+        (values || []).forEach(function (value) {
+            var label = String(value);
+            if (pretty) {
+                label = label.replace(/_/g, ' ');
+                label = label.charAt(0).toUpperCase() + label.slice(1);
+            }
+            html += '<option value="' + umEsc(value) + '">' + umEsc(label) + '</option>';
+        });
+        select.innerHTML = html;
+        if (current) {
+            select.value = current;
+            if (select.value !== current) {
+                select.selectedIndex = 0;
+            }
+        }
+    }
+
+    function umLogRowHtml(log, isNew) {
+        var userLabel = String(log.user || 'System');
+        var initial = userLabel ? userLabel.charAt(0).toUpperCase() : '?';
+        var cls = 'log-row' + (isNew ? ' log-row-new' : '');
+        return (
+            '<tr class="' + cls + '"'
+            + ' data-id="' + umEsc(log.id) + '"'
+            + ' data-action="' + umEsc(log.action) + '"'
+            + ' data-user="' + umEsc(userLabel.toLowerCase()) + '"'
+            + ' data-module="' + umEsc(log.module) + '"'
+            + ' data-date="' + umEsc(log.log_date) + '">'
+            + '<td class="text-muted" style="padding-left:1.2rem;font-size:.75rem;">' + umEsc(log.id) + '</td>'
+            + '<td><div class="um-user-cell">'
+            + '<span class="um-avatar a">' + umEsc(initial) + '</span>'
+            + '<div><span class="um-user-name">' + umEsc(userLabel) + '</span>'
+            + '<span class="um-user-email">' + umEsc(String(log.role || '').replace(/^./, function (c) { return c.toUpperCase(); })) + '</span></div>'
+            + '</div></td>'
+            + '<td><span class="log-action-badge ' + umEsc(log.action) + '">'
+            + (log.icon_html || '') + ' ' + umEsc(log.action_label || log.action)
+            + '</span></td>'
+            + '<td style="max-width:260px;font-size:.8rem;">' + umEsc(log.detail) + '</td>'
+            + '<td style="font-size:.78rem;color:var(--sms-text-muted);">' + umEsc(log.module) + '</td>'
+            + '<td><code style="font-size:.72rem;color:var(--sms-text-faint);">' + umEsc(log.ip) + '</code></td>'
+            + '<td style="font-size:.75rem;white-space:nowrap;color:var(--sms-text-muted);">' + umEsc(log.time) + '</td>'
+            + '</tr>'
+        );
+    }
+
+    function initActivityLogsLive(applyLog, refs) {
+        var table = document.getElementById('adminLogTable');
+        var tableBody = refs.tableBody;
+        if (!table || !tableBody || !window.fetch) return;
+
+        var endpoint = table.getAttribute('data-live-url') || '';
+        if (!endpoint) return;
+
+        var latestId = parseInt(table.getAttribute('data-latest-id') || '0', 10) || 0;
+        var knownIds = {};
+        tableBody.querySelectorAll('tr.log-row').forEach(function (row) {
+            knownIds[row.getAttribute('data-id') || ''] = true;
+        });
+        var badge = document.getElementById('adminLogLiveBadge');
+        var liveLabel = document.getElementById('adminLogLiveLabel');
+        var syncedEl = document.getElementById('adminLogSynced');
+        var inFlight = false;
+
+        function setLiveState(ok) {
+            if (badge) badge.classList.toggle('is-stale', !ok);
+            if (liveLabel) liveLabel.textContent = ok ? 'Live' : 'Reconnecting';
+        }
+
+        function applyPayload(data) {
+            if (!data || !data.ok) {
+                setLiveState(false);
+                return;
+            }
+            setLiveState(true);
+            if (data.synced_at && syncedEl) {
+                syncedEl.textContent = data.synced_at;
+            }
+
+            var incomingId = parseInt(data.latest_id || 0, 10) || 0;
+            var logs = Array.isArray(data.logs) ? data.logs : [];
+            if (incomingId === latestId && tableBody.querySelectorAll('tr.log-row').length === logs.length) {
+                return;
+            }
+
+            if (data.stats) {
+                Object.keys(data.stats).forEach(function (key) {
+                    var el = document.querySelector('[data-um-log-stat="' + key + '"]');
+                    if (el) el.textContent = data.stats[key];
+                });
+            }
+            umFillSelect(refs.actionFilter, data.actions, 'All actions', true);
+            umFillSelect(refs.moduleFilter, data.modules, 'All modules', false);
+
+            var html = '';
+            logs.forEach(function (log) {
+                var idKey = String(log.id || '');
+                html += umLogRowHtml(log, latestId > 0 && !knownIds[idKey]);
+                knownIds[idKey] = true;
+            });
+            html += '<tr class="admin-log-empty-filter" hidden>'
+                + '<td colspan="7" class="text-center text-muted py-4">No logs match the selected filters.</td>'
+                + '</tr>';
+            if (!logs.length) {
+                html = '<tr class="admin-log-empty"><td colspan="7" class="text-center text-muted py-4">No activity logs yet.</td></tr>' + html;
+            }
+            tableBody.innerHTML = html;
+            latestId = incomingId;
+            table.setAttribute('data-latest-id', String(latestId));
+            applyLog();
+        }
+
+        function poll() {
+            if (inFlight || document.hidden) return;
+            inFlight = true;
+            fetch(endpoint, {
+                headers: { 'Accept': 'application/json' },
+                credentials: 'same-origin',
+                cache: 'no-store'
+            })
+                .then(function (res) { return res.ok ? res.json() : null; })
+                .then(applyPayload)
+                .catch(function () { setLiveState(false); })
+                .finally(function () { inFlight = false; });
+        }
+
+        poll();
+        setInterval(poll, 3000);
+        document.addEventListener('visibilitychange', function () {
+            if (!document.hidden) poll();
+        });
     }
 
     /* ── Settings — unsaved changes / leave-site modal ─────── */
@@ -448,6 +651,7 @@
         if (params.get('saved') === '1')   window.umShowToast('Changes saved successfully.', 'success');
         if (params.get('created') === '1') window.umShowToast('User account created.', 'success');
         if (params.get('updated') === '1') window.umShowToast('User account updated.', 'success');
+        if (params.get('password') === '1') window.umShowToast('Password updated. The user can sign in with the new password now.', 'success');
         if (params.get('archived') === '1') window.umShowToast('Moved to User Archive.', 'warning');
         if (params.get('restored') === '1') window.umShowToast('Restored to User Accounts.', 'success');
         if (params.get('purged') === '1') window.umShowToast('Permanently deleted from archive.', 'warning');

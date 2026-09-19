@@ -15,7 +15,7 @@ if (smsIsSystemInMaintenance() && !smsCanBypassSystemControls()) {
     exit;
 }
 
-// Module staff cannot self-change passwords — only Super Admin / SMS Admin (or forced first-login change)
+// Module staff cannot self-change passwords — only Super Admin (or forced first-login change)
 $error = '';
 $forced = !empty($_SESSION['must_change_password']);
 if (!$forced && !smsIsGrantedAdminRole(getCurrentUserRoleKey())) {
@@ -37,7 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $pdo = db();
         $row = null;
         if ($pdo && $userId) {
-            $stmt = $pdo->prepare('SELECT password_hash FROM sms_users WHERE id = ? LIMIT 1');
+            $stmt = $pdo->prepare('SELECT password_hash FROM users WHERE id = ? LIMIT 1');
             $stmt->execute([$userId]);
             $row = $stmt->fetch();
         }

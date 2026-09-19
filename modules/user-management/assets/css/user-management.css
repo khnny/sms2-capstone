@@ -46,6 +46,12 @@
     color: #818cf8;
     border: 1px solid rgba(99,102,241,0.28);
 }
+.role-badge.department_head,
+.role-badge.departmenthead {
+    background: rgba(79,70,229,0.16) !important;
+    color: #a5b4fc !important;
+    border: 1px solid rgba(79,70,229,0.34) !important;
+}
 .role-badge.department_chair {
     background: rgba(14,165,233,0.14);
     color: #38bdf8;
@@ -101,6 +107,12 @@
     background: rgba(79,70,229,0.10);
     color: #4f46e5;
     border-color: rgba(79,70,229,0.22);
+}
+[data-theme="light"] .role-badge.department_head,
+[data-theme="light"] .role-badge.departmenthead {
+    background: rgba(79,70,229,0.12) !important;
+    color: #4338ca !important;
+    border: 1px solid rgba(79,70,229,0.32) !important;
 }
 [data-theme="light"] .role-badge.department_chair {
     background: rgba(2,132,199,0.10);
@@ -270,12 +282,62 @@
 .log-action-badge.delete  { background: rgba(220,38,38,0.12);  color: #dc2626; }
 .log-action-badge.view    { background: rgba(99,102,241,0.10); color: #6366f1; }
 .log-action-badge.export  { background: rgba(168,85,247,0.10); color: #9333ea; }
+.log-action-badge.login_failed,
+.log-action-badge.lockout { background: rgba(220,38,38,0.12); color: #dc2626; }
 [data-theme="dark"] .log-action-badge.login  { color: #38bdf8; }
 [data-theme="dark"] .log-action-badge.create { color: #4ade80; }
 [data-theme="dark"] .log-action-badge.update { color: #fbbf24; }
 [data-theme="dark"] .log-action-badge.delete { color: #f87171; }
 [data-theme="dark"] .log-action-badge.view   { color: #818cf8; }
 [data-theme="dark"] .log-action-badge.export { color: #c084fc; }
+
+.um-live-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.22rem 0.65rem;
+    border-radius: 999px;
+    background: rgba(16, 185, 129, 0.12);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #10b981;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+}
+.um-live-badge.is-stale {
+    background: rgba(245, 158, 11, 0.12);
+    border-color: rgba(245, 158, 11, 0.3);
+    color: #d97706;
+}
+.um-live-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: currentColor;
+    position: relative;
+    flex-shrink: 0;
+}
+.um-live-dot::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0.35;
+    animation: um-live-pulse 1.8s ease-out infinite;
+}
+@keyframes um-live-pulse {
+    0%   { transform: scale(0.6); opacity: 0.45; }
+    100% { transform: scale(2.2); opacity: 0; }
+}
+.log-row-new td {
+    animation: um-log-flash 1.6s ease;
+}
+@keyframes um-log-flash {
+    0%   { background: rgba(16, 185, 129, 0.22); }
+    100% { background: transparent; }
+}
 
 /* ── System settings form ───────────────────────────────────── */
 .settings-section-head {

@@ -1,57 +1,35 @@
 <?php
 /**
- * Web import of database/sms2_db.sql into the attached HostForge database.
+ * Web database migration for hosts without CLI (e.g. InfinityFree).
  *
- * 1. Set SMS2_DEPLOY_TOKEN in Environment Variables
+ * 1. Set SMS2_DEPLOY_TOKEN in config/local.php
  * 2. Open /setup/deploy-db.php?token=YOUR_TOKEN
- * 3. Import the unified dump (sms_* + crad_*) into DB_DATABASE (e.g. hf_db_xxxx)
+ * 3. Remove SMS2_DEPLOY_TOKEN after success
  */
 declare(strict_types=1);
 
 require_once __DIR__ . '/../config/config.php';
 
-$expectedToken = defined('SMS2_DEPLOY_TOKEN') ? (string) SMS2_DEPLOY_TOKEN : (string) sms2_env('SMS2_DEPLOY_TOKEN', '');
+$expectedToken = defined('SMS2_DEPLOY_TOKEN') ? (string) SMS2_DEPLOY_TOKEN : '';
 $providedToken = trim((string) ($_GET['token'] ?? $_POST['token'] ?? ''));
 
 if ($expectedToken === '' || !hash_equals($expectedToken, $providedToken)) {
     http_response_code(403);
     header('Content-Type: text/html; charset=utf-8');
     echo '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Deploy DB</title></head><body>';
-    echo '<p>Forbidden. Set <code>SMS2_DEPLOY_TOKEN</code> in Environment Variables, then open this page with <code>?token=...</code></p>';
-    echo '</body></html>';
-    exit;
-}
-
-require_once ROOT_PATH . '/config/database.php';
-
-// SEC-008: destructive import requires an explicit allow flag on cloud hosts.
-$allowImport = strtolower((string) sms2_env('SMS2_ALLOW_DB_IMPORT', '0')) === '1'
-    || !sms2_has_cloud_db_env();
-if (!$allowImport && ($_SERVER['REQUEST_METHOD'] === 'POST' || isset($_GET['run']))) {
-    http_response_code(403);
-    header('Content-Type: text/html; charset=utf-8');
-    echo '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Deploy DB</title></head><body>';
-    echo '<p>Forbidden. On cloud hosts set <code>SMS2_ALLOW_DB_IMPORT=1</code> temporarily to run a DB import, then remove it.</p>';
+    echo '<p>Forbidden. Set <code>SMS2_DEPLOY_TOKEN</code> in <code>config/local.php</code>, then open this page with <code>?token=...</code></p>';
     echo '</body></html>';
     exit;
 }
 
 $force = isset($_GET['force']) || isset($_POST['force']);
-$skipCrad = !isset($_POST['include_crad']);
-if ($_SERVER['REQUEST_METHOD'] !== 'POST' && !isset($_GET['run'])) {
-    $skipCrad = true;
-}
 $messages = [];
 $error = '';
 
-if ($allowImport && ($_SERVER['REQUEST_METHOD'] === 'POST' || isset($_GET['run']))) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' || isset($_GET['run'])) {
     try {
         require_once dirname(__DIR__) . '/database/migrate-lib.php';
-        $messages = sms2RunMigrations([
-            'fresh' => false,
-            'force' => $force,
-            'skip_crad' => $skipCrad,
-        ]);
+        $messages = sms2RunMigrations(['fresh' => false, 'force' => $force]);
     } catch (Throwable $e) {
         $error = $e->getMessage();
     }
@@ -64,7 +42,7 @@ header('Content-Type: text/html; charset=utf-8');
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>SMS 2 — Import login database</title>
+    <title>SMS 2 — Deploy Database</title>
     <style>
         body { font-family: system-ui, sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1.25rem; background: #f8fafc; color: #0f172a; }
         h1 { font-size: 1.35rem; color: #1e3a8a; }
@@ -75,49 +53,28 @@ header('Content-Type: text/html; charset=utf-8');
         button { background: #1d4ed8; color: #fff; border: 0; border-radius: 8px; padding: .6rem 1rem; font-size: .95rem; cursor: pointer; }
         button:hover { background: #1e40af; }
         a { color: #1d4ed8; }
-        label { display: flex; align-items: flex-start; gap: .45rem; margin: .65rem 0; }
-        code { font-size: .9em; }
+        label { display: inline-flex; align-items: center; gap: .35rem; margin: .75rem 0; }
     </style>
 </head>
 <body>
-    <h1>SMS 2 — Import unified database</h1>
-    <p>Loads <code>database/sms2_db.sql</code> (sms_* + crad_* tables) into the database this app is already wired to. That is HostForge <code>DB_DATABASE</code>, not a database named <code>sms2_db</code> unless they are the same.</p>
-
-    <div class="card">
-        <p><strong>Import target</strong></p>
-        <p>
-            <code><?= htmlspecialchars(DB_HOST . ':' . DB_PORT . '/' . DB_NAME) ?></code>
-            as <code><?= htmlspecialchars(DB_USER) ?></code>
-        </p>
-        <p class="small">If this is not the database you open in HostForge → Databases, the dump will not fix login or CRAD.</p>
-    </div>
+    <h1>SMS 2 — Deploy Database</h1>
+    <p>For InfinityFree and other hosts without SSH/CLI. Applies <code>sms2_db.sql</code> and <code>crad_db.sql</code>.</p>
 
     <?php if ($error !== ''): ?>
-        <div class="err"><strong>Import failed:</strong> <?= htmlspecialchars($error) ?></div>
+        <div class="err"><strong>Migration failed:</strong> <?= htmlspecialchars($error) ?></div>
     <?php elseif ($messages): ?>
-        <div class="ok">Import finished. Next: <a href="<?= htmlspecialchars(BASE_URL) ?>/setup/health.php?token=<?= htmlspecialchars($providedToken) ?>">check health</a> then <a href="<?= htmlspecialchars(BASE_URL) ?>/login/login.php">sign in</a>.</div>
+        <div class="ok">Migration finished. Next: <a href="<?= htmlspecialchars(BASE_URL) ?>/setup/">create Super Admin</a></div>
         <pre><?= htmlspecialchars(implode("\n", $messages)) ?></pre>
     <?php endif; ?>
 
     <div class="card">
-        <?php if (!$allowImport): ?>
-            <p class="err" style="margin:0">Import is disabled on cloud hosts. Set <code>SMS2_ALLOW_DB_IMPORT=1</code>, redeploy, run the import, then remove the flag.</p>
-        <?php else: ?>
         <form method="post">
             <input type="hidden" name="token" value="<?= htmlspecialchars($providedToken) ?>">
-            <label>
-                <input type="checkbox" name="force" value="1" checked>
-                <span>Replace existing SMS2 tables in this database (needed to re-upload <code>sms2_db.sql</code>)</span>
-            </label>
-            <label>
-                <input type="checkbox" name="include_crad" value="1">
-                <span>Also import legacy separate <code>crad_db.sql</code> (only if <code>CRAD_DB_NAME</code> ≠ <code>DB_NAME</code>)</span>
-            </label>
-            <button type="submit">Import unified sms2_db.sql now</button>
+            <label><input type="checkbox" name="force" value="1"> Force re-apply (only if you know tables are incomplete)</label><br>
+            <button type="submit">Run database migration</button>
         </form>
-        <?php endif; ?>
     </div>
 
-    <p><small>After login works, you can also import the same file from HostForge → Databases → <code><?= htmlspecialchars(DB_NAME) ?></code> → Import.</small></p>
+    <p><small>After success, remove <code>SMS2_DEPLOY_TOKEN</code> from <code>config/local.php</code>.</small></p>
 </body>
 </html>

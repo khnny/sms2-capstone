@@ -6,12 +6,6 @@ require_once __DIR__ . '/../config/config.php';
 require_once ROOT_PATH . '/includes/authentication.php';
 require_once ROOT_PATH . '/includes/captcha.php';
 
-$dbUnavailable = !db();
-$dbSummary = function_exists('sms2_db_connection_summary')
-    ? sms2_db_connection_summary()
-    : null;
-$usersTableMissing = !$dbUnavailable && !smsUsersTableExists(db());
-
 // First-time adoption: no users yet → setup Super Admin
 if (smsNeedsSetup()) {
     header('Location: ' . BASE_URL . '/setup/index.php');
@@ -1242,33 +1236,6 @@ html[data-theme="dark"] .login-glass .sms-cf-widget.is-verified {
             </div>
         <?php endif; ?>
 
-        <?php if ($usersTableMissing): ?>
-            <div class="alert alert-danger login-alert" role="alert">
-                <?= smsIcon('alert-circle', ['class' => 'me-2']) ?>
-                Login database is connected but the user table is missing. Ask an administrator to run
-                <code>database/migrate.php</code> (or import <code>database/sms2_db.sql</code>) into the attached database.
-            </div>
-        <?php endif; ?>
-
-        <?php if ($dbUnavailable): ?>
-            <div class="alert alert-danger login-alert" role="alert">
-                <?= smsIcon('alert-circle', ['class' => 'me-2']) ?>Database unavailable. Please try again later or contact the system administrator.
-                <?php
-                // Log connection details server-side only (SEC-007) — never expose host/user/SQLSTATE to browsers.
-                if (is_array($dbSummary)) {
-                    error_log(
-                        'SMS2 login DB unavailable: cloud_env='
-                        . (!empty($dbSummary['cloud_env']) ? '1' : '0')
-                        . ' host=' . ($dbSummary['host'] ?? '')
-                        . ' db=' . ($dbSummary['database'] ?? '')
-                        . ' user=' . ($dbSummary['user'] ?? '')
-                        . ' err=' . ($dbSummary['error'] ?? '')
-                    );
-                }
-                ?>
-            </div>
-        <?php endif; ?>
-
         <?php if ($info): ?>
             <div class="alert alert-info login-alert" role="alert">
                 <?= smsIcon('info-circle', ['class' => 'me-2']) ?><?= e($info) ?>
@@ -1300,10 +1267,10 @@ html[data-theme="dark"] .login-glass .sms-cf-widget.is-verified {
             </div>
             <fieldset disabled class="login-locked-fields">
                 <div class="mb-3">
-                    <label for="username" class="form-label">Email <span class="login-req">*</span></label>
+                    <label for="username" class="form-label">Email or username <span class="login-req">*</span></label>
                     <div class="input-group">
                         <input type="text" class="form-control" id="username" name="username"
-                               placeholder="Enter your email" value="<?= e($usernameValue) ?>" autocomplete="username">
+                               placeholder="Email or username" value="<?= e($usernameValue) ?>" autocomplete="username">
                     </div>
                 </div>
                 <div class="mb-4">
@@ -1325,14 +1292,14 @@ html[data-theme="dark"] .login-glass .sms-cf-widget.is-verified {
             <input type="hidden" name="admin_access" value="1">
             <?php endif; ?>
             <div class="mb-3">
-                <label for="username" class="form-label">Email <span class="login-req">*</span></label>
+                <label for="username" class="form-label">Email or username <span class="login-req">*</span></label>
                 <div class="input-group">
                     <input type="text" class="form-control" id="username" name="username"
-                           placeholder="Enter your email" required autofocus
+                           placeholder="Email or username" required autofocus
                            value="<?= e($usernameValue) ?>" autocomplete="username"
                            aria-describedby="usernameError">
                 </div>
-                <div class="login-field-error" id="usernameError" role="alert">Email is required.</div>
+                <div class="login-field-error" id="usernameError" role="alert">Email or username is required.</div>
             </div>
             <div class="mb-3">
                 <label for="password" class="form-label">Password <span class="login-req">*</span></label>
@@ -1349,7 +1316,7 @@ html[data-theme="dark"] .login-glass .sms-cf-widget.is-verified {
             <?= smsCaptchaMarkup() ?>
             <div class="login-field-error" id="captchaError" role="alert">Please complete the security check.</div>
             <button type="submit" class="btn btn-sms-primary disabled" id="loginSubmitBtn" aria-disabled="true"
-                    title="Fill in email and password first">
+                    title="Fill in email or username and password first">
                 <span class="login-submit-idle">Sign In</span>
                 <span class="login-submit-loading d-none" aria-live="polite">
                     <span class="login-loading-spinner" aria-hidden="true"></span>
@@ -1496,9 +1463,9 @@ document.addEventListener('DOMContentLoaded', function () {
         if (ready) {
             submitBtn.removeAttribute('title');
         } else if (!hasEmail && !hasPassword) {
-            submitBtn.title = 'Fill in email and password first';
+            submitBtn.title = 'Fill in email or username and password first';
         } else if (!hasEmail) {
-            submitBtn.title = 'Enter your email first';
+            submitBtn.title = 'Enter your email or username first';
         } else if (!hasPassword) {
             submitBtn.title = 'Enter your password first';
         } else {
@@ -1526,7 +1493,7 @@ document.addEventListener('DOMContentLoaded', function () {
     function validateUsername(showWhenEmpty) {
         if (!username) return true;
         const empty = username.value.trim() === '';
-        setFieldRequiredError(username, usernameError, 'Email is required.', showWhenEmpty && empty);
+        setFieldRequiredError(username, usernameError, 'Email or username is required.', showWhenEmpty && empty);
         return !empty;
     }
 

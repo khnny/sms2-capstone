@@ -19,10 +19,10 @@ PAANO MAG-INSTALL
    ✔ Connected to MySQL
    ✔ Database `crad_db` ready
    ✔ All schema tables created successfully
-   ✔ Table `crad_research_proposals` verified
-   ✔ Table `crad_proposal_members` verified
-   ✔ Table `crad_proposal_documents` verified
-   ✔ Table `crad_proposal_status_logs` verified
+   ✔ Table `research_proposals` verified
+   ✔ Table `proposal_members` verified
+   ✔ Table `proposal_documents` verified
+   ✔ Table `proposal_status_logs` verified
 
 4. Tapos na! Pwede mo nang gamitin ang CRAD module.
 

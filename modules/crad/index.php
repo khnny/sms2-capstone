@@ -4,7 +4,12 @@
  */
 require_once __DIR__ . '/../../includes/authentication.php';
 
-$cradOverviewLabel = getCurrentUserRoleKey() === 'research_coordinator' ? 'Research Coordinator' : 'CRAD';
+$cradRoleKey = getCurrentUserRoleKey();
+if ($cradRoleKey === 'department_head') {
+    header('Location: ' . BASE_URL . '/modules/crad/pages/research-coordinator-management.php');
+    exit;
+}
+$cradOverviewLabel = $cradRoleKey === 'research_coordinator' ? 'Research Coordinator' : 'CRAD';
 $pageTitle    = $cradOverviewLabel;
 $activeModule = 'crad';
 $activePage   = '';

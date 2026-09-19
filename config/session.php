@@ -5,19 +5,14 @@
 
 declare(strict_types=1);
 
-if (!function_exists('sms2_request_is_https')) {
-    require_once __DIR__ . '/config.php';
-}
-
 if (session_status() === PHP_SESSION_NONE) {
-    $secure = sms2_request_is_https();
-    $cookiePath = (defined('BASE_URL') && BASE_URL !== '') ? BASE_URL . '/' : '/';
+    $secure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off');
 
     session_name('SMS2SESSID');
 
     session_set_cookie_params([
         'lifetime' => 0,
-        'path'     => $cookiePath,
+        'path'     => '/',
         'domain'   => '',
         'secure'   => $secure,
         'httponly'  => true,

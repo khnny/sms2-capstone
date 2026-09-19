@@ -1,11 +1,8 @@
 <?php
 /**
  * SMS 2 – Database installer (CLI only).
- *
- * Prefer:  C:\xampp\php\php.exe database/migrate.php
- * install.php seeds roles/permissions/settings after schema import.
- * Schema import uses migrate-lib (handles DELIMITER triggers). Do not
- * PDO::exec() the raw dump — triggers would be skipped.
+ * Creates schema + seed roles, permissions, settings.
+ * Does NOT create demo users — use /setup/ for the first Super Admin.
  *
  * CLI:  C:\xampp\php\php.exe database/install.php
  */
@@ -13,7 +10,6 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../config/database.php';
-require_once __DIR__ . '/migrate-lib.php';
 
 // Web access is blocked — installer is CLI-only (prevents remote wipe/reinstall).
 $isCli = (PHP_SAPI === 'cli');
@@ -21,7 +17,6 @@ if (!$isCli) {
     http_response_code(403);
     header('Content-Type: text/plain; charset=utf-8');
     echo "Forbidden. Run from CLI only:\n  C:\\xampp\\php\\php.exe database/install.php\n";
-    echo "Preferred schema path:\n  C:\\xampp\\php\\php.exe database/migrate.php\n";
     exit(1);
 }
 
@@ -73,11 +68,12 @@ $pdo->exec(
     ' CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci'
 );
 $pdo->exec('USE ' . $quotedDbName);
-out('Applying schema via migrate-lib (DELIMITER-safe)…');
+out('Applying schema…');
 
-$applied = sms2MigrateApplySqlFile($pdo, $schemaFile);
-out('Schema applied (' . $applied . ' statement(s)).');
-out('Tip: for HostForge/production imports prefer database/migrate.php.');
+$sql = file_get_contents($schemaFile);
+// Split on semicolons carefully — schema uses simple statements
+$pdo->exec($sql);
+out('Schema applied.');
 
 /* ── Roles ─────────────────────────────────────────────────── */
 $roles = [
@@ -97,7 +93,7 @@ $roles = [
 ];
 
 $insRole = $pdo->prepare(
-    'INSERT INTO sms_roles (role_key, label, description) VALUES (?, ?, ?)'
+    'INSERT INTO roles (role_key, label, description) VALUES (?, ?, ?)'
 );
 foreach ($roles as $r) {
     $insRole->execute($r);
@@ -125,7 +121,7 @@ $defaults = [
 ];
 
 // Store under actual role_key for crad_officer as 'crad' in permissions table
-// using role_key column that references sms_roles — crad is NOT in sms_roles.
+// using role_key column that references roles — crad is NOT in roles table.
 // So we store permissions under crad_officer and map in app, OR add a virtual key.
 // Simplest: store permissions with role_key = crad_officer for CRAD modules.
 
@@ -146,7 +142,7 @@ $permRows = [
 ];
 
 $insPerm = $pdo->prepare(
-    'INSERT INTO sms_role_permissions (role_key, module_key, granted) VALUES (?, ?, 1)'
+    'INSERT INTO role_permissions (role_key, module_key, granted) VALUES (?, ?, 1)'
 );
 foreach ($permRows as $roleKey => $modules) {
     foreach ($modules as $mod) {
@@ -181,7 +177,7 @@ $settings = [
 ];
 
 $insSet = $pdo->prepare(
-    'INSERT INTO sms_system_settings (setting_key, setting_value) VALUES (?, ?)'
+    'INSERT INTO system_settings (setting_key, setting_value) VALUES (?, ?)'
 );
 foreach ($settings as $k => $v) {
     $insSet->execute([$k, $v]);
@@ -189,7 +185,7 @@ foreach ($settings as $k => $v) {
 out('Settings seeded.');
 
 $pdo->prepare(
-    'INSERT INTO sms_activity_logs (user_id, user_name, role_key, action, module_key, detail, ip_address)
+    'INSERT INTO activity_logs (user_id, user_name, role_key, action, module_key, detail, ip_address)
      VALUES (NULL, ?, ?, ?, ?, ?, ?)'
 )->execute([
     'System',

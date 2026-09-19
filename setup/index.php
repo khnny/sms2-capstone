@@ -59,7 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $error = 'Database unavailable. Run database/install.php first.';
             } else {
                 // Re-check empty (race-safe enough for local setup)
-                $count = (int) $pdo->query('SELECT COUNT(*) AS c FROM sms_users')->fetch()['c'];
+                $count = (int) $pdo->query('SELECT COUNT(*) AS c FROM users')->fetch()['c'];
                 if ($count > 0) {
                     header('Location: ' . BASE_URL . '/login/login.php');
                     exit;
@@ -67,7 +67,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 try {
                     $pdo->prepare(
-                        'INSERT INTO sms_users
+                        'INSERT INTO users
                             (username, email, password_hash, full_name, role_key, status, password_changed_at, must_change_password)
                          VALUES (?, ?, ?, ?, \'superadmin\', \'active\', NOW(), 0)'
                     )->execute([
@@ -88,7 +88,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     );
 
                     $pdo->prepare(
-                        'INSERT INTO sms_role_permissions (role_key, module_key, granted)
+                        'INSERT INTO role_permissions (role_key, module_key, granted)
                          VALUES (\'superadmin\', \'user-management\', 1)
                          ON DUPLICATE KEY UPDATE granted = VALUES(granted)'
                     )->execute();

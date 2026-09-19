@@ -21,9 +21,9 @@ if ($attachmentId <= 0) {
 $stmt = $crad->prepare(
     "SELECT rpa.*, rpu.research_group_id, rpu.research_plan_id, rpu.milestone_id,
             rpu.submitted_by_user_id, rg.group_number
-     FROM crad_research_progress_attachments rpa
-     INNER JOIN crad_research_progress_updates rpu ON rpu.id = rpa.progress_update_id
-     INNER JOIN crad_research_groups rg ON rg.id = rpu.research_group_id
+     FROM research_progress_attachments rpa
+     INNER JOIN research_progress_updates rpu ON rpu.id = rpa.progress_update_id
+     INNER JOIN research_groups rg ON rg.id = rpu.research_group_id
      WHERE rpa.id = ?
      LIMIT 1"
 );

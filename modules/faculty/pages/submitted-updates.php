@@ -28,7 +28,7 @@ renderBreadcrumbs($breadcrumbs);
 
 try {
     $crad = cradDb();
-    $tablesCheck = $crad->query("SHOW TABLES LIKE 'crad_research_plans'")->fetch();
+    $tablesCheck = $crad->query("SHOW TABLES LIKE 'research_plans'")->fetch();
     if (!$tablesCheck) throw new Exception('Not installed.');
 } catch (Throwable $e) {
     echo '<div class="alert alert-warning m-3">' . smsIcon('exclamation-triangle', ['class' => 'me-2']) . '<strong>Module Not Installed</strong></div>';
@@ -83,19 +83,19 @@ try {
                rpa.id AS attachment_id, rpa.file_name AS attachment_name,
                rpai.id AS ai_analysis_id, rpai.verdict AS ai_verdict, rpai.grammar_quality AS ai_grammar_quality,
                rpai.summary AS ai_summary, rpai.notes_json AS ai_notes_json, rpai.created_at AS ai_analyzed_at,
-               (SELECT COUNT(*) FROM crad_research_progress_feedback rpf WHERE rpf.progress_update_id = rpu.id) AS feedback_count
-        FROM crad_research_progress_updates rpu
-        LEFT JOIN crad_research_milestones rm ON rm.id = rpu.milestone_id
-        LEFT JOIN crad_research_progress_attachments rpa ON rpa.id = (
+               (SELECT COUNT(*) FROM research_progress_feedback rpf WHERE rpf.progress_update_id = rpu.id) AS feedback_count
+        FROM research_progress_updates rpu
+        LEFT JOIN research_milestones rm ON rm.id = rpu.milestone_id
+        LEFT JOIN research_progress_attachments rpa ON rpa.id = (
             SELECT rpa2.id
-            FROM crad_research_progress_attachments rpa2
+            FROM research_progress_attachments rpa2
             WHERE rpa2.progress_update_id = rpu.id
             ORDER BY rpa2.id DESC
             LIMIT 1
         )
-        LEFT JOIN crad_research_progress_ai_analyses rpai ON rpai.id = (
+        LEFT JOIN research_progress_ai_analyses rpai ON rpai.id = (
             SELECT rpai2.id
-            FROM crad_research_progress_ai_analyses rpai2
+            FROM research_progress_ai_analyses rpai2
             WHERE rpai2.progress_update_id = rpu.id
             ORDER BY rpai2.id DESC
             LIMIT 1
@@ -110,7 +110,7 @@ try {
 try {
     if (!empty($plan['id'])) {
         $milestonesStmt = $crad->prepare("
-            SELECT id, milestone_name, milestone_order FROM crad_research_milestones
+            SELECT id, milestone_name, milestone_order FROM research_milestones
             WHERE research_plan_id = ? ORDER BY milestone_order ASC
         ");
         $milestonesStmt->execute([(int) $plan['id']]);
@@ -472,7 +472,7 @@ $statusMeta = [
                             <?php if ($feedbackCount > 0):
                                 try {
                                     $fbStmt = $crad->prepare("
-                                        SELECT * FROM crad_research_progress_feedback
+                                        SELECT * FROM research_progress_feedback
                                         WHERE progress_update_id = ?
                                         ORDER BY created_at DESC
                                     ");

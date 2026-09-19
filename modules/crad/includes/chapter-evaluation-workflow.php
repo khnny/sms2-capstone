@@ -12,6 +12,60 @@ require_once ROOT_PATH . '/modules/crad/config/config.php';
 require_once ROOT_PATH . '/includes/icons.php';
 require_once ROOT_PATH . '/modules/crad/includes/research-progress-helpers.php';
 
+/**
+ * Grammarian scoring: five criteria at 20% each = 100%.
+ *
+ * @return list<array{key:string,label:string,weight:float}>
+ */
+function chapterEvaluationCriteria(): array
+{
+    return [
+        ['key' => 'content', 'label' => 'Content', 'weight' => 20.0],
+        ['key' => 'methodology', 'label' => 'Methodology', 'weight' => 20.0],
+        ['key' => 'references', 'label' => 'References', 'weight' => 20.0],
+        ['key' => 'format', 'label' => 'Format', 'weight' => 20.0],
+        ['key' => 'grammar', 'label' => 'Grammar', 'weight' => 20.0],
+    ];
+}
+
+function chapterLiveEvaluatorName(): string
+{
+    $fallback = trim((string) ($_SESSION['user_name'] ?? ''));
+    $userId = (int) ($_SESSION['user_id'] ?? 0);
+    $sms = function_exists('db') ? db() : null;
+    if ($sms instanceof PDO && $userId > 0) {
+        try {
+            $stmt = $sms->prepare(
+                "SELECT full_name FROM users
+                 WHERE id = ? AND TRIM(COALESCE(full_name, '')) <> ''
+                 LIMIT 1"
+            );
+            $stmt->execute([$userId]);
+            $name = trim((string) $stmt->fetchColumn());
+            if ($name !== '') {
+                return $name;
+            }
+        } catch (Throwable $e) {
+            // keep session fallback
+        }
+    }
+    return $fallback;
+}
+
+function chapterEvaluationMaxPoints(): float
+{
+    return 20.0;
+}
+
+function chapterEvaluationTotalMax(): float
+{
+    $total = 0.0;
+    foreach (chapterEvaluationCriteria() as $item) {
+        $total += (float) $item['weight'];
+    }
+    return $total;
+}
+
 function chapterRegistryFullyApprovedClause(string $alias = 't'): string
 {
     return "{$alias}.status = 'Approved'
@@ -39,11 +93,11 @@ function chapterRegisteredStudentGroup(PDO $crad): ?array
         "SELECT rg.*, rp.id AS research_plan_id, rp.status AS plan_status,
                 ca.id AS coord_assignment_id, ca.coordinator_name, ca.coordinator_email,
                 aa.id AS adviser_assignment_id, aa.adviser_user_id, aa.adviser_name, aa.adviser_email
-         FROM crad_research_groups rg
-         JOIN crad_title_approvals t ON t.id = rg.title_approval_id
-         JOIN crad_research_coordinator_assignments ca ON ca.id = (
+         FROM research_groups rg
+         JOIN title_approvals t ON t.id = rg.title_approval_id
+         JOIN research_coordinator_assignments ca ON ca.id = (
             SELECT ca2.id
-            FROM crad_research_coordinator_assignments ca2
+            FROM research_coordinator_assignments ca2
             WHERE ca2.status = 'Active'
               AND (
                     ca2.research_group_id = rg.id
@@ -52,9 +106,9 @@ function chapterRegisteredStudentGroup(PDO $crad): ?array
             ORDER BY ca2.updated_at DESC, ca2.id DESC
             LIMIT 1
          )
-         JOIN crad_research_adviser_assignments aa ON aa.id = (
+         JOIN research_adviser_assignments aa ON aa.id = (
             SELECT aa2.id
-            FROM crad_research_adviser_assignments aa2
+            FROM research_adviser_assignments aa2
             WHERE (
                     aa2.research_group_id = rg.id
                  OR (aa2.research_group_id IS NULL AND aa2.group_number = rg.group_number)
@@ -62,7 +116,7 @@ function chapterRegisteredStudentGroup(PDO $crad): ?array
             ORDER BY (aa2.assignment_status = 'Assigned') DESC, aa2.updated_at DESC, aa2.id DESC
             LIMIT 1
          )
-         LEFT JOIN crad_research_plans rp ON rp.research_group_id = rg.id
+         LEFT JOIN research_plans rp ON rp.research_group_id = rg.id
          WHERE rg.title_approval_id IS NOT NULL
            AND " . chapterRegistryFullyApprovedClause('t') . "
            AND TRIM(COALESCE(rg.research_title, '')) <> ''
@@ -76,7 +130,7 @@ function chapterRegisteredStudentGroup(PDO $crad): ?array
              OR (:student_id2 <> '' AND t.student_id = :student_id_match2)
              OR (:name2 <> '' AND LOWER(TRIM(t.student_name)) = :name_match2)
              OR EXISTS (
-                    SELECT 1 FROM crad_proposal_members pm
+                    SELECT 1 FROM proposal_members pm
                     WHERE pm.proposal_id = rg.proposal_id
                       AND (
                            (:student_id3 <> '' AND pm.student_id = :student_id_match3)
@@ -140,7 +194,7 @@ function chapterAllowedChapters(): array
 function chapterEnsureSchema(PDO $crad): void
 {
     $crad->exec(
-        "CREATE TABLE IF NOT EXISTS crad_chapter_submissions (
+        "CREATE TABLE IF NOT EXISTS chapter_submissions (
             id INT UNSIGNED NOT NULL AUTO_INCREMENT,
             research_group_id INT UNSIGNED NOT NULL,
             research_plan_id INT UNSIGNED DEFAULT NULL,
@@ -172,7 +226,7 @@ function chapterEnsureSchema(PDO $crad): void
     );
 
     $crad->exec(
-        "CREATE TABLE IF NOT EXISTS crad_chapter_submission_history (
+        "CREATE TABLE IF NOT EXISTS chapter_submission_history (
             id INT UNSIGNED NOT NULL AUTO_INCREMENT,
             submission_id INT UNSIGNED NOT NULL,
             research_group_id INT UNSIGNED NOT NULL,
@@ -193,7 +247,7 @@ function chapterEnsureSchema(PDO $crad): void
     );
 
     $crad->exec(
-        "CREATE TABLE IF NOT EXISTS crad_chapter_evaluations (
+        "CREATE TABLE IF NOT EXISTS chapter_evaluations (
             id INT UNSIGNED NOT NULL AUTO_INCREMENT,
             submission_id INT UNSIGNED NOT NULL,
             research_group_id INT UNSIGNED NOT NULL,
@@ -203,10 +257,12 @@ function chapterEnsureSchema(PDO $crad): void
             methodology_score DECIMAL(5,2) NOT NULL,
             references_score DECIMAL(5,2) NOT NULL,
             format_score DECIMAL(5,2) NOT NULL,
+            grammar_score DECIMAL(5,2) NOT NULL DEFAULT 0,
             content_remarks TEXT DEFAULT NULL,
             methodology_remarks TEXT DEFAULT NULL,
             references_remarks TEXT DEFAULT NULL,
             format_remarks TEXT DEFAULT NULL,
+            grammar_remarks TEXT DEFAULT NULL,
             overall_feedback TEXT DEFAULT NULL,
             result ENUM('APPROVED','APPROVED WITH REVISION') NOT NULL,
             overall_score DECIMAL(5,2) DEFAULT NULL,
@@ -221,7 +277,7 @@ function chapterEnsureSchema(PDO $crad): void
     );
 
     $crad->exec(
-        "CREATE TABLE IF NOT EXISTS crad_chapter_evaluation_notifications (
+        "CREATE TABLE IF NOT EXISTS chapter_evaluation_notifications (
             id INT UNSIGNED NOT NULL AUTO_INCREMENT,
             event_key VARCHAR(120) NOT NULL,
             recipient_user_id INT UNSIGNED DEFAULT NULL,
@@ -241,6 +297,19 @@ function chapterEnsureSchema(PDO $crad): void
             KEY idx_chapter_notification_created (created_at)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     );
+
+    try {
+        $grammarScore = $crad->query("SHOW COLUMNS FROM chapter_evaluations LIKE 'grammar_score'")->fetch();
+        if (!$grammarScore) {
+            $crad->exec("ALTER TABLE chapter_evaluations ADD COLUMN grammar_score DECIMAL(5,2) NOT NULL DEFAULT 0 AFTER format_score");
+        }
+        $grammarRemarks = $crad->query("SHOW COLUMNS FROM chapter_evaluations LIKE 'grammar_remarks'")->fetch();
+        if (!$grammarRemarks) {
+            $crad->exec("ALTER TABLE chapter_evaluations ADD COLUMN grammar_remarks TEXT DEFAULT NULL AFTER format_remarks");
+        }
+    } catch (Throwable $e) {
+        error_log('Chapter evaluation grammar column check skipped: ' . $e->getMessage());
+    }
 }
 
 function chapterDb(): PDO
@@ -259,15 +328,15 @@ function chapterCurrentStudentGroup(PDO $crad): ?array
 
     $stmt = $crad->prepare(
         "SELECT rg.*, rp.id AS research_plan_id, rp.status AS plan_status
-         FROM crad_research_groups rg
-         LEFT JOIN crad_research_plans rp ON rp.research_group_id = rg.id
+         FROM research_groups rg
+         LEFT JOIN research_plans rp ON rp.research_group_id = rg.id
          WHERE rg.status = 'Approved'
            AND (
                 (:student_id <> '' AND rg.leader_id = :student_id_match)
              OR (:email <> '' AND LOWER(TRIM(rg.leader_email)) = :email_match)
              OR (:name <> '' AND LOWER(TRIM(rg.leader_name)) = :name_match)
              OR EXISTS (
-                    SELECT 1 FROM crad_proposal_members pm
+                    SELECT 1 FROM proposal_members pm
                     WHERE pm.proposal_id = rg.proposal_id
                       AND (
                            (:student_id2 <> '' AND pm.student_id = :student_id_match2)
@@ -276,7 +345,7 @@ function chapterCurrentStudentGroup(PDO $crad): ?array
                       )
                 )
              OR EXISTS (
-                    SELECT 1 FROM crad_title_approvals ta
+                    SELECT 1 FROM title_approvals ta
                     WHERE ta.id = rg.title_approval_id
                       AND (
                            (:student_id3 <> '' AND ta.student_id = :student_id_match3)
@@ -324,10 +393,12 @@ function chapterSubmissionSelectSql(): string
                    rg.adviser, rg.leader_id, rg.leader_email, rg.leader_name,
                    ce.id AS evaluation_id, ce.evaluator_name, ce.result,
                    ce.content_score, ce.methodology_score, ce.references_score, ce.format_score,
+                   ce.grammar_score, ce.grammar_remarks, ce.content_remarks, ce.methodology_remarks,
+                   ce.references_remarks, ce.format_remarks,
                    ce.overall_score, ce.overall_feedback, ce.evaluated_at
-            FROM crad_chapter_submissions cs
-            INNER JOIN crad_research_groups rg ON rg.id = cs.research_group_id
-            LEFT JOIN crad_chapter_evaluations ce ON ce.submission_id = cs.id";
+            FROM chapter_submissions cs
+            INNER JOIN research_groups rg ON rg.id = cs.research_group_id
+            LEFT JOIN chapter_evaluations ce ON ce.submission_id = cs.id";
 }
 
 function chapterRegistryGroupGateSql(string $groupAlias = 'rg'): string
@@ -335,7 +406,7 @@ function chapterRegistryGroupGateSql(string $groupAlias = 'rg'): string
     return "{$groupAlias}.title_approval_id IS NOT NULL
         AND EXISTS (
             SELECT 1
-            FROM crad_title_approvals gate_t
+            FROM title_approvals gate_t
             WHERE gate_t.id = {$groupAlias}.title_approval_id
               AND " . chapterRegistryFullyApprovedClause('gate_t') . "
               AND TRIM(COALESCE({$groupAlias}.research_title, '')) <> ''
@@ -347,7 +418,7 @@ function chapterRegistryGroupGateSql(string $groupAlias = 'rg'): string
         )
         AND EXISTS (
             SELECT 1
-            FROM crad_research_coordinator_assignments gate_ca
+            FROM research_coordinator_assignments gate_ca
             WHERE gate_ca.status = 'Active'
               AND (
                     gate_ca.research_group_id = {$groupAlias}.id
@@ -356,7 +427,7 @@ function chapterRegistryGroupGateSql(string $groupAlias = 'rg'): string
         )
         AND EXISTS (
             SELECT 1
-            FROM crad_research_adviser_assignments gate_aa
+            FROM research_adviser_assignments gate_aa
             WHERE (
                     gate_aa.research_group_id = {$groupAlias}.id
                  OR (gate_aa.research_group_id IS NULL AND gate_aa.group_number = {$groupAlias}.group_number)
@@ -368,7 +439,7 @@ function chapterCurrentLatestSubmissionSql(string $submissionAlias = 'cs'): stri
 {
     return "{$submissionAlias}.id = (
         SELECT latest_cs.id
-        FROM crad_chapter_submissions latest_cs
+        FROM chapter_submissions latest_cs
         WHERE latest_cs.research_group_id = {$submissionAlias}.research_group_id
           AND latest_cs.chapter_number = {$submissionAlias}.chapter_number
         ORDER BY latest_cs.version_number DESC, latest_cs.id DESC
@@ -383,8 +454,8 @@ function chapterSubmissionIsCurrentValid(PDO $crad, int $submissionId): bool
     }
     $stmt = $crad->prepare(
         "SELECT 1
-         FROM crad_chapter_submissions cs
-         INNER JOIN crad_research_groups rg ON rg.id = cs.research_group_id
+         FROM chapter_submissions cs
+         INNER JOIN research_groups rg ON rg.id = cs.research_group_id
          WHERE cs.id = :id
            AND " . chapterCurrentLatestSubmissionSql('cs') . "
            AND " . chapterRegistryGroupGateSql('rg') . "
@@ -401,9 +472,9 @@ function chapterSubmissionIsActiveEvaluation(PDO $crad, int $submissionId): bool
     }
     $stmt = $crad->prepare(
         "SELECT 1
-         FROM crad_chapter_submissions cs
-         INNER JOIN crad_research_groups rg ON rg.id = cs.research_group_id
-         LEFT JOIN crad_chapter_evaluations ce ON ce.submission_id = cs.id
+         FROM chapter_submissions cs
+         INNER JOIN research_groups rg ON rg.id = cs.research_group_id
+         LEFT JOIN chapter_evaluations ce ON ce.submission_id = cs.id
          WHERE cs.id = :id
            AND cs.status IN ('Submitted','Under Review')
            AND ce.id IS NULL
@@ -421,7 +492,7 @@ function chapterLatestSubmissionsForGroup(PDO $crad, int $groupId): array
         chapterSubmissionSelectSql() . "
          WHERE cs.research_group_id = :gid
            AND cs.id IN (
-                SELECT MAX(id) FROM crad_chapter_submissions
+                SELECT MAX(id) FROM chapter_submissions
                 WHERE research_group_id = :gid2
                 GROUP BY chapter_number
            )
@@ -435,8 +506,8 @@ function chapterSubmissionHistoryForGroup(PDO $crad, int $groupId): array
 {
     $stmt = $crad->prepare(
         "SELECT h.*, rg.group_number, rg.group_name, rg.research_title
-         FROM crad_chapter_submission_history h
-         INNER JOIN crad_research_groups rg ON rg.id = h.research_group_id
+         FROM chapter_submission_history h
+         INNER JOIN research_groups rg ON rg.id = h.research_group_id
          WHERE h.research_group_id = :gid
          ORDER BY h.created_at ASC, h.id ASC"
     );
@@ -512,7 +583,7 @@ function chapterLabel(int $chapter): string
 function chapterHistoryInsert(PDO $crad, int $submissionId, int $groupId, int $chapter, int $version, string $status, string $eventType, string $detail = ''): void
 {
     $stmt = $crad->prepare(
-        "INSERT INTO crad_chapter_submission_history
+        "INSERT INTO chapter_submission_history
             (submission_id, research_group_id, chapter_number, version_number, status, event_type,
              actor_user_id, actor_name, actor_role, detail)
          VALUES
@@ -535,7 +606,7 @@ function chapterHistoryInsert(PDO $crad, int $submissionId, int $groupId, int $c
 function chapterNotify(PDO $crad, string $eventKey, int $submissionId, array $recipient, string $type, string $title, string $body, string $url): void
 {
     $stmt = $crad->prepare(
-        "INSERT IGNORE INTO crad_chapter_evaluation_notifications
+        "INSERT IGNORE INTO chapter_evaluation_notifications
             (event_key, recipient_user_id, recipient_role, recipient_email, submission_id, type, title, body, url)
          VALUES
             (:event_key, :user_id, :role, :email, :submission_id, :type, :title, :body, :url)"
@@ -559,7 +630,7 @@ function chapterNotifyEvaluators(PDO $crad, array $submission): void
     if (!$sms) {
         return;
     }
-    $users = $sms->query("SELECT id, email, role_key FROM sms_users WHERE role_key = 'grammarian' AND status = 'active'")->fetchAll() ?: [];
+    $users = $sms->query("SELECT id, email, role_key FROM users WHERE role_key = 'grammarian' AND status = 'active'")->fetchAll() ?: [];
     foreach ($users as $user) {
         $chapter = chapterLabel((int) $submission['chapter_number']);
         $isRevision = (int) $submission['version_number'] > 1;
@@ -605,7 +676,7 @@ function chapterNotifyStudent(PDO $crad, array $submission, string $type, string
 
 function chapterNextVersion(PDO $crad, int $groupId, int $chapter): int
 {
-    $stmt = $crad->prepare("SELECT MAX(version_number) FROM crad_chapter_submissions WHERE research_group_id = :gid AND chapter_number = :chapter");
+    $stmt = $crad->prepare("SELECT MAX(version_number) FROM chapter_submissions WHERE research_group_id = :gid AND chapter_number = :chapter");
     $stmt->execute([':gid' => $groupId, ':chapter' => $chapter]);
     return ((int) $stmt->fetchColumn()) + 1;
 }
@@ -613,7 +684,7 @@ function chapterNextVersion(PDO $crad, int $groupId, int $chapter): int
 function chapterMaySubmitNewVersion(PDO $crad, int $groupId, int $chapter): array
 {
     $stmt = $crad->prepare(
-        "SELECT status, version_number FROM crad_chapter_submissions
+        "SELECT status, version_number FROM chapter_submissions
          WHERE research_group_id = :gid AND chapter_number = :chapter
          ORDER BY version_number DESC, id DESC
          LIMIT 1"
@@ -647,10 +718,10 @@ function chapterIsReadyForPreOral(PDO $crad, int $groupId): bool
 
     $stmt = $crad->prepare(
         "SELECT COUNT(*)
-         FROM crad_chapter_submissions latest
+         FROM chapter_submissions latest
          INNER JOIN (
              SELECT chapter_number, MAX(version_number) AS version_number
-             FROM crad_chapter_submissions
+             FROM chapter_submissions
              WHERE research_group_id = :group_id
                AND chapter_number IN (1, 2, 3)
              GROUP BY chapter_number
@@ -710,7 +781,7 @@ function chapterSubmitDocument(PDO $crad, array $group, int $chapter, array $fil
         $crad->beginTransaction();
         $version = chapterNextVersion($crad, (int) $group['id'], $chapter);
         $stmt = $crad->prepare(
-            "INSERT INTO crad_chapter_submissions
+            "INSERT INTO chapter_submissions
                 (research_group_id, research_plan_id, chapter_number, version_number, status,
                  submitted_by_user, submitted_by_name, submitted_by_email, submission_notes,
                  original_name, stored_subdir, stored_name, file_size, file_mime, submission_token)
@@ -777,7 +848,7 @@ function chapterStartReview(PDO $crad, array $submission): array
     try {
         $crad->beginTransaction();
         $stmt = $crad->prepare(
-            "UPDATE crad_chapter_submissions
+            "UPDATE chapter_submissions
              SET status = 'Under Review', review_started_at = COALESCE(review_started_at, NOW())
              WHERE id = :id AND status = 'Submitted'"
         );
@@ -829,18 +900,29 @@ function chapterSubmitEvaluation(PDO $crad, array $submission, array $data): arr
         return ['ok' => false, 'error' => 'This submission already has an evaluation.'];
     }
 
-    $scoreKeys = ['content_score', 'methodology_score', 'references_score', 'format_score'];
+    $maxPoints = chapterEvaluationMaxPoints();
     $scores = [];
-    foreach ($scoreKeys as $key) {
+    foreach (chapterEvaluationCriteria() as $item) {
+        $key = $item['key'] . '_score';
         $raw = trim((string) ($data[$key] ?? ''));
         if ($raw === '' || !is_numeric($raw)) {
             return ['ok' => false, 'error' => 'All scores must be numeric.'];
         }
         $score = (float) $raw;
-        if ($score < 0 || $score > 100) {
-            return ['ok' => false, 'error' => 'Scores must be from 0 to 100 only.'];
+        $weight = (float) $item['weight'];
+        if ($score < 0) {
+            return ['ok' => false, 'error' => $item['label'] . ' Score cannot be below 0.'];
         }
-        $scores[$key] = $score;
+        if ($score > $maxPoints || $score > $weight) {
+            return ['ok' => false, 'error' => $item['label'] . ' Score cannot exceed ' . number_format($weight, 0) . '%. Evaluation was not submitted.'];
+        }
+        $scores[$key] = round($score, 2);
+    }
+
+    $overall = round(array_sum($scores), 2);
+    $totalMax = chapterEvaluationTotalMax();
+    if ($overall > $totalMax) {
+        return ['ok' => false, 'error' => 'Total score cannot exceed ' . number_format($totalMax, 0) . '%. Evaluation was not submitted.'];
     }
 
     $result = strtoupper(trim((string) ($data['result'] ?? '')));
@@ -848,46 +930,47 @@ function chapterSubmitEvaluation(PDO $crad, array $submission, array $data): arr
         return ['ok' => false, 'error' => 'Invalid evaluation result.'];
     }
     $studentStatus = $result === 'APPROVED' ? 'Accepted' : 'Needs Revision';
-    $overall = array_sum($scores) / 4;
 
     try {
         $crad->beginTransaction();
-        $check = $crad->prepare('SELECT id FROM crad_chapter_evaluations WHERE submission_id = :sid LIMIT 1');
+        $check = $crad->prepare('SELECT id FROM chapter_evaluations WHERE submission_id = :sid LIMIT 1');
         $check->execute([':sid' => (int) $submission['id']]);
         if ($check->fetch()) {
             $crad->rollBack();
             return ['ok' => false, 'error' => 'This submission already has an evaluation.'];
         }
         $stmt = $crad->prepare(
-            "INSERT INTO crad_chapter_evaluations
+            "INSERT INTO chapter_evaluations
                 (submission_id, research_group_id, evaluator_user_id, evaluator_name,
-                 content_score, methodology_score, references_score, format_score,
-                 content_remarks, methodology_remarks, references_remarks, format_remarks,
+                 content_score, methodology_score, references_score, format_score, grammar_score,
+                 content_remarks, methodology_remarks, references_remarks, format_remarks, grammar_remarks,
                  overall_feedback, result, overall_score)
              VALUES
                 (:submission_id, :group_id, :evaluator_user_id, :evaluator_name,
-                 :content_score, :methodology_score, :references_score, :format_score,
-                 :content_remarks, :methodology_remarks, :references_remarks, :format_remarks,
+                 :content_score, :methodology_score, :references_score, :format_score, :grammar_score,
+                 :content_remarks, :methodology_remarks, :references_remarks, :format_remarks, :grammar_remarks,
                  :overall_feedback, :result, :overall_score)"
         );
         $stmt->execute([
             ':submission_id' => (int) $submission['id'],
             ':group_id' => (int) $submission['research_group_id'],
             ':evaluator_user_id' => (int) ($_SESSION['user_id'] ?? 0),
-            ':evaluator_name' => (string) ($_SESSION['user_name'] ?? ''),
+            ':evaluator_name' => chapterLiveEvaluatorName(),
             ':content_score' => $scores['content_score'],
             ':methodology_score' => $scores['methodology_score'],
             ':references_score' => $scores['references_score'],
             ':format_score' => $scores['format_score'],
+            ':grammar_score' => $scores['grammar_score'],
             ':content_remarks' => trim((string) ($data['content_remarks'] ?? '')),
             ':methodology_remarks' => trim((string) ($data['methodology_remarks'] ?? '')),
             ':references_remarks' => trim((string) ($data['references_remarks'] ?? '')),
             ':format_remarks' => trim((string) ($data['format_remarks'] ?? '')),
+            ':grammar_remarks' => trim((string) ($data['grammar_remarks'] ?? '')),
             ':overall_feedback' => trim((string) ($data['overall_feedback'] ?? '')),
             ':result' => $result,
             ':overall_score' => $overall,
         ]);
-        $crad->prepare("UPDATE crad_chapter_submissions SET status = :status, reviewed_at = NOW() WHERE id = :id")
+        $crad->prepare("UPDATE chapter_submissions SET status = :status, reviewed_at = NOW() WHERE id = :id")
             ->execute([':status' => $studentStatus, ':id' => (int) $submission['id']]);
         chapterHistoryInsert(
             $crad,
@@ -908,6 +991,12 @@ function chapterSubmitEvaluation(PDO $crad, array $submission, array $data): arr
             chapterLabel((int) $submission['chapter_number']) . ' Version ' . (int) $submission['version_number'] . ' is now ' . $studentStatus . '.'
         );
         $crad->commit();
+        try {
+            require_once __DIR__ . '/research-services-clearance.php';
+            rscEnsureForReadyGroup($crad, (int) $submission['research_group_id']);
+        } catch (Throwable $clearanceError) {
+            error_log('Clearance draft after evaluation: ' . $clearanceError->getMessage());
+        }
         logActivity('update', 'Submitted evaluation for ' . chapterLabel((int) $submission['chapter_number']) . ' Version ' . (int) $submission['version_number'], 'faculty');
         return ['ok' => true, 'status' => $studentStatus];
     } catch (PDOException $e) {

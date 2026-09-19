@@ -84,12 +84,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
             $_SESSION['flash_admin_error'] = 'Enter a valid email address.';
         } else {
-            $dup = $pdo->prepare('SELECT id FROM sms_users WHERE email = ? AND id <> ? LIMIT 1');
+            $dup = $pdo->prepare('SELECT id FROM users WHERE email = ? AND id <> ? LIMIT 1');
             $dup->execute([$email, $userId]);
             if ($dup->fetch()) {
                 $_SESSION['flash_admin_error'] = 'That email is already used by another account.';
             } else {
-                $pdo->prepare('UPDATE sms_users SET full_name = ?, email = ? WHERE id = ?')
+                $pdo->prepare('UPDATE users SET full_name = ?, email = ? WHERE id = ?')
                     ->execute([$fullName, $email, $userId]);
                 $_SESSION['user_name'] = $fullName;
                 $_SESSION['user_email'] = $email;
@@ -106,7 +106,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $password = (string) ($_POST['password'] ?? '');
         $confirm = (string) ($_POST['password_confirm'] ?? '');
 
-        $stmt = $pdo->prepare('SELECT password_hash FROM sms_users WHERE id = ? LIMIT 1');
+        $stmt = $pdo->prepare('SELECT password_hash FROM users WHERE id = ? LIMIT 1');
         $stmt->execute([$userId]);
         $row = $stmt->fetch();
 
@@ -196,7 +196,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         smsClearCodeGate($userId, $pwPurpose);
         $pdo->prepare(
-            'UPDATE sms_users SET password_hash = ?, must_change_password = 0, password_changed_at = NOW(),
+            'UPDATE users SET password_hash = ?, must_change_password = 0, password_changed_at = NOW(),
              failed_login_attempts = 0, locked_until = NULL WHERE id = ?'
         )->execute([$pending['hash'], $userId]);
         unset($_SESSION['pending_admin_pw_change']);
@@ -231,7 +231,7 @@ $pdo = db();
 if ($pdo) {
     $stmt = $pdo->prepare(
         'SELECT full_name, username, email, last_login_at, password_changed_at, failed_login_attempts
-         FROM sms_users WHERE id = ? LIMIT 1'
+         FROM users WHERE id = ? LIMIT 1'
     );
     $stmt->execute([$userId]);
     $row = $stmt->fetch();
@@ -242,7 +242,7 @@ if ($pdo) {
 
 $pageTitle = 'Account Settings';
 $activeModule = 'dashboard';
-$activePage = '';
+$activePage = $tab === 'security' ? 'security-settings' : '';
 $breadcrumbs = [
     ['label' => 'Account Settings', 'url' => null],
 ];

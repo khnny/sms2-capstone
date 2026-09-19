@@ -38,6 +38,7 @@ $bodyClass    = 'sms-app';
 
 require_once ROOT_PATH . '/includes/navigation-context.php';
 $layoutRoleKey = getCurrentUserRoleKey();
+$pageAccessModule = (string) $activeModule;
 $activeModule = smsEffectiveActiveModule((string) $activeModule, $layoutRoleKey);
 if ($activePage === '') {
     $activePage = smsResolveActivePageFromRequest();
@@ -46,12 +47,17 @@ if ($activePage === '' && str_ends_with($scriptPath, '/dashboard/index.php') && 
     $activePage = 'dashboard';
 }
 
-if (str_ends_with($scriptPath, '/dashboard/index.php') && !smsShowsMainDashboard($layoutRoleKey)) {
-    header('Location: ' . smsRoleHomeUrl($layoutRoleKey));
-    exit;
+$onMainDashboard = str_ends_with($scriptPath, '/dashboard/index.php');
+if ($onMainDashboard && !smsShowsMainDashboard($layoutRoleKey)) {
+    $homeUrl = smsRoleHomeUrl($layoutRoleKey);
+    $homePath = (string) (parse_url($homeUrl, PHP_URL_PATH) ?? '');
+    if ($homePath === '' || !str_ends_with($scriptPath, $homePath)) {
+        header('Location: ' . $homeUrl);
+        exit;
+    }
 }
 
-requireModuleAccess($activeModule);
+requireModuleAccess($pageAccessModule !== '' ? $pageAccessModule : $activeModule);
 
 require_once ROOT_PATH . '/includes/header.php';
 ?>

@@ -16,7 +16,7 @@ require_once __DIR__ . '/../config/config.php';
 $pdo = getCradDatabaseConnection();
 
 $pdo->exec(
-    "CREATE TABLE IF NOT EXISTS crad_research_panel_assignments (
+    "CREATE TABLE IF NOT EXISTS research_panel_assignments (
         id INT UNSIGNED NOT NULL AUTO_INCREMENT,
         research_group_id INT UNSIGNED NOT NULL,
         defense_schedule_id INT UNSIGNED DEFAULT NULL,
@@ -46,7 +46,7 @@ $pdo->exec(
 );
 
 $pdo->exec(
-    "CREATE TABLE IF NOT EXISTS crad_panel_member_availability (
+    "CREATE TABLE IF NOT EXISTS panel_member_availability (
         id INT UNSIGNED NOT NULL AUTO_INCREMENT,
         panel_user_id INT UNSIGNED NOT NULL,
         availability_status VARCHAR(40) NOT NULL DEFAULT 'Pending',
@@ -60,7 +60,7 @@ $pdo->exec(
 );
 
 $pdo->exec(
-    "CREATE TABLE IF NOT EXISTS crad_panel_assignment_notifications (
+    "CREATE TABLE IF NOT EXISTS panel_assignment_notifications (
         id INT UNSIGNED NOT NULL AUTO_INCREMENT,
         event_key VARCHAR(140) NOT NULL,
         recipient_user_id INT UNSIGNED NOT NULL,

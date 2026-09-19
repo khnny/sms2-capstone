@@ -31,7 +31,7 @@ function rpCurrentUserEmail(): string
         if (!$sms) {
             return '';
         }
-        $stmt = $sms->prepare('SELECT email FROM sms_users WHERE id = ? LIMIT 1');
+        $stmt = $sms->prepare('SELECT email FROM users WHERE id = ? LIMIT 1');
         $stmt->execute([$userId]);
         return rpNormalizeEmail((string) ($stmt->fetchColumn() ?: ''));
     } catch (Throwable $e) {
@@ -99,7 +99,7 @@ function rpGetResearchPlan(PDO $crad, int $groupId): ?array
         return null;
     }
 
-    $stmt = $crad->prepare('SELECT * FROM crad_research_plans WHERE research_group_id = ? LIMIT 1');
+    $stmt = $crad->prepare('SELECT * FROM research_plans WHERE research_group_id = ? LIMIT 1');
     $stmt->execute([$groupId]);
     $plan = $stmt->fetch(PDO::FETCH_ASSOC);
     return $plan ?: null;
@@ -135,11 +135,11 @@ function _rpAddColumnIfMissing(PDO $crad, string $table, string $column, string 
 
 function rpEnsureFinalDefenseRecommendationSchema(PDO $crad): void
 {
-    _rpAddColumnIfMissing($crad, 'crad_research_plans', 'final_defense_recommended', 'TINYINT(1) NOT NULL DEFAULT 0');
-    _rpAddColumnIfMissing($crad, 'crad_research_plans', 'final_defense_recommended_by', 'INT UNSIGNED DEFAULT NULL');
-    _rpAddColumnIfMissing($crad, 'crad_research_plans', 'final_defense_recommended_by_name', 'VARCHAR(150) DEFAULT NULL');
-    _rpAddColumnIfMissing($crad, 'crad_research_plans', 'final_defense_recommended_at', 'DATETIME DEFAULT NULL');
-    _rpAddColumnIfMissing($crad, 'crad_research_plans', 'final_defense_recommendation_remarks', 'TEXT DEFAULT NULL');
+    _rpAddColumnIfMissing($crad, 'research_plans', 'final_defense_recommended', 'TINYINT(1) NOT NULL DEFAULT 0');
+    _rpAddColumnIfMissing($crad, 'research_plans', 'final_defense_recommended_by', 'INT UNSIGNED DEFAULT NULL');
+    _rpAddColumnIfMissing($crad, 'research_plans', 'final_defense_recommended_by_name', 'VARCHAR(150) DEFAULT NULL');
+    _rpAddColumnIfMissing($crad, 'research_plans', 'final_defense_recommended_at', 'DATETIME DEFAULT NULL');
+    _rpAddColumnIfMissing($crad, 'research_plans', 'final_defense_recommendation_remarks', 'TEXT DEFAULT NULL');
 }
 
 function rpMarkFinalDefenseRecommended(
@@ -155,7 +155,7 @@ function rpMarkFinalDefenseRecommended(
 
     rpEnsureFinalDefenseRecommendationSchema($crad);
     $stmt = $crad->prepare(
-        "UPDATE crad_research_plans
+        "UPDATE research_plans
          SET final_defense_recommended = 1,
              final_defense_recommended_by = ?,
              final_defense_recommended_by_name = ?,
@@ -175,7 +175,7 @@ function rpRevokeFinalDefenseRecommendation(PDO $crad, int $groupId): bool
 
     rpEnsureFinalDefenseRecommendationSchema($crad);
     $stmt = $crad->prepare(
-        "UPDATE crad_research_plans
+        "UPDATE research_plans
          SET final_defense_recommended = 0,
              final_defense_recommended_by = NULL,
              final_defense_recommended_by_name = NULL,
@@ -206,7 +206,7 @@ function rpGetFinalDefenseRecommendation(PDO $crad, int $groupId): ?array
                 final_defense_recommended_by_name,
                 final_defense_recommended_at,
                 final_defense_recommendation_remarks
-         FROM crad_research_plans
+         FROM research_plans
          WHERE research_group_id = ?
          LIMIT 1"
     );
@@ -259,7 +259,7 @@ function rpChapterSubmissionProgressState(PDO $crad, int $groupId, int $chapter)
     try {
         $stmt = $crad->prepare(
             "SELECT id, version_number, status, submitted_at, updated_at
-             FROM crad_chapter_submissions
+             FROM chapter_submissions
              WHERE research_group_id = :group_id
                AND chapter_number = :chapter
              ORDER BY version_number DESC, id DESC"
@@ -448,7 +448,7 @@ function rpGetMilestonesForPlan(PDO $crad, ?int $planId, ?int $groupId = null): 
 
     $stmt = $crad->prepare("
         SELECT *
-        FROM crad_research_milestones
+        FROM research_milestones
         WHERE research_plan_id = ?
         ORDER BY milestone_order ASC
     ");
@@ -473,12 +473,12 @@ function rpGetMilestonesWithUpdateStats(PDO $crad, ?int $planId, ?int $groupId =
 
     $stmt = $crad->prepare(
         "SELECT rm.*,
-                (SELECT COUNT(*) FROM crad_research_progress_updates rpu WHERE rpu.milestone_id = rm.id) AS update_count,
-                (SELECT COUNT(*) FROM crad_research_progress_updates rpu WHERE rpu.milestone_id = rm.id
+                (SELECT COUNT(*) FROM research_progress_updates rpu WHERE rpu.milestone_id = rm.id) AS update_count,
+                (SELECT COUNT(*) FROM research_progress_updates rpu WHERE rpu.milestone_id = rm.id
                    AND rpu.milestone_status = 'Submitted for Review') AS pending_count,
-                (SELECT rpu.submitted_at FROM crad_research_progress_updates rpu WHERE rpu.milestone_id = rm.id
+                (SELECT rpu.submitted_at FROM research_progress_updates rpu WHERE rpu.milestone_id = rm.id
                  ORDER BY rpu.submitted_at DESC LIMIT 1) AS last_update_at
-         FROM crad_research_milestones rm
+         FROM research_milestones rm
          WHERE rm.research_plan_id = ?
          ORDER BY rm.milestone_order ASC"
     );
@@ -516,7 +516,7 @@ function rpChapterControlledMilestoneState(PDO $crad, int $milestoneId): ?array
 function rpEnsureProgressAttachmentSchema(PDO $crad): void
 {
     $crad->exec(
-        "CREATE TABLE IF NOT EXISTS crad_research_progress_attachments (
+        "CREATE TABLE IF NOT EXISTS research_progress_attachments (
             id INT UNSIGNED NOT NULL AUTO_INCREMENT,
             progress_update_id INT UNSIGNED NOT NULL,
             file_name VARCHAR(300) NOT NULL,
@@ -540,7 +540,7 @@ function rpLatestAttachmentForUpdate(PDO $crad, int $progressUpdateId): ?array
     rpEnsureProgressAttachmentSchema($crad);
     $stmt = $crad->prepare(
         "SELECT *
-         FROM crad_research_progress_attachments
+         FROM research_progress_attachments
          WHERE progress_update_id = ?
          ORDER BY id DESC
          LIMIT 1"
@@ -566,11 +566,11 @@ function rpAdviserApprovedChapter(PDO $crad, int $groupId, int $chapter): ?array
                 rpu.new_progress, rpu.submitted_at, rpu.updated_at,
                 rpf.id AS feedback_id, rpf.adviser_user_id AS approved_by,
                 rpf.adviser_name AS approved_by_name, rpf.created_at AS approved_at
-         FROM crad_research_progress_updates rpu
-         INNER JOIN crad_research_milestones rm ON rm.id = rpu.milestone_id
-         INNER JOIN crad_research_progress_feedback rpf ON rpf.id = (
+         FROM research_progress_updates rpu
+         INNER JOIN research_milestones rm ON rm.id = rpu.milestone_id
+         INNER JOIN research_progress_feedback rpf ON rpf.id = (
             SELECT rpf2.id
-            FROM crad_research_progress_feedback rpf2
+            FROM research_progress_feedback rpf2
             WHERE rpf2.progress_update_id = rpu.id
               AND rpf2.feedback_type = 'Progress Approved'
               AND rpf2.new_milestone_status = 'Approved'
@@ -583,8 +583,8 @@ function rpAdviserApprovedChapter(PDO $crad, int $groupId, int $chapter): ?array
            AND LOWER(TRIM(rm.milestone_name)) = :chapter_name
            AND rpu.id = (
                 SELECT rpu2.id
-                FROM crad_research_progress_updates rpu2
-                INNER JOIN crad_research_milestones rm2 ON rm2.id = rpu2.milestone_id
+                FROM research_progress_updates rpu2
+                INNER JOIN research_milestones rm2 ON rm2.id = rpu2.milestone_id
                 WHERE rpu2.research_group_id = :gid2
                   AND rm2.milestone_order = :chapter2
                   AND LOWER(TRIM(rm2.milestone_name)) = :chapter_name2
@@ -617,7 +617,7 @@ function rpPriorMilestonesApproved(PDO $crad, int $planId, int $order): bool
 
     $stmt = $crad->prepare(
         "SELECT COUNT(*)
-         FROM crad_research_milestones
+         FROM research_milestones
          WHERE research_plan_id = ?
            AND milestone_order < ?
            AND status NOT IN ('Approved', 'Completed')"
@@ -678,26 +678,26 @@ function rpGetAssignedResearchGroupsForAdviser(PDO $crad, int $adviserUserId, st
             rp.status AS plan_status,
             rp.updated_at AS plan_updated_at,
             (SELECT COUNT(*)
-               FROM crad_research_progress_updates rpu
+               FROM research_progress_updates rpu
               WHERE rpu.research_group_id = rg.id
                 AND rpu.milestone_status = 'Submitted for Review') AS pending_reviews,
             (SELECT COUNT(*)
-               FROM crad_research_progress_updates rpu2
+               FROM research_progress_updates rpu2
               WHERE rpu2.research_group_id = rg.id) AS update_count,
             (SELECT MAX(rpu3.submitted_at)
-               FROM crad_research_progress_updates rpu3
+               FROM research_progress_updates rpu3
               WHERE rpu3.research_group_id = rg.id) AS last_update_at,
             (SELECT COUNT(*)
-               FROM crad_research_milestones rm2
+               FROM research_milestones rm2
               WHERE rm2.research_plan_id = rp.id) AS total_milestones,
             (SELECT COUNT(*)
-               FROM crad_research_milestones rm3
+               FROM research_milestones rm3
               WHERE rm3.research_plan_id = rp.id
                 AND rm3.status IN ('Approved','Completed')) AS done_milestones
-        FROM crad_research_groups rg
-        INNER JOIN crad_research_adviser_assignments raa ON raa.id = (
+        FROM research_groups rg
+        INNER JOIN research_adviser_assignments raa ON raa.id = (
             SELECT raa2.id
-            FROM crad_research_adviser_assignments raa2
+            FROM research_adviser_assignments raa2
             WHERE {$assignmentMatch}
               AND {$identitySql}
               AND {$statusSql}
@@ -707,7 +707,7 @@ function rpGetAssignedResearchGroupsForAdviser(PDO $crad, int $adviserUserId, st
                      raa2.id DESC
             LIMIT 1
         )
-        LEFT JOIN crad_research_plans rp ON rp.research_group_id = rg.id
+        LEFT JOIN research_plans rp ON rp.research_group_id = rg.id
         WHERE rg.status = 'Approved'
         ORDER BY rg.date_assigned DESC, rg.id DESC
     ");
@@ -879,11 +879,11 @@ function rpGetProgressUpdateForAdviser(PDO $crad, int $progressUpdateId, int $ad
             rpu.*,
             rg.group_number,
             rg.leader_id
-        FROM crad_research_progress_updates rpu
-        INNER JOIN crad_research_groups rg ON rg.id = rpu.research_group_id
-        INNER JOIN crad_research_adviser_assignments raa ON raa.id = (
+        FROM research_progress_updates rpu
+        INNER JOIN research_groups rg ON rg.id = rpu.research_group_id
+        INNER JOIN research_adviser_assignments raa ON raa.id = (
             SELECT raa2.id
-            FROM crad_research_adviser_assignments raa2
+            FROM research_adviser_assignments raa2
             WHERE {$assignmentMatch}
               AND {$identitySql}
               AND {$statusSql}
@@ -916,7 +916,7 @@ function rpGetProgressUpdateForAdviser(PDO $crad, int $progressUpdateId, int $ad
  *
  * @param PDO    $crad          CRAD database connection
  * @param string $studentId     Student ID from session  (e.g. "S230000001")
- * @param int    $studentUserId User ID from session     (sms_users.id)
+ * @param int    $studentUserId User ID from session     (sms2_db.users.id)
  * @return array|null           research_groups row (+ adviser info) or null
  */
 function rpGetRegisteredResearchGroup(PDO $crad, string $studentId, int $studentUserId): ?array
@@ -927,15 +927,15 @@ function rpGetRegisteredResearchGroup(PDO $crad, string $studentId, int $student
             COALESCE(raa.adviser_user_id, NULL)   AS adviser_user_id,
             COALESCE(raa.adviser_name,   '')       AS adviser_name,
             COALESCE(raa.adviser_email,  '')       AS adviser_email
-        FROM crad_research_groups rg
+        FROM research_groups rg
 
         /* Title Approval must be fully approved with all three signatures */
-        JOIN crad_title_approvals t ON t.id = rg.title_approval_id
+        JOIN title_approvals t ON t.id = rg.title_approval_id
 
         /* Active research coordinator assignment */
-        JOIN crad_research_coordinator_assignments ca ON ca.id = (
+        JOIN research_coordinator_assignments ca ON ca.id = (
             SELECT ca2.id
-            FROM crad_research_coordinator_assignments ca2
+            FROM   research_coordinator_assignments ca2
             WHERE  ca2.status = 'Active'
               AND  (
                     ca2.research_group_id = rg.id
@@ -946,9 +946,9 @@ function rpGetRegisteredResearchGroup(PDO $crad, string $studentId, int $student
         )
 
         /* Adviser assignment (any status — Assigned or Confirmed) */
-        LEFT JOIN crad_research_adviser_assignments raa ON raa.id = (
+        LEFT JOIN research_adviser_assignments raa ON raa.id = (
             SELECT aa2.id
-            FROM crad_research_adviser_assignments aa2
+            FROM   research_adviser_assignments aa2
             WHERE  (
                     aa2.research_group_id = rg.id
                  OR (aa2.research_group_id IS NULL AND aa2.group_number = rg.group_number)
@@ -987,7 +987,7 @@ function rpGetRegisteredResearchGroup(PDO $crad, string $studentId, int $student
                rg.leader_id = ?
             OR rg.leader_id = (
                  SELECT student_id
-                 FROM   sms_users
+                 FROM   sms2_db.users
                  WHERE  id = ?
                  LIMIT  1
                )
@@ -1017,7 +1017,7 @@ function rpGetOrCreateResearchPlan(PDO $crad, int $groupId): ?array
     }
     
     // Check for existing plan first (DUPLICATE PREVENTION)
-    $stmt = $crad->prepare("SELECT * FROM crad_research_plans WHERE research_group_id = ? LIMIT 1");
+    $stmt = $crad->prepare("SELECT * FROM research_plans WHERE research_group_id = ? LIMIT 1");
     $stmt->execute([$groupId]);
     $existing = $stmt->fetch(PDO::FETCH_ASSOC);
     
@@ -1028,10 +1028,10 @@ function rpGetOrCreateResearchPlan(PDO $crad, int $groupId): ?array
     // Get group details
     $groupStmt = $crad->prepare("
         SELECT rg.*, raa.adviser_user_id, raa.adviser_name, raa.adviser_email
-        FROM crad_research_groups rg
-        LEFT JOIN crad_research_adviser_assignments raa ON raa.id = (
+        FROM research_groups rg
+        LEFT JOIN research_adviser_assignments raa ON raa.id = (
             SELECT raa2.id
-            FROM crad_research_adviser_assignments raa2
+            FROM research_adviser_assignments raa2
             WHERE " . rpAdviserAssignmentMatchSql('raa2', 'rg') . "
               AND " . rpActiveAdviserAssignmentStatusSql('raa2') . "
             ORDER BY (raa2.assignment_status = 'Confirmed') DESC,
@@ -1052,7 +1052,7 @@ function rpGetOrCreateResearchPlan(PDO $crad, int $groupId): ?array
     
     // Create new plan
     $insertStmt = $crad->prepare("
-        INSERT INTO crad_research_plans (
+        INSERT INTO research_plans (
             research_group_id, group_number, research_title,
             adviser_id, adviser_name, start_date, status
         ) VALUES (?, ?, ?, ?, ?, CURDATE(), 'Active')
@@ -1110,7 +1110,7 @@ function rpInitializeDefaultMilestones(PDO $crad, int $planId): int
     
     // Use INSERT IGNORE to prevent duplicate milestones
     $stmt = $crad->prepare("
-        INSERT IGNORE INTO crad_research_milestones (
+        INSERT IGNORE INTO research_milestones (
             research_plan_id, milestone_name, milestone_order, description, status
         ) VALUES (?, ?, ?, ?, 'Not Started')
     ");
@@ -1163,11 +1163,11 @@ function rpEnsureChapter4And5Milestones(PDO $crad, int $planId): void
     ];
 
     $checkStmt = $crad->prepare(
-        "SELECT COUNT(*) FROM crad_research_milestones
+        "SELECT COUNT(*) FROM research_milestones
          WHERE research_plan_id = ? AND milestone_name = ? LIMIT 1"
     );
     $insertStmt = $crad->prepare(
-        "INSERT INTO crad_research_milestones
+        "INSERT INTO research_milestones
              (research_plan_id, milestone_name, milestone_order, description, status)
          VALUES (?, ?, ?, ?, 'Not Started')"
     );
@@ -1183,7 +1183,7 @@ function rpEnsureChapter4And5Milestones(PDO $crad, int $planId): void
     // old 6-milestone numbering (order 4/5/6) before Chapter 4 & 5 were added.
     // Only updates rows whose order still holds the old value — no-op otherwise.
     $reorder = $crad->prepare(
-        "UPDATE crad_research_milestones
+        "UPDATE research_milestones
          SET milestone_order = CASE milestone_name
              WHEN 'System Development' THEN 6
              WHEN 'Testing'            THEN 7
@@ -1221,12 +1221,12 @@ function rpIsTokenRecentlyUsed(PDO $crad, string $table, string $token, int $win
         return false;
     }
     
-    $allowedTables = ['crad_research_progress_updates', 'crad_research_progress_feedback'];
+    $allowedTables = ['research_progress_updates', 'research_progress_feedback'];
     if (!in_array($table, $allowedTables, true)) {
         return false;
     }
     
-    $timeColumn = $table === 'crad_research_progress_updates' ? 'submitted_at' : 'created_at';
+    $timeColumn = $table === 'research_progress_updates' ? 'submitted_at' : 'created_at';
     
     $stmt = $crad->prepare("
         SELECT COUNT(*) FROM {$table}
@@ -1258,7 +1258,7 @@ function rpSubmitProgressUpdate(PDO $crad, array $data): array
     
     // Check for duplicate submission token
     if (!empty($data['submission_token'])) {
-        if (rpIsTokenRecentlyUsed($crad, 'crad_research_progress_updates', $data['submission_token'])) {
+        if (rpIsTokenRecentlyUsed($crad, 'research_progress_updates', $data['submission_token'])) {
             return [
                 'success' => false, 
                 'message' => 'Duplicate submission detected. Please wait before submitting again.',
@@ -1286,7 +1286,7 @@ function rpSubmitProgressUpdate(PDO $crad, array $data): array
 
         // Insert progress update
         $stmt = $crad->prepare("
-            INSERT INTO crad_research_progress_updates (
+            INSERT INTO research_progress_updates (
                 research_plan_id, research_group_id, milestone_id,
                 submitted_by_user_id, submitted_by_name, update_title,
                 previous_progress, new_progress, milestone_status,
@@ -1318,7 +1318,7 @@ function rpSubmitProgressUpdate(PDO $crad, array $data): array
         if (!empty($data['uploaded_document']) && is_array($data['uploaded_document'])) {
             $attachment = $data['uploaded_document'];
             $attachStmt = $crad->prepare("
-                INSERT INTO crad_research_progress_attachments (
+                INSERT INTO research_progress_attachments (
                     progress_update_id, file_name, file_path, file_type, file_size, uploaded_by
                 ) VALUES (?, ?, ?, ?, ?, ?)
             ");
@@ -1335,7 +1335,7 @@ function rpSubmitProgressUpdate(PDO $crad, array $data): array
         // Update milestone progress if milestone_id provided.
         if (!empty($data['milestone_id'])) {
             $updateMilestone = $crad->prepare("
-                UPDATE crad_research_milestones 
+                UPDATE research_milestones 
                 SET progress_percentage = ?,
                     status = ?,
                     updated_at = NOW()
@@ -1394,13 +1394,13 @@ function rpSubmitProgressUpdate(PDO $crad, array $data): array
  */
 function rpRecalculateOverallProgress(PDO $crad, int $planId): void
 {
-    $groupStmt = $crad->prepare('SELECT research_group_id FROM crad_research_plans WHERE id = ? LIMIT 1');
+    $groupStmt = $crad->prepare('SELECT research_group_id FROM research_plans WHERE id = ? LIMIT 1');
     $groupStmt->execute([$planId]);
     $groupId = (int) ($groupStmt->fetchColumn() ?: 0);
 
     $stmt = $crad->prepare("
         SELECT *
-        FROM crad_research_milestones
+        FROM research_milestones
         WHERE research_plan_id = ?
         ORDER BY milestone_order ASC
     ");
@@ -1411,7 +1411,7 @@ function rpRecalculateOverallProgress(PDO $crad, int $planId): void
     $avgProgress = rpMilestonesOverallProgress($milestones);
     
     $updateStmt = $crad->prepare("
-        UPDATE crad_research_plans 
+        UPDATE research_plans 
         SET overall_progress = ?,
             updated_at = NOW()
         WHERE id = ?
@@ -1430,7 +1430,7 @@ function rpLogActivity(PDO $crad, array $data): void
 {
     // Deduplicate: skip if the same user+action+entity was already logged this minute
     $checkStmt = $crad->prepare("
-        SELECT id FROM crad_research_progress_activity_logs
+        SELECT id FROM research_progress_activity_logs
         WHERE user_id    = ?
           AND action     = ?
           AND entity_type = ?
@@ -1454,7 +1454,7 @@ function rpLogActivity(PDO $crad, array $data): void
     //                action, entity_type, entity_id, old_value, new_value, description
     try {
         $stmt = $crad->prepare("
-            INSERT INTO crad_research_progress_activity_logs (
+            INSERT INTO research_progress_activity_logs (
                 research_plan_id, user_id, user_name, user_role,
                 action, entity_type, entity_id, description
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -1493,7 +1493,7 @@ function rpCreateNotification(PDO $crad, array $data): bool
     
     // Check if notification with same batch_key exists for this recipient
     $checkStmt = $crad->prepare("
-        SELECT id FROM crad_research_progress_notifications
+        SELECT id FROM research_progress_notifications
         WHERE batch_key = ?
           AND (
                (recipient_user_id IS NOT NULL AND recipient_user_id = ?)
@@ -1518,7 +1518,7 @@ function rpCreateNotification(PDO $crad, array $data): bool
     // Create notification
     try {
         $stmt = $crad->prepare("
-            INSERT INTO crad_research_progress_notifications (
+            INSERT INTO research_progress_notifications (
                 recipient_user_id, recipient_email, recipient_role, batch_key,
                 notification_type, title, body, related_entity_type, related_entity_id,
                 action_url, status
@@ -1591,11 +1591,11 @@ function rpGetRevisionMonitoringGroups(PDO $crad, int $adviserUserId, string $ad
             COUNT(DISTINCT CASE WHEN ev.status = 'Submitted' THEN rpa.panel_user_id END)             AS submitted_eval_count,
             COUNT(DISTINCT CASE WHEN ev.result = 'APPROVED WITH REVISION' AND ev.status = 'Submitted' THEN rpa.panel_user_id END) AS awr_count,
             MAX(CASE WHEN ev.result = 'APPROVED WITH REVISION' AND ev.status = 'Submitted' THEN ev.submitted_at END) AS last_awr_at
-        FROM crad_research_groups rg
-        JOIN crad_research_defense_schedules rds
+        FROM research_groups rg
+        JOIN research_defense_schedules rds
             ON rds.id = (
                 SELECT rds2.id
-                FROM crad_research_defense_schedules rds2
+                FROM research_defense_schedules rds2
                 WHERE (rds2.research_group_id = rg.id
                        OR (rds2.research_group_id IS NULL AND rds2.group_number = rg.group_number))
                   AND LOWER(rds2.status) IN ('finalized', 'final', 'completed', 'passed', 'failed')
@@ -1603,9 +1603,9 @@ function rpGetRevisionMonitoringGroups(PDO $crad, int $adviserUserId, string $ad
                 ORDER BY COALESCE(rds2.defense_datetime, rds2.updated_at) DESC, rds2.id DESC
                 LIMIT 1
             )
-        JOIN crad_research_adviser_assignments a ON a.id = (
+        JOIN research_adviser_assignments a ON a.id = (
             SELECT raa2.id
-            FROM crad_research_adviser_assignments raa2
+            FROM research_adviser_assignments raa2
             WHERE {$assignSql}
               AND {$identitySql}
               AND {$statusSql}
@@ -1614,11 +1614,11 @@ function rpGetRevisionMonitoringGroups(PDO $crad, int $adviserUserId, string $ad
                      raa2.updated_at DESC, raa2.id DESC
             LIMIT 1
         )
-        LEFT JOIN crad_research_panel_assignments rpa
+        LEFT JOIN research_panel_assignments rpa
             ON rpa.research_group_id = rg.id
            AND rpa.defense_phase = '" . CRAD_DEFENSE_PHASE_PRE_ORAL . "'
            AND rpa.assignment_status = 'Assigned'
-        LEFT JOIN crad_preoral_defense_evaluations ev
+        LEFT JOIN preoral_defense_evaluations ev
             ON ev.defense_schedule_id = rds.id
            AND ev.panel_user_id = rpa.panel_user_id
            AND ev.status = 'Submitted'
@@ -1669,7 +1669,7 @@ function rpComputeRevisionStatus(PDO $crad, int $groupId, string $activationTs):
     try {
         $stmt = $crad->prepare(
             "SELECT rpu.milestone_status, rpu.submitted_at, rpu.update_title, rpu.id
-             FROM crad_research_progress_updates rpu
+             FROM research_progress_updates rpu
              WHERE rpu.research_group_id = :gid
                AND rpu.submitted_at >= :act
              ORDER BY rpu.submitted_at DESC, rpu.id DESC
@@ -1680,8 +1680,8 @@ function rpComputeRevisionStatus(PDO $crad, int $groupId, string $activationTs):
 
         $stmt = $crad->prepare(
             "SELECT rpf.feedback_type, rpf.created_at
-             FROM crad_research_progress_feedback rpf
-             INNER JOIN crad_research_progress_updates rpu ON rpu.id = rpf.progress_update_id
+             FROM research_progress_feedback rpf
+             INNER JOIN research_progress_updates rpu ON rpu.id = rpf.progress_update_id
              WHERE rpu.research_group_id = :gid
                AND rpf.created_at >= :act
              ORDER BY rpf.created_at DESC, rpf.id DESC
@@ -1768,12 +1768,12 @@ function rpGetRevisionDetail(PDO $crad, int $adviserUserId, string $adviserEmail
                  ev.remarks,
                  ev.submitted_at  AS evaluated_at,
                  ev.status        AS eval_status
-             FROM crad_research_panel_assignments rpa
-             LEFT JOIN crad_preoral_defense_evaluations ev
+             FROM research_panel_assignments rpa
+             LEFT JOIN preoral_defense_evaluations ev
                  ON ev.defense_schedule_id = :sched
                 AND ev.panel_user_id = rpa.panel_user_id
                 AND ev.status = 'Submitted'
-             LEFT JOIN sms_users u ON u.id = rpa.panel_user_id
+             LEFT JOIN sms2_db.users u ON u.id = rpa.panel_user_id
              WHERE rpa.research_group_id = :gid
                AND rpa.defense_phase = '" . CRAD_DEFENSE_PHASE_PRE_ORAL . "'
                AND rpa.assignment_status = 'Assigned'
@@ -1785,8 +1785,8 @@ function rpGetRevisionDetail(PDO $crad, int $adviserUserId, string $adviserEmail
         $stmt = $crad->prepare(
             "SELECT rpu.*,
                     rm.milestone_name
-             FROM crad_research_progress_updates rpu
-             LEFT JOIN crad_research_milestones rm ON rm.id = rpu.milestone_id
+             FROM research_progress_updates rpu
+             LEFT JOIN research_milestones rm ON rm.id = rpu.milestone_id
              WHERE rpu.research_group_id = :gid
              ORDER BY rpu.submitted_at DESC, rpu.id DESC
              LIMIT 8"
@@ -1853,7 +1853,7 @@ function rpHasPendingSubmission(PDO $crad, int $groupId, int $milestoneId): ?arr
     // Fetch the latest progress update for this milestone+group.
     $stmt = $crad->prepare("
         SELECT rpu.*
-        FROM crad_research_progress_updates rpu
+        FROM research_progress_updates rpu
         WHERE rpu.research_group_id = ?
           AND rpu.milestone_id      = ?
           AND rpu.milestone_status  = 'Submitted for Review'
@@ -1873,7 +1873,7 @@ function rpHasPendingSubmission(PDO $crad, int $groupId, int $milestoneId): ?arr
     // according to the existing workflow.
     $fbStmt = $crad->prepare("
         SELECT id
-        FROM crad_research_progress_feedback
+        FROM research_progress_feedback
         WHERE progress_update_id = ?
         LIMIT 1
     ");
@@ -1920,12 +1920,12 @@ function rpGetMilestonesWithPendingFlags(PDO $crad, ?int $planId, ?int $groupId 
     // "Pending" = Submitted for Review AND no adviser feedback yet.
     $stmt = $crad->prepare("
         SELECT rpu.id, rpu.milestone_id, rpu.submitted_at
-        FROM crad_research_progress_updates rpu
+        FROM research_progress_updates rpu
         WHERE rpu.research_group_id  = ?
           AND rpu.milestone_status   = 'Submitted for Review'
           AND NOT EXISTS (
               SELECT 1
-              FROM crad_research_progress_feedback rpf
+              FROM research_progress_feedback rpf
               WHERE rpf.progress_update_id = rpu.id
           )
         ORDER BY rpu.submitted_at DESC, rpu.id DESC
@@ -1977,13 +1977,13 @@ function rpEnsurePanelRemarksColumn(PDO $crad): void
         $stmt = $crad->prepare(
             "SELECT COUNT(*) FROM information_schema.COLUMNS
              WHERE TABLE_SCHEMA = DATABASE()
-               AND TABLE_NAME   = 'crad_research_milestones'
+               AND TABLE_NAME   = 'research_milestones'
                AND COLUMN_NAME  = 'panel_remarks'"
         );
         $stmt->execute();
         if ((int) $stmt->fetchColumn() === 0) {
             $crad->exec(
-                "ALTER TABLE crad_research_milestones
+                "ALTER TABLE research_milestones
                  ADD COLUMN panel_remarks TEXT DEFAULT NULL
                  AFTER adviser_remarks"
             );
@@ -2026,7 +2026,7 @@ function rpGetGroupPanelApproval(PDO $crad, int $groupId): ?array
         // Find the most-recent finalized defense schedule for this group.
         $schedStmt = $crad->prepare(
             "SELECT id
-             FROM crad_research_defense_schedules
+             FROM research_defense_schedules
              WHERE research_group_id = ?
                AND defense_datetime IS NOT NULL
                AND LOWER(status) IN ('scheduled','finalized','final','completed','passed','failed')
@@ -2043,7 +2043,7 @@ function rpGetGroupPanelApproval(PDO $crad, int $groupId): ?array
         // Count how many panel members are formally assigned.
         $assignedStmt = $crad->prepare(
             "SELECT COUNT(DISTINCT panel_user_id)
-             FROM crad_research_panel_assignments
+             FROM research_panel_assignments
              WHERE research_group_id = ?
                AND defense_phase     = '" . CRAD_DEFENSE_PHASE_PRE_ORAL . "'
                AND assignment_status = 'Assigned'"
@@ -2059,7 +2059,7 @@ function rpGetGroupPanelApproval(PDO $crad, int $groupId): ?array
         // Fetch all submitted evaluations for this schedule+group.
         $evalStmt = $crad->prepare(
             "SELECT result, remarks, submitted_at
-             FROM crad_preoral_defense_evaluations
+             FROM preoral_defense_evaluations
              WHERE defense_schedule_id = ?
                AND status = 'Submitted'
              ORDER BY submitted_at ASC"
@@ -2128,7 +2128,7 @@ function rpIsFirstSemesterComplete(PDO $crad, int $planId, int $groupId): bool
     $milestoneStmt = $crad->prepare(
         "SELECT COUNT(*) AS total,
                 SUM(status IN ('Approved', 'Completed')) AS completed
-         FROM crad_research_milestones
+         FROM research_milestones
          WHERE research_plan_id = ?"
     );
     $milestoneStmt->execute([$planId]);
@@ -2140,7 +2140,7 @@ function rpIsFirstSemesterComplete(PDO $crad, int $planId, int $groupId): bool
 
     $scheduleStmt = $crad->prepare(
         "SELECT id
-         FROM crad_research_defense_schedules
+         FROM research_defense_schedules
          WHERE research_group_id = ?
            AND defense_type = '" . CRAD_DEFENSE_TYPE_PRE_ORAL . "'
            AND LOWER(TRIM(status)) = 'finalized'
@@ -2160,8 +2160,8 @@ function rpIsFirstSemesterComplete(PDO $crad, int $planId, int $groupId): bool
                      AND ev.result IN ('APPROVED', 'APPROVED WITH REVISION')
                     THEN rpa.panel_user_id
                 END) AS accepted_count
-         FROM crad_research_panel_assignments rpa
-         LEFT JOIN crad_preoral_defense_evaluations ev
+         FROM research_panel_assignments rpa
+         LEFT JOIN preoral_defense_evaluations ev
            ON ev.defense_schedule_id = ?
           AND ev.panel_user_id = rpa.panel_user_id
          WHERE rpa.research_group_id = ?
@@ -2183,7 +2183,7 @@ function rpSetCurrentStageIfFirstSemesterComplete(PDO $crad, int $planId, int $g
     }
 
     $stmt = $crad->prepare(
-        "UPDATE crad_research_plans
+        "UPDATE research_plans
          SET current_stage = '" . CRAD_DEFENSE_PHASE_PRE_ORAL . "', updated_at = NOW()
          WHERE id = ? AND research_group_id = ?"
     );
@@ -2220,7 +2220,7 @@ function rpSyncChapterMilestonesFromPanelApproval(PDO $crad, int $groupId, array
 
     // Find the research_plan for this group.
     $planStmt = $crad->prepare(
-        "SELECT id FROM crad_research_plans WHERE research_group_id = ? LIMIT 1"
+        "SELECT id FROM research_plans WHERE research_group_id = ? LIMIT 1"
     );
     $planStmt->execute([$groupId]);
     $planId = (int) ($planStmt->fetchColumn() ?: 0);
@@ -2232,7 +2232,7 @@ function rpSyncChapterMilestonesFromPanelApproval(PDO $crad, int $groupId, array
     // Fetch Chapter 1-3 milestones for this plan that are not yet fully synced.
     $milestonesStmt = $crad->prepare(
         "SELECT id
-         FROM crad_research_milestones
+         FROM research_milestones
          WHERE research_plan_id  = ?
            AND milestone_order   IN (1, 2, 3)
            AND LOWER(TRIM(milestone_name)) IN ('chapter 1','chapter 2','chapter 3')
@@ -2256,7 +2256,7 @@ function rpSyncChapterMilestonesFromPanelApproval(PDO $crad, int $groupId, array
         $crad->beginTransaction();
 
         $updateStmt = $crad->prepare(
-            "UPDATE crad_research_milestones
+            "UPDATE research_milestones
              SET progress_percentage = 100,
                  status              = 'Approved',
                  panel_remarks       = ?,

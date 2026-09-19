@@ -27,10 +27,6 @@ if ($isCradPage && strpos(' ' . $bodyClass . ' ', ' crad-app ') === false) {
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="description" content="<?= e(APP_NAME) ?> - <?= e(INSTITUTION) ?>">
-    <?php if (function_exists('isAuthenticated') && isAuthenticated()): ?>
-    <meta name="csrf-token" content="<?= e(csrfToken()) ?>">
-    <script src="<?= BASE_URL ?>/assets/js/sms-csrf.js?v=1"></script>
-    <?php endif; ?>
     <title><?= e($pageTitle) ?> | <?= e(APP_SHORT_NAME) ?></title>
     <link rel="icon" href="<?= e(smsBrandLogoUrl()) ?>" type="<?= str_ends_with(smsBrandLogoUrl(), '.svg') ? 'image/svg+xml' : 'image/png' ?>">
 
@@ -98,11 +94,11 @@ if ($isCradPage && strpos(' ' . $bodyClass . ' ', ' crad-app ') === false) {
     <link href="<?= BASE_URL ?>/assets/css/components.css?v=6" rel="stylesheet">
     <link href="<?= BASE_URL ?>/assets/css/module-process-list.css?v=3" rel="stylesheet">
     <link href="<?= BASE_URL ?>/assets/css/navbar-components.css?v=7" rel="stylesheet">
-    <link href="<?= BASE_URL ?>/assets/css/dashboard-academic.css?v=3" rel="stylesheet">
+    <link href="<?= BASE_URL ?>/assets/css/dashboard-academic.css?v=4" rel="stylesheet">
     <link href="<?= BASE_URL ?>/assets/css/loader.css?v=6" rel="stylesheet">
     <link href="<?= BASE_URL ?>/assets/css/sms-security-ui.css?v=20" rel="stylesheet">
     <link href="<?= BASE_URL ?>/assets/css/password-strength.css?v=2" rel="stylesheet">
-    <link href="<?= BASE_URL ?>/assets/css/research-monitoring.css?v=1" rel="stylesheet">
+    <link href="<?= BASE_URL ?>/assets/css/research-monitoring.css?v=2" rel="stylesheet">
     <?php else: ?>
     <link href="<?= BASE_URL ?>/assets/css/welcome.css?v=8" rel="stylesheet">
     <link href="<?= BASE_URL ?>/assets/css/auth-transition.css?v=8" rel="stylesheet">

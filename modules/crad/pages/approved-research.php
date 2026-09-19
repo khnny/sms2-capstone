@@ -8,29 +8,38 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../../config/config.php';
 require_once __DIR__ . '/../config/config.php';
 require_once ROOT_PATH . '/includes/authentication.php';
-require_once ROOT_PATH . '/includes/security.php';
 require_once ROOT_PATH . '/includes/breadcrumbs.php';
 
 requireAuth();
-requireModuleAccess('crad');
-
-require_once __DIR__ . '/../includes/schema-ensure.php';
 
 $roleKey = getCurrentUserRoleKey();
-if (!smsRoleAllowedForModule(['research_coordinator', 'superadmin', 'sms_admin'], 'crad')) {
-    if (isset($_GET['ajax'])) {
-        http_response_code(403);
-        header('Content-Type: application/json; charset=utf-8');
-        echo json_encode(['ok' => false, 'error' => 'Access denied.']);
-        exit;
-    }
+if (!in_array($roleKey, ['research_coordinator', 'superadmin'], true)) {
     header('Location: ' . BASE_URL . '/dashboard/index.php');
     exit;
 }
 
 function rcTitleApprovalEnsureSchema(PDO $pdo): void
 {
-    cradEnsureTitleApprovalColumns($pdo);
+    $columns = [
+        'adviser_signature_data' => "ALTER TABLE title_approvals ADD COLUMN adviser_signature_data MEDIUMTEXT NULL DEFAULT NULL AFTER adviser_remarks",
+        'coordinator_status' => "ALTER TABLE title_approvals ADD COLUMN coordinator_status VARCHAR(30) NOT NULL DEFAULT 'Not Ready' AFTER adviser_signature_data",
+        'coordinator_remarks' => "ALTER TABLE title_approvals ADD COLUMN coordinator_remarks TEXT NULL DEFAULT NULL AFTER coordinator_status",
+        'coordinator_screening_json' => "ALTER TABLE title_approvals ADD COLUMN coordinator_screening_json TEXT NULL DEFAULT NULL AFTER coordinator_remarks",
+        'coordinator_signature_data' => "ALTER TABLE title_approvals ADD COLUMN coordinator_signature_data MEDIUMTEXT NULL DEFAULT NULL AFTER coordinator_remarks",
+        'coordinator_reviewed_at' => "ALTER TABLE title_approvals ADD COLUMN coordinator_reviewed_at DATETIME NULL DEFAULT NULL AFTER coordinator_signature_data",
+        'crad_status' => "ALTER TABLE title_approvals ADD COLUMN crad_status VARCHAR(30) NOT NULL DEFAULT 'Not Ready' AFTER coordinator_reviewed_at",
+        'crad_signature_data' => "ALTER TABLE title_approvals ADD COLUMN crad_signature_data MEDIUMTEXT NULL DEFAULT NULL AFTER crad_status",
+        'crad_reviewed_at' => "ALTER TABLE title_approvals ADD COLUMN crad_reviewed_at DATETIME NULL DEFAULT NULL AFTER crad_signature_data",
+    ];
+    foreach ($columns as $name => $sql) {
+        try {
+            if (!$pdo->query("SHOW COLUMNS FROM title_approvals LIKE " . $pdo->quote($name))->fetch()) {
+                $pdo->exec($sql);
+            }
+        } catch (Throwable $e) {
+            error_log('Coordinator title approval schema failed: ' . $e->getMessage());
+        }
+    }
 }
 
 function rcTitleApprovalRows(PDO $pdo): array
@@ -43,7 +52,7 @@ function rcTitleApprovalRows(PDO $pdo): array
                 coordinator_name, status, adviser_remarks, adviser_signature_data,
                 coordinator_status, coordinator_remarks, coordinator_screening_json, coordinator_signature_data,
                 sent_at, reviewed_at, coordinator_reviewed_at
-         FROM crad_title_approvals
+         FROM title_approvals
          WHERE status = 'Approved'
          ORDER BY FIELD(coordinator_status, 'Pending', 'Returned', 'Approved', 'Not Ready'),
                   reviewed_at DESC, id DESC"
@@ -88,7 +97,7 @@ function rcTitleApprovalUpdate(int $id, string $status, string $remarks, string 
     $screeningJson = $allowedScreening ? json_encode($allowedScreening, JSON_UNESCAPED_UNICODE) : null;
     if ($status === 'Screening') {
         $stmt = $pdo->prepare(
-            "UPDATE crad_title_approvals
+            "UPDATE title_approvals
              SET coordinator_screening_json = :screening_json
              WHERE id = :id
                AND status = 'Approved'"
@@ -100,12 +109,12 @@ function rcTitleApprovalUpdate(int $id, string $status, string $remarks, string 
         if ($stmt->rowCount() > 0) {
             return true;
         }
-        $check = $pdo->prepare("SELECT id FROM crad_title_approvals WHERE id = :id AND status = 'Approved' LIMIT 1");
+        $check = $pdo->prepare("SELECT id FROM title_approvals WHERE id = :id AND status = 'Approved' LIMIT 1");
         $check->execute([':id' => $id]);
         return (bool) $check->fetch();
     }
     $stmt = $pdo->prepare(
-        "UPDATE crad_title_approvals
+        "UPDATE title_approvals
          SET coordinator_status = :status,
              coordinator_remarks = :remarks,
              coordinator_screening_json = :screening_json,
@@ -155,8 +164,8 @@ function rcApprovedResearchFetch(PDO $pdo): array
             'Approved' AS display_status,
             p.approved_at,
             p.registered_at
-         FROM crad_research_groups g
-         INNER JOIN crad_research_proposals p ON p.id = g.proposal_id
+         FROM research_groups g
+         INNER JOIN research_proposals p ON p.id = g.proposal_id
          WHERE p.status = 'Approved'
            AND p.registration_status = 'Registered'
            AND p.proposal_number IS NOT NULL
@@ -218,21 +227,15 @@ if (($_GET['ajax'] ?? '') === 'title-approvals') {
 if (($_GET['ajax'] ?? '') === 'title-approval-status' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     header('Content-Type: application/json; charset=utf-8');
     $body = json_decode((string) file_get_contents('php://input'), true) ?: [];
-    try {
-        smsRequireMutatingCsrf($body);
-        echo json_encode([
-            'ok' => rcTitleApprovalUpdate(
-                (int) ($body['id'] ?? 0),
-                (string) ($body['status'] ?? ''),
-                trim((string) ($body['remarks'] ?? '')),
-                trim((string) ($body['coordinator_signature_data'] ?? '')),
-                is_array($body['coordinator_screening'] ?? null) ? $body['coordinator_screening'] : []
-            ),
-        ]);
-    } catch (Throwable $e) {
-        http_response_code(403);
-        echo json_encode(['ok' => false, 'error' => 'Invalid CSRF token']);
-    }
+    echo json_encode([
+        'ok' => rcTitleApprovalUpdate(
+            (int) ($body['id'] ?? 0),
+            (string) ($body['status'] ?? ''),
+            trim((string) ($body['remarks'] ?? '')),
+            trim((string) ($body['coordinator_signature_data'] ?? '')),
+            is_array($body['coordinator_screening'] ?? null) ? $body['coordinator_screening'] : []
+        ),
+    ]);
     exit;
 }
 
@@ -774,7 +777,7 @@ renderBreadcrumbs($breadcrumbs);
                 <div style="padding:3mm;border:1px solid #8998ab;border-radius:4px;font-size:8pt;text-align:center;background:#fbfdff;">
                     <div style="font-size:8pt;font-weight:800;background:#17366f;color:#fff;padding:2px 6px;margin:-3mm -3mm 3mm;border-radius:3px 3px 0 0;text-align:left;">IX. Approval (Name, signature and date)</div>
                     <div style="position:relative;width:80%;margin:4mm auto 0;height:54px;"><div style="position:absolute;bottom:0;left:0;right:0;border-bottom:1px solid #111;"></div>${adviserSig}</div><strong style="display:block;font-size:8.5pt;margin-top:1mm;">${esc(r.adviser_name)}</strong><span style="font-size:7.5pt;color:#555;">Research Adviser</span>
-                    <div style="position:relative;width:80%;margin:5mm auto 0;height:54px;"><div style="position:absolute;bottom:0;left:0;right:0;border-bottom:1px solid #111;"></div>${coordSig}</div><strong style="display:block;font-size:8.5pt;margin-top:1mm;">${esc(r.coordinator_name || 'Mrs. Kris Guevarra')}</strong><span style="font-size:7.5pt;color:#555;">Program Research Coordinator</span>
+                    <div style="position:relative;width:80%;margin:5mm auto 0;height:54px;"><div style="position:absolute;bottom:0;left:0;right:0;border-bottom:1px solid #111;"></div>${coordSig}</div><strong style="display:block;font-size:8.5pt;margin-top:1mm;">${esc(r.coordinator_name || '')}</strong><span style="font-size:7.5pt;color:#555;">Program Research Coordinator</span>
                     <div style="margin:5mm 0 2mm;border-top:1px dashed #7c8da5;padding-top:3mm;text-align:left;font-size:7pt;color:#475569;">Received:</div><div style="border-bottom:1px solid #111;width:80%;margin:2mm auto;"></div><strong style="display:block;font-size:8.5pt;">Center for Research and Development</strong><span style="font-size:7.5pt;color:#555;">Center for Research and Development Office</span>
                 </div>
             </div>

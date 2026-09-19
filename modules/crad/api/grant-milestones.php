@@ -8,7 +8,6 @@ header('Content-Type: application/json');
 
 require_once __DIR__ . '/../../../config/config.php';
 require_once __DIR__ . '/../../../includes/authentication.php';
-require_once __DIR__ . '/../../../includes/security.php';
 require_once __DIR__ . '/../../../includes/uploads.php';
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../includes/grant-milestone-helpers.php';
@@ -23,14 +22,6 @@ if (!grantUserCanViewFundedMilestones()) {
 
 $method = $_SERVER['REQUEST_METHOD'];
 $action = trim((string) ($_GET['action'] ?? ($_POST['action'] ?? '')));
-if ($method === 'POST') {
-    $decoded = json_decode((string) file_get_contents('php://input'), true);
-    $jsonBody = is_array($decoded) ? $decoded : $_POST;
-    if ($action === '' && is_array($jsonBody)) {
-        $action = trim((string) ($jsonBody['action'] ?? ''));
-    }
-    smsRequireMutatingCsrf(is_array($jsonBody) ? $jsonBody : null);
-}
 
 try {
     $crad = getCradDatabaseConnection();
@@ -91,7 +82,7 @@ switch ($action) {
             break;
         }
 
-        $body = is_array($jsonBody) ? $jsonBody : ($_POST ?: []);
+        $body = json_decode((string) file_get_contents('php://input'), true) ?: $_POST;
         $milestoneId = (int) ($body['milestone_id'] ?? 0);
         if ($milestoneId <= 0) {
             http_response_code(400);
