@@ -2,26 +2,36 @@
 /**
  * CRAD Module - Database Configuration
  *
- * HostForge / production: CRAD uses the SAME database as SMS (DB_NAME), with
- * crad_* table prefixes. Do not point this at a separate crad_db schema unless
- * you intentionally run split databases on local XAMPP.
+ * CRAD tables (crad_*) live in the SAME MySQL database as the main SMS app
+ * (typically sms2_db). This module reuses getDatabaseConnection() so HostForge
+ * env vars like hf_db_* / mariadb-*.internal cannot diverge from the working
+ * application connection defined in config/local.php.
  */
 
 declare(strict_types=1);
 
 require_once dirname(__DIR__, 3) . '/config/config.php';
-// Load main SMS DB constants (from env and/or config/local.php) so CRAD can reuse them.
 require_once dirname(__DIR__, 3) . '/config/database.php';
 
 /**
- * Resolve a CRAD DB setting: env → already-defined CRAD_* → main DB_* → default.
+ * Resolve CRAD setting: explicit CRAD_* env/constant → already-resolved DB_* → default.
+ * Prefer PHP constants (config/local.php) over HostForge-injected getenv() values so
+ * CRAD cannot reconnect to a different host/database than the main app.
  */
 if (!function_exists('crad_db_setting')) {
-    function crad_db_setting(array $envKeys, array $constantFallbacks, string $default): string
+    function crad_db_setting(?string $explicitEnvKey, array $constantFallbacks, string $default): string
     {
-        $fromEnv = sms2_env_first($envKeys, null);
-        if ($fromEnv !== null && $fromEnv !== '') {
-            return $fromEnv;
+        if ($explicitEnvKey !== null) {
+            $explicit = sms2_env($explicitEnvKey);
+            if ($explicit !== null && $explicit !== '') {
+                return $explicit;
+            }
+            if (defined($explicitEnvKey)) {
+                $value = constant($explicitEnvKey);
+                if (is_string($value) && $value !== '') {
+                    return $value;
+                }
+            }
         }
         foreach ($constantFallbacks as $constant) {
             if (defined($constant)) {
@@ -35,56 +45,28 @@ if (!function_exists('crad_db_setting')) {
     }
 }
 
+// Mirror the main application DB_* constants. Only CRAD_DB_* env/local overrides
+// can change these — never re-read generic DB_NAME/MYSQL_DATABASE from the platform.
 if (!defined('CRAD_DB_HOST')) {
-    define('CRAD_DB_HOST', crad_db_setting(
-        ['CRAD_DB_HOST', 'SMS2_DB_HOST', 'DB_HOST', 'MYSQL_HOST', 'MARIADB_HOST'],
-        ['DB_HOST'],
-        'localhost'
-    ));
+    define('CRAD_DB_HOST', crad_db_setting('CRAD_DB_HOST', ['DB_HOST'], 'localhost'));
 }
 if (!defined('CRAD_DB_PORT')) {
-    define('CRAD_DB_PORT', crad_db_setting(
-        ['CRAD_DB_PORT', 'SMS2_DB_PORT', 'DB_PORT', 'MYSQL_PORT', 'MARIADB_PORT'],
-        ['DB_PORT'],
-        '3306'
-    ));
+    define('CRAD_DB_PORT', crad_db_setting('CRAD_DB_PORT', ['DB_PORT'], '3306'));
 }
 if (!defined('CRAD_DB_NAME')) {
-    // Same DB as the main app (sms2_db / HostForge DB) — crad_* tables live there.
-    // Override only if you still use a separate local schema: define('CRAD_DB_NAME', 'crad_db').
-    define('CRAD_DB_NAME', crad_db_setting(
-        ['CRAD_DB_NAME', 'SMS2_DB_NAME', 'DB_DATABASE', 'DB_NAME', 'MYSQL_DATABASE', 'MARIADB_DATABASE'],
-        ['DB_NAME'],
-        'sms2_db'
-    ));
+    define('CRAD_DB_NAME', crad_db_setting('CRAD_DB_NAME', ['DB_NAME'], 'sms2_db'));
 }
 if (!defined('CRAD_DB_USER')) {
-    define('CRAD_DB_USER', crad_db_setting(
-        ['CRAD_DB_USER', 'SMS2_DB_USER', 'DB_USERNAME', 'DB_USER', 'MYSQL_USER', 'MARIADB_USER'],
-        ['DB_USER'],
-        'root'
-    ));
+    define('CRAD_DB_USER', crad_db_setting('CRAD_DB_USER', ['DB_USER'], 'root'));
 }
 if (!defined('CRAD_DB_PASS')) {
-    define('CRAD_DB_PASS', crad_db_setting(
-        ['CRAD_DB_PASS', 'SMS2_DB_PASS', 'DB_PASSWORD', 'DB_PASS', 'MYSQL_PASSWORD', 'MARIADB_PASSWORD'],
-        ['DB_PASS'],
-        ''
-    ));
+    define('CRAD_DB_PASS', crad_db_setting('CRAD_DB_PASS', ['DB_PASS'], ''));
 }
 if (!defined('CRAD_DB_CHARSET')) {
-    define('CRAD_DB_CHARSET', crad_db_setting(
-        ['CRAD_DB_CHARSET', 'SMS2_DB_CHARSET', 'DB_CHARSET'],
-        ['DB_CHARSET'],
-        'utf8mb4'
-    ));
+    define('CRAD_DB_CHARSET', crad_db_setting('CRAD_DB_CHARSET', ['DB_CHARSET'], 'utf8mb4'));
 }
 if (!defined('CRAD_DB_CONNECTION')) {
-    define('CRAD_DB_CONNECTION', strtolower(crad_db_setting(
-        ['CRAD_DB_CONNECTION', 'SMS2_DB_CONNECTION', 'DB_CONNECTION'],
-        ['DB_CONNECTION'],
-        'mysql'
-    )));
+    define('CRAD_DB_CONNECTION', strtolower(crad_db_setting('CRAD_DB_CONNECTION', ['DB_CONNECTION'], 'mysql')));
 }
 if (!defined('CRAD_PHASE_1ST_SEM')) {
     define('CRAD_PHASE_1ST_SEM', '1st Semester');
@@ -122,17 +104,20 @@ function cradClassifyDbError(Throwable $e, string $dbName): array
     if ($driverCode === 1049 || stripos($raw, 'Unknown database') !== false) {
         return [
             'code' => 'unknown_database',
-            'message' => 'Database "' . $dbName . '" does not exist on the MySQL server. On HostForge, point CRAD_DB_NAME at the same database as DB_NAME (crad_* tables live there).',
+            'message' => 'Database "' . $dbName . '" does not exist. CRAD expects crad_* tables inside the main application database (sms2_db / DB_NAME from config/local.php).',
         ];
     }
     if ($driverCode === 1045 || stripos($raw, 'Access denied') !== false) {
-        return ['code' => 'access_denied', 'message' => 'MySQL rejected the configured database user (access denied). Check DB_USER permissions for this database.'];
+        return ['code' => 'access_denied', 'message' => 'MySQL rejected the configured database user (access denied). Check DB_USER in config/local.php.'];
     }
     if ($driverCode === 2002 || stripos($raw, 'Connection refused') !== false) {
-        return ['code' => 'connection_refused', 'message' => 'MySQL connection refused. Check DB_HOST / DB_PORT (hosting providers often use a remote hostname, not localhost).'];
+        return ['code' => 'connection_refused', 'message' => 'MySQL connection refused. Check DB_HOST / DB_PORT in config/local.php (do not use unreachable *.internal hostnames).'];
     }
     if ($driverCode === 2003 || stripos($raw, 'getaddrinfo') !== false || stripos($raw, 'Name or service not known') !== false) {
-        return ['code' => 'host_unreachable', 'message' => 'MySQL host is unreachable. Verify DB_HOST from the hosting panel.'];
+        return [
+            'code' => 'host_unreachable',
+            'message' => 'MySQL host could not be resolved (getaddrinfo failed). HostForge-injected hosts like mariadb-*.internal are invalid here — set DB_HOST in config/local.php to the hostname that already works for sms2_db.',
+        ];
     }
     if ($sqlState === 'HY000' || $driverCode > 0) {
         return ['code' => 'sql_error', 'message' => 'MySQL error while opening the CRAD database connection (see server error log).'];
@@ -142,7 +127,19 @@ function cradClassifyDbError(Throwable $e, string $dbName): array
 }
 
 /**
- * Open a PDO connection to a named database using the resolved CRAD credentials.
+ * Whether CRAD is configured to use a database other than the main SMS connection.
+ */
+function cradUsesSeparateDatabase(): bool
+{
+    return CRAD_DB_NAME !== DB_NAME
+        || CRAD_DB_HOST !== DB_HOST
+        || CRAD_DB_PORT !== DB_PORT
+        || CRAD_DB_USER !== DB_USER
+        || CRAD_DB_PASS !== DB_PASS;
+}
+
+/**
+ * Open a PDO connection with explicit CRAD credentials (split-DB / installer only).
  */
 function cradOpenPdo(string $dbName): PDO
 {
@@ -158,9 +155,9 @@ function cradOpenPdo(string $dbName): PDO
 /**
  * Get CRAD database connection (singleton).
  *
- * Uses the same host/user as the main SMS app when possible. If CRAD_DB_NAME is
- * still the legacy "crad_db" and that schema is missing (typical on HostForge
- * single-DB plans), falls back once to DB_NAME where crad_* tables are stored.
+ * Default: reuse the main application PDO (sms2_db / whatever config/local.php set).
+ * This prevents HostForge platform env (hf_db_*, mariadb-*.internal) from opening a
+ * second, broken connection for CRAD.
  *
  * @return PDO
  * @throws RuntimeException when connection fails
@@ -168,15 +165,10 @@ function cradOpenPdo(string $dbName): PDO
 function getCradDatabaseConnection(): PDO
 {
     static $pdo = null;
+    static $hooksDone = false;
 
     if ($pdo instanceof PDO) {
         return $pdo;
-    }
-
-    if (!in_array(CRAD_DB_CONNECTION, ['mysql', 'mariadb'], true)) {
-        throw new RuntimeException(
-            'Unsupported CRAD database connection "' . CRAD_DB_CONNECTION . '". Select MySQL/MariaDB on HostForge for SMS 2.'
-        );
     }
 
     if (!extension_loaded('pdo_mysql')) {
@@ -184,47 +176,28 @@ function getCradDatabaseConnection(): PDO
         throw new RuntimeException('PHP PDO MySQL driver is not enabled on this server.');
     }
 
-    // Prefer the resolved CRAD name; if legacy crad_db is configured but the main
-    // SMS database is different, try the main DB first (unified HostForge layout).
-    $configuredName = CRAD_DB_NAME;
-    $mainName = (defined('DB_NAME') && is_string(DB_NAME) && DB_NAME !== '') ? DB_NAME : null;
-    $legacySplit = ($configuredName === 'crad_db' || str_ends_with($configuredName, '_crad_db'));
-    $primaryName = ($legacySplit && $mainName !== null && $mainName !== $configuredName)
-        ? $mainName
-        : $configuredName;
-    $fallbackName = ($primaryName !== $configuredName) ? $configuredName : (
-        ($mainName !== null && $mainName !== $primaryName) ? $mainName : null
-    );
-
     try {
-        try {
-            $pdo = cradOpenPdo($primaryName);
-        } catch (PDOException $first) {
-            $classified = cradClassifyDbError($first, $primaryName);
-            if ($classified['code'] === 'unknown_database' && $fallbackName !== null) {
-                error_log(
-                    'CRAD DB "' . $primaryName . '" missing; trying "' . $fallbackName . '". '
-                    . 'Set CRAD_DB_NAME to the same value as DB_NAME (unified sms2_db / HostForge DB).'
+        if (!cradUsesSeparateDatabase()) {
+            // Unified schema (production / HostForge with crad_* in sms2_db).
+            $pdo = getDatabaseConnection();
+        } else {
+            if (!in_array(CRAD_DB_CONNECTION, ['mysql', 'mariadb'], true)) {
+                throw new RuntimeException(
+                    'Unsupported CRAD database connection "' . CRAD_DB_CONNECTION . '".'
                 );
-                try {
-                    $pdo = cradOpenPdo($fallbackName);
-                } catch (PDOException $second) {
-                    $classified2 = cradClassifyDbError($second, $fallbackName);
-                    error_log('CRAD DB connection failed [' . $classified2['code'] . ']: ' . $second->getMessage());
-                    throw new RuntimeException($classified2['message'], 0, $second);
-                }
-            } else {
-                error_log('CRAD DB connection failed [' . $classified['code'] . ']: ' . $first->getMessage());
-                throw new RuntimeException($classified['message'], 0, $first);
             }
+            $pdo = cradOpenPdo(CRAD_DB_NAME);
         }
 
-        cradEnsurePanelNotificationDeleteTrigger($pdo);
-        cradCleanupPreoralEvaluationsForInvalidRegistry($pdo);
+        if (!$hooksDone) {
+            $hooksDone = true;
+            cradEnsurePanelNotificationDeleteTrigger($pdo);
+            cradCleanupPreoralEvaluationsForInvalidRegistry($pdo);
+        }
     } catch (RuntimeException $e) {
         throw $e;
     } catch (PDOException $e) {
-        $classified = cradClassifyDbError($e, $primaryName);
+        $classified = cradClassifyDbError($e, CRAD_DB_NAME);
         error_log('CRAD DB connection failed [' . $classified['code'] . ']: ' . $e->getMessage());
         throw new RuntimeException($classified['message'], 0, $e);
     }
