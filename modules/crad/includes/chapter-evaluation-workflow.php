@@ -89,6 +89,35 @@ function chapterRegistryStudentIdentity(): array
 function chapterRegisteredStudentGroup(PDO $crad): ?array
 {
     $identity = chapterRegistryStudentIdentity();
+
+    // #region agent log
+    if (function_exists('cradAgentDebugLog')) {
+        $rgExists = false;
+        try {
+            $rgExists = (bool) $crad->query("SHOW TABLES LIKE 'crad_research_groups'")->fetchColumn();
+        } catch (Throwable $e) {
+            $rgExists = false;
+        }
+        cradAgentDebugLog('G', 'chapter-evaluation-workflow.php:chapterRegisteredStudentGroup', 'before registry query', [
+            'crad_research_groups_exists' => $rgExists,
+            'hasStudentId' => $identity['student_id'] !== '',
+            'hasEmail' => $identity['email'] !== '',
+        ]);
+        if (!$rgExists) {
+            cradAgentDebugLog('A', 'chapter-evaluation-workflow.php:chapterRegisteredStudentGroup', 'missing crad_research_groups — abort query', []);
+            return null;
+        }
+    } else {
+        try {
+            if (!(bool) $crad->query("SHOW TABLES LIKE 'crad_research_groups'")->fetchColumn()) {
+                return null;
+            }
+        } catch (Throwable $e) {
+            return null;
+        }
+    }
+    // #endregion
+
     $stmt = $crad->prepare(
         "SELECT rg.*, rp.id AS research_plan_id, rp.status AS plan_status,
                 ca.id AS coord_assignment_id, ca.coordinator_name, ca.coordinator_email,
@@ -193,6 +222,153 @@ function chapterAllowedChapters(): array
 
 function chapterEnsureSchema(PDO $crad): void
 {
+    // Core registry tables required by chapterRegisteredStudentGroup().
+    // HostForge hf_db_* often has SMS tables but never imported crad_research_groups, etc.
+    $crad->exec(
+        "CREATE TABLE IF NOT EXISTS crad_title_approvals (
+            id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+            student_id VARCHAR(50) NOT NULL DEFAULT '',
+            student_user_id INT UNSIGNED DEFAULT NULL,
+            student_name VARCHAR(200) NOT NULL DEFAULT '',
+            submission_date DATE NOT NULL,
+            department VARCHAR(200) NOT NULL DEFAULT '',
+            proposed_title VARCHAR(500) NOT NULL DEFAULT '',
+            discipline_cluster VARCHAR(200) NOT NULL DEFAULT '',
+            primary_sdg VARCHAR(120) NOT NULL DEFAULT '',
+            research_agenda VARCHAR(300) NOT NULL DEFAULT '',
+            sdg_justification TEXT NOT NULL,
+            members_json LONGTEXT NOT NULL,
+            adviser_name VARCHAR(200) NOT NULL DEFAULT '',
+            adviser_email VARCHAR(200) NOT NULL DEFAULT '',
+            coordinator_name VARCHAR(200) NOT NULL DEFAULT '',
+            proposal_number VARCHAR(30) DEFAULT NULL,
+            status ENUM('Pending','Reviewed','Approved','Returned') NOT NULL DEFAULT 'Pending',
+            adviser_remarks TEXT DEFAULT NULL,
+            adviser_signature_data MEDIUMTEXT DEFAULT NULL,
+            coordinator_status VARCHAR(30) NOT NULL DEFAULT 'Not Ready',
+            coordinator_remarks TEXT DEFAULT NULL,
+            coordinator_screening_json TEXT DEFAULT NULL,
+            coordinator_signature_data MEDIUMTEXT DEFAULT NULL,
+            coordinator_reviewed_at DATETIME DEFAULT NULL,
+            crad_status VARCHAR(30) NOT NULL DEFAULT 'Not Ready',
+            crad_signature_data MEDIUMTEXT DEFAULT NULL,
+            crad_reviewed_at DATETIME DEFAULT NULL,
+            sent_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            reviewed_at DATETIME DEFAULT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            KEY idx_title_student (student_id),
+            KEY idx_title_status (status)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
+
+    $crad->exec(
+        "CREATE TABLE IF NOT EXISTS crad_research_groups (
+            id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+            proposal_id INT UNSIGNED DEFAULT NULL,
+            title_approval_id INT UNSIGNED DEFAULT NULL,
+            proposal_number VARCHAR(30) DEFAULT NULL,
+            group_number VARCHAR(40) NOT NULL,
+            group_name VARCHAR(40) NOT NULL DEFAULT '',
+            research_title VARCHAR(255) NOT NULL DEFAULT '',
+            college_dept VARCHAR(120) NOT NULL DEFAULT '',
+            adviser VARCHAR(120) NOT NULL DEFAULT '',
+            academic_year VARCHAR(20) NOT NULL DEFAULT '',
+            leader_name VARCHAR(120) NOT NULL DEFAULT '',
+            leader_id VARCHAR(40) NOT NULL DEFAULT '',
+            leader_email VARCHAR(120) NOT NULL DEFAULT '',
+            leader_contact VARCHAR(40) NOT NULL DEFAULT '',
+            status VARCHAR(40) NOT NULL DEFAULT 'Approved',
+            date_assigned DATE DEFAULT NULL,
+            created_by INT UNSIGNED DEFAULT NULL,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            KEY idx_rg_title_approval (title_approval_id),
+            KEY idx_rg_group_number (group_number),
+            KEY idx_rg_leader (leader_id, leader_email)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
+
+    $crad->exec(
+        "CREATE TABLE IF NOT EXISTS crad_research_coordinator_assignments (
+            id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+            research_group_id INT UNSIGNED DEFAULT NULL,
+            proposal_id INT UNSIGNED DEFAULT NULL,
+            title_approval_id INT UNSIGNED DEFAULT NULL,
+            proposal_number VARCHAR(30) DEFAULT NULL,
+            group_number VARCHAR(40) DEFAULT NULL,
+            group_name VARCHAR(120) NOT NULL DEFAULT '',
+            research_title VARCHAR(255) NOT NULL DEFAULT '',
+            student_id VARCHAR(40) DEFAULT NULL,
+            coordinator_user_id INT UNSIGNED DEFAULT NULL,
+            coordinator_name VARCHAR(200) NOT NULL DEFAULT '',
+            coordinator_email VARCHAR(200) NOT NULL DEFAULT '',
+            status ENUM('Active','Inactive') NOT NULL DEFAULT 'Active',
+            assigned_by INT UNSIGNED DEFAULT NULL,
+            assigned_at DATETIME DEFAULT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            KEY idx_rca_group (research_group_id),
+            KEY idx_rca_title (title_approval_id),
+            KEY idx_rca_status (status)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
+
+    $crad->exec(
+        "CREATE TABLE IF NOT EXISTS crad_research_adviser_assignments (
+            id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+            research_group_id INT UNSIGNED DEFAULT NULL,
+            proposal_id INT UNSIGNED DEFAULT NULL,
+            proposal_number VARCHAR(30) DEFAULT NULL,
+            group_number VARCHAR(40) DEFAULT NULL,
+            student_id VARCHAR(40) DEFAULT NULL,
+            adviser_name VARCHAR(150) NOT NULL DEFAULT '',
+            adviser_email VARCHAR(190) NOT NULL DEFAULT '',
+            adviser_user_id INT UNSIGNED DEFAULT NULL,
+            expertise VARCHAR(255) NOT NULL DEFAULT '',
+            availability_status VARCHAR(40) NOT NULL DEFAULT 'Pending',
+            assignment_status VARCHAR(40) NOT NULL DEFAULT 'Pending',
+            notes TEXT DEFAULT NULL,
+            assigned_by INT UNSIGNED DEFAULT NULL,
+            assigned_at DATETIME DEFAULT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            notification_sent_at DATETIME DEFAULT NULL,
+            notification_sent_by INT UNSIGNED DEFAULT NULL,
+            PRIMARY KEY (id),
+            KEY idx_raa_group (research_group_id),
+            KEY idx_raa_status (assignment_status)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
+
+    $crad->exec(
+        "CREATE TABLE IF NOT EXISTS crad_research_plans (
+            id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+            research_group_id INT UNSIGNED DEFAULT NULL,
+            research_title VARCHAR(500) NOT NULL DEFAULT '',
+            group_number VARCHAR(40) NOT NULL DEFAULT '',
+            adviser_id INT UNSIGNED DEFAULT NULL,
+            adviser_name VARCHAR(150) NOT NULL DEFAULT '',
+            adviser_email VARCHAR(190) NOT NULL DEFAULT '',
+            start_date DATE DEFAULT NULL,
+            target_completion_date DATE DEFAULT NULL,
+            current_stage VARCHAR(100) NOT NULL DEFAULT 'Planning',
+            overall_progress DECIMAL(5,2) NOT NULL DEFAULT 0.00,
+            status ENUM('Active','Completed','On Hold','Cancelled') NOT NULL DEFAULT 'Active',
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            final_defense_recommended TINYINT(1) NOT NULL DEFAULT 0,
+            final_defense_recommended_by INT UNSIGNED DEFAULT NULL,
+            final_defense_recommended_by_name VARCHAR(150) DEFAULT NULL,
+            final_defense_recommended_at DATETIME DEFAULT NULL,
+            final_defense_recommendation_remarks TEXT DEFAULT NULL,
+            PRIMARY KEY (id),
+            KEY idx_rp_group (research_group_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
+
     $crad->exec(
         "CREATE TABLE IF NOT EXISTS crad_chapter_submissions (
             id INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -316,6 +492,45 @@ function chapterDb(): PDO
 {
     $crad = getCradDatabaseConnection();
     chapterEnsureSchema($crad);
+
+    // #region agent log
+    if (function_exists('cradAgentDebugLog')) {
+        try {
+            $dbName = (string) $crad->query('SELECT DATABASE()')->fetchColumn();
+            $needed = [
+                'crad_research_groups',
+                'crad_title_approvals',
+                'crad_research_coordinator_assignments',
+                'crad_research_adviser_assignments',
+                'crad_research_plans',
+                'crad_chapter_submissions',
+            ];
+            $present = [];
+            $missing = [];
+            foreach ($needed as $table) {
+                $exists = (bool) $crad->query('SHOW TABLES LIKE ' . $crad->quote($table))->fetchColumn();
+                if ($exists) {
+                    $present[] = $table;
+                } else {
+                    $missing[] = $table;
+                }
+            }
+            $allCrad = $crad->query("SHOW TABLES LIKE 'crad_%'")->fetchAll(PDO::FETCH_COLUMN) ?: [];
+            cradAgentDebugLog('F', 'chapter-evaluation-workflow.php:chapterDb', 'CRAD table inventory after ensure', [
+                'database' => $dbName,
+                'present' => $present,
+                'missing' => $missing,
+                'cradTableCount' => count($allCrad),
+                'cradTablesSample' => array_slice($allCrad, 0, 30),
+            ]);
+        } catch (Throwable $e) {
+            cradAgentDebugLog('F', 'chapter-evaluation-workflow.php:chapterDb', 'table inventory failed', [
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+    // #endregion
+
     return $crad;
 }
 

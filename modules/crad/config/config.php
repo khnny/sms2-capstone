@@ -149,7 +149,7 @@ function cradAgentDebugLog(string $hypothesisId, string $location, string $messa
         'message' => $message,
         'data' => $data,
         'timestamp' => (int) round(microtime(true) * 1000),
-        'runId' => 'pre-fix',
+        'runId' => 'schema-missing',
     ];
     $line = json_encode($payload, JSON_UNESCAPED_SLASHES);
     if ($line === false) {
