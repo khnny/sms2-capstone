@@ -208,7 +208,10 @@ foreach ($iterator as $file) {
 
     // Skip if already looks fully prefixed for core tables and no old CREATE users.
     if ($ext === 'sql' && str_contains($raw, '`sms_users`') && !str_contains($raw, 'CREATE TABLE `users`')
-        && (!str_contains($raw, 'CREATE TABLE `title_approvals`') || str_contains($raw, '`crad_title_approvals`'))) {
+        && (!str_contains($raw, 'CREATE TABLE `title_approvals`') || str_contains($raw, '`crad_title_approvals`'))
+        && !str_contains($raw, 'CREATE TABLE `admin_announcements`')
+        && !str_contains($raw, 'CREATE TABLE `student_profiles`')
+        && !str_contains($raw, 'CREATE TABLE `research_services_clearances`')) {
         // Still may need sms2_db.users cleanup in non-dump files; SQL dumps OK to skip if clean.
         if (!str_contains($raw, 'sms2_db.users') && !str_contains($raw, 'CREATE TABLE `users`')) {
             continue;

@@ -2714,10 +2714,10 @@ INSERT INTO `sms_activity_logs` (`id`, `user_id`, `user_name`, `role_key`, `acti
 -- --------------------------------------------------------
 
 --
--- Table structure for table `admin_announcements`
+-- Table structure for table `sms_admin_announcements`
 --
 
-CREATE TABLE `admin_announcements` (
+CREATE TABLE `sms_admin_announcements` (
   `id` int(10) UNSIGNED NOT NULL,
   `title` varchar(180) NOT NULL,
   `body` text NOT NULL,
@@ -2946,10 +2946,10 @@ INSERT INTO `sms_security_otps` (`id`, `user_id`, `purpose`, `code_hash`, `modul
 -- --------------------------------------------------------
 
 --
--- Table structure for table `student_profiles`
+-- Table structure for table `sms_student_profiles`
 --
 
-CREATE TABLE `student_profiles` (
+CREATE TABLE `sms_student_profiles` (
   `id` int(10) UNSIGNED NOT NULL,
   `user_id` int(10) UNSIGNED NOT NULL,
   `student_id` varchar(40) NOT NULL,
@@ -2969,10 +2969,10 @@ CREATE TABLE `student_profiles` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
--- Dumping data for table `student_profiles`
+-- Dumping data for table `sms_student_profiles`
 --
 
-INSERT INTO `student_profiles` (`id`, `user_id`, `student_id`, `program`, `year_level`, `section`, `semester`, `school_year`, `enrollment_status`, `standing`, `mobile`, `address`, `guardian`, `guardian_contact`, `created_at`, `updated_at`) VALUES
+INSERT INTO `sms_student_profiles` (`id`, `user_id`, `student_id`, `program`, `year_level`, `section`, `semester`, `school_year`, `enrollment_status`, `standing`, `mobile`, `address`, `guardian`, `guardian_contact`, `created_at`, `updated_at`) VALUES
 (1, 9, 'S230000001', 'Bachelor of Science in Information Technology', '4th Year', 'BSIT 4B', '1st Semester', '2026-2027', 'Enrolled', 'Good Standing', '0917 000 0011', 'Fairview, Quezon City', 'Juan Dela Cruz', '0918 000 0012', '2026-09-19 00:29:23', '2026-09-19 00:29:23'),
 (2, 1354, 'S230106713', 'Bachelor of Science in Information Technology', '4th Year', 'BSIT 4A', '1st Semester', '2026-2027', 'Enrolled', 'Good Standing', '0917 000 0001', 'Novaliches, Quezon City', 'Maria Dela Cruz', '0918 000 0002', '2026-09-19 00:29:23', '2026-09-19 00:29:23');
 
@@ -3127,9 +3127,9 @@ ALTER TABLE `sms_activity_logs`
   ADD KEY `idx_logs_created` (`created_at`);
 
 --
--- Indexes for table `admin_announcements`
+-- Indexes for table `sms_admin_announcements`
 --
-ALTER TABLE `admin_announcements`
+ALTER TABLE `sms_admin_announcements`
   ADD PRIMARY KEY (`id`),
   ADD KEY `idx_ann_status_published` (`status`,`published_at`),
   ADD KEY `idx_ann_audience` (`audience`);
@@ -3175,9 +3175,9 @@ ALTER TABLE `sms_security_otps`
   ADD PRIMARY KEY (`id`);
 
 --
--- Indexes for table `student_profiles`
+-- Indexes for table `sms_student_profiles`
 --
-ALTER TABLE `student_profiles`
+ALTER TABLE `sms_student_profiles`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uq_sp_user` (`user_id`),
   ADD UNIQUE KEY `uq_sp_student_id` (`student_id`);
@@ -3223,9 +3223,9 @@ ALTER TABLE `sms_activity_logs`
   MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2675;
 
 --
--- AUTO_INCREMENT for table `admin_announcements`
+-- AUTO_INCREMENT for table `sms_admin_announcements`
 --
-ALTER TABLE `admin_announcements`
+ALTER TABLE `sms_admin_announcements`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --
@@ -3259,9 +3259,9 @@ ALTER TABLE `sms_security_otps`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=33;
 
 --
--- AUTO_INCREMENT for table `student_profiles`
+-- AUTO_INCREMENT for table `sms_student_profiles`
 --
-ALTER TABLE `student_profiles`
+ALTER TABLE `sms_student_profiles`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
