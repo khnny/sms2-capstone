@@ -2,8 +2,8 @@
 SET FOREIGN_KEY_CHECKS = 0;
 SET NAMES utf8mb4;
 
-DROP TABLE IF EXISTS `grant_document_repository`;
-CREATE TABLE `grant_document_repository` (
+DROP TABLE IF EXISTS `crad_grant_document_repository`;
+CREATE TABLE `crad_grant_document_repository` (
   `id` int(10) UNSIGNED NOT NULL,
   `grant_application_id` int(10) UNSIGNED NOT NULL,
   `archive_reference` varchar(40) NOT NULL DEFAULT '',
@@ -15,20 +15,20 @@ CREATE TABLE `grant_document_repository` (
   `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT INTO `grant_document_repository` (`id`, `grant_application_id`, `archive_reference`, `status`, `item_count`, `archived_by_user_id`, `archived_by_name`, `archived_at`, `updated_at`) VALUES
+INSERT INTO `crad_grant_document_repository` (`id`, `grant_application_id`, `archive_reference`, `status`, `item_count`, `archived_by_user_id`, `archived_by_name`, `archived_at`, `updated_at`) VALUES
 (1, 8, 'DAR-2026-001', 'ARCHIVED', 32, 3, 'User', '2026-09-18 03:33:53', '2026-09-18 03:33:53');
 
-ALTER TABLE `grant_document_repository`
+ALTER TABLE `crad_grant_document_repository`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_gdr_application` (`grant_application_id`),
   ADD KEY `idx_gdr_reference` (`archive_reference`),
   ADD KEY `idx_gdr_archived` (`archived_at`);
 
-ALTER TABLE `grant_document_repository`
+ALTER TABLE `crad_grant_document_repository`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
-DROP TABLE IF EXISTS `grant_document_repository_items`;
-CREATE TABLE `grant_document_repository_items` (
+DROP TABLE IF EXISTS `crad_grant_document_repository_items`;
+CREATE TABLE `crad_grant_document_repository_items` (
   `id` int(10) UNSIGNED NOT NULL,
   `repository_id` int(10) UNSIGNED NOT NULL,
   `grant_application_id` int(10) UNSIGNED NOT NULL,
@@ -44,7 +44,7 @@ CREATE TABLE `grant_document_repository_items` (
   `created_at` datetime NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT INTO `grant_document_repository_items` (`id`, `repository_id`, `grant_application_id`, `category`, `item_label`, `item_type`, `file_path`, `file_original`, `download_url`, `summary_text`, `metadata_json`, `sort_order`, `created_at`) VALUES
+INSERT INTO `crad_grant_document_repository_items` (`id`, `repository_id`, `grant_application_id`, `category`, `item_label`, `item_type`, `file_path`, `file_original`, `download_url`, `summary_text`, `metadata_json`, `sort_order`, `created_at`) VALUES
 (1, 1, 8, 'proposal', 'Proposal PDF', 'file', '764440cbeb67f86f451e1e85d88081ec.docx', 'OJT_PRACTICUM_1_NARRATIVE_REPORT (1) (1).docx', '/sms2_system/modules/crad/grant-proposal-file.php?id=8&field=proposal', NULL, '{\"field\":\"proposal\"}', 0, '2026-09-18 03:33:53'),
 (2, 1, 8, 'proposal', 'Supporting Documents', 'file', 'b579a21b6b589636d32fc62cb87212cb.docx', 'OJT_PRACTICUM_1_NARRATIVE_REPORT (1) (1).docx', '/sms2_system/modules/crad/grant-proposal-file.php?id=8&field=supporting', NULL, '{\"field\":\"supporting\"}', 1, '2026-09-18 03:33:53'),
 (3, 1, 8, 'proposal', 'Ethics Clearance', 'file', 'efb7d05d2e9f4954fba0cdabf98259ec.docx', 'OJT_PRACTICUM_1_NARRATIVE_REPORT (1) (1).docx', '/sms2_system/modules/crad/grant-proposal-file.php?id=8&field=ethics', NULL, '{\"field\":\"ethics\"}', 2, '2026-09-18 03:33:53'),
@@ -78,17 +78,17 @@ INSERT INTO `grant_document_repository_items` (`id`, `repository_id`, `grant_app
 (31, 1, 8, 'publication', 'Publication Record — PIP-2026-003', 'file', 'F:\\xampp\\htdocs\\sms2_system/storage/uploads/grant_final_output/23adf38391ef58c27b1a14ff52e79263.pdf', 'file-sample_150kB.pdf', '/sms2_system/modules/crad/grant-final-output-file.php?type=final_pdf&submission_id=3', 'Reference: PIP-2026-003\nTitle: Ai Driven Data Analytics\nAuthors: Student User\nType: Journal\nJournal/Conference: asdas\nDOI: \nURL: http://localhost/sms2_system/modules/crad/pages/publications-ip.php', '{\"repository_reference\":\"PIP-2026-003\"}', 30, '2026-09-18 03:33:53'),
 (32, 1, 8, 'ip_documentation', 'IP Documentation', 'record', NULL, NULL, '/sms2_system/modules/crad/pages/publications-ip.php?id=8', 'IP Information: asdasd', '{\"repository_reference\":\"PIP-2026-003\"}', 31, '2026-09-18 03:33:53');
 
-ALTER TABLE `grant_document_repository_items`
+ALTER TABLE `crad_grant_document_repository_items`
   ADD PRIMARY KEY (`id`),
   ADD KEY `idx_gdri_repository` (`repository_id`),
   ADD KEY `idx_gdri_application` (`grant_application_id`),
   ADD KEY `idx_gdri_category` (`category`);
 
-ALTER TABLE `grant_document_repository_items`
+ALTER TABLE `crad_grant_document_repository_items`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=33;
 
-DROP TABLE IF EXISTS `grant_final_output_submissions`;
-CREATE TABLE `grant_final_output_submissions` (
+DROP TABLE IF EXISTS `crad_grant_final_output_submissions`;
+CREATE TABLE `crad_grant_final_output_submissions` (
   `id` int(10) UNSIGNED NOT NULL,
   `grant_application_id` int(10) UNSIGNED NOT NULL,
   `version_number` int(10) UNSIGNED NOT NULL DEFAULT 1,
@@ -119,22 +119,22 @@ CREATE TABLE `grant_final_output_submissions` (
   `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT INTO `grant_final_output_submissions` (`id`, `grant_application_id`, `version_number`, `final_research_title`, `authors`, `abstract`, `publication_type`, `journal_conference`, `doi`, `publication_url`, `ip_information`, `copyright_info`, `patent_info`, `other_ip_info`, `final_pdf_path`, `final_pdf_original`, `supporting_files_json`, `status`, `return_reason`, `verification_notes`, `submitted_by_user_id`, `submitted_by_name`, `submitted_at`, `reviewed_by_user_id`, `reviewed_by_name`, `reviewed_at`, `created_at`, `updated_at`) VALUES
+INSERT INTO `crad_grant_final_output_submissions` (`id`, `grant_application_id`, `version_number`, `final_research_title`, `authors`, `abstract`, `publication_type`, `journal_conference`, `doi`, `publication_url`, `ip_information`, `copyright_info`, `patent_info`, `other_ip_info`, `final_pdf_path`, `final_pdf_original`, `supporting_files_json`, `status`, `return_reason`, `verification_notes`, `submitted_by_user_id`, `submitted_by_name`, `submitted_at`, `reviewed_by_user_id`, `reviewed_by_name`, `reviewed_at`, `created_at`, `updated_at`) VALUES
 (1, 5, 1, 'ai analysis', 'Student User', 'adasdsada', 'Journal', 'asdsa', '', 'http://localhost/sms2_system/modules/crad/pages/publications-ip.php', 'sadas', NULL, NULL, NULL, 'C:\\xampp\\htdocs\\sms2_system/storage/uploads/grant_final_output/20fbebfce55289306d6bfbb63c4e3777.pdf', 'OLIVEROS CV.pdf', '[{\"path\":\"C:\\\\xampp\\\\htdocs\\\\sms2_system\\/storage\\/uploads\\/grant_final_output_supporting\\/39c7dccbc6b58439374010ce48077be1.pdf\",\"original_name\":\"Diaz CV.pdf_20260813_105004_0000.pdf\",\"stored_name\":\"39c7dccbc6b58439374010ce48077be1.pdf\"}]', '', NULL, NULL, 9, 'User', '2026-08-31 16:38:45', 3, 'User', '2026-08-31 16:40:51', '2026-08-31 16:38:45', '2026-08-31 16:40:51'),
 (2, 7, 1, 'Ai Driven Data Analytics', 'Student User', 'dasdasdas', 'Journal', 'dsadas', '', 'http://localhost/sms2_system/modules/crad/pages/publications-ip.php', 'sadas', 'asd', 'asdas', 'asdas', 'F:\\xampp\\htdocs\\sms2_system/storage/uploads/grant_final_output/64c266a836d68bc4468d4c06689b6aa8.pdf', 'file-sample_150kB.pdf', '[{\"path\":\"F:\\\\xampp\\\\htdocs\\\\sms2_system\\/storage\\/uploads\\/grant_final_output_supporting\\/ae998301f6ce05be4836133a88d19de9.docx\",\"original_name\":\"OJT_PRACTICUM_1_NARRATIVE_REPORT (1) (1).docx\",\"stored_name\":\"ae998301f6ce05be4836133a88d19de9.docx\"}]', '', NULL, NULL, 9, 'User', '2026-09-18 03:22:08', 3, 'User', '2026-09-18 03:22:29', '2026-09-18 03:22:08', '2026-09-18 03:22:29'),
 (3, 8, 1, 'Ai Driven Data Analytics', 'Student User', 'asdasdas', 'Journal', 'asdas', '', 'http://localhost/sms2_system/modules/crad/pages/publications-ip.php', 'asdasd', NULL, NULL, NULL, 'F:\\xampp\\htdocs\\sms2_system/storage/uploads/grant_final_output/23adf38391ef58c27b1a14ff52e79263.pdf', 'file-sample_150kB.pdf', '[{\"path\":\"F:\\\\xampp\\\\htdocs\\\\sms2_system\\/storage\\/uploads\\/grant_final_output_supporting\\/12c8f013bad6a439c5187808f9a772fc.docx\",\"original_name\":\"OJT_PRACTICUM_1_NARRATIVE_REPORT (1) (1).docx\",\"stored_name\":\"12c8f013bad6a439c5187808f9a772fc.docx\"}]', '', NULL, NULL, 9, 'User', '2026-09-18 03:33:23', 3, 'User', '2026-09-18 03:33:30', '2026-09-18 03:33:23', '2026-09-18 03:33:30');
 
-ALTER TABLE `grant_final_output_submissions`
+ALTER TABLE `crad_grant_final_output_submissions`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_gfos_application` (`grant_application_id`),
   ADD KEY `idx_gfos_status` (`status`),
   ADD KEY `idx_gfos_submitted` (`submitted_at`);
 
-ALTER TABLE `grant_final_output_submissions`
+ALTER TABLE `crad_grant_final_output_submissions`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
-DROP TABLE IF EXISTS `grant_funded_progress_evidence`;
-CREATE TABLE `grant_funded_progress_evidence` (
+DROP TABLE IF EXISTS `crad_grant_funded_progress_evidence`;
+CREATE TABLE `crad_grant_funded_progress_evidence` (
   `id` int(10) UNSIGNED NOT NULL,
   `grant_application_id` int(10) UNSIGNED NOT NULL,
   `milestone_id` int(10) UNSIGNED DEFAULT NULL,
@@ -149,7 +149,7 @@ CREATE TABLE `grant_funded_progress_evidence` (
   `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT INTO `grant_funded_progress_evidence` (`id`, `grant_application_id`, `milestone_id`, `evidence_title`, `notes`, `file_path`, `file_original`, `submitted_by_user_id`, `submitted_by_name`, `status`, `created_at`, `updated_at`) VALUES
+INSERT INTO `crad_grant_funded_progress_evidence` (`id`, `grant_application_id`, `milestone_id`, `evidence_title`, `notes`, `file_path`, `file_original`, `submitted_by_user_id`, `submitted_by_name`, `status`, `created_at`, `updated_at`) VALUES
 (1, 5, 2, 'done', NULL, '08d2da99a1015997444d899fa46a0d1f.pdf', 'OLIVEROS CV.pdf', 9, 'User', 'Submitted', '2026-08-31 16:04:10', '2026-08-31 16:04:10'),
 (2, 5, 3, 'done', NULL, '90d52a0e2d826deae5c328f9eac04e51.pdf', 'OLIVEROS CV.pdf', 9, 'User', 'Submitted', '2026-08-31 16:08:47', '2026-08-31 16:08:47'),
 (3, 5, 4, 'week 2', NULL, '32d641db454454bc0a71d67ecae8d3d0.pdf', 'OLIVEROS CV.pdf', 9, 'User', 'Submitted', '2026-08-31 16:08:59', '2026-08-31 16:08:59'),
@@ -163,17 +163,17 @@ INSERT INTO `grant_funded_progress_evidence` (`id`, `grant_application_id`, `mil
 (11, 8, 14, 'Ai Driven Data Analytics', NULL, '1e75bc27af75c0542193ef27c9f09d4e.docx', 'OJT_PRACTICUM_1_NARRATIVE_REPORT (1) (1).docx', 9, 'User', 'Submitted', '2026-09-18 03:31:58', '2026-09-18 03:31:58'),
 (12, 8, 15, 'Ai Driven Data Analytics', NULL, '3fc87cd05ec789b7dfe364a1d4d93da0.docx', 'OJT_PRACTICUM_1_NARRATIVE_REPORT (1) (1).docx', 9, 'User', 'Submitted', '2026-09-18 03:32:05', '2026-09-18 03:32:05');
 
-ALTER TABLE `grant_funded_progress_evidence`
+ALTER TABLE `crad_grant_funded_progress_evidence`
   ADD PRIMARY KEY (`id`),
   ADD KEY `idx_gfpe_application` (`grant_application_id`),
   ADD KEY `idx_gfpe_milestone` (`milestone_id`),
   ADD KEY `idx_gfpe_created` (`created_at`);
 
-ALTER TABLE `grant_funded_progress_evidence`
+ALTER TABLE `crad_grant_funded_progress_evidence`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
 
-DROP TABLE IF EXISTS `grant_funded_project_milestones`;
-CREATE TABLE `grant_funded_project_milestones` (
+DROP TABLE IF EXISTS `crad_grant_funded_project_milestones`;
+CREATE TABLE `crad_grant_funded_project_milestones` (
   `id` int(10) UNSIGNED NOT NULL,
   `grant_application_id` int(10) UNSIGNED NOT NULL,
   `milestone_order` tinyint(3) UNSIGNED NOT NULL DEFAULT 1,
@@ -190,7 +190,7 @@ CREATE TABLE `grant_funded_project_milestones` (
   `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT INTO `grant_funded_project_milestones` (`id`, `grant_application_id`, `milestone_order`, `milestone_name`, `due_date`, `completion_pct`, `status`, `supporting_doc`, `supporting_doc_original`, `remarks`, `updated_by_user_id`, `updated_by_name`, `created_at`, `updated_at`) VALUES
+INSERT INTO `crad_grant_funded_project_milestones` (`id`, `grant_application_id`, `milestone_order`, `milestone_name`, `due_date`, `completion_pct`, `status`, `supporting_doc`, `supporting_doc_original`, `remarks`, `updated_by_user_id`, `updated_by_name`, `created_at`, `updated_at`) VALUES
 (1, 5, 1, 'Project Start', NULL, 100.00, 'Completed', NULL, NULL, NULL, NULL, NULL, '2026-08-31 14:41:26', '2026-08-31 14:41:26'),
 (2, 5, 2, 'Data Gathering', NULL, 100.00, 'Completed', '2a7227d63dad821917cea9db255ebc76.pdf', 'OLIVEROS CV.pdf', 'sdasda', 3, 'User', '2026-08-31 14:41:26', '2026-08-31 16:08:16'),
 (3, 5, 3, 'Analysis', '2026-08-31', 100.00, 'Completed', 'e33fc0e55fc37f7549946bd53fce56a3.pdf', 'OLIVEROS CV.pdf', NULL, 3, 'User', '2026-08-31 14:41:26', '2026-08-31 16:09:47'),
@@ -207,17 +207,17 @@ INSERT INTO `grant_funded_project_milestones` (`id`, `grant_application_id`, `mi
 (14, 8, 4, 'Final Report', '2026-09-18', 100.00, 'Completed', 'b77206d312ef03f325d2d09202f9accb.docx', 'OJT_PRACTICUM_1_NARRATIVE_REPORT (1) (1).docx', NULL, 3, 'User', '2026-09-18 03:30:29', '2026-09-18 03:32:44'),
 (15, 8, 5, 'Publication', '2026-09-18', 100.00, 'Completed', 'e82b7e87acd88c2621710f5f1c5bc7f5.docx', 'OJT_PRACTICUM_1_NARRATIVE_REPORT (1) (1).docx', NULL, 3, 'User', '2026-09-18 03:30:29', '2026-09-18 03:32:54');
 
-ALTER TABLE `grant_funded_project_milestones`
+ALTER TABLE `crad_grant_funded_project_milestones`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_gfpm_app_order` (`grant_application_id`,`milestone_order`),
   ADD KEY `idx_gfpm_application` (`grant_application_id`),
   ADD KEY `idx_gfpm_status` (`status`);
 
-ALTER TABLE `grant_funded_project_milestones`
+ALTER TABLE `crad_grant_funded_project_milestones`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
 
-DROP TABLE IF EXISTS `grant_funding_disbursements`;
-CREATE TABLE `grant_funding_disbursements` (
+DROP TABLE IF EXISTS `crad_grant_funding_disbursements`;
+CREATE TABLE `crad_grant_funding_disbursements` (
   `id` int(10) UNSIGNED NOT NULL,
   `grant_application_id` int(10) UNSIGNED NOT NULL,
   `tranche_number` tinyint(3) UNSIGNED NOT NULL DEFAULT 1,
@@ -234,7 +234,7 @@ CREATE TABLE `grant_funding_disbursements` (
   `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT INTO `grant_funding_disbursements` (`id`, `grant_application_id`, `tranche_number`, `tranche_label`, `approved_budget`, `amount_released`, `release_date`, `reference_number`, `status`, `released_by_user_id`, `released_by_name`, `remarks`, `created_at`, `updated_at`) VALUES
+INSERT INTO `crad_grant_funding_disbursements` (`id`, `grant_application_id`, `tranche_number`, `tranche_label`, `approved_budget`, `amount_released`, `release_date`, `reference_number`, `status`, `released_by_user_id`, `released_by_name`, `remarks`, `created_at`, `updated_at`) VALUES
 (1, 5, 1, 'Tranche 1', 15000.00, 7500.00, '2026-08-31', 'DISB-GR-2026-001-T1', 'Released', 3, 'User', NULL, '2026-08-31 14:35:24', '2026-08-31 14:57:57'),
 (2, 5, 2, 'Tranche 2', 15000.00, 7500.00, '2026-08-31', 'DISB-GR-2026-001-T2', 'Released', 3, 'User', NULL, '2026-08-31 14:35:24', '2026-08-31 14:59:27'),
 (3, 7, 1, 'Tranche 1', 2500.00, 1250.00, '2026-09-18', 'DISB-GR-2026-001-T1', 'Released', 3, 'User', NULL, '2026-09-18 03:09:55', '2026-09-18 03:10:45'),
@@ -242,17 +242,17 @@ INSERT INTO `grant_funding_disbursements` (`id`, `grant_application_id`, `tranch
 (5, 8, 1, 'Tranche 1', 2600.00, 1300.00, '2026-09-18', 'DISB-GR-2026-001-T1', 'Released', 3, 'User', NULL, '2026-09-18 03:30:29', '2026-09-18 03:31:22'),
 (6, 8, 2, 'Tranche 2', 2600.00, 1300.00, '2026-09-18', 'DISB-GR-2026-001-T2', 'Released', 3, 'User', NULL, '2026-09-18 03:30:29', '2026-09-18 03:31:25');
 
-ALTER TABLE `grant_funding_disbursements`
+ALTER TABLE `crad_grant_funding_disbursements`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_gfd_app_tranche` (`grant_application_id`,`tranche_number`),
   ADD KEY `idx_gfd_application` (`grant_application_id`),
   ADD KEY `idx_gfd_status` (`status`);
 
-ALTER TABLE `grant_funding_disbursements`
+ALTER TABLE `crad_grant_funding_disbursements`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
-DROP TABLE IF EXISTS `grant_proposal_approval_steps`;
-CREATE TABLE `grant_proposal_approval_steps` (
+DROP TABLE IF EXISTS `crad_grant_proposal_approval_steps`;
+CREATE TABLE `crad_grant_proposal_approval_steps` (
   `id` int(10) UNSIGNED NOT NULL,
   `workflow_id` int(10) UNSIGNED NOT NULL,
   `grant_application_id` int(10) UNSIGNED NOT NULL,
@@ -270,21 +270,21 @@ CREATE TABLE `grant_proposal_approval_steps` (
   `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT INTO `grant_proposal_approval_steps` (`id`, `workflow_id`, `grant_application_id`, `step_key`, `step_order`, `step_label`, `approver_role_key`, `status`, `approver_user_id`, `approver_name`, `remarks`, `signature_data`, `acted_at`, `created_at`, `updated_at`) VALUES
+INSERT INTO `crad_grant_proposal_approval_steps` (`id`, `workflow_id`, `grant_application_id`, `step_key`, `step_order`, `step_label`, `approver_role_key`, `status`, `approver_user_id`, `approver_name`, `remarks`, `signature_data`, `acted_at`, `created_at`, `updated_at`) VALUES
 (1, 1, 2, 'adviser', 1, 'Academic Adviser', 'adviser', 'Approved', 54, 'User', NULL, 'data:image/png;
 
-ALTER TABLE `grant_proposal_approval_steps`
+ALTER TABLE `crad_grant_proposal_approval_steps`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_gpas_workflow_step` (`workflow_id`,`step_key`),
   ADD KEY `idx_gpas_application` (`grant_application_id`),
   ADD KEY `idx_gpas_status` (`status`),
   ADD KEY `idx_gpas_role` (`approver_role_key`);
 
-ALTER TABLE `grant_proposal_approval_steps`
+ALTER TABLE `crad_grant_proposal_approval_steps`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=38;
 
-DROP TABLE IF EXISTS `grant_proposal_approval_workflows`;
-CREATE TABLE `grant_proposal_approval_workflows` (
+DROP TABLE IF EXISTS `crad_grant_proposal_approval_workflows`;
+CREATE TABLE `crad_grant_proposal_approval_workflows` (
   `id` int(10) UNSIGNED NOT NULL,
   `grant_application_id` int(10) UNSIGNED NOT NULL,
   `current_step_key` varchar(40) NOT NULL DEFAULT 'adviser',
@@ -294,7 +294,7 @@ CREATE TABLE `grant_proposal_approval_workflows` (
   `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT INTO `grant_proposal_approval_workflows` (`id`, `grant_application_id`, `current_step_key`, `workflow_status`, `started_at`, `completed_at`, `updated_at`) VALUES
+INSERT INTO `crad_grant_proposal_approval_workflows` (`id`, `grant_application_id`, `current_step_key`, `workflow_status`, `started_at`, `completed_at`, `updated_at`) VALUES
 (1, 2, 'vpaa', 'Completed', '2026-08-31 08:47:21', '2026-08-31 11:07:08', '2026-08-31 11:07:08'),
 (2, 3, 'finance', 'Completed', '2026-08-31 11:44:23', '2026-08-31 12:13:46', '2026-08-31 12:13:46'),
 (3, 4, 'finance', 'In Progress', '2026-08-31 13:34:26', NULL, '2026-08-31 13:59:06'),
@@ -302,17 +302,17 @@ INSERT INTO `grant_proposal_approval_workflows` (`id`, `grant_application_id`, `
 (5, 7, 'finance', 'Completed', '2026-09-18 03:04:26', '2026-09-18 03:09:55', '2026-09-18 03:09:55'),
 (6, 8, 'finance', 'Completed', '2026-09-18 03:26:45', '2026-09-18 03:30:29', '2026-09-18 03:30:29');
 
-ALTER TABLE `grant_proposal_approval_workflows`
+ALTER TABLE `crad_grant_proposal_approval_workflows`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_gpaw_application` (`grant_application_id`),
   ADD KEY `idx_gpaw_status` (`workflow_status`),
   ADD KEY `idx_gpaw_current_step` (`current_step_key`);
 
-ALTER TABLE `grant_proposal_approval_workflows`
+ALTER TABLE `crad_grant_proposal_approval_workflows`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
-DROP TABLE IF EXISTS `grant_proposal_evaluations`;
-CREATE TABLE `grant_proposal_evaluations` (
+DROP TABLE IF EXISTS `crad_grant_proposal_evaluations`;
+CREATE TABLE `crad_grant_proposal_evaluations` (
   `id` int(10) UNSIGNED NOT NULL,
   `grant_application_id` int(10) UNSIGNED NOT NULL,
   `proposal_version` int(10) UNSIGNED NOT NULL DEFAULT 1 COMMENT 'Proposal version evaluated',
@@ -334,7 +334,7 @@ CREATE TABLE `grant_proposal_evaluations` (
   `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT INTO `grant_proposal_evaluations` (`id`, `grant_application_id`, `proposal_version`, `evaluator_user_id`, `evaluator_name`, `evaluation_type`, `score_rationale`, `score_methodology`, `score_budget`, `score_team_capability`, `score_compliance`, `total_score`, `comments`, `recommendations`, `required_corrections`, `recommendation`, `revision_reason`, `submitted_at`, `updated_at`) VALUES
+INSERT INTO `crad_grant_proposal_evaluations` (`id`, `grant_application_id`, `proposal_version`, `evaluator_user_id`, `evaluator_name`, `evaluation_type`, `score_rationale`, `score_methodology`, `score_budget`, `score_team_capability`, `score_compliance`, `total_score`, `comments`, `recommendations`, `required_corrections`, `recommendation`, `revision_reason`, `submitted_at`, `updated_at`) VALUES
 (1, 1, 1, 766, 'Review Committee Member', 'committee', 25.00, 30.00, 19.00, 10.00, 5.00, 89.00, 'asdsa', 'asdas', 'asdas', NULL, NULL, '2026-08-31 07:27:00', '2026-08-31 07:27:00'),
 (2, 2, 1, 766, 'Review Committee Member', 'committee', 13.00, 13.00, 13.00, 13.00, 1.00, 53.00, 'sadas', 'asdsa', 'asdas', 'require_revisions', 'sadas', '2026-08-31 08:09:44', '2026-08-31 08:09:44'),
 (3, 2, 2, 766, 'Review Committee Member', 'committee', 25.00, 25.00, 20.00, 15.00, 10.00, 95.00, 'sadas', 'asdsa', 'adsaa', 'recommend', NULL, '2026-08-31 08:47:21', '2026-08-31 08:47:21'),
@@ -369,18 +369,18 @@ INSERT INTO `grant_proposal_evaluations` (`id`, `grant_application_id`, `proposa
 (32, 8, 1, 992, 'VPAA', 'vpaa', 25.00, 30.00, 20.00, 15.00, 10.00, 100.00, NULL, NULL, NULL, 'recommend', NULL, '2026-09-18 03:29:58', '2026-09-18 03:29:58'),
 (33, 8, 1, 4, 'Finance', 'finance', 25.00, 30.00, 20.00, 15.00, 10.00, 100.00, NULL, NULL, NULL, 'recommend', NULL, '2026-09-18 03:30:25', '2026-09-18 03:30:25');
 
-ALTER TABLE `grant_proposal_evaluations`
+ALTER TABLE `crad_grant_proposal_evaluations`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_gpe_app_eval_ver` (`grant_application_id`,`evaluator_user_id`,`proposal_version`),
   ADD KEY `idx_gpe_application` (`grant_application_id`),
   ADD KEY `idx_gpe_evaluator` (`evaluator_user_id`),
   ADD KEY `idx_gpe_submitted` (`submitted_at`);
 
-ALTER TABLE `grant_proposal_evaluations`
+ALTER TABLE `crad_grant_proposal_evaluations`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=34;
 
-DROP TABLE IF EXISTS `grant_proposal_notifications`;
-CREATE TABLE `grant_proposal_notifications` (
+DROP TABLE IF EXISTS `crad_grant_proposal_notifications`;
+CREATE TABLE `crad_grant_proposal_notifications` (
   `id` int(10) UNSIGNED NOT NULL,
   `event_key` varchar(120) NOT NULL,
   `recipient_user_id` int(10) UNSIGNED DEFAULT NULL,
@@ -395,7 +395,7 @@ CREATE TABLE `grant_proposal_notifications` (
   `created_at` datetime NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT INTO `grant_proposal_notifications` (`id`, `event_key`, `recipient_user_id`, `recipient_role`, `recipient_email`, `grant_application_id`, `type`, `title`, `body`, `url`, `is_read`, `created_at`) VALUES
+INSERT INTO `crad_grant_proposal_notifications` (`id`, `event_key`, `recipient_user_id`, `recipient_role`, `recipient_email`, `grant_application_id`, `type`, `title`, `body`, `url`, `is_read`, `created_at`) VALUES
 (111, 'grant-proposal:finance_pending:8:u4', 4, 'finance', '', 8, 'grant_finance_pending', 'Pending Finance Approval', 'GR-2026-001 is pending Finance Office final approval after VPAA sign-off. Review it under Payment Management → Approval Workflows. Title: Ai Driven Data Analytics', '/sms2_system/modules/payment/pages/approval-workflows.php?id=8', 0, '2026-09-18 03:30:02'),
 (112, 'grant-proposal:grant_approved_funded:8:v1:u9', 9, 'student', '', 8, 'grant_approved_funded', 'Approved & Funded', 'GR-2026-001 (Ai Driven Data Analytics) is APPROVED & FUNDED after all six institutional sign-offs. Finance Office recorded the final approval.', '/sms2_system/modules/crad/pages/budget-disbursement.php?id=8', 1, '2026-09-18 03:30:29'),
 (113, 'grant-proposal:grant_fund_release:8:t1:d5', 9, 'student', '', 8, 'grant_fund_release', 'Fund Tranche Released', 'GR-2026-001 — Tranche 1 released ₱1,300 (Ref: DISB-GR-2026-001-T1). Recorded by User. View Budget & Disbursement for tranche status.', '/sms2_system/modules/crad/pages/budget-disbursement.php?id=8', 1, '2026-09-18 03:31:22'),
@@ -407,18 +407,18 @@ INSERT INTO `grant_proposal_notifications` (`id`, `event_key`, `recipient_user_i
 (125, 'grant-proposal:final_output_submitted:8:u3', 3, 'crad_officer', '', 8, 'grant_final_output_submitted', 'Final Output Submitted', 'GR-2026-001 — final output submitted by User. Title: Ai Driven Data Analytics. Verify under Outputs & Records → Publications & IP.', '/sms2_system/modules/crad/pages/publications-ip.php?id=8', 0, '2026-09-18 03:33:23'),
 (126, 'grant-proposal:final_output_verified:8', 9, 'student', '', 8, 'grant_final_output_verified', 'Output Verified', 'GR-2026-001 — your final output has been verified (OUTPUT_VERIFIED) and recorded in the Publications & IP Repository (PIP-2026-003). Verified by User. Proceed to Document Repository for permanent archiving.', '/sms2_system/modules/crad/pages/publications-ip.php?id=8', 1, '2026-09-18 03:33:30');
 
-ALTER TABLE `grant_proposal_notifications`
+ALTER TABLE `crad_grant_proposal_notifications`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_gpn_event` (`event_key`),
   ADD KEY `idx_gpn_recipient_user` (`recipient_user_id`),
   ADD KEY `idx_gpn_application` (`grant_application_id`),
   ADD KEY `idx_gpn_created` (`created_at`);
 
-ALTER TABLE `grant_proposal_notifications`
+ALTER TABLE `crad_grant_proposal_notifications`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=127;
 
-DROP TABLE IF EXISTS `grant_proposal_versions`;
-CREATE TABLE `grant_proposal_versions` (
+DROP TABLE IF EXISTS `crad_grant_proposal_versions`;
+CREATE TABLE `crad_grant_proposal_versions` (
   `id` int(10) UNSIGNED NOT NULL,
   `grant_application_id` int(10) UNSIGNED NOT NULL,
   `version_number` int(10) UNSIGNED NOT NULL,
@@ -436,7 +436,7 @@ CREATE TABLE `grant_proposal_versions` (
   `submitted_at` datetime NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT INTO `grant_proposal_versions` (`id`, `grant_application_id`, `version_number`, `version_label`, `proposal_pdf`, `proposal_pdf_original`, `supporting_docs`, `supporting_docs_original`, `ethics_doc`, `ethics_doc_original`, `abstract`, `objectives`, `researcher_notes`, `submitted_by_user_id`, `submitted_at`) VALUES
+INSERT INTO `crad_grant_proposal_versions` (`id`, `grant_application_id`, `version_number`, `version_label`, `proposal_pdf`, `proposal_pdf_original`, `supporting_docs`, `supporting_docs_original`, `ethics_doc`, `ethics_doc_original`, `abstract`, `objectives`, `researcher_notes`, `submitted_by_user_id`, `submitted_at`) VALUES
 (1, 1, 1, 'Original', '53ac796ed0ad7af6ca74703f6e4a5b41.pdf', 'OLIVEROS CV.pdf', '72706d8b5bfd82f1135557fa92faf84a.pdf', 'OLIVEROS CV.pdf', '3b1bf340d2db787753a7f77efb0fcdaf.pdf', 'OLIVEROS CV.pdf', 'adsadas', 'adsadas', NULL, 9, '2026-08-31 07:42:38'),
 (2, 2, 1, 'Original', 'b594409c59e3ba6839050c9dd63f50a6.pdf', 'OLIVEROS CV.pdf', '6a9719b97b1c60266f543bba2f313c38.pdf', 'OLIVEROS CV.pdf', '757f2e0bf3a62bd565b415570d7df5e8.pdf', 'OLIVEROS CV.pdf', 'dsada', 'asdas', NULL, 9, '2026-08-31 08:46:40'),
 (4, 2, 2, 'Revised', 'f3f3ec4b05c99f1fbbe58278c60d4afe.pdf', 'OLIVEROS CV.pdf', 'e411ba015c79a77a27013c4206313257.pdf', 'OLIVEROS CV.pdf', '95ae712a926e7a6e5ceef81ed3ba0f14.pdf', 'OLIVEROS CV.pdf', 'dsada', 'asdas', 'sada', 9, '2026-08-31 08:46:40'),
@@ -447,17 +447,17 @@ INSERT INTO `grant_proposal_versions` (`id`, `grant_application_id`, `version_nu
 (9, 7, 1, 'Original', 'eed4e374729d25be763323873eff3a01.docx', 'OJT_PRACTICUM_1_NARRATIVE_REPORT (1) (1).docx', 'cc974173d6973c41db5a981d320ee0ce.docx', 'OJT_PRACTICUM_1_NARRATIVE_REPORT (1) (1).docx', '296531845aad0c2742688fb1c87daf2c.docx', 'OJT_PRACTICUM_1_NARRATIVE_REPORT (1) (1).docx', 'asdas', 'asdas', NULL, 9, '2026-09-18 03:03:54'),
 (10, 8, 1, 'Original', '764440cbeb67f86f451e1e85d88081ec.docx', 'OJT_PRACTICUM_1_NARRATIVE_REPORT (1) (1).docx', 'b579a21b6b589636d32fc62cb87212cb.docx', 'OJT_PRACTICUM_1_NARRATIVE_REPORT (1) (1).docx', 'efb7d05d2e9f4954fba0cdabf98259ec.docx', 'OJT_PRACTICUM_1_NARRATIVE_REPORT (1) (1).docx', 'sadas', 'asdsa', NULL, 9, '2026-09-18 03:26:24');
 
-ALTER TABLE `grant_proposal_versions`
+ALTER TABLE `crad_grant_proposal_versions`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_gpv_app_ver` (`grant_application_id`,`version_number`),
   ADD KEY `idx_gpv_application` (`grant_application_id`),
   ADD KEY `idx_gpv_submitted` (`submitted_at`);
 
-ALTER TABLE `grant_proposal_versions`
+ALTER TABLE `crad_grant_proposal_versions`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
 
-DROP TABLE IF EXISTS `grant_publications_ip_repository`;
-CREATE TABLE `grant_publications_ip_repository` (
+DROP TABLE IF EXISTS `crad_grant_publications_ip_repository`;
+CREATE TABLE `crad_grant_publications_ip_repository` (
   `id` int(10) UNSIGNED NOT NULL,
   `grant_application_id` int(10) UNSIGNED NOT NULL,
   `submission_id` int(10) UNSIGNED NOT NULL,
@@ -482,22 +482,22 @@ CREATE TABLE `grant_publications_ip_repository` (
   `created_at` datetime NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT INTO `grant_publications_ip_repository` (`id`, `grant_application_id`, `submission_id`, `repository_reference`, `final_research_title`, `authors`, `abstract`, `publication_type`, `journal_conference`, `doi`, `publication_url`, `ip_information`, `copyright_info`, `patent_info`, `other_ip_info`, `final_pdf_path`, `final_pdf_original`, `supporting_files_json`, `verified_by_user_id`, `verified_by_name`, `verified_at`, `created_at`) VALUES
+INSERT INTO `crad_grant_publications_ip_repository` (`id`, `grant_application_id`, `submission_id`, `repository_reference`, `final_research_title`, `authors`, `abstract`, `publication_type`, `journal_conference`, `doi`, `publication_url`, `ip_information`, `copyright_info`, `patent_info`, `other_ip_info`, `final_pdf_path`, `final_pdf_original`, `supporting_files_json`, `verified_by_user_id`, `verified_by_name`, `verified_at`, `created_at`) VALUES
 (1, 5, 1, 'PIP-2026-001', 'ai analysis', 'Student User', 'adasdsada', 'Journal', 'asdsa', '', 'http://localhost/sms2_system/modules/crad/pages/publications-ip.php', 'sadas', NULL, NULL, NULL, 'C:\\xampp\\htdocs\\sms2_system/storage/uploads/grant_final_output/20fbebfce55289306d6bfbb63c4e3777.pdf', 'OLIVEROS CV.pdf', '[{\"path\":\"C:\\\\xampp\\\\htdocs\\\\sms2_system\\/storage\\/uploads\\/grant_final_output_supporting\\/39c7dccbc6b58439374010ce48077be1.pdf\",\"original_name\":\"Diaz CV.pdf_20260813_105004_0000.pdf\",\"stored_name\":\"39c7dccbc6b58439374010ce48077be1.pdf\"}]', 3, 'User', '2026-08-31 16:40:51', '2026-08-31 16:40:51'),
 (2, 7, 2, 'PIP-2026-002', 'Ai Driven Data Analytics', 'Student User', 'dasdasdas', 'Journal', 'dsadas', '', 'http://localhost/sms2_system/modules/crad/pages/publications-ip.php', 'sadas', 'asd', 'asdas', 'asdas', 'F:\\xampp\\htdocs\\sms2_system/storage/uploads/grant_final_output/64c266a836d68bc4468d4c06689b6aa8.pdf', 'file-sample_150kB.pdf', '[{\"path\":\"F:\\\\xampp\\\\htdocs\\\\sms2_system\\/storage\\/uploads\\/grant_final_output_supporting\\/ae998301f6ce05be4836133a88d19de9.docx\",\"original_name\":\"OJT_PRACTICUM_1_NARRATIVE_REPORT (1) (1).docx\",\"stored_name\":\"ae998301f6ce05be4836133a88d19de9.docx\"}]', 3, 'User', '2026-09-18 03:22:29', '2026-09-18 03:22:29'),
 (3, 8, 3, 'PIP-2026-003', 'Ai Driven Data Analytics', 'Student User', 'asdasdas', 'Journal', 'asdas', '', 'http://localhost/sms2_system/modules/crad/pages/publications-ip.php', 'asdasd', NULL, NULL, NULL, 'F:\\xampp\\htdocs\\sms2_system/storage/uploads/grant_final_output/23adf38391ef58c27b1a14ff52e79263.pdf', 'file-sample_150kB.pdf', '[{\"path\":\"F:\\\\xampp\\\\htdocs\\\\sms2_system\\/storage\\/uploads\\/grant_final_output_supporting\\/12c8f013bad6a439c5187808f9a772fc.docx\",\"original_name\":\"OJT_PRACTICUM_1_NARRATIVE_REPORT (1) (1).docx\",\"stored_name\":\"12c8f013bad6a439c5187808f9a772fc.docx\"}]', 3, 'User', '2026-09-18 03:33:30', '2026-09-18 03:33:30');
 
-ALTER TABLE `grant_publications_ip_repository`
+ALTER TABLE `crad_grant_publications_ip_repository`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_gpip_application` (`grant_application_id`),
   ADD KEY `idx_gpip_reference` (`repository_reference`),
   ADD KEY `idx_gpip_verified` (`verified_at`);
 
-ALTER TABLE `grant_publications_ip_repository`
+ALTER TABLE `crad_grant_publications_ip_repository`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
-DROP TABLE IF EXISTS `research_clearance_notifications`;
-CREATE TABLE `research_clearance_notifications` (
+DROP TABLE IF EXISTS `crad_research_clearance_notifications`;
+CREATE TABLE `crad_research_clearance_notifications` (
   `id` int(10) UNSIGNED NOT NULL,
   `event_key` varchar(190) NOT NULL,
   `recipient_user_id` int(10) UNSIGNED DEFAULT NULL,
@@ -512,22 +512,22 @@ CREATE TABLE `research_clearance_notifications` (
   `created_at` datetime NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT INTO `research_clearance_notifications` (`id`, `event_key`, `recipient_user_id`, `recipient_role`, `recipient_email`, `clearance_id`, `type`, `title`, `body`, `url`, `is_read`, `created_at`) VALUES
+INSERT INTO `crad_research_clearance_notifications` (`id`, `event_key`, `recipient_user_id`, `recipient_role`, `recipient_email`, `clearance_id`, `type`, `title`, `body`, `url`, `is_read`, `created_at`) VALUES
 (9, 'clearance-payment:1', 1354, 'student', '', 0, 'payment_approved', 'College payment approved', 'Your college payment was approved. The O.R. number and remarks are now on your Research Services Clearance form.', '/sms2_system/modules/student-portal/pages/research-clearance.php', 0, '2026-09-19 12:07:01'),
 (15, 'clearance-payment:2', 1354, 'student', '', 0, 'payment_approved', 'Research 2 college payment approved', 'Your Research 2 college payment was approved. The O.R. number and remarks are now on that Research Services Clearance form.', '/sms2_system/modules/student-portal/pages/research-clearance.php', 0, '2026-09-19 13:00:57'),
 (20, 'clearance-payment:3', 1354, 'student', '', 0, 'payment_approved', 'Research 1 collage payment approved', 'Your Research 1 collage payment was approved. The O.R. number and remarks are now on that Research Services Clearance form.', '/sms2_system/modules/student-portal/pages/research-clearance.php', 0, '2026-09-19 13:29:42'),
 (25, 'clearance-payment:4', 1354, 'student', '', 0, 'payment_approved', 'Research 2 collage payment approved', 'Your Research 2 collage payment was approved. The O.R. number and remarks are now on that Research Services Clearance form.', '/sms2_system/modules/student-portal/pages/research-clearance.php', 0, '2026-09-19 13:36:32');
 
-ALTER TABLE `research_clearance_notifications`
+ALTER TABLE `crad_research_clearance_notifications`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_rsc_notif_event` (`event_key`),
   ADD KEY `idx_rsc_notif_recipient` (`recipient_user_id`,`recipient_role`);
 
-ALTER TABLE `research_clearance_notifications`
+ALTER TABLE `crad_research_clearance_notifications`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=30;
 
-DROP TABLE IF EXISTS `research_clearance_payments`;
-CREATE TABLE `research_clearance_payments` (
+DROP TABLE IF EXISTS `crad_research_clearance_payments`;
+CREATE TABLE `crad_research_clearance_payments` (
   `id` int(10) UNSIGNED NOT NULL,
   `research_group_id` int(10) UNSIGNED NOT NULL,
   `research_stage` varchar(20) NOT NULL DEFAULT 'research_1',
@@ -544,17 +544,17 @@ CREATE TABLE `research_clearance_payments` (
   `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-ALTER TABLE `research_clearance_payments`
+ALTER TABLE `crad_research_clearance_payments`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_rcp_group_stage` (`research_group_id`,`research_stage`),
   ADD KEY `idx_rcp_group` (`research_group_id`),
   ADD KEY `idx_rcp_status` (`status`);
 
-ALTER TABLE `research_clearance_payments`
+ALTER TABLE `crad_research_clearance_payments`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
-DROP TABLE IF EXISTS `research_progress_ai_analyses`;
-CREATE TABLE `research_progress_ai_analyses` (
+DROP TABLE IF EXISTS `crad_research_progress_ai_analyses`;
+CREATE TABLE `crad_research_progress_ai_analyses` (
   `id` int(10) UNSIGNED NOT NULL,
   `progress_update_id` int(10) UNSIGNED NOT NULL,
   `attachment_id` int(10) UNSIGNED NOT NULL DEFAULT 0,
@@ -569,7 +569,7 @@ CREATE TABLE `research_progress_ai_analyses` (
   `created_at` datetime NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT INTO `research_progress_ai_analyses` (`id`, `progress_update_id`, `attachment_id`, `milestone_name`, `verdict`, `grammar_quality`, `summary`, `notes_json`, `source`, `analyzed_by`, `analyzed_by_name`, `created_at`) VALUES
+INSERT INTO `crad_research_progress_ai_analyses` (`id`, `progress_update_id`, `attachment_id`, `milestone_name`, `verdict`, `grammar_quality`, `summary`, `notes_json`, `source`, `analyzed_by`, `analyzed_by_name`, `created_at`) VALUES
 (1, 94, 80, 'Chapter 1', 'needs_revision', 'poor', 'Grammar and writing issues were found in Chapter 1. Do not approve until the student revises the notes below.', '[{\"issue\":\"Possible spelling mistake found.\",\"suggestion\":\"Change to: \\\"sec\\\"\",\"example\":\"...VITY Name: Abejuela, John Kenneth C. Yr.&Sec. 4th 41005 Date:08\\/28\\/2026 Activity Ove...\"},{\"issue\":\"“Part time” is usually hyphenated in this context.\",\"suggestion\":\"Change to: \\\"Part-Time\\\"\",\"example\":\"...entation requirements. 2-Hour Time Plan Part Time Points I – Hard Case Scenario 60 minute...\"},{\"issue\":\"Possible spelling mistake found.\",\"suggestion\":\"Change to: \\\"Last Name\\\"\",\"example\":\"...ocument. Submit one PDF\\/DOCX file named LastName_FirstName_Week8_OnlineActivity.  PART I...\"},{\"issue\":\"Possible spelling mistake found.\",\"suggestion\":\"Change to: \\\"First-name\\\"\",\"example\":\"...Submit one PDF\\/DOCX file named LastName_FirstName_Week8_OnlineActivity.  PART I – CASE SC...\"},{\"issue\":\"Possible spelling mistake found.\",\"suggestion\":\"Change to: \\\"Online Activity\\\"\",\"example\":\"...OCX file named LastName_FirstName_Week8_OnlineActivity.  PART I – CASE SCENARIO 60 minutes | 5...\"},{\"issue\":\"Possible spelling mistake found.\",\"suggestion\":\"Change to: \\\"SEES\\\"\",\"example\":\"... Student Enrollment and Records System (SERS). The implementation team has only 14 d...\"},{\"issue\":\"Consider using an em dash in dialogues and enumerations.\",\"suggestion\":\"Change to: \\\"—\\\"\",\"example\":\"...influence the choice of software media. - Unreliable internet connection – Two ca...\"},{\"issue\":\"Consider using an em dash in dialogues and enumerations.\",\"suggestion\":\"Change to: \\\"—\\\"\",\"example\":\"... not depend only on online downloading. - Large installation package – The softwa...\"},{\"issue\":\"Consider using an em dash in dialogues and enumerations.\",\"suggestion\":\"Change to: \\\"—\\\"\",\"example\":\"...oo long and consume a lot of bandwidth. - 60 target computers – The team needs a ...\"},{\"issue\":\"Consider using an em dash in dialogues and enumerations.\",\"suggestion\":\"Change to: \\\"—\\\"\",\"example\":\"... package on many computers efficiently. - Same software version is required – All...\"},{\"issue\":\"Consider using an em dash in dialogues and enumerations.\",\"suggestion\":\"Change to: \\\"—\\\"\",\"example\":\"...compatibility and maintenance problems. - Security of the installer – The team mu...\"},{\"issue\":\"This sentence does not start with an uppercase letter.\",\"suggestion\":\"Change to: \\\"Issue\\\"\",\"example\":\"... is not automatically the best choice.  issue tracking, reporting, or support. Choosi...\"}]', 'grammar_engine', 54, 'Dr. Roberto M. Santos', '2026-09-02 07:55:16'),
 (2, 95, 81, 'Chapter 2', 'needs_revision', 'poor', 'Grammar and writing issues were found in Chapter 2. Do not approve until the student revises the notes below.', '[{\"issue\":\"Possible spelling mistake found.\",\"suggestion\":\"Change to: \\\"sec\\\"\",\"example\":\"...VITY Name: Abejuela, John Kenneth C. Yr.&Sec. 4th 41005 Date:08\\/28\\/2026 Activity Ove...\"},{\"issue\":\"“Part time” is usually hyphenated in this context.\",\"suggestion\":\"Change to: \\\"Part-Time\\\"\",\"example\":\"...entation requirements. 2-Hour Time Plan Part Time Points I – Hard Case Scenario 60 minute...\"},{\"issue\":\"Possible spelling mistake found.\",\"suggestion\":\"Change to: \\\"Last Name\\\"\",\"example\":\"...ocument. Submit one PDF\\/DOCX file named LastName_FirstName_Week8_OnlineActivity.  PART I...\"},{\"issue\":\"Possible spelling mistake found.\",\"suggestion\":\"Change to: \\\"First-name\\\"\",\"example\":\"...Submit one PDF\\/DOCX file named LastName_FirstName_Week8_OnlineActivity.  PART I – CASE SC...\"},{\"issue\":\"Possible spelling mistake found.\",\"suggestion\":\"Change to: \\\"Online Activity\\\"\",\"example\":\"...OCX file named LastName_FirstName_Week8_OnlineActivity.  PART I – CASE SCENARIO 60 minutes | 5...\"},{\"issue\":\"Possible spelling mistake found.\",\"suggestion\":\"Change to: \\\"SEES\\\"\",\"example\":\"... Student Enrollment and Records System (SERS). The implementation team has only 14 d...\"},{\"issue\":\"Consider using an em dash in dialogues and enumerations.\",\"suggestion\":\"Change to: \\\"—\\\"\",\"example\":\"...influence the choice of software media. - Unreliable internet connection – Two ca...\"},{\"issue\":\"Consider using an em dash in dialogues and enumerations.\",\"suggestion\":\"Change to: \\\"—\\\"\",\"example\":\"... not depend only on online downloading. - Large installation package – The softwa...\"},{\"issue\":\"Consider using an em dash in dialogues and enumerations.\",\"suggestion\":\"Change to: \\\"—\\\"\",\"example\":\"...oo long and consume a lot of bandwidth. - 60 target computers – The team needs a ...\"},{\"issue\":\"Consider using an em dash in dialogues and enumerations.\",\"suggestion\":\"Change to: \\\"—\\\"\",\"example\":\"... package on many computers efficiently. - Same software version is required – All...\"},{\"issue\":\"Consider using an em dash in dialogues and enumerations.\",\"suggestion\":\"Change to: \\\"—\\\"\",\"example\":\"...compatibility and maintenance problems. - Security of the installer – The team mu...\"},{\"issue\":\"This sentence does not start with an uppercase letter.\",\"suggestion\":\"Change to: \\\"Issue\\\"\",\"example\":\"... is not automatically the best choice.  issue tracking, reporting, or support. Choosi...\"}]', 'grammar_engine', 54, 'Dr. Roberto M. Santos', '2026-09-02 07:57:44'),
 (3, 97, 83, 'Chapter 1', 'needs_revision', 'fair', 'Grammar and writing issues were found in Chapter 1. Do not approve until the student revises the notes below.', '[{\"issue\":\"To join two clauses or introduce examples, consider using an em dash.\",\"suggestion\":\"Change to: \\\" — \\\"\",\"example\":\"COURSE CODE: PRAC101 Section: BSIT - 4105\\/NA COURSE TITLE: OJT \\/ PRACTICUM 1 ...\"},{\"issue\":\"Possible spelling mistake found.\",\"suggestion\":\"Change to: \\\"GENERA\\\"\",\"example\":\"...t Semester, SY 2026-2027 PROFESSOR: MR. GELERA, EMERSON D. NAME OF STUDENT: ABEJUELA, ...\"},{\"issue\":\"Possible spelling mistake found.\",\"suggestion\":\"Change to: \\\"BENGUELA\\\"\",\"example\":\"...MR. GELERA, EMERSON D. NAME OF STUDENT: ABEJUELA, JOHN KENNETH C. OJT NARRATIVE REPORT  ...\"},{\"issue\":\"Possible spelling mistake found.\",\"suggestion\":\"Change to: \\\"Fundamental\\\"\",\"example\":\"...OJT NARRATIVE REPORT  TOPIC:Session 7 : Fundumental of Web App Security  SPEAKER: MR. MARC ...\"},{\"issue\":\"Possible spelling mistake found.\",\"suggestion\":\"Change to: \\\"TORNADO\\\"\",\"example\":\"... of Web App Security  SPEAKER: MR. MARC TONIDO DURATION: 8:00 AM – 9:30 AM SCREENSHOT ...\"},{\"issue\":\"If the text is a generality, ‘of the’ is not necessary.\",\"suggestion\":\"Change to: \\\"some\\\"\",\"example\":\"...ols such as HTTPS. Lastly, we discussed some of the OWASP Top 10 vulnerabilities. These inc...\"},{\"issue\":\"Possible spelling mistake found.\",\"suggestion\":\"Change to: \\\"AXE\\\"\",\"example\":\"...e Data Exposure, XML External Entities (XXE), Broken Access Control, Security Misco...\"}]', 'grammar_engine', 54, 'Dr. Roberto M. Santos', '2026-09-19 00:36:24'),
@@ -595,15 +595,15 @@ INSERT INTO `research_progress_ai_analyses` (`id`, `progress_update_id`, `attach
 (23, 122, 107, 'Testing', 'needs_revision', 'fair', 'Grammar and writing issues were found in Testing. Do not approve until the student revises the notes below.', '[{\"issue\":\"To join two clauses or introduce examples, consider using an em dash.\",\"suggestion\":\"Change to: \\\" — \\\"\",\"example\":\"COURSE CODE: PRAC101 Section: BSIT - 4105\\/NA COURSE TITLE: OJT \\/ PRACTICUM 1 ...\"},{\"issue\":\"Possible spelling mistake found.\",\"suggestion\":\"Change to: \\\"GENERA\\\"\",\"example\":\"...t Semester, SY 2026-2027 PROFESSOR: MR. GELERA, EMERSON D. NAME OF STUDENT: ABEJUELA, ...\"},{\"issue\":\"Possible spelling mistake found.\",\"suggestion\":\"Change to: \\\"BENGUELA\\\"\",\"example\":\"...MR. GELERA, EMERSON D. NAME OF STUDENT: ABEJUELA, JOHN KENNETH C. OJT NARRATIVE REPORT  ...\"},{\"issue\":\"Possible spelling mistake found.\",\"suggestion\":\"Change to: \\\"Fundamental\\\"\",\"example\":\"...OJT NARRATIVE REPORT  TOPIC:Session 7 : Fundumental of Web App Security  SPEAKER: MR. MARC ...\"},{\"issue\":\"Possible spelling mistake found.\",\"suggestion\":\"Change to: \\\"TORNADO\\\"\",\"example\":\"... of Web App Security  SPEAKER: MR. MARC TONIDO DURATION: 8:00 AM – 9:30 AM SCREENSHOT ...\"},{\"issue\":\"If the text is a generality, ‘of the’ is not necessary.\",\"suggestion\":\"Change to: \\\"some\\\"\",\"example\":\"...ols such as HTTPS. Lastly, we discussed some of the OWASP Top 10 vulnerabilities. These inc...\"},{\"issue\":\"Possible spelling mistake found.\",\"suggestion\":\"Change to: \\\"AXE\\\"\",\"example\":\"...e Data Exposure, XML External Entities (XXE), Broken Access Control, Security Misco...\"}]', 'grammar_engine', 54, 'Dr. Roberto M. Santos', '2026-09-19 13:20:57'),
 (24, 123, 108, 'Documentation', 'needs_revision', 'fair', 'Grammar and writing issues were found in Documentation. Do not approve until the student revises the notes below.', '[{\"issue\":\"To join two clauses or introduce examples, consider using an em dash.\",\"suggestion\":\"Change to: \\\" — \\\"\",\"example\":\"COURSE CODE: PRAC101 Section: BSIT - 4105\\/NA COURSE TITLE: OJT \\/ PRACTICUM 1 ...\"},{\"issue\":\"Possible spelling mistake found.\",\"suggestion\":\"Change to: \\\"GENERA\\\"\",\"example\":\"...t Semester, SY 2026-2027 PROFESSOR: MR. GELERA, EMERSON D. NAME OF STUDENT: ABEJUELA, ...\"},{\"issue\":\"Possible spelling mistake found.\",\"suggestion\":\"Change to: \\\"BENGUELA\\\"\",\"example\":\"...MR. GELERA, EMERSON D. NAME OF STUDENT: ABEJUELA, JOHN KENNETH C. OJT NARRATIVE REPORT  ...\"},{\"issue\":\"Possible spelling mistake found.\",\"suggestion\":\"Change to: \\\"Fundamental\\\"\",\"example\":\"...OJT NARRATIVE REPORT  TOPIC:Session 7 : Fundumental of Web App Security  SPEAKER: MR. MARC ...\"},{\"issue\":\"Possible spelling mistake found.\",\"suggestion\":\"Change to: \\\"TORNADO\\\"\",\"example\":\"... of Web App Security  SPEAKER: MR. MARC TONIDO DURATION: 8:00 AM – 9:30 AM SCREENSHOT ...\"},{\"issue\":\"If the text is a generality, ‘of the’ is not necessary.\",\"suggestion\":\"Change to: \\\"some\\\"\",\"example\":\"...ols such as HTTPS. Lastly, we discussed some of the OWASP Top 10 vulnerabilities. These inc...\"},{\"issue\":\"Possible spelling mistake found.\",\"suggestion\":\"Change to: \\\"AXE\\\"\",\"example\":\"...e Data Exposure, XML External Entities (XXE), Broken Access Control, Security Misco...\"}]', 'grammar_engine', 54, 'Dr. Roberto M. Santos', '2026-09-19 13:21:07');
 
-ALTER TABLE `research_progress_ai_analyses`
+ALTER TABLE `crad_research_progress_ai_analyses`
   ADD PRIMARY KEY (`id`),
   ADD KEY `idx_rpai_update` (`progress_update_id`,`id`);
 
-ALTER TABLE `research_progress_ai_analyses`
+ALTER TABLE `crad_research_progress_ai_analyses`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=25;
 
-DROP TABLE IF EXISTS `research_services_clearances`;
-CREATE TABLE `research_services_clearances` (
+DROP TABLE IF EXISTS `crad_research_services_clearances`;
+CREATE TABLE `crad_research_services_clearances` (
   `id` int(10) UNSIGNED NOT NULL,
   `research_group_id` int(10) UNSIGNED NOT NULL,
   `research_stage` varchar(20) NOT NULL DEFAULT 'research_1',
@@ -643,13 +643,13 @@ CREATE TABLE `research_services_clearances` (
   `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-ALTER TABLE `research_services_clearances`
+ALTER TABLE `crad_research_services_clearances`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_rsc_group_stage` (`research_group_id`,`research_stage`),
   ADD KEY `idx_rsc_status` (`status`),
   ADD KEY `idx_rsc_adviser` (`adviser_user_id`);
 
-ALTER TABLE `research_services_clearances`
+ALTER TABLE `crad_research_services_clearances`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 SET FOREIGN_KEY_CHECKS = 1;

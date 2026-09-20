@@ -28,8 +28,7 @@ For web/database deployment, run both SQL dumps with:
      php database/migrate.php
 
 This runner calls:
-  - database/sms2_db.sql
-  - modules/crad/database/crad_db.sql
+  - database/sms2_db.sql  (combined: sms_* + crad_* tables in ONE database)
 
 HostForge:
   - Choose MySQL in the database step. HostForge's MySQL option is MariaDB,
@@ -37,13 +36,15 @@ HostForge:
   - Do not choose PostgreSQL; these schema dumps are MySQL/MariaDB SQL.
   - HostForge-injected DB_HOST, DB_PORT, DB_DATABASE, DB_USERNAME,
     DB_PASSWORD, DB_CONNECTION, and DB_CHARSET are supported automatically.
+  - Import database/sms2_db.sql into the HostForge database (hf_db_*). Do NOT
+    create a separate crad_db — CRAD tables (crad_*) live in the same DB.
   - After the first successful deployment, open the web terminal and run:
 
      php database/migrate.php
 
 It creates/uses the configured database name from environment variables, then
-records the applied dump hashes in schema_migrations. If CRAD_DB_NAME is not
-set, the CRAD tables are installed into the same HostForge database as SMS2.
+records the applied dump hashes in schema_migrations. CRAD always uses the same
+database as SMS2 (DB_NAME). Never create crad_db.
 
 Useful options:
   - --fresh  Drop and rebuild both databases. DESTROYS DATA.

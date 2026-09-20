@@ -1515,21 +1515,21 @@ INSERT INTO `crad_research_groups` (`id`, `proposal_id`, `title_approval_id`, `p
 --
 DELIMITER $$
 CREATE TRIGGER `trg_research_groups_panel_notifications_after_delete` AFTER DELETE ON `crad_research_groups` FOR EACH ROW BEGIN
-                DELETE FROM panel_assignment_notifications
+                DELETE FROM crad_panel_assignment_notifications
                 WHERE research_group_id = OLD.id;
             END
 $$
 DELIMITER ;
 DELIMITER $$
 CREATE TRIGGER `trg_research_groups_preoral_evals_after_delete` AFTER DELETE ON `crad_research_groups` FOR EACH ROW BEGIN
-                DELETE FROM preoral_defense_evaluations
+                DELETE FROM crad_preoral_defense_evaluations
                 WHERE research_group_id = OLD.id;
             END
 $$
 DELIMITER ;
 DELIMITER $$
 CREATE TRIGGER `trg_research_groups_preoral_evaluations_after_delete` AFTER DELETE ON `crad_research_groups` FOR EACH ROW BEGIN
-                DELETE FROM preoral_defense_evaluations
+                DELETE FROM crad_preoral_defense_evaluations
                 WHERE research_group_id = OLD.id;
             END
 $$
@@ -2174,7 +2174,7 @@ INSERT INTO `crad_research_progress_feedback` (`id`, `progress_update_id`, `mile
 
 CREATE TABLE `crad_research_progress_notifications` (
   `id` int(10) UNSIGNED NOT NULL,
-  `recipient_user_id` int(10) UNSIGNED DEFAULT NULL COMMENT 'FK to sms2_db.users.id (NULL = role-based)',
+  `recipient_user_id` int(10) UNSIGNED DEFAULT NULL COMMENT 'FK to sms_users.id (NULL = role-based)',
   `recipient_email` varchar(200) NOT NULL DEFAULT '',
   `recipient_role` varchar(40) NOT NULL DEFAULT '',
   `batch_key` varchar(100) NOT NULL DEFAULT '' COMMENT 'Unique key per event for deduplication',
@@ -2525,13 +2525,13 @@ CREATE TABLE `crad_title_approvals` (
 --
 DELIMITER $$
 CREATE TRIGGER `trg_title_approvals_after_delete` AFTER DELETE ON `crad_title_approvals` FOR EACH ROW BEGIN
-            DELETE FROM research_coordinator_assignments
+            DELETE FROM crad_research_coordinator_assignments
              WHERE (title_approval_id IS NOT NULL AND title_approval_id = OLD.id)
                 OR (OLD.student_id IS NOT NULL AND OLD.student_id <> '' AND student_id = OLD.student_id)
                 OR (OLD.student_id IS NOT NULL AND OLD.student_id <> '' AND group_number = CONCAT('STU-', OLD.student_id))
                 OR (OLD.proposal_number IS NOT NULL AND OLD.proposal_number <> '' AND proposal_number = OLD.proposal_number);
 
-            DELETE FROM research_adviser_assignments
+            DELETE FROM crad_research_adviser_assignments
              WHERE (OLD.student_id IS NOT NULL AND OLD.student_id <> '' AND student_id = OLD.student_id)
                 OR (OLD.student_id IS NOT NULL AND OLD.student_id <> '' AND group_number = CONCAT('STU-', OLD.student_id))
                 OR (OLD.proposal_number IS NOT NULL AND OLD.proposal_number <> '' AND proposal_number = OLD.proposal_number);

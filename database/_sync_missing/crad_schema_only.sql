@@ -2,7 +2,7 @@
 
 SET NAMES utf8mb4;
 
-CREATE TABLE IF NOT EXISTS `grant_document_repository` (
+CREATE TABLE IF NOT EXISTS `crad_grant_document_repository` (
   `id` int(10) UNSIGNED NOT NULL,
   `grant_application_id` int(10) UNSIGNED NOT NULL,
   `archive_reference` varchar(40) NOT NULL DEFAULT '',
@@ -14,16 +14,16 @@ CREATE TABLE IF NOT EXISTS `grant_document_repository` (
   `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-ALTER TABLE `grant_document_repository`
+ALTER TABLE `crad_grant_document_repository`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_gdr_application` (`grant_application_id`),
   ADD KEY `idx_gdr_reference` (`archive_reference`),
   ADD KEY `idx_gdr_archived` (`archived_at`);
 
-ALTER TABLE `grant_document_repository`
+ALTER TABLE `crad_grant_document_repository`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT;
 
-CREATE TABLE IF NOT EXISTS `grant_document_repository_items` (
+CREATE TABLE IF NOT EXISTS `crad_grant_document_repository_items` (
   `id` int(10) UNSIGNED NOT NULL,
   `repository_id` int(10) UNSIGNED NOT NULL,
   `grant_application_id` int(10) UNSIGNED NOT NULL,
@@ -39,16 +39,16 @@ CREATE TABLE IF NOT EXISTS `grant_document_repository_items` (
   `created_at` datetime NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-ALTER TABLE `grant_document_repository_items`
+ALTER TABLE `crad_grant_document_repository_items`
   ADD PRIMARY KEY (`id`),
   ADD KEY `idx_gdri_repository` (`repository_id`),
   ADD KEY `idx_gdri_application` (`grant_application_id`),
   ADD KEY `idx_gdri_category` (`category`);
 
-ALTER TABLE `grant_document_repository_items`
+ALTER TABLE `crad_grant_document_repository_items`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT;
 
-CREATE TABLE IF NOT EXISTS `grant_final_output_submissions` (
+CREATE TABLE IF NOT EXISTS `crad_grant_final_output_submissions` (
   `id` int(10) UNSIGNED NOT NULL,
   `grant_application_id` int(10) UNSIGNED NOT NULL,
   `version_number` int(10) UNSIGNED NOT NULL DEFAULT 1,
@@ -79,16 +79,16 @@ CREATE TABLE IF NOT EXISTS `grant_final_output_submissions` (
   `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-ALTER TABLE `grant_final_output_submissions`
+ALTER TABLE `crad_grant_final_output_submissions`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_gfos_application` (`grant_application_id`),
   ADD KEY `idx_gfos_status` (`status`),
   ADD KEY `idx_gfos_submitted` (`submitted_at`);
 
-ALTER TABLE `grant_final_output_submissions`
+ALTER TABLE `crad_grant_final_output_submissions`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT;
 
-CREATE TABLE IF NOT EXISTS `grant_funded_progress_evidence` (
+CREATE TABLE IF NOT EXISTS `crad_grant_funded_progress_evidence` (
   `id` int(10) UNSIGNED NOT NULL,
   `grant_application_id` int(10) UNSIGNED NOT NULL,
   `milestone_id` int(10) UNSIGNED DEFAULT NULL,
@@ -103,16 +103,16 @@ CREATE TABLE IF NOT EXISTS `grant_funded_progress_evidence` (
   `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-ALTER TABLE `grant_funded_progress_evidence`
+ALTER TABLE `crad_grant_funded_progress_evidence`
   ADD PRIMARY KEY (`id`),
   ADD KEY `idx_gfpe_application` (`grant_application_id`),
   ADD KEY `idx_gfpe_milestone` (`milestone_id`),
   ADD KEY `idx_gfpe_created` (`created_at`);
 
-ALTER TABLE `grant_funded_progress_evidence`
+ALTER TABLE `crad_grant_funded_progress_evidence`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT;
 
-CREATE TABLE IF NOT EXISTS `grant_funded_project_milestones` (
+CREATE TABLE IF NOT EXISTS `crad_grant_funded_project_milestones` (
   `id` int(10) UNSIGNED NOT NULL,
   `grant_application_id` int(10) UNSIGNED NOT NULL,
   `milestone_order` tinyint(3) UNSIGNED NOT NULL DEFAULT 1,
@@ -129,16 +129,16 @@ CREATE TABLE IF NOT EXISTS `grant_funded_project_milestones` (
   `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-ALTER TABLE `grant_funded_project_milestones`
+ALTER TABLE `crad_grant_funded_project_milestones`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_gfpm_app_order` (`grant_application_id`,`milestone_order`),
   ADD KEY `idx_gfpm_application` (`grant_application_id`),
   ADD KEY `idx_gfpm_status` (`status`);
 
-ALTER TABLE `grant_funded_project_milestones`
+ALTER TABLE `crad_grant_funded_project_milestones`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT;
 
-CREATE TABLE IF NOT EXISTS `grant_funding_disbursements` (
+CREATE TABLE IF NOT EXISTS `crad_grant_funding_disbursements` (
   `id` int(10) UNSIGNED NOT NULL,
   `grant_application_id` int(10) UNSIGNED NOT NULL,
   `tranche_number` tinyint(3) UNSIGNED NOT NULL DEFAULT 1,
@@ -155,16 +155,16 @@ CREATE TABLE IF NOT EXISTS `grant_funding_disbursements` (
   `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-ALTER TABLE `grant_funding_disbursements`
+ALTER TABLE `crad_grant_funding_disbursements`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_gfd_app_tranche` (`grant_application_id`,`tranche_number`),
   ADD KEY `idx_gfd_application` (`grant_application_id`),
   ADD KEY `idx_gfd_status` (`status`);
 
-ALTER TABLE `grant_funding_disbursements`
+ALTER TABLE `crad_grant_funding_disbursements`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT;
 
-CREATE TABLE IF NOT EXISTS `grant_proposal_approval_steps` (
+CREATE TABLE IF NOT EXISTS `crad_grant_proposal_approval_steps` (
   `id` int(10) UNSIGNED NOT NULL,
   `workflow_id` int(10) UNSIGNED NOT NULL,
   `grant_application_id` int(10) UNSIGNED NOT NULL,
@@ -182,17 +182,17 @@ CREATE TABLE IF NOT EXISTS `grant_proposal_approval_steps` (
   `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-ALTER TABLE `grant_proposal_approval_steps`
+ALTER TABLE `crad_grant_proposal_approval_steps`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_gpas_workflow_step` (`workflow_id`,`step_key`),
   ADD KEY `idx_gpas_application` (`grant_application_id`),
   ADD KEY `idx_gpas_status` (`status`),
   ADD KEY `idx_gpas_role` (`approver_role_key`);
 
-ALTER TABLE `grant_proposal_approval_steps`
+ALTER TABLE `crad_grant_proposal_approval_steps`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT;
 
-CREATE TABLE IF NOT EXISTS `grant_proposal_approval_workflows` (
+CREATE TABLE IF NOT EXISTS `crad_grant_proposal_approval_workflows` (
   `id` int(10) UNSIGNED NOT NULL,
   `grant_application_id` int(10) UNSIGNED NOT NULL,
   `current_step_key` varchar(40) NOT NULL DEFAULT 'adviser',
@@ -202,16 +202,16 @@ CREATE TABLE IF NOT EXISTS `grant_proposal_approval_workflows` (
   `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-ALTER TABLE `grant_proposal_approval_workflows`
+ALTER TABLE `crad_grant_proposal_approval_workflows`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_gpaw_application` (`grant_application_id`),
   ADD KEY `idx_gpaw_status` (`workflow_status`),
   ADD KEY `idx_gpaw_current_step` (`current_step_key`);
 
-ALTER TABLE `grant_proposal_approval_workflows`
+ALTER TABLE `crad_grant_proposal_approval_workflows`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT;
 
-CREATE TABLE IF NOT EXISTS `grant_proposal_evaluations` (
+CREATE TABLE IF NOT EXISTS `crad_grant_proposal_evaluations` (
   `id` int(10) UNSIGNED NOT NULL,
   `grant_application_id` int(10) UNSIGNED NOT NULL,
   `proposal_version` int(10) UNSIGNED NOT NULL DEFAULT 1 COMMENT 'Proposal version evaluated',
@@ -233,17 +233,17 @@ CREATE TABLE IF NOT EXISTS `grant_proposal_evaluations` (
   `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-ALTER TABLE `grant_proposal_evaluations`
+ALTER TABLE `crad_grant_proposal_evaluations`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_gpe_app_eval_ver` (`grant_application_id`,`evaluator_user_id`,`proposal_version`),
   ADD KEY `idx_gpe_application` (`grant_application_id`),
   ADD KEY `idx_gpe_evaluator` (`evaluator_user_id`),
   ADD KEY `idx_gpe_submitted` (`submitted_at`);
 
-ALTER TABLE `grant_proposal_evaluations`
+ALTER TABLE `crad_grant_proposal_evaluations`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT;
 
-CREATE TABLE IF NOT EXISTS `grant_proposal_notifications` (
+CREATE TABLE IF NOT EXISTS `crad_grant_proposal_notifications` (
   `id` int(10) UNSIGNED NOT NULL,
   `event_key` varchar(120) NOT NULL,
   `recipient_user_id` int(10) UNSIGNED DEFAULT NULL,
@@ -258,17 +258,17 @@ CREATE TABLE IF NOT EXISTS `grant_proposal_notifications` (
   `created_at` datetime NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-ALTER TABLE `grant_proposal_notifications`
+ALTER TABLE `crad_grant_proposal_notifications`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_gpn_event` (`event_key`),
   ADD KEY `idx_gpn_recipient_user` (`recipient_user_id`),
   ADD KEY `idx_gpn_application` (`grant_application_id`),
   ADD KEY `idx_gpn_created` (`created_at`);
 
-ALTER TABLE `grant_proposal_notifications`
+ALTER TABLE `crad_grant_proposal_notifications`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT;
 
-CREATE TABLE IF NOT EXISTS `grant_proposal_versions` (
+CREATE TABLE IF NOT EXISTS `crad_grant_proposal_versions` (
   `id` int(10) UNSIGNED NOT NULL,
   `grant_application_id` int(10) UNSIGNED NOT NULL,
   `version_number` int(10) UNSIGNED NOT NULL,
@@ -286,16 +286,16 @@ CREATE TABLE IF NOT EXISTS `grant_proposal_versions` (
   `submitted_at` datetime NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-ALTER TABLE `grant_proposal_versions`
+ALTER TABLE `crad_grant_proposal_versions`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_gpv_app_ver` (`grant_application_id`,`version_number`),
   ADD KEY `idx_gpv_application` (`grant_application_id`),
   ADD KEY `idx_gpv_submitted` (`submitted_at`);
 
-ALTER TABLE `grant_proposal_versions`
+ALTER TABLE `crad_grant_proposal_versions`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT;
 
-CREATE TABLE IF NOT EXISTS `grant_publications_ip_repository` (
+CREATE TABLE IF NOT EXISTS `crad_grant_publications_ip_repository` (
   `id` int(10) UNSIGNED NOT NULL,
   `grant_application_id` int(10) UNSIGNED NOT NULL,
   `submission_id` int(10) UNSIGNED NOT NULL,
@@ -320,16 +320,16 @@ CREATE TABLE IF NOT EXISTS `grant_publications_ip_repository` (
   `created_at` datetime NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-ALTER TABLE `grant_publications_ip_repository`
+ALTER TABLE `crad_grant_publications_ip_repository`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_gpip_application` (`grant_application_id`),
   ADD KEY `idx_gpip_reference` (`repository_reference`),
   ADD KEY `idx_gpip_verified` (`verified_at`);
 
-ALTER TABLE `grant_publications_ip_repository`
+ALTER TABLE `crad_grant_publications_ip_repository`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT;
 
-CREATE TABLE IF NOT EXISTS `research_clearance_notifications` (
+CREATE TABLE IF NOT EXISTS `crad_research_clearance_notifications` (
   `id` int(10) UNSIGNED NOT NULL,
   `event_key` varchar(190) NOT NULL,
   `recipient_user_id` int(10) UNSIGNED DEFAULT NULL,
@@ -344,15 +344,15 @@ CREATE TABLE IF NOT EXISTS `research_clearance_notifications` (
   `created_at` datetime NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-ALTER TABLE `research_clearance_notifications`
+ALTER TABLE `crad_research_clearance_notifications`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_rsc_notif_event` (`event_key`),
   ADD KEY `idx_rsc_notif_recipient` (`recipient_user_id`,`recipient_role`);
 
-ALTER TABLE `research_clearance_notifications`
+ALTER TABLE `crad_research_clearance_notifications`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT;
 
-CREATE TABLE IF NOT EXISTS `research_clearance_payments` (
+CREATE TABLE IF NOT EXISTS `crad_research_clearance_payments` (
   `id` int(10) UNSIGNED NOT NULL,
   `research_group_id` int(10) UNSIGNED NOT NULL,
   `research_stage` varchar(20) NOT NULL DEFAULT 'research_1',
@@ -369,16 +369,16 @@ CREATE TABLE IF NOT EXISTS `research_clearance_payments` (
   `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-ALTER TABLE `research_clearance_payments`
+ALTER TABLE `crad_research_clearance_payments`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_rcp_group_stage` (`research_group_id`,`research_stage`),
   ADD KEY `idx_rcp_group` (`research_group_id`),
   ADD KEY `idx_rcp_status` (`status`);
 
-ALTER TABLE `research_clearance_payments`
+ALTER TABLE `crad_research_clearance_payments`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT;
 
-CREATE TABLE IF NOT EXISTS `research_progress_ai_analyses` (
+CREATE TABLE IF NOT EXISTS `crad_research_progress_ai_analyses` (
   `id` int(10) UNSIGNED NOT NULL,
   `progress_update_id` int(10) UNSIGNED NOT NULL,
   `attachment_id` int(10) UNSIGNED NOT NULL DEFAULT 0,
@@ -393,14 +393,14 @@ CREATE TABLE IF NOT EXISTS `research_progress_ai_analyses` (
   `created_at` datetime NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-ALTER TABLE `research_progress_ai_analyses`
+ALTER TABLE `crad_research_progress_ai_analyses`
   ADD PRIMARY KEY (`id`),
   ADD KEY `idx_rpai_update` (`progress_update_id`,`id`);
 
-ALTER TABLE `research_progress_ai_analyses`
+ALTER TABLE `crad_research_progress_ai_analyses`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT;
 
-CREATE TABLE IF NOT EXISTS `research_services_clearances` (
+CREATE TABLE IF NOT EXISTS `crad_research_services_clearances` (
   `id` int(10) UNSIGNED NOT NULL,
   `research_group_id` int(10) UNSIGNED NOT NULL,
   `research_stage` varchar(20) NOT NULL DEFAULT 'research_1',
@@ -440,13 +440,13 @@ CREATE TABLE IF NOT EXISTS `research_services_clearances` (
   `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-ALTER TABLE `research_services_clearances`
+ALTER TABLE `crad_research_services_clearances`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `uniq_rsc_group_stage` (`research_group_id`,`research_stage`),
   ADD KEY `idx_rsc_status` (`status`),
   ADD KEY `idx_rsc_adviser` (`adviser_user_id`);
 
-ALTER TABLE `research_services_clearances`
+ALTER TABLE `crad_research_services_clearances`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 SET FOREIGN_KEY_CHECKS=1;
