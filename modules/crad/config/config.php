@@ -47,11 +47,12 @@ if (!defined('CRAD_DB_PORT')) {
     ));
 }
 if (!defined('CRAD_DB_NAME')) {
-    // HostForge / shared hosting: use the main app database (crad_* prefixed tables).
-    // Local XAMPP may still override with CRAD_DB_NAME=crad_db in config/local.php.
+    // Prefer env. Default remains legacy "crad_db" for local XAMPP (separate schema).
+    // On HostForge, either set CRAD_DB_NAME=DB_NAME or rely on runtime fallback when
+    // crad_db is missing (see getCradDatabaseConnection).
     define('CRAD_DB_NAME', crad_db_setting(
         ['CRAD_DB_NAME', 'SMS2_DB_NAME', 'DB_DATABASE', 'DB_NAME', 'MYSQL_DATABASE', 'MARIADB_DATABASE'],
-        ['DB_NAME'],
+        [],
         'crad_db'
     ));
 }
