@@ -4,7 +4,12 @@
  * Run this ONCE via browser: /sms2_system/modules/crad/database/install.php
  * or via CLI:  php modules/crad/database/install.php
  *
- * Creates the crad_db database and all required tables.
+ * Creates/selects CRAD_DB_NAME and imports modules/crad/database/crad_db.sql.
+ *
+ * HostForge / shared hosting:
+ *   - Do NOT run this to create a new "crad_db" schema (CREATE DATABASE is often denied).
+ *   - Point CRAD_DB_NAME at the same database as DB_NAME and import crad_* tables
+ *     via HostForge SQL (database/hostforge_add_kenneth_tables.sql or crad_db.sql).
  */
 
 declare(strict_types=1);

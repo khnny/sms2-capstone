@@ -19,7 +19,10 @@ define('DB_USER', 'root');
 define('DB_PASS', '');
 define('DB_CHARSET', 'utf8mb4');
 
-// Optional module databases. These default to the main DB host/user/password.
+// Optional module databases (local XAMPP with separate schemas).
+// On HostForge / shared hosting: use ONE database — set every *_DB_NAME to the
+// same value as DB_NAME (see config/local.hostforge.example.php). Never leave
+// CRAD_DB_NAME as crad_db on HostForge; that database usually does not exist.
 define('CRAD_DB_NAME', 'crad_db');
 define('STUDENT_PORTAL_DB_NAME', 'student_portal_db');
 define('REPORTS_DB_NAME', 'reports_db');
