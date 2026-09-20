@@ -7,27 +7,81 @@
 declare(strict_types=1);
 
 require_once dirname(__DIR__, 3) . '/config/config.php';
+// Load main SMS DB constants (from env and/or config/local.php) so CRAD can reuse them.
+require_once dirname(__DIR__, 3) . '/config/database.php';
+
+/**
+ * Resolve a CRAD DB setting: env → already-defined CRAD_* → main DB_* → default.
+ */
+if (!function_exists('crad_db_setting')) {
+    function crad_db_setting(array $envKeys, array $constantFallbacks, string $default): string
+    {
+        $fromEnv = sms2_env_first($envKeys, null);
+        if ($fromEnv !== null && $fromEnv !== '') {
+            return $fromEnv;
+        }
+        foreach ($constantFallbacks as $constant) {
+            if (defined($constant)) {
+                $value = constant($constant);
+                if (is_string($value) && $value !== '') {
+                    return $value;
+                }
+            }
+        }
+        return $default;
+    }
+}
 
 if (!defined('CRAD_DB_HOST')) {
-    define('CRAD_DB_HOST', sms2_env_first(['CRAD_DB_HOST', 'SMS2_DB_HOST', 'DB_HOST', 'MYSQL_HOST', 'MARIADB_HOST'], 'localhost'));
+    define('CRAD_DB_HOST', crad_db_setting(
+        ['CRAD_DB_HOST', 'SMS2_DB_HOST', 'DB_HOST', 'MYSQL_HOST', 'MARIADB_HOST'],
+        ['DB_HOST'],
+        'localhost'
+    ));
 }
 if (!defined('CRAD_DB_PORT')) {
-    define('CRAD_DB_PORT', sms2_env_first(['CRAD_DB_PORT', 'SMS2_DB_PORT', 'DB_PORT', 'MYSQL_PORT', 'MARIADB_PORT'], '3306'));
+    define('CRAD_DB_PORT', crad_db_setting(
+        ['CRAD_DB_PORT', 'SMS2_DB_PORT', 'DB_PORT', 'MYSQL_PORT', 'MARIADB_PORT'],
+        ['DB_PORT'],
+        '3306'
+    ));
 }
 if (!defined('CRAD_DB_NAME')) {
-    define('CRAD_DB_NAME', sms2_env_first(['CRAD_DB_NAME', 'SMS2_DB_NAME', 'DB_DATABASE', 'DB_NAME', 'MYSQL_DATABASE', 'MARIADB_DATABASE'], 'crad_db'));
+    // HostForge / shared hosting: use the main app database (crad_* prefixed tables).
+    // Local XAMPP may still override with CRAD_DB_NAME=crad_db in config/local.php.
+    define('CRAD_DB_NAME', crad_db_setting(
+        ['CRAD_DB_NAME', 'SMS2_DB_NAME', 'DB_DATABASE', 'DB_NAME', 'MYSQL_DATABASE', 'MARIADB_DATABASE'],
+        ['DB_NAME'],
+        'crad_db'
+    ));
 }
 if (!defined('CRAD_DB_USER')) {
-    define('CRAD_DB_USER', sms2_env_first(['CRAD_DB_USER', 'SMS2_DB_USER', 'DB_USERNAME', 'DB_USER', 'MYSQL_USER', 'MARIADB_USER'], 'root'));
+    define('CRAD_DB_USER', crad_db_setting(
+        ['CRAD_DB_USER', 'SMS2_DB_USER', 'DB_USERNAME', 'DB_USER', 'MYSQL_USER', 'MARIADB_USER'],
+        ['DB_USER'],
+        'root'
+    ));
 }
 if (!defined('CRAD_DB_PASS')) {
-    define('CRAD_DB_PASS', sms2_env_first(['CRAD_DB_PASS', 'SMS2_DB_PASS', 'DB_PASSWORD', 'DB_PASS', 'MYSQL_PASSWORD', 'MARIADB_PASSWORD'], ''));
+    define('CRAD_DB_PASS', crad_db_setting(
+        ['CRAD_DB_PASS', 'SMS2_DB_PASS', 'DB_PASSWORD', 'DB_PASS', 'MYSQL_PASSWORD', 'MARIADB_PASSWORD'],
+        ['DB_PASS'],
+        ''
+    ));
 }
 if (!defined('CRAD_DB_CHARSET')) {
-    define('CRAD_DB_CHARSET', sms2_env_first(['CRAD_DB_CHARSET', 'SMS2_DB_CHARSET', 'DB_CHARSET'], 'utf8mb4'));
+    define('CRAD_DB_CHARSET', crad_db_setting(
+        ['CRAD_DB_CHARSET', 'SMS2_DB_CHARSET', 'DB_CHARSET'],
+        ['DB_CHARSET'],
+        'utf8mb4'
+    ));
 }
 if (!defined('CRAD_DB_CONNECTION')) {
-    define('CRAD_DB_CONNECTION', strtolower((string) sms2_env_first(['CRAD_DB_CONNECTION', 'SMS2_DB_CONNECTION', 'DB_CONNECTION'], 'mysql')));
+    define('CRAD_DB_CONNECTION', strtolower(crad_db_setting(
+        ['CRAD_DB_CONNECTION', 'SMS2_DB_CONNECTION', 'DB_CONNECTION'],
+        ['DB_CONNECTION'],
+        'mysql'
+    )));
 }
 if (!defined('CRAD_PHASE_1ST_SEM')) {
     define('CRAD_PHASE_1ST_SEM', '1st Semester');
@@ -49,7 +103,61 @@ if (!defined('CRAD_DEFENSE_PHASE_FINAL')) {
 }
 
 /**
+ * Classify a PDO connection error for logs / safe user messages (no credentials).
+ *
+ * @return array{code:string,message:string}
+ */
+function cradClassifyDbError(Throwable $e, string $dbName): array
+{
+    $raw = $e->getMessage();
+    $sqlState = ($e instanceof PDOException && isset($e->errorInfo[0])) ? (string) $e->errorInfo[0] : '';
+    $driverCode = ($e instanceof PDOException && isset($e->errorInfo[1])) ? (int) $e->errorInfo[1] : 0;
+
+    if (!extension_loaded('pdo_mysql')) {
+        return ['code' => 'missing_driver', 'message' => 'PHP PDO MySQL driver is not enabled on this server.'];
+    }
+    if ($driverCode === 1049 || stripos($raw, 'Unknown database') !== false) {
+        return [
+            'code' => 'unknown_database',
+            'message' => 'Database "' . $dbName . '" does not exist on the MySQL server. On HostForge, point CRAD_DB_NAME at the same database as DB_NAME (crad_* tables live there).',
+        ];
+    }
+    if ($driverCode === 1045 || stripos($raw, 'Access denied') !== false) {
+        return ['code' => 'access_denied', 'message' => 'MySQL rejected the configured database user (access denied). Check DB_USER permissions for this database.'];
+    }
+    if ($driverCode === 2002 || stripos($raw, 'Connection refused') !== false) {
+        return ['code' => 'connection_refused', 'message' => 'MySQL connection refused. Check DB_HOST / DB_PORT (hosting providers often use a remote hostname, not localhost).'];
+    }
+    if ($driverCode === 2003 || stripos($raw, 'getaddrinfo') !== false || stripos($raw, 'Name or service not known') !== false) {
+        return ['code' => 'host_unreachable', 'message' => 'MySQL host is unreachable. Verify DB_HOST from the hosting panel.'];
+    }
+    if ($sqlState === 'HY000' || $driverCode > 0) {
+        return ['code' => 'sql_error', 'message' => 'MySQL error while opening the CRAD database connection (see server error log).'];
+    }
+
+    return ['code' => 'unknown', 'message' => 'CRAD database connection failed (see server error log).'];
+}
+
+/**
+ * Open a PDO connection to a named database using the resolved CRAD credentials.
+ */
+function cradOpenPdo(string $dbName): PDO
+{
+    $dsn = 'mysql:host=' . CRAD_DB_HOST . ';port=' . CRAD_DB_PORT . ';dbname=' . $dbName . ';charset=' . CRAD_DB_CHARSET;
+
+    return new PDO($dsn, CRAD_DB_USER, CRAD_DB_PASS, [
+        PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        PDO::ATTR_EMULATE_PREPARES   => false,
+    ]);
+}
+
+/**
  * Get CRAD database connection (singleton).
+ *
+ * Uses the same host/user as the main SMS app when possible. If CRAD_DB_NAME is
+ * still the legacy "crad_db" and that schema is missing (typical on HostForge
+ * single-DB plans), falls back once to DB_NAME where crad_* tables are stored.
  *
  * @return PDO
  * @throws RuntimeException when connection fails
@@ -68,21 +176,46 @@ function getCradDatabaseConnection(): PDO
         );
     }
 
-    $dsn = 'mysql:host=' . CRAD_DB_HOST . ';port=' . CRAD_DB_PORT . ';dbname=' . CRAD_DB_NAME . ';charset=' . CRAD_DB_CHARSET;
+    if (!extension_loaded('pdo_mysql')) {
+        error_log('CRAD DB connection failed: pdo_mysql extension missing');
+        throw new RuntimeException('PHP PDO MySQL driver is not enabled on this server.');
+    }
+
+    $primaryName = CRAD_DB_NAME;
+    $fallbackName = (defined('DB_NAME') && is_string(DB_NAME) && DB_NAME !== '' && DB_NAME !== $primaryName)
+        ? DB_NAME
+        : null;
 
     try {
-        $pdo = new PDO($dsn, CRAD_DB_USER, CRAD_DB_PASS, [
-            PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-            PDO::ATTR_EMULATE_PREPARES   => false,
-        ]);
+        try {
+            $pdo = cradOpenPdo($primaryName);
+        } catch (PDOException $first) {
+            $classified = cradClassifyDbError($first, $primaryName);
+            // Legacy misconfig: CRAD_DB_NAME=crad_db on a host that only has the main DB.
+            if (
+                $classified['code'] === 'unknown_database'
+                && $fallbackName !== null
+                && ($primaryName === 'crad_db' || str_ends_with($primaryName, '_crad_db'))
+            ) {
+                error_log(
+                    'CRAD DB "' . $primaryName . '" missing; falling back to main DB_NAME="' . $fallbackName . '". '
+                    . 'Set CRAD_DB_NAME to the same value as DB_NAME in config/local.php or hosting env.'
+                );
+                $pdo = cradOpenPdo($fallbackName);
+            } else {
+                error_log('CRAD DB connection failed [' . $classified['code'] . ']: ' . $first->getMessage());
+                throw new RuntimeException($classified['message'], 0, $first);
+            }
+        }
+
         cradEnsurePanelNotificationDeleteTrigger($pdo);
         cradCleanupPreoralEvaluationsForInvalidRegistry($pdo);
+    } catch (RuntimeException $e) {
+        throw $e;
     } catch (PDOException $e) {
-        error_log('CRAD DB connection failed: ' . $e->getMessage());
-        throw new RuntimeException(
-            'CRAD database unavailable. Run modules/crad/database/install.php or create crad_db in MySQL.'
-        );
+        $classified = cradClassifyDbError($e, $primaryName);
+        error_log('CRAD DB connection failed [' . $classified['code'] . ']: ' . $e->getMessage());
+        throw new RuntimeException($classified['message'], 0, $e);
     }
 
     return $pdo;
@@ -285,7 +418,7 @@ function cradEnsurePanelNotificationDeleteTrigger(PDO $pdo): void
 
         $pdo->exec("
             CREATE TRIGGER trg_research_groups_panel_notifications_after_delete
-            AFTER DELETE ON research_groups
+            AFTER DELETE ON crad_research_groups
             FOR EACH ROW
             BEGIN
                 DELETE FROM crad_panel_assignment_notifications
@@ -793,7 +926,7 @@ function cradEnsureTitleApprovalAdviserAssignmentConsistency(PDO $pdo, bool $rec
     $pdo->exec('DROP TRIGGER IF EXISTS trg_title_approvals_after_delete');
     $pdo->exec("
         CREATE TRIGGER trg_title_approvals_after_delete
-        AFTER DELETE ON title_approvals
+        AFTER DELETE ON crad_title_approvals
         FOR EACH ROW
         BEGIN
             DELETE FROM crad_research_coordinator_assignments
