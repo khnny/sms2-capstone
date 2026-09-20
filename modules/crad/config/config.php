@@ -138,11 +138,43 @@ function cradUsesSeparateDatabase(): bool
         || CRAD_DB_PASS !== DB_PASS;
 }
 
+// #region agent log
+/** Debug NDJSON logger (no secrets). */
+function cradAgentDebugLog(string $hypothesisId, string $location, string $message, array $data = []): void
+{
+    $payload = [
+        'sessionId' => '928c04',
+        'hypothesisId' => $hypothesisId,
+        'location' => $location,
+        'message' => $message,
+        'data' => $data,
+        'timestamp' => (int) round(microtime(true) * 1000),
+        'runId' => 'pre-fix',
+    ];
+    $line = json_encode($payload, JSON_UNESCAPED_SLASHES);
+    if ($line === false) {
+        return;
+    }
+    $root = dirname(__DIR__, 3);
+    @file_put_contents($root . '/debug-928c04.log', $line . "\n", FILE_APPEND | LOCK_EX);
+    @file_put_contents($root . '/storage/debug-928c04.log', $line . "\n", FILE_APPEND | LOCK_EX);
+}
+// #endregion
+
 /**
  * Open a PDO connection with explicit CRAD credentials (split-DB / installer only).
  */
 function cradOpenPdo(string $dbName): PDO
 {
+    // #region agent log
+    cradAgentDebugLog('A', 'config.php:cradOpenPdo', 'cradOpenPdo called', [
+        'dbName' => $dbName,
+        'host' => CRAD_DB_HOST,
+        'port' => CRAD_DB_PORT,
+        'user' => CRAD_DB_USER,
+        'hostLooksInternal' => str_contains(CRAD_DB_HOST, '.internal'),
+    ]);
+    // #endregion
     $dsn = 'mysql:host=' . CRAD_DB_HOST . ';port=' . CRAD_DB_PORT . ';dbname=' . $dbName . ';charset=' . CRAD_DB_CHARSET;
 
     return new PDO($dsn, CRAD_DB_USER, CRAD_DB_PASS, [
@@ -176,18 +208,47 @@ function getCradDatabaseConnection(): PDO
         throw new RuntimeException('PHP PDO MySQL driver is not enabled on this server.');
     }
 
+    // #region agent log
+    $localPhp = dirname(__DIR__, 3) . '/config/local.php';
+    cradAgentDebugLog('B', 'config.php:getCradDatabaseConnection', 'CRAD connection resolve', [
+        'DB_HOST' => defined('DB_HOST') ? DB_HOST : null,
+        'DB_NAME' => defined('DB_NAME') ? DB_NAME : null,
+        'DB_USER' => defined('DB_USER') ? DB_USER : null,
+        'CRAD_DB_HOST' => CRAD_DB_HOST,
+        'CRAD_DB_NAME' => CRAD_DB_NAME,
+        'CRAD_DB_USER' => CRAD_DB_USER,
+        'separate' => cradUsesSeparateDatabase(),
+        'localPhpExists' => is_readable($localPhp),
+        'env_DB_HOST' => (string) (getenv('DB_HOST') ?: ''),
+        'env_DB_NAME' => (string) (getenv('DB_NAME') ?: ''),
+        'env_DB_DATABASE' => (string) (getenv('DB_DATABASE') ?: ''),
+        'env_CRAD_DB_HOST' => (string) (getenv('CRAD_DB_HOST') ?: ''),
+        'env_CRAD_DB_NAME' => (string) (getenv('CRAD_DB_NAME') ?: ''),
+    ]);
+    // #endregion
+
     try {
-        if (!cradUsesSeparateDatabase()) {
-            // Unified schema (production / HostForge with crad_* in sms2_db).
-            $pdo = getDatabaseConnection();
-        } else {
-            if (!in_array(CRAD_DB_CONNECTION, ['mysql', 'mariadb'], true)) {
-                throw new RuntimeException(
-                    'Unsupported CRAD database connection "' . CRAD_DB_CONNECTION . '".'
-                );
-            }
-            $pdo = cradOpenPdo(CRAD_DB_NAME);
+        // Always reuse main SMS PDO. The separate cradOpenPdo() branch was connecting to
+        // HostForge hf_db_* + mariadb-*.internal and failing DNS (stack line cradOpenPdo).
+        // #region agent log
+        cradAgentDebugLog('C', 'config.php:getCradDatabaseConnection', 'using getDatabaseConnection (unified)', [
+            'ignoredSeparateFlag' => cradUsesSeparateDatabase(),
+        ]);
+        // #endregion
+        $pdo = getDatabaseConnection();
+
+        // #region agent log
+        try {
+            $activeDb = (string) $pdo->query('SELECT DATABASE()')->fetchColumn();
+            cradAgentDebugLog('D', 'config.php:getCradDatabaseConnection', 'main PDO connected', [
+                'activeDatabase' => $activeDb,
+            ]);
+        } catch (Throwable $probeEx) {
+            cradAgentDebugLog('D', 'config.php:getCradDatabaseConnection', 'main PDO probe failed', [
+                'error' => $probeEx->getMessage(),
+            ]);
         }
+        // #endregion
 
         if (!$hooksDone) {
             $hooksDone = true;
@@ -195,9 +256,21 @@ function getCradDatabaseConnection(): PDO
             cradCleanupPreoralEvaluationsForInvalidRegistry($pdo);
         }
     } catch (RuntimeException $e) {
+        // #region agent log
+        cradAgentDebugLog('E', 'config.php:getCradDatabaseConnection', 'RuntimeException', [
+            'error' => $e->getMessage(),
+        ]);
+        // #endregion
         throw $e;
     } catch (PDOException $e) {
-        $classified = cradClassifyDbError($e, CRAD_DB_NAME);
+        $classified = cradClassifyDbError($e, defined('DB_NAME') ? (string) DB_NAME : CRAD_DB_NAME);
+        // #region agent log
+        cradAgentDebugLog('E', 'config.php:getCradDatabaseConnection', 'PDOException', [
+            'code' => $classified['code'],
+            'error' => $e->getMessage(),
+            'safeMessage' => $classified['message'],
+        ]);
+        // #endregion
         error_log('CRAD DB connection failed [' . $classified['code'] . ']: ' . $e->getMessage());
         throw new RuntimeException($classified['message'], 0, $e);
     }
