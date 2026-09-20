@@ -1,7 +1,10 @@
 <?php
 /**
  * CRAD Module - Database Configuration
- * Separate database for research proposal tracking
+ *
+ * HostForge / production: CRAD uses the SAME database as SMS (DB_NAME), with
+ * crad_* table prefixes. Do not point this at a separate crad_db schema unless
+ * you intentionally run split databases on local XAMPP.
  */
 
 declare(strict_types=1);
@@ -47,13 +50,12 @@ if (!defined('CRAD_DB_PORT')) {
     ));
 }
 if (!defined('CRAD_DB_NAME')) {
-    // Prefer env. Default remains legacy "crad_db" for local XAMPP (separate schema).
-    // On HostForge, either set CRAD_DB_NAME=DB_NAME or rely on runtime fallback when
-    // crad_db is missing (see getCradDatabaseConnection).
+    // Same DB as the main app (sms2_db / HostForge DB) — crad_* tables live there.
+    // Override only if you still use a separate local schema: define('CRAD_DB_NAME', 'crad_db').
     define('CRAD_DB_NAME', crad_db_setting(
         ['CRAD_DB_NAME', 'SMS2_DB_NAME', 'DB_DATABASE', 'DB_NAME', 'MYSQL_DATABASE', 'MARIADB_DATABASE'],
-        [],
-        'crad_db'
+        ['DB_NAME'],
+        'sms2_db'
     ));
 }
 if (!defined('CRAD_DB_USER')) {
@@ -182,27 +184,35 @@ function getCradDatabaseConnection(): PDO
         throw new RuntimeException('PHP PDO MySQL driver is not enabled on this server.');
     }
 
-    $primaryName = CRAD_DB_NAME;
-    $fallbackName = (defined('DB_NAME') && is_string(DB_NAME) && DB_NAME !== '' && DB_NAME !== $primaryName)
-        ? DB_NAME
-        : null;
+    // Prefer the resolved CRAD name; if legacy crad_db is configured but the main
+    // SMS database is different, try the main DB first (unified HostForge layout).
+    $configuredName = CRAD_DB_NAME;
+    $mainName = (defined('DB_NAME') && is_string(DB_NAME) && DB_NAME !== '') ? DB_NAME : null;
+    $legacySplit = ($configuredName === 'crad_db' || str_ends_with($configuredName, '_crad_db'));
+    $primaryName = ($legacySplit && $mainName !== null && $mainName !== $configuredName)
+        ? $mainName
+        : $configuredName;
+    $fallbackName = ($primaryName !== $configuredName) ? $configuredName : (
+        ($mainName !== null && $mainName !== $primaryName) ? $mainName : null
+    );
 
     try {
         try {
             $pdo = cradOpenPdo($primaryName);
         } catch (PDOException $first) {
             $classified = cradClassifyDbError($first, $primaryName);
-            // Legacy misconfig: CRAD_DB_NAME=crad_db on a host that only has the main DB.
-            if (
-                $classified['code'] === 'unknown_database'
-                && $fallbackName !== null
-                && ($primaryName === 'crad_db' || str_ends_with($primaryName, '_crad_db'))
-            ) {
+            if ($classified['code'] === 'unknown_database' && $fallbackName !== null) {
                 error_log(
-                    'CRAD DB "' . $primaryName . '" missing; falling back to main DB_NAME="' . $fallbackName . '". '
-                    . 'Set CRAD_DB_NAME to the same value as DB_NAME in config/local.php or hosting env.'
+                    'CRAD DB "' . $primaryName . '" missing; trying "' . $fallbackName . '". '
+                    . 'Set CRAD_DB_NAME to the same value as DB_NAME (unified sms2_db / HostForge DB).'
                 );
-                $pdo = cradOpenPdo($fallbackName);
+                try {
+                    $pdo = cradOpenPdo($fallbackName);
+                } catch (PDOException $second) {
+                    $classified2 = cradClassifyDbError($second, $fallbackName);
+                    error_log('CRAD DB connection failed [' . $classified2['code'] . ']: ' . $second->getMessage());
+                    throw new RuntimeException($classified2['message'], 0, $second);
+                }
             } else {
                 error_log('CRAD DB connection failed [' . $classified['code'] . ']: ' . $first->getMessage());
                 throw new RuntimeException($classified['message'], 0, $first);
