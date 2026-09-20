@@ -1,30 +1,35 @@
 <?php
 /**
- * HostForge — copy to config/local.php on the server ONLY if the panel does not
- * already inject DB_* via environment variables.
+ * Production / HostForge — copy to config/local.php on the server.
  *
- * HostForge uses ONE MariaDB database for SMS + CRAD. Tables are prefixed:
- *   sms_users, crad_title_approvals, crad_chapter_submissions, ...
+ * IMPORTANT:
+ * HostForge may inject environment variables such as:
+ *   DB_HOST=mariadb-xxxxx.internal
+ *   DB_NAME=hf_db_xxxxx
+ * Those *.internal hostnames often fail DNS (getaddrinfo / Name or service not known)
+ * and hf_db_* is NOT the database name this project uses for CRAD tables.
  *
- * Do NOT create a separate crad_db database. Do NOT set CRAD_DB_NAME to crad_db.
+ * This project keeps CRAD tables (crad_*) inside sms2_db.
+ * config/local.php constants win over platform env for the main app, and CRAD
+ * reuses that same connection via getDatabaseConnection().
  *
- * Replace the placeholder values with the exact host / database / user from
- * the HostForge MySQL panel. Never commit real passwords.
+ * Fill in the SAME host/user/password that already work for sms2_db in your
+ * hosting panel / phpMyAdmin. Do NOT invent values. Do NOT commit real passwords.
  */
 
 declare(strict_types=1);
 
-// Leave BASE_URL unset to auto-detect from the request path.
+// Leave BASE_URL unset to auto-detect, or set your public app path.
 // define('BASE_URL', '');
 
-define('DB_HOST', 'YOUR_HOSTFORGE_MYSQL_HOST');
+define('DB_HOST', 'PASTE_WORKING_MYSQL_HOST_FOR_sms2_db');
 define('DB_PORT', '3306');
-define('DB_NAME', 'YOUR_HOSTFORGE_DATABASE_NAME');
-define('DB_USER', 'YOUR_HOSTFORGE_DATABASE_USER');
-define('DB_PASS', 'YOUR_HOSTFORGE_DATABASE_PASSWORD');
+define('DB_NAME', 'sms2_db');
+define('DB_USER', 'PASTE_WORKING_MYSQL_USER_FOR_sms2_db');
+define('DB_PASS', 'PASTE_WORKING_MYSQL_PASSWORD');
 define('DB_CHARSET', 'utf8mb4');
 
-// Same database as DB_NAME — required on HostForge (shared / centralized DB).
+// CRAD must use the same database — do not set crad_db or hf_db_*.
 define('CRAD_DB_HOST', DB_HOST);
 define('CRAD_DB_PORT', DB_PORT);
 define('CRAD_DB_NAME', DB_NAME);

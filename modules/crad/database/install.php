@@ -1,17 +1,15 @@
 <?php
 /**
  * CRAD Module — Database Installer
- * Run this ONCE via browser: /sms2_system/modules/crad/database/install.php
- * or via CLI:  php modules/crad/database/install.php
  *
- * Creates/selects CRAD_DB_NAME and imports modules/crad/database/crad_db.sql.
+ * Imports modules/crad/database/crad_db.sql into CRAD_DB_NAME.
  *
- * HostForge / shared hosting:
- *   - Do NOT run this to create a new "crad_db" schema (CREATE DATABASE is often denied).
- *   - Point CRAD_DB_NAME at the same database as DB_NAME and import crad_* tables
- *     via HostForge SQL (database/hostforge_add_kenneth_tables.sql or crad_db.sql).
+ * Production (sms2_db unified):
+ *   - Do NOT create crad_db.
+ *   - Do NOT run CREATE DATABASE if CRAD_DB_NAME is already your live sms2_db.
+ *   - Prefer importing only missing crad_* tables via HostForge SQL / phpMyAdmin
+ *     using database/hostforge_add_kenneth_tables.sql or crad_db.sql.
  */
-
 declare(strict_types=1);
 
 require_once __DIR__ . '/../config/config.php';
@@ -37,6 +35,7 @@ $pass    = CRAD_DB_PASS;
 $dbName  = CRAD_DB_NAME;
 $charset = CRAD_DB_CHARSET;
 $sqlFile = __DIR__ . '/crad_db.sql';
+$unifiedWithMain = defined('DB_NAME') && DB_NAME === $dbName;
 
 if (!$isCli) {
     echo '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
@@ -49,13 +48,17 @@ if (!$isCli) {
         .err { background: #fee2e2; color: #991b1b; }
         .fin { background: #dbeafe; color: #1e40af; font-weight: 700; margin-top: 1.2rem; }
     </style></head><body>
-    <h1>🔧 CRAD Module — Database Installer</h1>';
+    <h1>CRAD Module — Database Installer</h1>';
+}
+
+if ($unifiedWithMain) {
+    out('Unified mode: installing into main DB `' . $dbName . '` (no separate crad_db).');
 }
 
 // ── Step 1: Connect without selecting a database ─────────────────────────────
 try {
     $pdo = new PDO(
-        'mysql:host=' . $host . ';charset=' . $charset,
+        'mysql:host=' . $host . ';port=' . CRAD_DB_PORT . ';charset=' . $charset,
         $user,
         $pass,
         [
@@ -70,17 +73,21 @@ try {
     exit(1);
 }
 
-// ── Step 2: Create database ───────────────────────────────────────────────────
-try {
-    $pdo->exec(
-        'CREATE DATABASE IF NOT EXISTS `' . $dbName . '`
-         CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci'
-    );
-    out('Database `' . $dbName . '` ready (created or already existed)');
-} catch (PDOException $e) {
-    out('Failed to create database: ' . $e->getMessage(), false);
-    if (!$isCli) { echo '</body></html>'; }
-    exit(1);
+// ── Step 2: Create database ONLY when not using the live main schema ─────────
+if ($unifiedWithMain || $dbName === 'sms2_db') {
+    out('Skipping CREATE DATABASE for `' . $dbName . '` (existing application database).');
+} else {
+    try {
+        $pdo->exec(
+            'CREATE DATABASE IF NOT EXISTS `' . str_replace('`', '``', $dbName) . '`
+             CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci'
+        );
+        out('Database `' . $dbName . '` ready (created or already existed)');
+    } catch (PDOException $e) {
+        out('Failed to create database: ' . $e->getMessage(), false);
+        if (!$isCli) { echo '</body></html>'; }
+        exit(1);
+    }
 }
 
 // ── Step 3: Select database ───────────────────────────────────────────────────
