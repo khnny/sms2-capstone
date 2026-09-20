@@ -90,33 +90,13 @@ function chapterRegisteredStudentGroup(PDO $crad): ?array
 {
     $identity = chapterRegistryStudentIdentity();
 
-    // #region agent log
-    if (function_exists('cradAgentDebugLog')) {
-        $rgExists = false;
-        try {
-            $rgExists = (bool) $crad->query("SHOW TABLES LIKE 'crad_research_groups'")->fetchColumn();
-        } catch (Throwable $e) {
-            $rgExists = false;
-        }
-        cradAgentDebugLog('G', 'chapter-evaluation-workflow.php:chapterRegisteredStudentGroup', 'before registry query', [
-            'crad_research_groups_exists' => $rgExists,
-            'hasStudentId' => $identity['student_id'] !== '',
-            'hasEmail' => $identity['email'] !== '',
-        ]);
-        if (!$rgExists) {
-            cradAgentDebugLog('A', 'chapter-evaluation-workflow.php:chapterRegisteredStudentGroup', 'missing crad_research_groups — abort query', []);
+    try {
+        if (!(bool) $crad->query("SHOW TABLES LIKE 'crad_research_groups'")->fetchColumn()) {
             return null;
         }
-    } else {
-        try {
-            if (!(bool) $crad->query("SHOW TABLES LIKE 'crad_research_groups'")->fetchColumn()) {
-                return null;
-            }
-        } catch (Throwable $e) {
-            return null;
-        }
+    } catch (Throwable $e) {
+        return null;
     }
-    // #endregion
 
     $stmt = $crad->prepare(
         "SELECT rg.*, rp.id AS research_plan_id, rp.status AS plan_status,
@@ -492,45 +472,6 @@ function chapterDb(): PDO
 {
     $crad = getCradDatabaseConnection();
     chapterEnsureSchema($crad);
-
-    // #region agent log
-    if (function_exists('cradAgentDebugLog')) {
-        try {
-            $dbName = (string) $crad->query('SELECT DATABASE()')->fetchColumn();
-            $needed = [
-                'crad_research_groups',
-                'crad_title_approvals',
-                'crad_research_coordinator_assignments',
-                'crad_research_adviser_assignments',
-                'crad_research_plans',
-                'crad_chapter_submissions',
-            ];
-            $present = [];
-            $missing = [];
-            foreach ($needed as $table) {
-                $exists = (bool) $crad->query('SHOW TABLES LIKE ' . $crad->quote($table))->fetchColumn();
-                if ($exists) {
-                    $present[] = $table;
-                } else {
-                    $missing[] = $table;
-                }
-            }
-            $allCrad = $crad->query("SHOW TABLES LIKE 'crad_%'")->fetchAll(PDO::FETCH_COLUMN) ?: [];
-            cradAgentDebugLog('F', 'chapter-evaluation-workflow.php:chapterDb', 'CRAD table inventory after ensure', [
-                'database' => $dbName,
-                'present' => $present,
-                'missing' => $missing,
-                'cradTableCount' => count($allCrad),
-                'cradTablesSample' => array_slice($allCrad, 0, 30),
-            ]);
-        } catch (Throwable $e) {
-            cradAgentDebugLog('F', 'chapter-evaluation-workflow.php:chapterDb', 'table inventory failed', [
-                'error' => $e->getMessage(),
-            ]);
-        }
-    }
-    // #endregion
-
     return $crad;
 }
 
