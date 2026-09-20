@@ -24,6 +24,7 @@ echo "CRAD_DB_PORT: " . CRAD_DB_PORT . PHP_EOL;
 echo "CRAD_DB_NAME: " . CRAD_DB_NAME . PHP_EOL;
 echo "CRAD_DB_USER: " . CRAD_DB_USER . PHP_EOL;
 echo "CRAD_DB_PASS: " . (CRAD_DB_PASS === '' ? '(empty)' : '(set, hidden)') . PHP_EOL;
+echo "CRAD separate DB: " . (cradUsesSeparateDatabase() ? 'yes' : 'no (reuses main PDO)') . PHP_EOL;
 
 try {
     $sms = getDatabaseConnection();
