@@ -36,8 +36,14 @@ HostForge:
   - Do not choose PostgreSQL; these schema dumps are MySQL/MariaDB SQL.
   - HostForge-injected DB_HOST, DB_PORT, DB_DATABASE, DB_USERNAME,
     DB_PASSWORD, DB_CONNECTION, and DB_CHARSET are supported automatically.
-  - Import database/sms2_db.sql into the HostForge database (hf_db_*). Do NOT
-    create a separate crad_db — CRAD tables (crad_*) live in the same DB.
+  - Import into the HostForge database (hf_db_*). Do NOT create crad_db —
+    CRAD tables (crad_*) live in the same DB.
+  - phpMyAdmin: do NOT use database/sms2_db.sql (DELIMITER/triggers break the
+    importer). Use database/imports/ instead:
+       01_sms_tables.sql then 02_crad_tables.sql
+    Or one file: database/imports/sms2_db_phpmyadmin_safe.sql
+    See database/imports/README.txt.
+  - CLI / migrate.php can still use database/sms2_db.sql (includes triggers).
   - After the first successful deployment, open the web terminal and run:
 
      php database/migrate.php
@@ -68,5 +74,5 @@ InfinityFree has no SSH, so use the web deploy helper instead of CLI migrate.
 7. Open: https://YOUR-SITE.infinityfreeapp.com/setup/ and create the Super Admin.
 8. Remove SMS2_DEPLOY_TOKEN from config/local.php after migration succeeds.
 
-Alternative: import database/sms2_db.sql and modules/crad/database/crad_db.sql
-via phpMyAdmin instead of step 6.
+Alternative: import database/imports/01_sms_tables.sql then
+database/imports/02_crad_tables.sql via phpMyAdmin instead of step 6.
