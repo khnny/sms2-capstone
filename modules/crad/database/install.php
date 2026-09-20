@@ -2,13 +2,11 @@
 /**
  * CRAD Module — Database Installer
  *
- * Imports modules/crad/database/crad_db.sql into CRAD_DB_NAME.
+ * Imports crad_* tables into the MAIN application database (DB_NAME / sms2_db).
+ * Never creates a separate crad_db database.
  *
- * Production (sms2_db unified):
- *   - Do NOT create crad_db.
- *   - Do NOT run CREATE DATABASE if CRAD_DB_NAME is already your live sms2_db.
- *   - Prefer importing only missing crad_* tables via HostForge SQL / phpMyAdmin
- *     using database/hostforge_add_kenneth_tables.sql or crad_db.sql.
+ * Prefer importing the combined dump: database/sms2_db.sql
+ * Or this module extract: modules/crad/database/crad_db.sql (crad_* only).
  */
 declare(strict_types=1);
 
@@ -73,22 +71,9 @@ try {
     exit(1);
 }
 
-// ── Step 2: Create database ONLY when not using the live main schema ─────────
-if ($unifiedWithMain || $dbName === 'sms2_db') {
-    out('Skipping CREATE DATABASE for `' . $dbName . '` (existing application database).');
-} else {
-    try {
-        $pdo->exec(
-            'CREATE DATABASE IF NOT EXISTS `' . str_replace('`', '``', $dbName) . '`
-             CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci'
-        );
-        out('Database `' . $dbName . '` ready (created or already existed)');
-    } catch (PDOException $e) {
-        out('Failed to create database: ' . $e->getMessage(), false);
-        if (!$isCli) { echo '</body></html>'; }
-        exit(1);
-    }
-}
+// ── Step 2: Never create crad_db — always use the existing app database ───────
+out('Skipping CREATE DATABASE (unified sms2_db / DB_NAME only; no crad_db).');
+
 
 // ── Step 3: Select database ───────────────────────────────────────────────────
 try {
