@@ -54,7 +54,12 @@ if (!defined('CRAD_DB_PORT')) {
     define('CRAD_DB_PORT', crad_db_setting('CRAD_DB_PORT', ['DB_PORT'], '3306'));
 }
 if (!defined('CRAD_DB_NAME')) {
-    define('CRAD_DB_NAME', crad_db_setting('CRAD_DB_NAME', ['DB_NAME'], 'sms2_db'));
+    // Always the main app database — never a separate crad_db schema.
+    $cradDbName = crad_db_setting('CRAD_DB_NAME', ['DB_NAME'], 'sms2_db');
+    if ($cradDbName === 'crad_db' && defined('DB_NAME') && is_string(DB_NAME) && DB_NAME !== '') {
+        $cradDbName = DB_NAME;
+    }
+    define('CRAD_DB_NAME', $cradDbName);
 }
 if (!defined('CRAD_DB_USER')) {
     define('CRAD_DB_USER', crad_db_setting('CRAD_DB_USER', ['DB_USER'], 'root'));
