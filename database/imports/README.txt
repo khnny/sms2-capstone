@@ -12,12 +12,25 @@ Prefer this path when using HostForge's own database import upload (not phpMyAdm
 
 Steps:
 1. Wait until the database status shows Running.
-2. Open HostForge Database Import UI for your existing hf_db_* database.
-3. Upload hostforge_import.sql (not the full safe dump / split files).
-4. Confirm tables exist (sms_* + crad_*). Run app setup to create admin if needed.
+2. Open HostForge Database Import UI for your existing hf_db_* / sms2_db database.
+3. Upload hostforge_import.sql (schema + roles/settings).
+4. Upload hostforge_demo_users.sql (demo logins with known passwords).
+5. Confirm tables exist (sms_* + crad_*). Login with demo accounts (no /setup needed).
+
+Demo logins (after hostforge_demo_users.sql):
+  - superadmin / @Superadmin123
+  - cradofficer / @Cradofficer123
+  - deptchair / @Department123
+  - depthead / @Depthead123
+  - s230000001 / @Kenneth8080
 
 Do NOT upload sms2_db_phpmyadmin_safe.sql (~1.2 MB) to HostForge Import UI --
 it often fails with "file may not be a dump it recognises."
+
+HostForge Database Import UI files
+----------------------------------
+  - hostforge_import.sql       (~86 KB)  -- lean schema + tiny seed
+  - hostforge_demo_users.sql   (~18 KB)  -- demo accounts (upload 2nd)
 
 phpMyAdmin / larger dumps (optional)
 ------------------------------------
