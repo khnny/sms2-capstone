@@ -3114,6 +3114,15 @@ ALTER TABLE `sms_admin_announcements`
   ADD KEY `idx_ann_audience` (`audience`);
 
 --
+-- Indexes for table `sms_login_throttles`
+--
+ALTER TABLE `sms_login_throttles`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_login_throttle_key` (`throttle_key`),
+  ADD KEY `idx_login_throttle_ip` (`ip_address`),
+  ADD KEY `idx_login_throttle_locked` (`locked_until`);
+
+--
 -- Indexes for table `sms_password_resets`
 --
 ALTER TABLE `sms_password_resets`
@@ -3205,6 +3214,12 @@ ALTER TABLE `sms_activity_logs`
 -- AUTO_INCREMENT for table `sms_admin_announcements`
 --
 ALTER TABLE `sms_admin_announcements`
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `sms_login_throttles`
+--
+ALTER TABLE `sms_login_throttles`
   MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --

@@ -5,8 +5,37 @@
 
 declare(strict_types=1);
 
+/**
+ * Detect HTTPS behind reverse proxies (HostForge, Cloudflare, load balancers).
+ */
+if (!function_exists('smsRequestIsHttps')) {
+    function smsRequestIsHttps(): bool
+    {
+        if (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') {
+            return true;
+        }
+        if ((int) ($_SERVER['SERVER_PORT'] ?? 0) === 443) {
+            return true;
+        }
+        $forwarded = strtolower((string) ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? ''));
+        if ($forwarded !== '') {
+            // May be a comma-separated list; first hop is the client-facing scheme.
+            $first = trim(explode(',', $forwarded)[0]);
+            if ($first === 'https') {
+                return true;
+            }
+        }
+        $forwardedSsl = strtolower((string) ($_SERVER['HTTP_X_FORWARDED_SSL'] ?? ''));
+        if ($forwardedSsl === 'on' || $forwardedSsl === '1') {
+            return true;
+        }
+
+        return false;
+    }
+}
+
 if (session_status() === PHP_SESSION_NONE) {
-    $secure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off');
+    $secure = smsRequestIsHttps();
 
     session_name('SMS2SESSID');
 

@@ -10,6 +10,100 @@ require_once __DIR__ . '/audit.php';
 require_once __DIR__ . '/icons.php';
 
 /**
+ * Ensure login throttle table exists and is structurally valid.
+ * Repairs incomplete phpMyAdmin dumps (missing AUTO_INCREMENT / keys).
+ */
+function smsEnsureLoginThrottleTables(): void
+{
+    $pdo = db();
+    if (!$pdo) {
+        return;
+    }
+
+    try {
+        $pdo->exec(
+            'CREATE TABLE IF NOT EXISTS sms_login_throttles (
+                id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+                throttle_key CHAR(64) NOT NULL,
+                ip_address VARCHAR(45) NOT NULL,
+                attempts INT UNSIGNED NOT NULL DEFAULT 0,
+                locked_until DATETIME NULL,
+                updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                UNIQUE KEY uq_login_throttle_key (throttle_key),
+                KEY idx_login_throttle_ip (ip_address),
+                KEY idx_login_throttle_locked (locked_until)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
+        );
+    } catch (Throwable $e) {
+        error_log('smsEnsureLoginThrottleTables: ' . $e->getMessage());
+    }
+
+    // CREATE TABLE IF NOT EXISTS will not fix an already-broken HostForge import.
+    try {
+        $idCol = $pdo->query("SHOW COLUMNS FROM sms_login_throttles LIKE 'id'")->fetch(PDO::FETCH_ASSOC);
+        if (!$idCol) {
+            return;
+        }
+
+        $extra = strtolower((string) ($idCol['Extra'] ?? ''));
+        $hasAi = str_contains($extra, 'auto_increment');
+
+        $pk = $pdo->query(
+            "SHOW KEYS FROM sms_login_throttles WHERE Key_name = 'PRIMARY'"
+        )->fetch(PDO::FETCH_ASSOC);
+
+        if (!$hasAi) {
+            if (!$pk) {
+                $pdo->exec(
+                    'ALTER TABLE sms_login_throttles
+                     MODIFY id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+                     ADD PRIMARY KEY (id)'
+                );
+            } else {
+                $pdo->exec(
+                    'ALTER TABLE sms_login_throttles
+                     MODIFY id INT UNSIGNED NOT NULL AUTO_INCREMENT'
+                );
+            }
+        } elseif (!$pk) {
+            $pdo->exec('ALTER TABLE sms_login_throttles ADD PRIMARY KEY (id)');
+        }
+
+        $uq = $pdo->query(
+            "SHOW KEYS FROM sms_login_throttles WHERE Key_name = 'uq_login_throttle_key'"
+        )->fetch(PDO::FETCH_ASSOC);
+        if (!$uq) {
+            $pdo->exec(
+                'DELETE t1 FROM sms_login_throttles t1
+                 INNER JOIN sms_login_throttles t2
+                   ON t1.throttle_key = t2.throttle_key AND t1.id > t2.id'
+            );
+            $pdo->exec(
+                'ALTER TABLE sms_login_throttles
+                 ADD UNIQUE KEY uq_login_throttle_key (throttle_key)'
+            );
+        }
+
+        $idxIp = $pdo->query(
+            "SHOW KEYS FROM sms_login_throttles WHERE Key_name = 'idx_login_throttle_ip'"
+        )->fetch(PDO::FETCH_ASSOC);
+        if (!$idxIp) {
+            $pdo->exec('ALTER TABLE sms_login_throttles ADD KEY idx_login_throttle_ip (ip_address)');
+        }
+
+        $idxLock = $pdo->query(
+            "SHOW KEYS FROM sms_login_throttles WHERE Key_name = 'idx_login_throttle_locked'"
+        )->fetch(PDO::FETCH_ASSOC);
+        if (!$idxLock) {
+            $pdo->exec('ALTER TABLE sms_login_throttles ADD KEY idx_login_throttle_locked (locked_until)');
+        }
+    } catch (Throwable $e) {
+        error_log('smsEnsureLoginThrottleTables repair: ' . $e->getMessage());
+    }
+}
+
+/**
  * Ensure security-related tables exist (safe to call repeatedly).
  */
 function smsEnsureSecurityTables(): void
@@ -76,24 +170,7 @@ function smsEnsureSecurityTables(): void
         // ignore
     }
 
-    try {
-        $pdo->exec(
-            'CREATE TABLE IF NOT EXISTS sms_login_throttles (
-                id INT UNSIGNED NOT NULL AUTO_INCREMENT,
-                throttle_key CHAR(64) NOT NULL,
-                ip_address VARCHAR(45) NOT NULL,
-                attempts INT UNSIGNED NOT NULL DEFAULT 0,
-                locked_until DATETIME NULL,
-                updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                PRIMARY KEY (id),
-                UNIQUE KEY uq_login_throttle_key (throttle_key),
-                KEY idx_login_throttle_ip (ip_address),
-                KEY idx_login_throttle_locked (locked_until)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
-        );
-    } catch (Throwable $e) {
-        error_log('smsEnsureSecurityTables login_throttles: ' . $e->getMessage());
-    }
+    smsEnsureLoginThrottleTables();
 
     if (function_exists('smsEnsureAuthenticatorTable')) {
         smsEnsureAuthenticatorTable();

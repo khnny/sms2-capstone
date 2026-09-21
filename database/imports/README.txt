@@ -27,6 +27,8 @@ If import still fails
 - "Table already exists": drop sms_* and crad_* tables first, or empty the DB, then re-import.
 - Timeout: import 01 then 02 separately; wait for each to finish.
 - Wrong DB: you must import into the same DB named in config/local.php (DB_NAME).
+- Login error "Field 'id' doesn't have a default value": deploy updated PHP
+  (auto-repairs sms_login_throttles) or run ../hostforge_fix_login_throttles.sql once.
 
 Triggers are optional; the app recreates needed CRAD notification triggers at runtime.
 Full dump with triggers (CLI only): ../sms2_db.sql

@@ -15,10 +15,10 @@ RewriteRule ^up$ up.php [END]
 </IfModule>
 
 <IfModule mod_php.c>
-    php_value post_max_size 16M
-    php_value upload_max_filesize 16M
+    php_value post_max_size 24M
+    php_value upload_max_filesize 24M
 </IfModule>
 <IfModule mod_php8.c>
-    php_value post_max_size 16M
-    php_value upload_max_filesize 16M
+    php_value post_max_size 24M
+    php_value upload_max_filesize 24M
 </IfModule>
