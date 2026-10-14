@@ -1,6 +1,6 @@
 <?php
 /**
- * SMS 2 - Research Coordinator: View Approved Research
+ * SMS 2 - Research Coordinator: Research Status
  * Shows registered approved research titles that already have research group numbers.
  */
 declare(strict_types=1);
@@ -21,19 +21,19 @@ if (!in_array($roleKey, ['research_coordinator', 'superadmin'], true)) {
 function rcTitleApprovalEnsureSchema(PDO $pdo): void
 {
     $columns = [
-        'adviser_signature_data' => "ALTER TABLE crad_title_approvals ADD COLUMN adviser_signature_data MEDIUMTEXT NULL DEFAULT NULL AFTER adviser_remarks",
-        'coordinator_status' => "ALTER TABLE crad_title_approvals ADD COLUMN coordinator_status VARCHAR(30) NOT NULL DEFAULT 'Not Ready' AFTER adviser_signature_data",
-        'coordinator_remarks' => "ALTER TABLE crad_title_approvals ADD COLUMN coordinator_remarks TEXT NULL DEFAULT NULL AFTER coordinator_status",
-        'coordinator_screening_json' => "ALTER TABLE crad_title_approvals ADD COLUMN coordinator_screening_json TEXT NULL DEFAULT NULL AFTER coordinator_remarks",
-        'coordinator_signature_data' => "ALTER TABLE crad_title_approvals ADD COLUMN coordinator_signature_data MEDIUMTEXT NULL DEFAULT NULL AFTER coordinator_remarks",
-        'coordinator_reviewed_at' => "ALTER TABLE crad_title_approvals ADD COLUMN coordinator_reviewed_at DATETIME NULL DEFAULT NULL AFTER coordinator_signature_data",
-        'crad_status' => "ALTER TABLE crad_title_approvals ADD COLUMN crad_status VARCHAR(30) NOT NULL DEFAULT 'Not Ready' AFTER coordinator_reviewed_at",
-        'crad_signature_data' => "ALTER TABLE crad_title_approvals ADD COLUMN crad_signature_data MEDIUMTEXT NULL DEFAULT NULL AFTER crad_status",
-        'crad_reviewed_at' => "ALTER TABLE crad_title_approvals ADD COLUMN crad_reviewed_at DATETIME NULL DEFAULT NULL AFTER crad_signature_data",
+        'adviser_signature_data' => "ALTER TABLE `crad_title_approvals` ADD COLUMN adviser_signature_data MEDIUMTEXT NULL DEFAULT NULL AFTER adviser_remarks",
+        'coordinator_status' => "ALTER TABLE `crad_title_approvals` ADD COLUMN coordinator_status VARCHAR(30) NOT NULL DEFAULT 'Not Ready' AFTER adviser_signature_data",
+        'coordinator_remarks' => "ALTER TABLE `crad_title_approvals` ADD COLUMN coordinator_remarks TEXT NULL DEFAULT NULL AFTER coordinator_status",
+        'coordinator_screening_json' => "ALTER TABLE `crad_title_approvals` ADD COLUMN coordinator_screening_json TEXT NULL DEFAULT NULL AFTER coordinator_remarks",
+        'coordinator_signature_data' => "ALTER TABLE `crad_title_approvals` ADD COLUMN coordinator_signature_data MEDIUMTEXT NULL DEFAULT NULL AFTER coordinator_remarks",
+        'coordinator_reviewed_at' => "ALTER TABLE `crad_title_approvals` ADD COLUMN coordinator_reviewed_at DATETIME NULL DEFAULT NULL AFTER coordinator_signature_data",
+        'crad_status' => "ALTER TABLE `crad_title_approvals` ADD COLUMN crad_status VARCHAR(30) NOT NULL DEFAULT 'Not Ready' AFTER coordinator_reviewed_at",
+        'crad_signature_data' => "ALTER TABLE `crad_title_approvals` ADD COLUMN crad_signature_data MEDIUMTEXT NULL DEFAULT NULL AFTER crad_status",
+        'crad_reviewed_at' => "ALTER TABLE `crad_title_approvals` ADD COLUMN crad_reviewed_at DATETIME NULL DEFAULT NULL AFTER crad_signature_data",
     ];
     foreach ($columns as $name => $sql) {
         try {
-            if (!$pdo->query("SHOW COLUMNS FROM crad_title_approvals LIKE " . $pdo->quote($name))->fetch()) {
+            if (!$pdo->query("SHOW COLUMNS FROM `crad_title_approvals` LIKE " . $pdo->quote($name))->fetch()) {
                 $pdo->exec($sql);
             }
         } catch (Throwable $e) {
@@ -52,9 +52,9 @@ function rcTitleApprovalRows(PDO $pdo): array
                 coordinator_name, status, adviser_remarks, adviser_signature_data,
                 coordinator_status, coordinator_remarks, coordinator_screening_json, coordinator_signature_data,
                 sent_at, reviewed_at, coordinator_reviewed_at
-         FROM crad_title_approvals
+         FROM `crad_title_approvals`
          WHERE status = 'Approved'
-         ORDER BY FIELD(coordinator_status, 'Pending', 'Returned', 'Approved', 'Not Ready'),
+         ORDER BY FIELD(coordinator_status, 'Pending', 'Returned', 'Rejected', 'Approved', 'Not Ready'),
                   reviewed_at DESC, id DESC"
     );
     return $stmt->fetchAll() ?: [];
@@ -79,7 +79,7 @@ function rcTitleApprovalPayload(): array
 
 function rcTitleApprovalUpdate(int $id, string $status, string $remarks, string $signature, array $screening = []): bool
 {
-    if (!in_array($status, ['Approved', 'Returned', 'Screening'], true)) {
+    if (!in_array($status, ['Approved', 'Returned', 'Rejected', 'Screening'], true)) {
         return false;
     }
     $pdo = getCradDatabaseConnection();
@@ -97,7 +97,7 @@ function rcTitleApprovalUpdate(int $id, string $status, string $remarks, string 
     $screeningJson = $allowedScreening ? json_encode($allowedScreening, JSON_UNESCAPED_UNICODE) : null;
     if ($status === 'Screening') {
         $stmt = $pdo->prepare(
-            "UPDATE crad_title_approvals
+            "UPDATE `crad_title_approvals`
              SET coordinator_screening_json = :screening_json
              WHERE id = :id
                AND status = 'Approved'"
@@ -109,12 +109,12 @@ function rcTitleApprovalUpdate(int $id, string $status, string $remarks, string 
         if ($stmt->rowCount() > 0) {
             return true;
         }
-        $check = $pdo->prepare("SELECT id FROM crad_title_approvals WHERE id = :id AND status = 'Approved' LIMIT 1");
+        $check = $pdo->prepare("SELECT id FROM `crad_title_approvals` WHERE id = :id AND status = 'Approved' LIMIT 1");
         $check->execute([':id' => $id]);
         return (bool) $check->fetch();
     }
     $stmt = $pdo->prepare(
-        "UPDATE crad_title_approvals
+        "UPDATE `crad_title_approvals`
          SET coordinator_status = :status,
              coordinator_remarks = :remarks,
              coordinator_screening_json = :screening_json,
@@ -164,8 +164,8 @@ function rcApprovedResearchFetch(PDO $pdo): array
             'Approved' AS display_status,
             p.approved_at,
             p.registered_at
-         FROM crad_research_groups g
-         INNER JOIN crad_research_proposals p ON p.id = g.proposal_id
+         FROM `crad_research_groups` g
+         INNER JOIN `crad_research_proposals` p ON p.id = g.proposal_id
          WHERE p.status = 'Approved'
            AND p.registration_status = 'Registered'
            AND p.proposal_number IS NOT NULL
@@ -249,12 +249,12 @@ $approvedRows = $payload['rows'];
 $stats = $payload['stats'];
 $titleApprovalPayload = rcTitleApprovalPayload();
 $titleApprovalRows = $titleApprovalPayload['rows'];
-$pageTitle = 'View Approved Research';
+$pageTitle = 'Research Status';
 $activeModule = 'crad';
 $activePage = 'approved-research';
 $breadcrumbs = [
     ['label' => 'Research Coordinator', 'url' => BASE_URL . '/modules/crad/index.php'],
-    ['label' => 'View Approved Research', 'url' => null],
+    ['label' => 'Research Status', 'url' => null],
 ];
 
 require_once ROOT_PATH . '/includes/layout-start.php';
@@ -381,6 +381,7 @@ renderBreadcrumbs($breadcrumbs);
 .rcta-badge.pending { background:#fef3c7; color:#92400e; }
 .rcta-badge.approved { background:#d1fae5; color:#047857; }
 .rcta-badge.returned { background:#fee2e2; color:#991b1b; }
+.rcta-badge.rejected { background:#fee2e2; color:#991b1b; }
 .rcta-inline-alert {
     display: none;
     margin-top: .75rem;
@@ -439,7 +440,7 @@ renderBreadcrumbs($breadcrumbs);
 
     <header class="rcar-header">
         <div>
-            <h1><?= smsIcon('clipboard-check', ['class' => 'me-2']) ?>View Approved Research</h1>
+            <h1><?= smsIcon('clipboard-check', ['class' => 'me-2']) ?>Research Status</h1>
             <p>Approved research groups with official proposal and research group numbers.</p>
         </div>
         <div class="rcar-sync" id="rcarLastSync">Synced <?= rcE((string) $payload['last_sync']) ?></div>
@@ -462,6 +463,7 @@ renderBreadcrumbs($breadcrumbs);
                 <option value="pending">Pending</option>
                 <option value="approved">Approved</option>
                 <option value="returned">Returned</option>
+                <option value="rejected">Rejected</option>
             </select>
         </div>
         <div class="rcar-table-wrap">
@@ -725,7 +727,6 @@ renderBreadcrumbs($breadcrumbs);
                 <td style="text-align:center;border:0.8px solid #222;padding:2mm 1.4mm;">${i+1}</td>
                 <td style="border:0.8px solid #222;padding:2mm 1.4mm;font-weight:700;">${esc(m[0]||'')}</td>
                 <td style="border:0.8px solid #222;padding:2mm 1.4mm;">${esc(m[1]||'')}</td>
-                <td style="border:0.8px solid #222;padding:2mm 1.4mm;">${esc(m[2]||'')}</td>
             </tr>`;
         }).join('');
         const adviserSig = r.adviser_signature_data ? `<img src="${r.adviser_signature_data}" style="position:absolute;bottom:2px;left:0;right:0;width:100%;height:50px;object-fit:contain;object-position:center bottom;">` : '';
@@ -757,7 +758,7 @@ renderBreadcrumbs($breadcrumbs);
             </div>
             ${bar('II. Students Information')}
             <table style="width:100%;border-collapse:collapse;font-size:8pt;margin-bottom:4mm;">
-                <thead><tr><th style="border:0.8px solid #222;background:#e4edf9;color:#17366f;padding:2mm;width:6%;">No.</th><th style="border:0.8px solid #222;background:#e4edf9;color:#17366f;padding:2mm;">Name (Last, First, M.I.)</th><th style="border:0.8px solid #222;background:#e4edf9;color:#17366f;padding:2mm;width:20%;">Section</th><th style="border:0.8px solid #222;background:#e4edf9;color:#17366f;padding:2mm;width:25%;">Research Forum OR No.</th></tr></thead>
+                <thead><tr><th style="border:0.8px solid #222;background:#e4edf9;color:#17366f;padding:2mm;width:6%;">No.</th><th style="border:0.8px solid #222;background:#e4edf9;color:#17366f;padding:2mm;">Name (Last, First, M.I.)</th><th style="border:0.8px solid #222;background:#e4edf9;color:#17366f;padding:2mm;width:20%;">Section</th></tr></thead>
                 <tbody>${memberRows}</tbody>
             </table>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:3mm;margin-bottom:4mm;">
@@ -791,7 +792,7 @@ renderBreadcrumbs($breadcrumbs);
         const screening = parseScreening(r.coordinator_screening_json);
         statusEl.innerHTML = `Coordinator Status: <span class="rcta-badge ${badgeClass(r.coordinator_status)}">${esc(r.coordinator_status || 'Pending')}</span>`;
         if ((r.coordinator_status || 'Pending') === 'Pending') {
-            actionsEl.innerHTML = `<button id="rctaApprove" class="rcta-btn success"><?= smsIcon('signature') ?> Approve & Sign</button>`;
+            actionsEl.innerHTML = `<button id="rctaApprove" class="rcta-btn success"><?= smsIcon('signature') ?> Approve & Sign</button><button id="rctaReject" class="rcta-btn danger"><?= smsIcon('x') ?> Reject</button>`;
             document.getElementById('rctaApprove').onclick = () => {
                 if (Object.keys(collectScreening()).length < screeningCriteria.length) {
                     showInlineAlert('Please complete the Research Coordinator Screening Yes/No checks first.');
@@ -799,6 +800,12 @@ renderBreadcrumbs($breadcrumbs);
                 }
                 openSig();
             };
+            document.getElementById('rctaReject').onclick = async () => {
+                if (!window.confirm('Reject this title approval? This decision will be recorded immediately.')) return;
+                await updateStatus(r.id, 'Rejected', '', '');
+            };
+        } else if ((r.coordinator_status || '') === 'Rejected') {
+            actionsEl.innerHTML = `<button class="rcta-btn danger" type="button" disabled><?= smsIcon('x') ?> Rejected</button>`;
         } else {
             if (screeningComplete(screening)) {
                 actionsEl.innerHTML = `<button class="rcta-btn success" type="button" disabled><?= smsIcon('check') ?> Done Save</button>`;

@@ -466,6 +466,11 @@
     font-weight: 600;
 }
 
+#umToastContainer { z-index: 2000; }
+.um-form-alert { font-weight: 600; }
+#umPageAlert[hidden],
+#umUserFormAlert[hidden] { display: none !important; }
+
 /* Confirm modals — shared styles in assets/css/components.css (.sms-confirm-modal) */
 
 /* ── User Archive button (in-page, not a sidebar module) ───── */

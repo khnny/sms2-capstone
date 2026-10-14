@@ -8,6 +8,7 @@ require_once __DIR__ . '/../../../modules/crad/config/config.php';
 require_once ROOT_PATH . '/includes/authentication.php';
 require_once ROOT_PATH . '/includes/breadcrumbs.php';
 require_once ROOT_PATH . '/modules/crad/includes/title-approval-assignees.php';
+require_once ROOT_PATH . '/modules/crad/includes/research-group-flow.php';
 
 $studentId     = $_SESSION['student_id'] ?? 'S230000001';
 $studentUserId = $_SESSION['user_id']    ?? null;
@@ -78,7 +79,6 @@ $smsFormatLastFirstMi = static function (string $fullName): string {
 };
 
 $defaultMemberName = $smsFormatLastFirstMi($studentName);
-$defaultOrNumber = 'OR-' . date('y') . str_pad((string) random_int(10000, 99999), 5, '0', STR_PAD_LEFT);
 $requestedResubmitId = (int) ($_GET['resubmit_title_approval'] ?? 0);
 $submitted = ($_GET['process'] ?? '') === 'submit-proposal';
 $resubmitSubmission = null;
@@ -90,7 +90,7 @@ try {
     $cradPdoEarly = getCradDatabaseConnection();
     if ($requestedResubmitId > 0) {
         $exStmt = $cradPdoEarly->prepare(
-            "SELECT * FROM crad_title_approvals
+            "SELECT * FROM `crad_title_approvals`
              WHERE student_id = :sid AND id = :id
              LIMIT 1"
         );
@@ -98,7 +98,7 @@ try {
         $resubmitSubmission = $exStmt->fetch(PDO::FETCH_ASSOC) ?: null;
     } else {
         $exStmt = $cradPdoEarly->prepare(
-            "SELECT * FROM crad_title_approvals
+            "SELECT * FROM `crad_title_approvals`
              WHERE student_id = :sid
              ORDER BY id DESC
              LIMIT 1"
@@ -139,12 +139,10 @@ if ($existingSubmission) {
     $membersDecoded   = json_decode((string) ($existingSubmission['members_json'] ?? '[]'), true);
     $submittedMembers  = [];
     $submittedSections = [];
-    $submittedReceipts = [];
     if (is_array($membersDecoded)) {
         foreach ($membersDecoded as $m) {
             $submittedMembers[]  = $m[0] ?? ($m['name']    ?? '');
             $submittedSections[] = $m[1] ?? ($m['section'] ?? '');
-            $submittedReceipts[] = $m[2] ?? ($m['or']      ?? '');
         }
     }
 } else {
@@ -153,7 +151,6 @@ if ($existingSubmission) {
     $submittedDepartment   = $_GET['department']      ?? 'College of Computer Studies';
     $submittedMembers      = array_values((array) ($_GET['member_name']    ?? []));
     $submittedSections     = array_values((array) ($_GET['member_section'] ?? []));
-    $submittedReceipts     = array_values((array) ($_GET['member_or']      ?? []));
     $submittedDiscipline   = $_GET['discipline_cluster'] ?? '';
     $submittedAgenda       = $_GET['research_agenda']    ?? '';
     if (str_starts_with($submittedAgenda, 'Others')) {
@@ -173,6 +170,7 @@ if ($resubmitSubmission && ((string) ($resubmitSubmission['status'] ?? '') === '
 $assignedAdviserName  = '';
 $assignedAdviserEmail = '';
 $assignedCoordName    = '';
+$rgMembersLocked = false;
 
 /* Restore signatures from the saved submission; names always come from Admin assignments. */
 $adviserSignatureData = ''; // base64 PNG of the adviser's digital signature (if approved)
@@ -195,6 +193,37 @@ try {
     $assignedAdviserName  = (string) ($officialAssignees['adviser_name'] ?? '');
     $assignedAdviserEmail = (string) ($officialAssignees['adviser_email'] ?? '');
     $assignedCoordName    = (string) ($officialAssignees['coordinator_name'] ?? '');
+    // Research Group gate + auto-fill members for Title Approval Form.
+    $rgTitleGate = ['ok' => false, 'message' => 'Research Group required.', 'members' => []];
+    $rgMembersLocked = false;
+    try {
+        if (isset($cradPdoAssign) && $cradPdoAssign instanceof PDO) {
+            $rgTitleGate = cradRgFlowTitleApprovalGate($cradPdoAssign, (string) $studentId);
+            // Always prefer Research Group members for the Title Approval members section.
+            $rgMembersForForm = [];
+            if (function_exists('cradRgFlowGetStudentGroup') && function_exists('cradRgFlowMembersAsTitleJson')) {
+                $rgGroupRow = cradRgFlowGetStudentGroup($cradPdoAssign, (string) $studentId);
+                if ($rgGroupRow) {
+                    $rgMembersForForm = cradRgFlowMembersAsTitleJson($cradPdoAssign, (int) $rgGroupRow['id']);
+                }
+            }
+            if ($rgMembersForForm === [] && !empty($rgTitleGate['members'])) {
+                $rgMembersForForm = $rgTitleGate['members'];
+            }
+            $rgMembersLocked = false;
+            if ($rgMembersForForm !== []) {
+                $rgMembersLocked = true;
+                $submittedMembers = [];
+                $submittedSections = [];
+                foreach ($rgMembersForForm as $mRow) {
+                    $submittedMembers[] = (string) ($mRow[0] ?? '');
+                    $submittedSections[] = (string) ($mRow[1] ?? '');
+                }
+            }
+        }
+    } catch (Throwable $e) {
+        error_log('Title approval research group gate failed: ' . $e->getMessage());
+    }
     cradSyncTitleApprovalAssigneeNames($cradPdoAssign, (string) $studentId);
 } catch (Throwable $e) {
     error_log('Title approval assignee lookup failed: ' . $e->getMessage());
@@ -208,9 +237,51 @@ if (isset($_GET['ajax']) && (string) $_GET['ajax'] === 'assignees') {
         'adviser_name' => $assignedAdviserName,
         'adviser_email' => $assignedAdviserEmail,
         'coordinator_name' => $assignedCoordName,
-        'ready' => $assignedAdviserName !== '' && $assignedCoordName !== '',
+        'ready' => $assignedAdviserName !== '' && $assignedCoordName !== '' && !empty($rgTitleGate['ok']),
+        'gate_ok' => !empty($rgTitleGate['ok']),
+        'gate_stage' => (string) ($rgTitleGate['stage'] ?? ''),
+        'gate_message' => (string) ($rgTitleGate['message'] ?? ''),
         'server_time' => date('c'),
     ]);
+    exit;
+}
+
+// Hard-block Research Proposal apply until Research Group + coor/adviser + dual confirm.
+// Allow viewing when a Title Approval / proposal row already exists.
+$rgProposalAccess = ['ok' => false, 'message' => 'Submit your Research Group first.', 'stage' => 'no_group'];
+try {
+    $rgAccessPdo = isset($cradPdoAssign) && $cradPdoAssign instanceof PDO
+        ? $cradPdoAssign
+        : (function_exists('getCradDatabaseConnection') ? getCradDatabaseConnection() : null);
+    if ($rgAccessPdo instanceof PDO && function_exists('cradRgFlowProposalAccessGate')) {
+        $rgProposalAccess = cradRgFlowProposalAccessGate($rgAccessPdo, (string) $studentId);
+    }
+} catch (Throwable $e) {
+    error_log('Research proposal access gate failed: ' . $e->getMessage());
+}
+$hasExistingTitleRow = ((int) ($existingSubmission['id'] ?? 0) > 0)
+    || ((int) ($resubmitSubmission['id'] ?? 0) > 0)
+    || !empty($alreadySentToAdviser);
+if (empty($rgProposalAccess['ok']) && !$hasExistingTitleRow) {
+    $pageTitle = 'Research Proposal Submission';
+    $activeModule = 'student_portal';
+    $activePage = 'research-proposal-submission';
+    $breadcrumbs = [
+        ['label' => 'Student Portal', 'url' => BASE_URL . '/modules/student-portal/pages/dashboard.php'],
+        ['label' => 'Research Proposal', 'url' => null],
+    ];
+    require_once ROOT_PATH . '/includes/layout-start.php';
+    if (function_exists('renderBreadcrumbs')) {
+        renderBreadcrumbs($breadcrumbs);
+    }
+    echo '<div class="glass-dashboard"><div class="glass-board"><div class="glass-panel"><div class="glass-panel-body">';
+    echo '<div class="alert alert-warning mb-3" role="status">';
+    echo htmlspecialchars((string) ($rgProposalAccess['message'] ?? 'Submit your Research Group first.'));
+    echo '</div>';
+    echo '<a class="btn btn-primary" href="' . htmlspecialchars(BASE_URL . '/modules/student-portal/pages/research-group.php') . '">';
+    echo 'Open Research Group</a>';
+    echo '</div></div></div></div>';
+    require_once ROOT_PATH . '/includes/layout-end.php';
     exit;
 }
 
@@ -321,7 +392,6 @@ require_once ROOT_PATH . '/includes/layout-start.php';
                                 <th>No.</th>
                                 <th>Name (Last name, First Name, Middle Initial)</th>
                                 <th>Section</th>
-                                <th>Research Forum OR No.</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -330,7 +400,6 @@ require_once ROOT_PATH . '/includes/layout-start.php';
                                     <td><?= $i + 1 ?></td>
                                     <td><?= htmlspecialchars(strtoupper($submittedMembers[$i] ?? '')) ?></td>
                                     <td><?= htmlspecialchars(strtoupper($submittedSections[$i] ?? '')) ?></td>
-                                    <td><?= htmlspecialchars(strtoupper($submittedReceipts[$i] ?? '')) ?></td>
                                 </tr>
                             <?php endfor; ?>
                         </tbody>
@@ -444,7 +513,13 @@ require_once ROOT_PATH . '/includes/layout-start.php';
             </article>
 
             <div class="crad-below-sheet">
-                <?php $approvalNamesReady = trim($assignedAdviserName) !== '' && trim($assignedCoordName) !== ''; ?>
+                <?php if (empty($rgTitleGate['ok'])): ?>
+<div class="alert alert-warning" id="rgGateNote" role="status">
+  <?= htmlspecialchars((string) ($rgTitleGate['message'] ?? 'Complete Research Group and dual confirmation before Title Approval.')) ?>
+  <div class="mt-2"><a class="btn btn-sm btn-outline-primary" href="<?= htmlspecialchars(BASE_URL . '/modules/student-portal/pages/research-group.php') ?>">Open Research Group</a></div>
+</div>
+<?php endif; ?>
+<?php $approvalNamesReady = trim($assignedAdviserName) !== '' && trim($assignedCoordName) !== '' && !empty($rgTitleGate['ok']); ?>
                 <button
                     type="button"
                     id="sendToAdviserBtn"
@@ -462,7 +537,7 @@ require_once ROOT_PATH . '/includes/layout-start.php';
                     data-student-id="<?= htmlspecialchars($studentId) ?>"
                     data-student-user-id="<?= htmlspecialchars((string)$studentUserId) ?>"
                     data-student-name="<?= htmlspecialchars($studentName) ?>"
-                    data-members="<?= htmlspecialchars(json_encode(array_map(null, $submittedMembers, $submittedSections, $submittedReceipts))) ?>"
+                    data-members="<?= htmlspecialchars(json_encode(array_map(null, $submittedMembers, $submittedSections))) ?>"
                     data-discipline="<?= htmlspecialchars($submittedDiscipline) ?>"
                     data-sdg="<?= htmlspecialchars($submittedSdg) ?>"
                     data-agenda="<?= htmlspecialchars($submittedAgenda) ?>"
@@ -474,7 +549,7 @@ require_once ROOT_PATH . '/includes/layout-start.php';
                 <?php if (!$alreadySentToAdviser): ?>
                     <div class="crad-waiting-names-note" id="tafWaitingNamesNote"<?= $approvalNamesReady ? ' hidden' : '' ?> role="status">
                         <?= smsIcon('lock') ?>
-                        <span>Sending is not available yet. Wait until Admin assigns a Research Adviser and Research Coordinator in Section IX.</span>
+                        <span><?= htmlspecialchars((string) ($rgTitleGate['message'] ?? 'Waiting for coordinator and adviser assignment. You cannot apply for Title Approval yet.')) ?></span>
                     </div>
                 <?php endif; ?>
             </div>
@@ -551,29 +626,38 @@ require_once ROOT_PATH . '/includes/layout-start.php';
                 <div class="crad-section-head">
                     <div>
                         <h2>II. Students Information</h2>
-                        <p>Provide complete research group metadata (Maximum 6 members).</p>
+                        <p><?= !empty($rgMembersLocked) ? 'Members are loaded from your submitted Research Group (read-only).' : 'Provide complete research group metadata (Maximum 6 members).' ?></p>
                     </div>
+                    <?php if (empty($rgMembersLocked)): ?>
                     <button type="button" class="crad-link-btn" id="addMemberBtn">+ Add Member</button>
+                    <?php endif; ?>
                 </div>
 
-                <div id="memberList">
-                    <article class="crad-member-card" data-member="1">
-                        <h3><span>1</span> Group Member Profile</h3>
-                        <div class="crad-field-row crad-field-row-3">
+                <div id="memberList" data-rg-locked="<?= !empty($rgMembersLocked) ? '1' : '0' ?>">
+                    <?php
+                    $memberCards = $submittedMembers !== [] ? $submittedMembers : [$defaultMemberName];
+                    $sectionCards = $submittedSections !== [] ? $submittedSections : [''];
+                    $cardCount = max(count($memberCards), 1);
+                    for ($mi = 0; $mi < $cardCount; $mi++):
+                        $mName = (string) ($memberCards[$mi] ?? '');
+                        $mSection = (string) ($sectionCards[$mi] ?? '');
+                        $ro = !empty($rgMembersLocked) ? 'readonly' : '';
+                        $req = !empty($rgMembersLocked) ? '' : 'required';
+                    ?>
+                    <article class="crad-member-card" data-member="<?= (int) ($mi + 1) ?>">
+                        <h3><span><?= (int) ($mi + 1) ?></span> Group Member Profile<?= $mi === 0 ? ' (Leader)' : '' ?></h3>
+                        <div class="crad-field-row">
                             <div class="crad-field">
                                 <label>Full Name (Last, First, M.I.) <span>*</span></label>
-                                <input type="text" name="member_name[]" value="<?= htmlspecialchars($defaultMemberName) ?>" placeholder="Abejuela, John Kenneth C." required>
+                                <input type="text" name="member_name[]" value="<?= htmlspecialchars($mName) ?>" placeholder="Abejuela, John Kenneth C." <?= $req ?> <?= $ro ?>>
                             </div>
                             <div class="crad-field">
                                 <label>Section <span>*</span></label>
-                                <input type="text" name="member_section[]" value="BSIT 4101" required>
-                            </div>
-                            <div class="crad-field">
-                                <label>Research Forum Receipt OR</label>
-                                <input type="text" name="member_or[]" value="<?= htmlspecialchars($defaultOrNumber) ?>" readonly class="crad-or-field" data-auto-or>
+                                <input type="text" name="member_section[]" value="<?= htmlspecialchars($mSection) ?>" <?= $req ?> <?= $ro ?>>
                             </div>
                         </div>
                     </article>
+                    <?php endfor; ?>
                 </div>
             </section>
 
@@ -770,7 +854,6 @@ require_once ROOT_PATH . '/includes/layout-start.php';
 .crad-field-row {
     display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin-bottom: 1.15rem;
 }
-.crad-field-row-3 { grid-template-columns: 1.4fr 0.9fr 1fr; }
 .crad-field { display: grid; gap: 0.4rem; margin-bottom: 1rem; }
 .crad-field-row .crad-field { margin-bottom: 0; }
 .crad-field label {
@@ -788,14 +871,6 @@ require_once ROOT_PATH . '/includes/layout-start.php';
     color-scheme: dark;
 }
 .crad-field textarea { min-height: 110px; resize: vertical; }
-.crad-field input.crad-or-field {
-    color: #93c5fd;
-    background: rgba(37,99,235,0.12);
-    border-color: rgba(37,99,235,0.35);
-    cursor: default;
-    font-weight: 700;
-    letter-spacing: 0.03em;
-}
 .crad-field input:focus,
 .crad-field select:focus,
 .crad-field textarea:focus {
@@ -1548,7 +1623,7 @@ require_once ROOT_PATH . '/includes/layout-start.php';
     }
 }
 @media (max-width: 991.98px) {
-    .crad-field-row, .crad-field-row-3, .crad-sdg-grid, .crad-radio-grid, .crad-sdg-tiles { grid-template-columns: 1fr; }
+    .crad-field-row, .crad-sdg-grid, .crad-radio-grid, .crad-sdg-tiles { grid-template-columns: 1fr; }
 }
 @media (max-width: 767.98px) {
     .crad-form-header, .crad-section-head, .crad-form-footer { flex-direction: column; align-items: stretch; }
@@ -1610,11 +1685,6 @@ require_once ROOT_PATH . '/includes/layout-start.php';
     border-color: #d7e1ef;
     color-scheme: light;
 }
-[data-theme="light"] .crad-field input.crad-or-field {
-    color: #1d4ed8;
-    background: #eff6ff;
-    border-color: #bfdbfe;
-}
 [data-theme="light"] .crad-member-card,
 [data-theme="light"] .crad-radio-card,
 [data-theme="light"] .crad-sdg-tile {
@@ -1667,6 +1737,7 @@ require_once ROOT_PATH . '/includes/layout-start.php';
         return;
     }
     var memberList = document.getElementById('memberList');
+    var rgMembersLocked = memberList && memberList.getAttribute('data-rg-locked') === '1';
     var addMemberBtn = document.getElementById('addMemberBtn');
     var backBtn = document.getElementById('cradBackBtn');
     var nextBtn = document.getElementById('cradNextBtn');
@@ -1690,28 +1761,15 @@ require_once ROOT_PATH . '/includes/layout-start.php';
                 remove.addEventListener('click', function () {
                     card.remove();
                     renumberMembers();
-                    addMemberBtn.disabled = memberCount() >= maxMembers;
+                    if (addMemberBtn) addMemberBtn.disabled = memberCount() >= maxMembers;
                 });
                 title.appendChild(remove);
             }
         });
-        addMemberBtn.disabled = memberCount() >= maxMembers;
+        if (addMemberBtn) addMemberBtn.disabled = memberCount() >= maxMembers;
     }
 
-    function generateOrNumber() {
-        var year = String(new Date().getFullYear()).slice(-2);
-        var serial = String(Math.floor(10000 + Math.random() * 90000));
-        var used = {};
-        memberList.querySelectorAll('[data-auto-or]').forEach(function (input) {
-            used[input.value] = true;
-        });
-        var orNumber = 'OR-' + year + serial;
-        while (used[orNumber]) {
-            serial = String(Math.floor(10000 + Math.random() * 90000));
-            orNumber = 'OR-' + year + serial;
-        }
-        return orNumber;
-    }
+
 
     function createMemberCard(n) {
         var card = document.createElement('article');
@@ -1719,10 +1777,9 @@ require_once ROOT_PATH . '/includes/layout-start.php';
         card.setAttribute('data-member', String(n));
         card.innerHTML =
             '<h3><span>' + n + '</span> Group Member Profile</h3>' +
-            '<div class="crad-field-row crad-field-row-3">' +
+            '<div class="crad-field-row">' +
             '  <div class="crad-field"><label>Full Name (Last, First, M.I.) <span>*</span></label><input type="text" name="member_name[]" placeholder="Abejuela, John Kenneth C." required></div>' +
             '  <div class="crad-field"><label>Section <span>*</span></label><input type="text" name="member_section[]" required></div>' +
-            '  <div class="crad-field"><label>Research Forum Receipt OR</label><input type="text" name="member_or[]" value="' + generateOrNumber() + '" readonly class="crad-or-field" data-auto-or></div>' +
             '</div>';
         return card;
     }
@@ -1793,7 +1850,8 @@ require_once ROOT_PATH . '/includes/layout-start.php';
         nextBtn.textContent = currentStep === totalSteps ? 'Submit Proposed Title' : 'Next Step →';
     }
 
-    addMemberBtn.addEventListener('click', function () {
+    if (addMemberBtn) addMemberBtn.addEventListener('click', function () {
+      if (rgMembersLocked) return;
         if (memberCount() >= maxMembers) return;
         memberList.appendChild(createMemberCard(memberCount() + 1));
         renumberMembers();
@@ -1960,7 +2018,7 @@ require_once ROOT_PATH . '/includes/layout-start.php';
             showNotice('<strong>Document Packet Sent</strong><br>Current status: Document Packet Sent. This status is shown on your dashboard.', 'success');
 
             /* Replace the URL so refresh / back still shows the submitted view
-               (PHP will load the data from title_approvals — no GET params needed) */
+               (PHP will load the data from `crad_title_approvals` — no GET params needed) */
             try {
                 var cleanUrl = window.location.pathname + '?process=submit-proposal';
                 history.replaceState(null, '', cleanUrl);

@@ -11,7 +11,8 @@ require_once ROOT_PATH . '/includes/audit.php';
 require_once ROOT_PATH . '/includes/announcements.php';
 
 requireAdminAccountSettings();
-smsEnsureAnnouncementTables();
+header('Location: ' . BASE_URL . '/communication/announcements.php');
+exit;
 
 $error = '';
 $success = '';

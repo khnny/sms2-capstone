@@ -7,6 +7,7 @@ declare(strict_types=1);
 if (!function_exists('smsIcon')) {
     require_once ROOT_PATH . '/includes/icons.php';
 }
+require_once ROOT_PATH . '/includes/audit.php';
 
 /**
  * @return array{
@@ -37,9 +38,10 @@ function umActivityLogsPayload(?PDO $pdo): array
     ];
 
     $rows = [];
-    if ($pdo) {
-        $stmt = $pdo->query(
-            'SELECT id,
+    if ($pdo && smsActivityLogTableReady($pdo)) {
+        try {
+            $stmt = $pdo->query(
+                'SELECT id,
                     IFNULL(user_name, "System") AS user,
                     IFNULL(role_key, "") AS role,
                     action,
@@ -48,11 +50,17 @@ function umActivityLogsPayload(?PDO $pdo): array
                     IFNULL(ip_address, "—") AS ip,
                     DATE_FORMAT(created_at, "%b %e, %Y %H:%i:%s") AS time,
                     DATE_FORMAT(created_at, "%Y-%m-%d") AS log_date
-             FROM sms_activity_logs
+             FROM ' . smsActivityLogTableSql() . '
              ORDER BY id DESC
-             LIMIT 200'
-        );
-        $rows = $stmt ? ($stmt->fetchAll(PDO::FETCH_ASSOC) ?: []) : [];
+                 LIMIT 200'
+            );
+            $rows = $stmt ? ($stmt->fetchAll(PDO::FETCH_ASSOC) ?: []) : [];
+        } catch (Throwable $e) {
+            // Do not break the whole Super Admin page when a host has an old
+            // or partially migrated schema. The write helper logs the server
+            // detail while the page remains usable.
+            error_log('SMS2 activity log query failed: ' . $e->getMessage());
+        }
     }
 
     $logs = [];

@@ -3,9 +3,9 @@
  * CRAD API — Send Title Approval Form to Adviser
  *
  * POST /modules/crad/api/send-to-adviser.php
- * 1. Validates the adviser exists in sms_users
+ * 1. Validates the adviser exists in sms2_users
  * 2. Returns {ok:false, no_account:true} when adviser has no account
- * 3. Inserts into crad_db.title_approvals when all is well
+ * 3. Inserts into `crad_title_approvals` when all is well
  */
 declare(strict_types=1);
 
@@ -13,6 +13,7 @@ require_once __DIR__ . '/../../../config/config.php';
 require_once __DIR__ . '/../config/config.php';
 require_once ROOT_PATH . '/includes/authentication.php';
 require_once __DIR__ . '/../includes/title-approval-assignees.php';
+require_once __DIR__ . '/../includes/research-group-flow.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -81,13 +82,34 @@ try {
     saJson(false, 'Database unavailable: ' . $e->getMessage());
 }
 
+$rgGate = cradRgFlowTitleApprovalGate($pdo, $studentId);
+if (empty($rgGate['ok'])) {
+    http_response_code(422);
+    saJson(false, (string) ($rgGate['message'] ?? 'Complete Research Group, coordinator/adviser assignment, and confirmation before Title Approval.'));
+}
+// Prefer Research Group members for title approval payload (source of truth).
+$rgMembersPayload = $rgGate['members'] ?? [];
+if (!is_array($rgMembersPayload) || $rgMembersPayload === []) {
+    try {
+        $rgRow = cradRgFlowGetStudentGroup($pdo, $studentId);
+        if ($rgRow && function_exists('cradRgFlowMembersAsTitleJson')) {
+            $rgMembersPayload = cradRgFlowMembersAsTitleJson($pdo, (int) $rgRow['id']);
+        }
+    } catch (Throwable $e) {
+        error_log('RG members prefer failed: ' . $e->getMessage());
+    }
+}
+if (is_array($rgMembersPayload) && $rgMembersPayload !== []) {
+    $membersJson = json_encode($rgMembersPayload, JSON_UNESCAPED_UNICODE);
+}
+
 $official = cradStudentOfficialAssignees($pdo, $studentId);
 $adviserName = trim((string) ($official['adviser_name'] ?? ''));
 $adviserEmail = trim((string) ($official['adviser_email'] ?? ''));
 $coordName = trim((string) ($official['coordinator_name'] ?? ''));
-if ($adviserName === '' || $coordName === '') {
+if ($adviserName === '' || $coordName === '' || empty($official['ready'])) {
     http_response_code(422);
-    saJson(false, 'Wait until Admin assigns both a Research Coordinator (from the Coordinator Roster) and a Research Adviser. Names stay blank on the Title Approval Form until then.');
+    saJson(false, 'Waiting for coordinator and adviser assignment or confirmation. Names stay blank on the Title Approval Form until both are assigned and confirmed.');
 }
 
 /* ── Check adviser has an account in sms2_db ─────────────── */
@@ -95,7 +117,7 @@ try {
     $mainPdo = db();
     if ($mainPdo) {
         $chk = $mainPdo->prepare(
-            "SELECT id, full_name, email FROM sms_users
+            "SELECT id, full_name, email FROM `sms2_users`
              WHERE status = 'active'
                AND (
                     (email != '' AND LOWER(email) = LOWER(:email))
@@ -121,22 +143,22 @@ try {
 }
 
 try {
-    $sigCol = $pdo->query("SHOW COLUMNS FROM crad_title_approvals LIKE 'adviser_signature_data'")->fetch();
+    $sigCol = $pdo->query("SHOW COLUMNS FROM `crad_title_approvals` LIKE 'adviser_signature_data'")->fetch();
     if (!$sigCol) {
-        $pdo->exec("ALTER TABLE crad_title_approvals ADD COLUMN adviser_signature_data MEDIUMTEXT NULL DEFAULT NULL AFTER adviser_remarks");
+        $pdo->exec("ALTER TABLE `crad_title_approvals` ADD COLUMN adviser_signature_data MEDIUMTEXT NULL DEFAULT NULL AFTER adviser_remarks");
     }
     $workflowColumns = [
-        'coordinator_status' => "ALTER TABLE crad_title_approvals ADD COLUMN coordinator_status VARCHAR(30) NOT NULL DEFAULT 'Not Ready' AFTER adviser_signature_data",
-        'coordinator_remarks' => "ALTER TABLE crad_title_approvals ADD COLUMN coordinator_remarks TEXT NULL DEFAULT NULL AFTER coordinator_status",
-        'coordinator_screening_json' => "ALTER TABLE crad_title_approvals ADD COLUMN coordinator_screening_json TEXT NULL DEFAULT NULL AFTER coordinator_remarks",
-        'coordinator_signature_data' => "ALTER TABLE crad_title_approvals ADD COLUMN coordinator_signature_data MEDIUMTEXT NULL DEFAULT NULL AFTER coordinator_remarks",
-        'coordinator_reviewed_at' => "ALTER TABLE crad_title_approvals ADD COLUMN coordinator_reviewed_at DATETIME NULL DEFAULT NULL AFTER coordinator_signature_data",
-        'crad_status' => "ALTER TABLE crad_title_approvals ADD COLUMN crad_status VARCHAR(30) NOT NULL DEFAULT 'Not Ready' AFTER coordinator_reviewed_at",
-        'crad_signature_data' => "ALTER TABLE crad_title_approvals ADD COLUMN crad_signature_data MEDIUMTEXT NULL DEFAULT NULL AFTER crad_status",
-        'crad_reviewed_at' => "ALTER TABLE crad_title_approvals ADD COLUMN crad_reviewed_at DATETIME NULL DEFAULT NULL AFTER crad_signature_data",
+        'coordinator_status' => "ALTER TABLE `crad_title_approvals` ADD COLUMN coordinator_status VARCHAR(30) NOT NULL DEFAULT 'Not Ready' AFTER adviser_signature_data",
+        'coordinator_remarks' => "ALTER TABLE `crad_title_approvals` ADD COLUMN coordinator_remarks TEXT NULL DEFAULT NULL AFTER coordinator_status",
+        'coordinator_screening_json' => "ALTER TABLE `crad_title_approvals` ADD COLUMN coordinator_screening_json TEXT NULL DEFAULT NULL AFTER coordinator_remarks",
+        'coordinator_signature_data' => "ALTER TABLE `crad_title_approvals` ADD COLUMN coordinator_signature_data MEDIUMTEXT NULL DEFAULT NULL AFTER coordinator_remarks",
+        'coordinator_reviewed_at' => "ALTER TABLE `crad_title_approvals` ADD COLUMN coordinator_reviewed_at DATETIME NULL DEFAULT NULL AFTER coordinator_signature_data",
+        'crad_status' => "ALTER TABLE `crad_title_approvals` ADD COLUMN crad_status VARCHAR(30) NOT NULL DEFAULT 'Not Ready' AFTER coordinator_reviewed_at",
+        'crad_signature_data' => "ALTER TABLE `crad_title_approvals` ADD COLUMN crad_signature_data MEDIUMTEXT NULL DEFAULT NULL AFTER crad_status",
+        'crad_reviewed_at' => "ALTER TABLE `crad_title_approvals` ADD COLUMN crad_reviewed_at DATETIME NULL DEFAULT NULL AFTER crad_signature_data",
     ];
     foreach ($workflowColumns as $column => $sql) {
-        if (!$pdo->query("SHOW COLUMNS FROM crad_title_approvals LIKE " . $pdo->quote($column))->fetch()) {
+        if (!$pdo->query("SHOW COLUMNS FROM `crad_title_approvals` LIKE " . $pdo->quote($column))->fetch()) {
             $pdo->exec($sql);
         }
     }
@@ -149,7 +171,7 @@ $existingId = 0;
 if ($submissionId > 0) {
     $byId = $pdo->prepare(
         "SELECT id, status, coordinator_status
-         FROM crad_title_approvals
+         FROM `crad_title_approvals`
          WHERE id = :id AND student_id = :sid
          LIMIT 1"
     );
@@ -169,7 +191,7 @@ if ($submissionId > 0) {
 if ($existingId === 0) {
     $findExisting = $pdo->prepare(
         "SELECT id, status, coordinator_status
-         FROM crad_title_approvals
+         FROM `crad_title_approvals`
          WHERE student_id = :sid AND proposed_title = :title
          ORDER BY id DESC
          LIMIT 1"
@@ -189,7 +211,7 @@ if ($existingId === 0) {
 
 if ($existingId > 0) {
     $update = $pdo->prepare("
-        UPDATE crad_title_approvals
+        UPDATE `crad_title_approvals`
         SET student_user_id = :student_user_id,
             student_name = :student_name,
             submission_date = :submission_date,
@@ -246,7 +268,7 @@ if ($existingId > 0) {
 }
 
 $stmt = $pdo->prepare("
-    INSERT INTO crad_title_approvals
+    INSERT INTO `crad_title_approvals`
         (student_id, student_user_id, student_name, submission_date, department,
          proposed_title, discipline_cluster, primary_sdg, research_agenda,
          sdg_justification, members_json, adviser_name, adviser_email,

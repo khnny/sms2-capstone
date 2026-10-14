@@ -113,8 +113,8 @@ try {
 try {
     $recentUpdatesStmt = $crad->prepare("
         SELECT rpu.*, rm.milestone_name
-        FROM crad_research_progress_updates rpu
-        LEFT JOIN crad_research_milestones rm ON rm.id = rpu.milestone_id
+        FROM `crad_research_progress_updates` rpu
+        LEFT JOIN `crad_research_milestones` rm ON rm.id = rpu.milestone_id
         WHERE rpu.research_group_id = ?
         ORDER BY rpu.submitted_at DESC
         LIMIT 5

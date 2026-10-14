@@ -30,6 +30,10 @@ if (!is_array($decodedInput)) {
 }
 
 $action = (string) ($decodedInput['action'] ?? $_GET['action'] ?? 'analyze');
+$analysisType = (string) ($decodedInput['analysis_type'] ?? 'full');
+if (!in_array($analysisType, ['summary', 'structure', 'style', 'full'], true)) {
+    $analysisType = 'full';
+}
 $adviserUserId = (int) ($_SESSION['user_id'] ?? 0);
 $adviserEmail = rpCurrentUserEmail();
 $adviserName = trim((string) ($_SESSION['full_name'] ?? $_SESSION['user_name'] ?? $_SESSION['username'] ?? ''));
@@ -41,9 +45,6 @@ try {
     echo json_encode(['success' => false, 'message' => 'Database connection failed.']);
     exit;
 }
-
-rpEnsureProgressAttachmentSchema($crad);
-rpEnsureAiAnalysisSchema($crad);
 
 $updateId = (int) ($decodedInput['update_id'] ?? 0);
 if ($updateId <= 0) {
@@ -82,12 +83,12 @@ if ($path === null) {
     exit;
 }
 
-$milestoneStmt = $crad->prepare('SELECT milestone_name FROM crad_research_milestones WHERE id = ? LIMIT 1');
+$milestoneStmt = $crad->prepare('SELECT milestone_name FROM `crad_research_milestones` WHERE id = ? LIMIT 1');
 $milestoneStmt->execute([(int) ($update['milestone_id'] ?? 0)]);
 $milestoneName = (string) ($milestoneStmt->fetchColumn() ?: '');
 $fileName = (string) ($attachment['file_name'] ?? basename($path));
 $text = rpExtractDocumentText($path, $fileName, (string) ($attachment['file_type'] ?? ''));
-$result = rpAnalyzeResearchDocument($text, $milestoneName, $fileName);
+$result = rpAnalyzeResearchDocument($text, $milestoneName, $fileName, $analysisType);
 if (empty($result['ok'])) {
     http_response_code(422);
     echo json_encode(['success' => false, 'message' => (string) ($result['message'] ?? 'AI analysis failed.')]);
@@ -98,10 +99,16 @@ $analysisId = rpSaveAiAnalysis($crad, [
     'progress_update_id' => $updateId,
     'attachment_id' => (int) ($attachment['id'] ?? 0),
     'milestone_name' => $milestoneName,
-    'verdict' => $result['verdict'] ?? 'needs_revision',
-    'grammar_quality' => $result['grammar_quality'] ?? 'fair',
+    'verdict' => $result['verdict'] ?? 'advisory_only',
+    'grammar_quality' => $result['grammar_quality'] ?? 'not_scored',
     'summary' => $result['summary'] ?? '',
     'notes' => $result['notes'] ?? [],
+    'analysis_type' => $result['analysis_type'] ?? $analysisType,
+    'key_points' => $result['key_points'] ?? [],
+    'sections' => $result['sections'] ?? [],
+    'style_observations' => $result['style_observations'] ?? [],
+    'issues' => $result['issues'] ?? ($result['notes'] ?? []),
+    'missing_information' => $result['missing_information'] ?? [],
     'source' => $result['source'] ?? 'ai',
     'analyzed_by' => $adviserUserId,
     'analyzed_by_name' => $adviserName,
@@ -110,7 +117,9 @@ $analysisId = rpSaveAiAnalysis($crad, [
 $saved = rpLatestAiAnalysisForUpdate($crad, $updateId);
 echo json_encode([
     'success' => true,
-    'message' => 'AI analysis completed. Review the notes before you approve or request revision.',
+    'message' => ($result['source'] ?? '') === 'grammar_engine'
+        ? (string) ($result['message'] ?? 'A limited writing check completed. Review the full document and make the academic decision yourself.')
+        : 'GPT-4.1 advisory analysis completed. Review these observations alongside the document; the academic decision remains yours.',
     'analysis_id' => $analysisId,
     'analysis' => $saved,
     'revision_text' => $saved ? rpFormatAiNotesForRevision($saved + ['milestone_name' => $milestoneName]) : '',

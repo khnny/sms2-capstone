@@ -3,7 +3,7 @@
  * SMS 2 - CORE SYSTEM · Proposals & Applications
  * Module: CRAD
  *
- * Lists all grant proposals/applications from grant_applications (crad_db).
+ * Lists all grant proposals/applications from `crad_grant_applications` (crad_db).
  * Displays full BRGFAMS Form 1 fields: research title, college/dept,
  * requested budget, abstract, objectives, document attachments.
  * Status 'Submitted' is shown as 'Pending Evaluation' in this view.

@@ -28,17 +28,18 @@ function sms2MigrateStoredBaseUrls(?callable $sink = null): array
 
     $pdo = getCradDatabaseConnection();
     $tables = [
-        'crad_grant_proposal_notifications' => 'url',
-        'crad_chapter_evaluation_notifications' => 'url',
-        'crad_research_progress_notifications' => 'action_url',
-        'crad_panel_assignment_notifications' => 'url',
+        'grant_proposal_notifications' => 'url',
+        'chapter_evaluation_notifications' => 'url',
+        'research_progress_notifications' => 'action_url',
+        'panel_assignment_notifications' => 'url',
     ];
 
     $log('Canonical BASE_URL: ' . (BASE_URL !== '' ? BASE_URL : '(root)'));
     $log('Rewriting stored URLs: ' . $from . ' -> ' . $to);
 
     $totalUpdated = 0;
-    foreach ($tables as $table => $urlColumn) {
+    foreach ($tables as $logicalTable => $urlColumn) {
+        $table = crad_resolve_table($logicalTable);
         $exists = $pdo->query('SHOW TABLES LIKE ' . $pdo->quote($table))->fetchColumn();
         if (!$exists) {
             $log('Skipped ' . $table . ' (table not found).');

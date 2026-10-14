@@ -2,76 +2,43 @@
 /**
  * CRAD Module - Database Configuration
  *
- * CRAD tables (crad_*) live in the SAME MySQL database as the main SMS app
- * (typically sms2_db). This module reuses getDatabaseConnection() so HostForge
- * env vars like hf_db_* / mariadb-*.internal cannot diverge from the working
- * application connection defined in config/local.php.
+ * Target: same physical database as SMS2 (single-DB architecture).
+ * Set CRAD_DB_NAME to match DB_NAME / DB_DATABASE (local: sms2_db,
+ * HostForge: hf_db_…). During transition, CRAD_DB_NAME may still point
+ * at a dedicated crad_db until the merge migration completes.
  */
 
 declare(strict_types=1);
 
 require_once dirname(__DIR__, 3) . '/config/config.php';
-require_once dirname(__DIR__, 3) . '/config/database.php';
 
-/**
- * Resolve CRAD setting: explicit CRAD_* env/constant → already-resolved DB_* → default.
- * Prefer PHP constants (config/local.php) over HostForge-injected getenv() values so
- * CRAD cannot reconnect to a different host/database than the main app.
- */
-if (!function_exists('crad_db_setting')) {
-    function crad_db_setting(?string $explicitEnvKey, array $constantFallbacks, string $default): string
-    {
-        if ($explicitEnvKey !== null) {
-            $explicit = sms2_env($explicitEnvKey);
-            if ($explicit !== null && $explicit !== '') {
-                return $explicit;
-            }
-            if (defined($explicitEnvKey)) {
-                $value = constant($explicitEnvKey);
-                if (is_string($value) && $value !== '') {
-                    return $value;
-                }
-            }
-        }
-        foreach ($constantFallbacks as $constant) {
-            if (defined($constant)) {
-                $value = constant($constant);
-                if (is_string($value) && $value !== '') {
-                    return $value;
-                }
-            }
-        }
-        return $default;
-    }
-}
-
-// Mirror the main application DB_* constants. Only CRAD_DB_* env/local overrides
-// can change these — never re-read generic DB_NAME/MYSQL_DATABASE from the platform.
 if (!defined('CRAD_DB_HOST')) {
-    define('CRAD_DB_HOST', crad_db_setting('CRAD_DB_HOST', ['DB_HOST'], 'localhost'));
+    define('CRAD_DB_HOST', sms2_env_first(['CRAD_DB_HOST', 'SMS2_DB_HOST', 'DB_HOST', 'MYSQL_HOST', 'MARIADB_HOST'], 'localhost'));
 }
 if (!defined('CRAD_DB_PORT')) {
-    define('CRAD_DB_PORT', crad_db_setting('CRAD_DB_PORT', ['DB_PORT'], '3306'));
+    define('CRAD_DB_PORT', sms2_env_first(['CRAD_DB_PORT', 'SMS2_DB_PORT', 'DB_PORT', 'MYSQL_PORT', 'MARIADB_PORT'], '3306'));
 }
 if (!defined('CRAD_DB_NAME')) {
-    // Always the main app database — never a separate crad_db schema.
-    $cradDbName = crad_db_setting('CRAD_DB_NAME', ['DB_NAME'], 'sms2_db');
-    if ($cradDbName === 'crad_db' && defined('DB_NAME') && is_string(DB_NAME) && DB_NAME !== '') {
-        $cradDbName = DB_NAME;
-    }
-    define('CRAD_DB_NAME', $cradDbName);
+    // Default: same physical database as SMS2 (single-DB architecture).
+    define(
+        'CRAD_DB_NAME',
+        sms2_env_first(
+            ['CRAD_DB_NAME', 'SMS2_DB_NAME', 'DB_DATABASE', 'DB_NAME', 'MYSQL_DATABASE', 'MARIADB_DATABASE'],
+            defined('DB_NAME') ? (string) DB_NAME : 'sms2_db'
+        )
+    );
 }
 if (!defined('CRAD_DB_USER')) {
-    define('CRAD_DB_USER', crad_db_setting('CRAD_DB_USER', ['DB_USER'], 'root'));
+    define('CRAD_DB_USER', sms2_env_first(['CRAD_DB_USER', 'SMS2_DB_USER', 'DB_USERNAME', 'DB_USER', 'MYSQL_USER', 'MARIADB_USER'], 'root'));
 }
 if (!defined('CRAD_DB_PASS')) {
-    define('CRAD_DB_PASS', crad_db_setting('CRAD_DB_PASS', ['DB_PASS'], ''));
+    define('CRAD_DB_PASS', sms2_env_first(['CRAD_DB_PASS', 'SMS2_DB_PASS', 'DB_PASSWORD', 'DB_PASS', 'MYSQL_PASSWORD', 'MARIADB_PASSWORD'], ''));
 }
 if (!defined('CRAD_DB_CHARSET')) {
-    define('CRAD_DB_CHARSET', crad_db_setting('CRAD_DB_CHARSET', ['DB_CHARSET'], 'utf8mb4'));
+    define('CRAD_DB_CHARSET', sms2_env_first(['CRAD_DB_CHARSET', 'SMS2_DB_CHARSET', 'DB_CHARSET'], 'utf8mb4'));
 }
 if (!defined('CRAD_DB_CONNECTION')) {
-    define('CRAD_DB_CONNECTION', strtolower(crad_db_setting('CRAD_DB_CONNECTION', ['DB_CONNECTION'], 'mysql')));
+    define('CRAD_DB_CONNECTION', strtolower((string) sms2_env_first(['CRAD_DB_CONNECTION', 'SMS2_DB_CONNECTION', 'DB_CONNECTION'], 'mysql')));
 }
 if (!defined('CRAD_PHASE_1ST_SEM')) {
     define('CRAD_PHASE_1ST_SEM', '1st Semester');
@@ -93,76 +60,7 @@ if (!defined('CRAD_DEFENSE_PHASE_FINAL')) {
 }
 
 /**
- * Classify a PDO connection error for logs / safe user messages (no credentials).
- *
- * @return array{code:string,message:string}
- */
-function cradClassifyDbError(Throwable $e, string $dbName): array
-{
-    $raw = $e->getMessage();
-    $sqlState = ($e instanceof PDOException && isset($e->errorInfo[0])) ? (string) $e->errorInfo[0] : '';
-    $driverCode = ($e instanceof PDOException && isset($e->errorInfo[1])) ? (int) $e->errorInfo[1] : 0;
-
-    if (!extension_loaded('pdo_mysql')) {
-        return ['code' => 'missing_driver', 'message' => 'PHP PDO MySQL driver is not enabled on this server.'];
-    }
-    if ($driverCode === 1049 || stripos($raw, 'Unknown database') !== false) {
-        return [
-            'code' => 'unknown_database',
-            'message' => 'Database "' . $dbName . '" does not exist. CRAD expects crad_* tables inside the main application database (sms2_db / DB_NAME from config/local.php).',
-        ];
-    }
-    if ($driverCode === 1045 || stripos($raw, 'Access denied') !== false) {
-        return ['code' => 'access_denied', 'message' => 'MySQL rejected the configured database user (access denied). Check DB_USER in config/local.php.'];
-    }
-    if ($driverCode === 2002 || stripos($raw, 'Connection refused') !== false) {
-        return ['code' => 'connection_refused', 'message' => 'MySQL connection refused. Check DB_HOST / DB_PORT in config/local.php (do not use unreachable *.internal hostnames).'];
-    }
-    if ($driverCode === 2003 || stripos($raw, 'getaddrinfo') !== false || stripos($raw, 'Name or service not known') !== false) {
-        return [
-            'code' => 'host_unreachable',
-            'message' => 'MySQL host could not be resolved (getaddrinfo failed). HostForge-injected hosts like mariadb-*.internal are invalid here — set DB_HOST in config/local.php to the hostname that already works for sms2_db.',
-        ];
-    }
-    if ($sqlState === 'HY000' || $driverCode > 0) {
-        return ['code' => 'sql_error', 'message' => 'MySQL error while opening the CRAD database connection (see server error log).'];
-    }
-
-    return ['code' => 'unknown', 'message' => 'CRAD database connection failed (see server error log).'];
-}
-
-/**
- * Whether CRAD is configured to use a database other than the main SMS connection.
- * Under the unified layout this should always be false (CRAD_DB_NAME === DB_NAME).
- */
-function cradUsesSeparateDatabase(): bool
-{
-    return CRAD_DB_NAME !== DB_NAME
-        || CRAD_DB_HOST !== DB_HOST
-        || CRAD_DB_PORT !== DB_PORT
-        || CRAD_DB_USER !== DB_USER
-        || CRAD_DB_PASS !== DB_PASS;
-}
-
-/**
- * Open a PDO with explicit CRAD credentials (installer / rare split-DB only).
- */
-function cradOpenPdo(string $dbName): PDO
-{
-    $dsn = 'mysql:host=' . CRAD_DB_HOST . ';port=' . CRAD_DB_PORT . ';dbname=' . $dbName . ';charset=' . CRAD_DB_CHARSET;
-
-    return new PDO($dsn, CRAD_DB_USER, CRAD_DB_PASS, [
-        PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-        PDO::ATTR_EMULATE_PREPARES   => false,
-    ]);
-}
-
-/**
  * Get CRAD database connection (singleton).
- *
- * Always reuses the main application PDO. CRAD tables (crad_*) live in the same
- * database as SMS (sms2_db / HostForge hf_db_*) — never a separate crad_db.
  *
  * @return PDO
  * @throws RuntimeException when connection fails
@@ -170,31 +68,32 @@ function cradOpenPdo(string $dbName): PDO
 function getCradDatabaseConnection(): PDO
 {
     static $pdo = null;
-    static $hooksDone = false;
 
     if ($pdo instanceof PDO) {
         return $pdo;
     }
 
-    if (!extension_loaded('pdo_mysql')) {
-        error_log('CRAD DB connection failed: pdo_mysql extension missing');
-        throw new RuntimeException('PHP PDO MySQL driver is not enabled on this server.');
+    if (!in_array(CRAD_DB_CONNECTION, ['mysql', 'mariadb'], true)) {
+        throw new RuntimeException(
+            'Unsupported CRAD database connection "' . CRAD_DB_CONNECTION . '". Select MySQL/MariaDB on HostForge for SMS 2.'
+        );
     }
 
-    try {
-        $pdo = getDatabaseConnection();
+    $dsn = 'mysql:host=' . CRAD_DB_HOST . ';port=' . CRAD_DB_PORT . ';dbname=' . CRAD_DB_NAME . ';charset=' . CRAD_DB_CHARSET;
 
-        if (!$hooksDone) {
-            $hooksDone = true;
-            cradEnsurePanelNotificationDeleteTrigger($pdo);
-            cradCleanupPreoralEvaluationsForInvalidRegistry($pdo);
-        }
-    } catch (RuntimeException $e) {
-        throw $e;
+    try {
+        $pdo = new PDO($dsn, CRAD_DB_USER, CRAD_DB_PASS, [
+            PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::ATTR_EMULATE_PREPARES   => false,
+        ]);
+        cradEnsurePanelNotificationDeleteTrigger($pdo);
+        cradCleanupPreoralEvaluationsForInvalidRegistry($pdo);
     } catch (PDOException $e) {
-        $classified = cradClassifyDbError($e, defined('DB_NAME') ? (string) DB_NAME : CRAD_DB_NAME);
-        error_log('CRAD DB connection failed [' . $classified['code'] . ']: ' . $e->getMessage());
-        throw new RuntimeException($classified['message'], 0, $e);
+        error_log('CRAD DB connection failed: ' . $e->getMessage());
+        throw new RuntimeException(
+            'CRAD database unavailable. Run modules/crad/database/install.php or create crad_db in MySQL.'
+        );
     }
 
     return $pdo;
@@ -234,7 +133,7 @@ function cradOfficialRegistryGroupWhereSql(string $groupAlias = 'rg'): string
         AND TRIM(COALESCE({$groupAlias}.academic_year, '')) <> ''
         AND EXISTS (
             SELECT 1
-            FROM crad_title_approvals official_t
+            FROM `crad_title_approvals` official_t
             WHERE official_t.id = {$groupAlias}.title_approval_id
               AND " . cradValidTitleApprovalWhereSql('official_t') . "
               AND (
@@ -244,7 +143,7 @@ function cradOfficialRegistryGroupWhereSql(string $groupAlias = 'rg'): string
         )
         AND EXISTS (
             SELECT 1
-            FROM crad_research_coordinator_assignments official_ca
+            FROM `crad_research_coordinator_assignments` official_ca
             WHERE official_ca.status = 'Active'
               AND (
                     official_ca.research_group_id = {$groupAlias}.id
@@ -253,7 +152,7 @@ function cradOfficialRegistryGroupWhereSql(string $groupAlias = 'rg'): string
         )
         AND EXISTS (
             SELECT 1
-            FROM crad_research_adviser_assignments official_aa
+            FROM `crad_research_adviser_assignments` official_aa
             WHERE (
                     official_aa.research_group_id = {$groupAlias}.id
                  OR (official_aa.research_group_id IS NULL AND official_aa.group_number = {$groupAlias}.group_number)
@@ -281,12 +180,12 @@ function cradCleanupPanelNotificationsForInvalidRegistry(PDO $pdo, ?array $group
 
     $stmt = $pdo->prepare("
         DELETE pan
-        FROM crad_panel_assignment_notifications pan
+        FROM `crad_panel_assignment_notifications` pan
         WHERE pan.research_group_id IS NOT NULL
           {$scopeSql}
           AND NOT EXISTS (
                 SELECT 1
-                FROM crad_research_groups rg
+                FROM `crad_research_groups` rg
                 WHERE rg.id = pan.research_group_id
                   AND " . cradOfficialRegistryGroupWhereSql('rg') . "
           )
@@ -346,12 +245,12 @@ function cradCleanupPreoralEvaluationsForInvalidRegistry(PDO $pdo, ?array $group
     try {
         $stmt = $pdo->prepare("
             DELETE ev
-            FROM crad_preoral_defense_evaluations ev
+            FROM `crad_preoral_defense_evaluations` ev
             WHERE ev.research_group_id IS NOT NULL
               {$scopeSql}
               AND NOT EXISTS (
                     SELECT 1
-                    FROM crad_research_groups rg
+                    FROM `crad_research_groups` rg
                     WHERE rg.id = ev.research_group_id
                       AND " . cradOfficialRegistryGroupWhereSql('rg') . "
               )
@@ -397,10 +296,10 @@ function cradEnsurePanelNotificationDeleteTrigger(PDO $pdo): void
 
         $pdo->exec("
             CREATE TRIGGER trg_research_groups_panel_notifications_after_delete
-            AFTER DELETE ON crad_research_groups
+            AFTER DELETE ON `crad_research_groups`
             FOR EACH ROW
             BEGIN
-                DELETE FROM crad_panel_assignment_notifications
+                DELETE FROM `crad_panel_assignment_notifications`
                 WHERE research_group_id = OLD.id;
             END
         ");
@@ -411,6 +310,9 @@ function cradEnsurePanelNotificationDeleteTrigger(PDO $pdo): void
 
 function cradFindForeignKey(PDO $pdo, string $table, string $column, string $referencedTable, string $referencedColumn): ?array
 {
+    $table = crad_resolve_table($table);
+    $referencedTable = crad_resolve_table($referencedTable);
+
     $stmt = $pdo->prepare("
         SELECT
             kcu.CONSTRAINT_NAME,
@@ -440,6 +342,7 @@ function cradFindForeignKey(PDO $pdo, string $table, string $column, string $ref
 
 function cradDropForeignKey(PDO $pdo, string $table, string $constraintName): void
 {
+    $table = crad_resolve_table($table);
     $pdo->exec('ALTER TABLE `' . str_replace('`', '``', $table) . '` DROP FOREIGN KEY `' . str_replace('`', '``', $constraintName) . '`');
 }
 
@@ -461,7 +364,7 @@ function cradEnsureResearchGroupHistoryProtection(PDO $pdo): array
         }
     }
 
-    $column = $pdo->query("SHOW COLUMNS FROM crad_research_plans LIKE 'research_group_id'")->fetch();
+    $column = $pdo->query("SHOW COLUMNS FROM `crad_research_plans` LIKE 'research_group_id'")->fetch();
     if (!$column) {
         return [
             'ok' => false,
@@ -484,15 +387,15 @@ function cradEnsureResearchGroupHistoryProtection(PDO $pdo): array
     }
 
     if ($needsNullable) {
-        $pdo->exec('ALTER TABLE crad_research_plans MODIFY research_group_id INT UNSIGNED NULL COMMENT ' . $pdo->quote('FK to research_groups; nullable to preserve history if group is removed'));
+        $pdo->exec('ALTER TABLE `crad_research_plans` MODIFY research_group_id INT UNSIGNED NULL COMMENT ' . $pdo->quote('FK to research_groups; nullable to preserve history if group is removed'));
         $result['changed'] = true;
     }
 
     $pdo->exec("
-        ALTER TABLE crad_research_plans
+        ALTER TABLE `crad_research_plans`
         ADD CONSTRAINT fk_rp_research_group
         FOREIGN KEY (research_group_id)
-        REFERENCES crad_research_groups(id)
+        REFERENCES `crad_research_groups`(id)
         ON DELETE SET NULL
         ON UPDATE CASCADE
     ");
@@ -510,8 +413,8 @@ function cradCountOrphanResearchGroups(PDO $pdo): int
 
     $stmt = $pdo->query("
         SELECT COUNT(*)
-        FROM crad_research_groups rg
-        LEFT JOIN crad_title_approvals t ON t.id = rg.title_approval_id
+        FROM `crad_research_groups` rg
+        LEFT JOIN `crad_title_approvals` t ON t.id = rg.title_approval_id
         WHERE rg.title_approval_id IS NOT NULL
           AND t.id IS NULL
     ");
@@ -534,8 +437,8 @@ function cradReconcileOrphanResearchGroups(PDO $pdo): array
     try {
         $stmt = $pdo->query("
             SELECT rg.id
-            FROM crad_research_groups rg
-            LEFT JOIN crad_title_approvals t ON t.id = rg.title_approval_id
+            FROM `crad_research_groups` rg
+            LEFT JOIN `crad_title_approvals` t ON t.id = rg.title_approval_id
             WHERE rg.title_approval_id IS NOT NULL
               AND t.id IS NULL
             ORDER BY rg.id
@@ -553,7 +456,7 @@ function cradReconcileOrphanResearchGroups(PDO $pdo): array
         }
 
         $placeholders = implode(',', array_fill(0, count($ids), '?'));
-        $delete = $pdo->prepare("DELETE FROM crad_research_groups WHERE id IN ({$placeholders})");
+        $delete = $pdo->prepare("DELETE FROM `crad_research_groups` WHERE id IN ({$placeholders})");
         $delete->execute($ids);
         $deleted = $delete->rowCount();
         $notificationCleanup = cradCleanupPanelNotificationsForInvalidRegistry($pdo, $ids);
@@ -599,7 +502,7 @@ function cradEnsureTitleApprovalResearchGroupCascade(PDO $pdo, bool $reconcileEx
         }
     }
 
-    if (!$pdo->query("SHOW COLUMNS FROM crad_research_groups LIKE 'title_approval_id'")->fetch()) {
+    if (!$pdo->query("SHOW COLUMNS FROM `crad_research_groups` LIKE 'title_approval_id'")->fetch()) {
         $result['message'] = 'research_groups.title_approval_id is not present; no title approval FK to add.';
         return $result;
     }
@@ -658,10 +561,10 @@ function cradEnsureTitleApprovalResearchGroupCascade(PDO $pdo, bool $reconcileEx
     }
 
     $pdo->exec("
-        ALTER TABLE crad_research_groups
+        ALTER TABLE `crad_research_groups`
         ADD CONSTRAINT fk_rg_title_approval
         FOREIGN KEY (title_approval_id)
-        REFERENCES crad_title_approvals(id)
+        REFERENCES `crad_title_approvals`(id)
         ON DELETE CASCADE
         ON UPDATE CASCADE
     ");
@@ -677,14 +580,14 @@ function cradCountOrphanResearchCoordinatorAssignments(PDO $pdo): int
         return 0;
     }
 
-    if (!$pdo->query("SHOW COLUMNS FROM crad_research_coordinator_assignments LIKE 'title_approval_id'")->fetch()) {
+    if (!$pdo->query("SHOW COLUMNS FROM `crad_research_coordinator_assignments` LIKE 'title_approval_id'")->fetch()) {
         return 0;
     }
 
     $stmt = $pdo->query("
         SELECT COUNT(*)
-        FROM crad_research_coordinator_assignments a
-        LEFT JOIN crad_title_approvals t ON t.id = a.title_approval_id
+        FROM `crad_research_coordinator_assignments` a
+        LEFT JOIN `crad_title_approvals` t ON t.id = a.title_approval_id
         WHERE a.title_approval_id IS NOT NULL
           AND t.id IS NULL
     ");
@@ -711,7 +614,7 @@ function cradReconcileOrphanResearchCoordinatorAssignments(PDO $pdo): array
         }
     }
 
-    if (!$pdo->query("SHOW COLUMNS FROM crad_research_coordinator_assignments LIKE 'title_approval_id'")->fetch()) {
+    if (!$pdo->query("SHOW COLUMNS FROM `crad_research_coordinator_assignments` LIKE 'title_approval_id'")->fetch()) {
         return [
             'ok' => false,
             'changed' => false,
@@ -724,8 +627,8 @@ function cradReconcileOrphanResearchCoordinatorAssignments(PDO $pdo): array
     try {
         $stmt = $pdo->query("
             SELECT a.id
-            FROM crad_research_coordinator_assignments a
-            LEFT JOIN crad_title_approvals t ON t.id = a.title_approval_id
+            FROM `crad_research_coordinator_assignments` a
+            LEFT JOIN `crad_title_approvals` t ON t.id = a.title_approval_id
             WHERE a.title_approval_id IS NOT NULL
               AND t.id IS NULL
             ORDER BY a.id
@@ -738,7 +641,7 @@ function cradReconcileOrphanResearchCoordinatorAssignments(PDO $pdo): array
         }
 
         $placeholders = implode(',', array_fill(0, count($ids), '?'));
-        $delete = $pdo->prepare("DELETE FROM crad_research_coordinator_assignments WHERE id IN ({$placeholders})");
+        $delete = $pdo->prepare("DELETE FROM `crad_research_coordinator_assignments` WHERE id IN ({$placeholders})");
         $delete->execute($ids);
         $deleted = $delete->rowCount();
         $pdo->commit();
@@ -777,8 +680,8 @@ function cradEnsureTitleApprovalResearchCoordinatorCascade(PDO $pdo, bool $recon
         }
     }
 
-    $childColumn = $pdo->query("SHOW COLUMNS FROM crad_research_coordinator_assignments LIKE 'title_approval_id'")->fetch();
-    $parentColumn = $pdo->query("SHOW COLUMNS FROM crad_title_approvals LIKE 'id'")->fetch();
+    $childColumn = $pdo->query("SHOW COLUMNS FROM `crad_research_coordinator_assignments` LIKE 'title_approval_id'")->fetch();
+    $parentColumn = $pdo->query("SHOW COLUMNS FROM `crad_title_approvals` LIKE 'id'")->fetch();
     if (!$childColumn || !$parentColumn) {
         return [
             'ok' => false,
@@ -799,8 +702,8 @@ function cradEnsureTitleApprovalResearchCoordinatorCascade(PDO $pdo, bool $recon
         ];
     }
 
-    if (!$pdo->query("SHOW INDEX FROM crad_research_coordinator_assignments WHERE Key_name = 'idx_rca_title_approval'")->fetch()) {
-        $pdo->exec('ALTER TABLE crad_research_coordinator_assignments ADD KEY idx_rca_title_approval (title_approval_id)');
+    if (!$pdo->query("SHOW INDEX FROM `crad_research_coordinator_assignments` WHERE Key_name = 'idx_rca_title_approval'")->fetch()) {
+        $pdo->exec('ALTER TABLE `crad_research_coordinator_assignments` ADD KEY idx_rca_title_approval (title_approval_id)');
         $result['changed'] = true;
     }
 
@@ -847,10 +750,10 @@ function cradEnsureTitleApprovalResearchCoordinatorCascade(PDO $pdo, bool $recon
     }
 
     $pdo->exec("
-        ALTER TABLE crad_research_coordinator_assignments
+        ALTER TABLE `crad_research_coordinator_assignments`
         ADD CONSTRAINT fk_rca_title_approval
         FOREIGN KEY (title_approval_id)
-        REFERENCES crad_title_approvals(id)
+        REFERENCES `crad_title_approvals`(id)
         ON DELETE CASCADE
         ON UPDATE CASCADE
     ");
@@ -902,29 +805,47 @@ function cradEnsureTitleApprovalAdviserAssignmentConsistency(PDO $pdo, bool $rec
         $result['changed'] = true;
     }
 
-    $pdo->exec('DROP TRIGGER IF EXISTS trg_title_approvals_after_delete');
-    $pdo->exec("
-        CREATE TRIGGER trg_title_approvals_after_delete
-        AFTER DELETE ON crad_title_approvals
-        FOR EACH ROW
-        BEGIN
-            DELETE FROM crad_research_coordinator_assignments
-             WHERE (title_approval_id IS NOT NULL AND title_approval_id = OLD.id)
-                OR (OLD.student_id IS NOT NULL AND OLD.student_id <> '' AND student_id = OLD.student_id)
-                OR (OLD.student_id IS NOT NULL AND OLD.student_id <> '' AND group_number = CONCAT('STU-', OLD.student_id))
-                OR (OLD.proposal_number IS NOT NULL AND OLD.proposal_number <> '' AND proposal_number = OLD.proposal_number);
+    try {
+        $triggerExists = $pdo->query("
+            SELECT TRIGGER_NAME
+            FROM information_schema.TRIGGERS
+            WHERE TRIGGER_SCHEMA = DATABASE()
+              AND TRIGGER_NAME = 'trg_title_approvals_after_delete'
+              AND EVENT_OBJECT_TABLE = 'crad_title_approvals'
+            LIMIT 1
+        ")->fetchColumn();
 
-            DELETE FROM crad_research_adviser_assignments
-             WHERE (OLD.student_id IS NOT NULL AND OLD.student_id <> '' AND student_id = OLD.student_id)
-                OR (OLD.student_id IS NOT NULL AND OLD.student_id <> '' AND group_number = CONCAT('STU-', OLD.student_id))
-                OR (OLD.proposal_number IS NOT NULL AND OLD.proposal_number <> '' AND proposal_number = OLD.proposal_number);
-        END
-    ");
-    $result['changed'] = true;
+        if (!$triggerExists) {
+            $pdo->exec('DROP TRIGGER IF EXISTS trg_title_approvals_after_delete');
+            $pdo->exec("
+                CREATE TRIGGER trg_title_approvals_after_delete
+                AFTER DELETE ON `crad_title_approvals`
+                FOR EACH ROW
+                BEGIN
+                    DELETE FROM `crad_research_coordinator_assignments`
+                     WHERE (title_approval_id IS NOT NULL AND title_approval_id = OLD.id)
+                        OR (OLD.student_id IS NOT NULL AND OLD.student_id <> '' AND student_id = OLD.student_id)
+                        OR (OLD.student_id IS NOT NULL AND OLD.student_id <> '' AND group_number = CONCAT('STU-', OLD.student_id))
+                        OR (OLD.proposal_number IS NOT NULL AND OLD.proposal_number <> '' AND proposal_number = OLD.proposal_number);
+
+                    DELETE FROM `crad_research_adviser_assignments`
+                     WHERE (OLD.student_id IS NOT NULL AND OLD.student_id <> '' AND student_id = OLD.student_id)
+                        OR (OLD.student_id IS NOT NULL AND OLD.student_id <> '' AND group_number = CONCAT('STU-', OLD.student_id))
+                        OR (OLD.proposal_number IS NOT NULL AND OLD.proposal_number <> '' AND proposal_number = OLD.proposal_number);
+                END
+            ");
+            $result['changed'] = true;
+            $result['message'] = 'Installed title approval delete cascade for coordinator and adviser assignments.';
+        } else {
+            $result['message'] = 'Title approval delete cascade trigger already installed.';
+        }
+    } catch (Throwable $e) {
+        error_log('Title approval delete cascade trigger skipped: ' . $e->getMessage());
+        $result['message'] = 'Title approval cascade trigger skipped: ' . $e->getMessage();
+    }
 
     cradPruneDeletedTitleApprovalDependents($pdo);
 
-    $result['message'] = 'Installed title approval delete cascade for coordinator and adviser assignments.';
     return $result;
 }
 
@@ -942,18 +863,18 @@ function cradPruneDeletedTitleApprovalDependents(PDO $pdo): void
 
     try {
         if ($pdo->query("SHOW TABLES LIKE 'crad_research_coordinator_assignments'")->fetchColumn()) {
-            if ($pdo->query("SHOW COLUMNS FROM crad_research_coordinator_assignments LIKE 'title_approval_id'")->fetch()) {
+            if ($pdo->query("SHOW COLUMNS FROM `crad_research_coordinator_assignments` LIKE 'title_approval_id'")->fetch()) {
                 $pdo->exec("
-                    DELETE a FROM crad_research_coordinator_assignments a
-                    LEFT JOIN crad_title_approvals t ON t.id = a.title_approval_id
+                    DELETE a FROM `crad_research_coordinator_assignments` a
+                    LEFT JOIN `crad_title_approvals` t ON t.id = a.title_approval_id
                     WHERE a.title_approval_id IS NOT NULL
                       AND a.title_approval_id <> 0
                       AND t.id IS NULL
                 ");
             }
             $pdo->exec("
-                DELETE a FROM crad_research_coordinator_assignments a
-                LEFT JOIN crad_research_groups g
+                DELETE a FROM `crad_research_coordinator_assignments` a
+                LEFT JOIN `crad_research_groups` g
                   ON (a.research_group_id IS NOT NULL AND a.research_group_id = g.id)
                   OR (a.group_number IS NOT NULL AND a.group_number <> '' AND a.group_number = g.group_number)
                 WHERE g.id IS NULL
@@ -964,8 +885,8 @@ function cradPruneDeletedTitleApprovalDependents(PDO $pdo): void
             ");
             $coordOrphans = $pdo->query("
                 SELECT DISTINCT COALESCE(NULLIF(a.student_id, ''), '') AS student_id
-                FROM crad_research_coordinator_assignments a
-                LEFT JOIN crad_research_groups g
+                FROM `crad_research_coordinator_assignments` a
+                LEFT JOIN `crad_research_groups` g
                   ON (a.research_group_id IS NOT NULL AND a.research_group_id = g.id)
                   OR (a.group_number IS NOT NULL AND a.group_number <> '' AND a.group_number = g.group_number)
                 WHERE g.id IS NULL
@@ -988,8 +909,8 @@ function cradPruneDeletedTitleApprovalDependents(PDO $pdo): void
             if ($pdo->query("SHOW TABLES LIKE 'crad_research_groups'")->fetchColumn()) {
                 $orphans = $pdo->query("
                     SELECT DISTINCT COALESCE(NULLIF(a.student_id, ''), '') AS student_id
-                    FROM crad_research_adviser_assignments a
-                    LEFT JOIN crad_research_groups g
+                    FROM `crad_research_adviser_assignments` a
+                    LEFT JOIN `crad_research_groups` g
                       ON (a.research_group_id IS NOT NULL AND a.research_group_id = g.id)
                       OR (a.group_number IS NOT NULL AND a.group_number <> '' AND a.group_number = g.group_number)
                     WHERE g.id IS NULL
@@ -1006,8 +927,8 @@ function cradPruneDeletedTitleApprovalDependents(PDO $pdo): void
             }
 
             $pdo->exec("
-                DELETE a FROM crad_research_adviser_assignments a
-                LEFT JOIN crad_research_groups g
+                DELETE a FROM `crad_research_adviser_assignments` a
+                LEFT JOIN `crad_research_groups` g
                   ON (a.research_group_id IS NOT NULL AND a.research_group_id = g.id)
                   OR (a.group_number IS NOT NULL AND a.group_number <> '' AND a.group_number = g.group_number)
                 WHERE g.id IS NULL
@@ -1020,13 +941,13 @@ function cradPruneDeletedTitleApprovalDependents(PDO $pdo): void
             foreach (array_keys($studentIds) as $sid) {
                 $stu = 'STU-' . strtoupper(preg_replace('/[^A-Za-z0-9_-]/', '', $sid) ?? '');
                 $stmt = $pdo->prepare("
-                    DELETE FROM crad_research_adviser_assignments
+                    DELETE FROM `crad_research_adviser_assignments`
                      WHERE student_id = :sid
                         OR group_number = :stu
                 ");
                 $stmt->execute([':sid' => $sid, ':stu' => $stu]);
                 $stmt = $pdo->prepare("
-                    DELETE FROM crad_research_coordinator_assignments
+                    DELETE FROM `crad_research_coordinator_assignments`
                      WHERE student_id = :sid
                         OR group_number = :stu
                 ");
@@ -1051,8 +972,8 @@ function cradReleaseAssignmentsWithoutTitleApproval(PDO $pdo): void
     try {
         if ($pdo->query("SHOW TABLES LIKE 'crad_research_coordinator_assignments'")->fetchColumn()) {
             $pdo->exec("
-                DELETE a FROM crad_research_coordinator_assignments a
-                LEFT JOIN crad_title_approvals t
+                DELETE a FROM `crad_research_coordinator_assignments` a
+                LEFT JOIN `crad_title_approvals` t
                   ON (
                         (a.student_id IS NOT NULL AND TRIM(a.student_id) <> '' AND t.student_id = a.student_id)
                      OR (a.group_number LIKE 'STU-%' AND t.student_id = SUBSTRING(a.group_number FROM 5))
@@ -1062,8 +983,8 @@ function cradReleaseAssignmentsWithoutTitleApproval(PDO $pdo): void
         }
         if ($pdo->query("SHOW TABLES LIKE 'crad_research_adviser_assignments'")->fetchColumn()) {
             $pdo->exec("
-                DELETE a FROM crad_research_adviser_assignments a
-                LEFT JOIN crad_title_approvals t
+                DELETE a FROM `crad_research_adviser_assignments` a
+                LEFT JOIN `crad_title_approvals` t
                   ON (
                         (a.student_id IS NOT NULL AND TRIM(a.student_id) <> '' AND t.student_id = a.student_id)
                      OR (a.group_number LIKE 'STU-%' AND t.student_id = SUBSTRING(a.group_number FROM 5))

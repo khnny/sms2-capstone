@@ -8,7 +8,7 @@ declare(strict_types=1);
 if (PHP_SAPI !== 'cli') {
     http_response_code(403);
     header('Content-Type: text/plain; charset=utf-8');
-    echo "Forbidden. Run from CLI only:\n  C:\\xampp\\php\\php.exe database/seed_panel_members.php\n";
+    echo "Forbidden. Run from CLI only:\n  php database/seed_panel_members.php\n";
     exit(1);
 }
 
@@ -19,17 +19,17 @@ require_once __DIR__ . '/official_accounts.php';
 $pdo = getDatabaseConnection();
 
 $pdo->prepare(
-    'INSERT INTO sms_roles (role_key, label, description) VALUES (?, ?, ?)
+    'INSERT INTO `sms2_roles` (role_key, label, description) VALUES (?, ?, ?)
      ON DUPLICATE KEY UPDATE label = VALUES(label), description = VALUES(description)'
 )->execute(['panel', 'Panel Member', 'Research defense panel account']);
 
 $pdo->prepare(
-    'INSERT INTO sms_role_permissions (role_key, module_key, granted) VALUES (?, ?, 1)
+    'INSERT INTO `sms2_role_permissions` (role_key, module_key, granted) VALUES (?, ?, 1)
      ON DUPLICATE KEY UPDATE granted = 1'
 )->execute(['panel', 'faculty']);
 
 $upsert = $pdo->prepare(
-    'INSERT INTO sms_users
+    'INSERT INTO `sms2_users`
         (username, email, password_hash, full_name, role_key, student_id, status, password_changed_at, must_change_password, failed_login_attempts, locked_until)
      VALUES (?, ?, ?, ?, ?, NULL, \'active\', NOW(), 0, 0, NULL)
      ON DUPLICATE KEY UPDATE

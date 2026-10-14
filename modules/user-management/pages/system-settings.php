@@ -22,7 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (($_POST['settings_section'] ?? '')
     if (!csrfVerify()) {
         $_SESSION['flash_settings_error'] = 'Security check failed. Please try again.';
     } else {
-        $sessionTimeout = (int) ($_POST['session_timeout_minutes'] ?? 30);
+        $sessionTimeout = (int) ($_POST['session_timeout_minutes'] ?? 2);
         $maxFails = (int) ($_POST['max_failed_logins'] ?? 3);
         $lockValue = (int) ($_POST['lockout_value'] ?? 5);
         $lockUnit = strtolower(trim((string) ($_POST['lockout_unit'] ?? 'minutes')));
@@ -119,13 +119,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (($_POST['settings_section'] ?? '')
             smsSetSetting('smtp_encryption', $smtpEnc);
             smsSetSetting('smtp_username', $smtpUser);
             // Keep previous password if blank (so Save doesn't wipe it)
+            require_once ROOT_PATH . '/includes/mail.php';
+            $existingPass = smsSmtpPassword();
             if ($smtpPass !== '') {
+                $smtpPass = preg_replace('/\s+/', '', $smtpPass) ?? $smtpPass;
                 smsSetSetting('smtp_password', $smtpPass);
+                // Prove encrypt/decrypt round-trip with current app.key
+                if (isset($GLOBALS['__sms_settings_cache']) && is_array($GLOBALS['__sms_settings_cache'])) {
+                    unset($GLOBALS['__sms_settings_cache']['smtp_password']);
+                }
+                if (smsSetting('smtp_password', '') !== $smtpPass) {
+                    $_SESSION['flash_settings_error'] = 'SMTP password could not be saved securely (encryption key issue). Check that storage/keys/ is writable, then try again.';
+                    header('Location: ' . BASE_URL . '/modules/user-management/pages/system-settings.php?saved=notifications');
+                    exit;
+                }
+            } elseif ($smtpUser !== '' && $existingPass === '') {
+                $_SESSION['flash_settings_error'] = 'SMTP username is set but no App Password is stored. Enter your Gmail App Password and Save.';
+                header('Location: ' . BASE_URL . '/modules/user-management/pages/system-settings.php?saved=notifications');
+                exit;
             }
             smsSetSetting('mail_show_link_on_failure', $showLink);
 
             logActivity('update', 'Updated notification / SMTP settings', 'user-management');
-            $_SESSION['flash_settings_success'] = 'Notification settings saved.';
+            $_SESSION['flash_settings_success'] = 'Notification settings saved. Use “Test” below to confirm email delivery.';
         }
     }
     header('Location: ' . BASE_URL . '/modules/user-management/pages/system-settings.php?saved=notifications');
@@ -237,7 +253,7 @@ if (!empty($_SESSION['flash_settings_error'])) {
     unset($_SESSION['flash_settings_error']);
 }
 
-$sessionTimeout = (int) smsSetting('session_timeout_minutes', '30');
+$sessionTimeout = (int) smsSetting('session_timeout_minutes', '2');
 $maxFails = (int) smsSetting('max_failed_logins', '3');
 $lockSeconds = (int) smsSetting('lockout_seconds', '0');
 if ($lockSeconds <= 0) {
@@ -273,8 +289,10 @@ $smtpHost = smsSetting('smtp_host', '');
 $smtpPort = (int) smsSetting('smtp_port', '587');
 $smtpEnc = strtolower(smsSetting('smtp_encryption', 'tls'));
 $smtpUser = smsSetting('smtp_username', '');
-$smtpPassSet = smsSetting('smtp_password', '') !== '';
+require_once ROOT_PATH . '/includes/mail.php';
+$smtpPassSet = smsSmtpPassword() !== '';
 $mailShowLink = smsSetting('mail_show_link_on_failure', '0') === '1';
+$smtpNeedsPassword = $smtpUser !== '' && !$smtpPassSet;
 $captchaEnabled = smsSetting('login_captcha_enabled', '1') === '1';
 $turnstileSite = smsSetting('turnstile_site_key', '');
 $turnstileSecretSet = smsSetting('turnstile_secret_key', '') !== '';
@@ -423,7 +441,7 @@ renderBreadcrumbs($breadcrumbs);
                             <label class="form-label fw-semibold" for="session_timeout_minutes">Session Timeout (minutes)</label>
                             <input type="number" class="form-control" id="session_timeout_minutes" name="session_timeout_minutes"
                                    value="<?= (int) $sessionTimeout ?>" min="1" max="1440" step="1" required>
-                            <div class="form-text">Idle time before auto sign-out. Type any value (e.g. 15, 30, 90).</div>
+                            <div class="form-text">Idle time before auto sign-out (no mouse/keyboard). Default is 2 minutes.</div>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-semibold" for="max_failed_logins">Max Failed Login Attempts</label>
@@ -622,6 +640,13 @@ renderBreadcrumbs($breadcrumbs);
                         <p>SMTP settings used to email password-reset links to each user’s Gmail/email.</p>
                     </div>
                 </div>
+                <?php if ($smtpNeedsPassword): ?>
+                    <div class="alert alert-warning py-2 small mb-3">
+                        SMTP username <strong><?= e($smtpUser) ?></strong> is set, but the App Password is missing
+                        (previous value could not be decrypted after <code>app.key</code> changed).
+                        Paste your Gmail App Password below, Save, then click <strong>Test</strong>.
+                    </div>
+                <?php endif; ?>
                 <form method="POST" autocomplete="off">
                     <?= csrfField() ?>
                     <input type="hidden" name="settings_section" value="notifications">
@@ -667,9 +692,14 @@ renderBreadcrumbs($breadcrumbs);
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-semibold" for="smtp_password">SMTP Password / App Password</label>
-                            <input type="password" class="form-control" id="smtp_password" name="smtp_password"
-                                   value="" placeholder="<?= $smtpPassSet ? '•••••••• (saved — leave blank to keep)' : 'App password' ?>"
-                                   autocomplete="new-password">
+                            <input type="password" class="form-control <?= $smtpNeedsPassword ? 'is-invalid' : '' ?>" id="smtp_password" name="smtp_password"
+                                   value="" placeholder="<?= $smtpPassSet ? '•••••••• (saved — leave blank to keep)' : '16-char Gmail App Password' ?>"
+                                   autocomplete="new-password" <?= $smtpNeedsPassword ? 'required' : '' ?>>
+                            <?php if ($smtpNeedsPassword): ?>
+                                <div class="invalid-feedback d-block">
+                                    Required: previous password could not be decrypted (app.key changed). Paste your Gmail App Password and Save, then click Test.
+                                </div>
+                            <?php endif; ?>
                         </div>
                         <div class="col-12">
                             <div class="form-check">

@@ -52,6 +52,20 @@ try {
             exit;
         }
 
+        if ($action === 'student_upload_signed') {
+            if ($role !== 'student' || !rscStudentCanAccess($crad, $row)) {
+                throw new RuntimeException('Forbidden');
+            }
+            $file = is_array($_FILES['clearance_file'] ?? null) ? $_FILES['clearance_file'] : [];
+            $result = rscStudentUploadSigned($crad, $row, $file);
+            echo json_encode([
+                'ok' => !empty($result['ok']),
+                'error' => $result['error'] ?? null,
+                'clearance' => isset($result['clearance']) ? rscPublicRow($result['clearance']) : null,
+            ], JSON_INVALID_UTF8_SUBSTITUTE);
+            exit;
+        }
+
         if ($action === 'adviser_sign') {
             if ($role !== 'adviser' || !rscAdviserCanAccess($row)) {
                 throw new RuntimeException('Forbidden');
@@ -71,24 +85,7 @@ try {
             echo json_encode([
                 'ok' => !empty($result['ok']),
                 'error' => $result['error'] ?? null,
-                'clearance' => $fresh ? [
-                    'id' => (int) ($fresh['id'] ?? 0),
-                    'status' => (string) ($fresh['status'] ?? ''),
-                    'status_label' => rscStatusLabel((string) ($fresh['status'] ?? '')),
-                    'has_upload' => trim((string) ($fresh['uploaded_file'] ?? '')) !== '',
-                    'form_verified' => (int) ($fresh['form_verified'] ?? 0) === 1,
-                    'uploaded_original' => (string) ($fresh['uploaded_original'] ?? ''),
-                    'uploaded_url' => rscUploadPublicUrl($fresh),
-                    'uploaded_at' => (string) ($fresh['uploaded_at'] ?? ''),
-                    'has_adviser_signature' => trim((string) ($fresh['adviser_signature'] ?? '')) !== '',
-                    'has_mis_signature' => true,
-                    'has_aa_signature' => true,
-                    'has_crad_signature' => trim((string) ($fresh['crad_signature'] ?? '')) !== '',
-                    'mis_verified' => true,
-                    'aa_verified' => true,
-                    'can_crad_sign' => rscCanCradSign($fresh),
-                    'form_html' => '',
-                ] : null,
+                'clearance' => $fresh ? rscPublicRow($fresh) : null,
             ], JSON_INVALID_UTF8_SUBSTITUTE);
             exit;
         }
@@ -107,11 +104,20 @@ try {
             exit;
         }
 
-        if ($action === 'crad_sign') {
+        if ($action === 'crad_sign' || $action === 'crad_approve') {
             if (!rscCanManageAsCrad()) {
                 throw new RuntimeException('Forbidden');
             }
-            $result = rscCradSign($crad, $row, (string) ($_POST['signature'] ?? ''), getCurrentUserName());
+            $result = rscCradApproveSigned($crad, $row, getCurrentUserName());
+            echo json_encode(['ok' => !empty($result['ok']), 'error' => $result['error'] ?? null, 'clearance' => isset($result['clearance']) ? rscPublicRow($result['clearance']) : null]);
+            exit;
+        }
+
+        if ($action === 'crad_reject') {
+            if (!rscCanManageAsCrad()) {
+                throw new RuntimeException('Forbidden');
+            }
+            $result = rscCradRejectSigned($crad, $row, (string) ($_POST['reason'] ?? ''));
             echo json_encode(['ok' => !empty($result['ok']), 'error' => $result['error'] ?? null, 'clearance' => isset($result['clearance']) ? rscPublicRow($result['clearance']) : null]);
             exit;
         }
@@ -183,9 +189,6 @@ try {
         $rows = rscListForCrad($crad);
         $id = (int) ($_GET['id'] ?? 0);
         $current = $id > 0 ? rscRefreshExisting($crad, rscFindById($crad, $id)) : null;
-        if (!$current && $rows) {
-            $current = $rows[0];
-        }
         $payload['ready'] = $rows !== [];
         $payload['clearance'] = $current ? rscPublicRow($current) : null;
         $payload['rows'] = array_map(static function (array $row): array {

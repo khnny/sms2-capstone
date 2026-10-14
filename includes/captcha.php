@@ -18,8 +18,8 @@ function smsCaptchaEnabled(): bool
 
 function smsCaptchaProvider(): string
 {
-    $site = trim(smsSetting('turnstile_site_key', ''));
-    $secret = trim(smsSetting('turnstile_secret_key', ''));
+    $site = smsCaptchaSiteKey();
+    $secret = smsCaptchaSecretKey();
     if ($site !== '' && $secret !== '') {
         return 'turnstile';
     }
@@ -28,7 +28,35 @@ function smsCaptchaProvider(): string
 
 function smsCaptchaSiteKey(): string
 {
-    return trim(smsSetting('turnstile_site_key', ''));
+    // Environment values are intentionally preferred in production. On
+    // container hosts, storage/keys may be recreated on deployment, making a
+    // database-encrypted secret unreadable after a redeploy.
+    return smsCaptchaEnvironmentValue('TURNSTILE_SITE_KEY')
+        ?: trim(smsSetting('turnstile_site_key', ''));
+}
+
+function smsCaptchaSecretKey(): string
+{
+    return smsCaptchaEnvironmentValue('TURNSTILE_SECRET_KEY')
+        ?: trim(smsSetting('turnstile_secret_key', ''));
+}
+
+/** Read a production CAPTCHA value without placing a secret in source code. */
+function smsCaptchaEnvironmentValue(string $name): string
+{
+    $keys = ['SMS2_' . $name, $name];
+    foreach ($keys as $key) {
+        $value = defined($key)
+            ? constant($key)
+            : (function_exists('sms2_env')
+                ? sms2_env($key)
+                : (getenv($key) !== false ? (string) getenv($key) : null));
+        if (is_string($value) && trim($value) !== '') {
+            return trim($value);
+        }
+    }
+
+    return '';
 }
 
 /**
@@ -130,8 +158,8 @@ function smsCaptchaVerifyRequest(): array
  */
 function smsCaptchaVerifyTurnstile(string $token): array
 {
-    $secret = trim(smsSetting('turnstile_secret_key', ''));
-    $site = trim(smsSetting('turnstile_site_key', ''));
+    $secret = smsCaptchaSecretKey();
+    $site = smsCaptchaSiteKey();
     if ($secret === '') {
         return ['ok' => false, 'error' => 'CAPTCHA is not configured.'];
     }

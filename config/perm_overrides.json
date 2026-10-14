@@ -9,6 +9,9 @@
         "scheduling": false,
         "cocurricular": false,
         "lms": false,
+        "crad": true
+    },
+    "superadmin": {
         "crad": false
     }
 }

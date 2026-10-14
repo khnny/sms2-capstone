@@ -1,0 +1,361 @@
+body.welcome-page {
+    position: relative;
+    min-height: 100vh !important;
+    min-height: 100dvh !important;
+    overflow: hidden;
+    background: #071c48 !important;
+    color: #ffffff;
+}
+
+body.welcome-page .sms-welcome-bg {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    background:
+        linear-gradient(90deg, rgba(5, 21, 52, 0.94) 0%, rgba(7, 30, 69, 0.88) 52%, rgba(7, 30, 69, 0.72) 100%),
+        var(--welcome-image, none);
+    background-position: center;
+    background-size: cover;
+}
+
+.welcome-page .sms-welcome-main {
+    z-index: 1;
+    min-height: 100vh;
+    min-height: 100dvh;
+    align-items: stretch;
+    padding: 0 clamp(1rem, 3vw, 2.5rem);
+}
+
+.welcome-page .sms-welcome-shell {
+    width: min(1440px, 100%);
+    min-height: 100vh;
+    min-height: 100dvh;
+    margin-inline: auto;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
+}
+
+.welcome-page .sms-welcome-shell-head {
+    min-height: 78px;
+    padding: 0.85rem 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    background: transparent;
+}
+
+.welcome-page .sms-welcome-brand,
+.welcome-page .sms-welcome-brand:hover {
+    color: #ffffff;
+}
+
+.welcome-page .sms-welcome-brand img {
+    width: 46px;
+    height: 46px;
+    filter: none;
+}
+
+.welcome-page .sms-welcome-brand strong {
+    font-size: 0.94rem;
+    letter-spacing: 0;
+}
+
+.welcome-page .sms-welcome-brand small {
+    display: block;
+    margin-top: 0.1rem;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.67rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.welcome-page .sms-welcome-help,
+.welcome-page .sms-welcome-shell-foot nav {
+    color: rgba(255, 255, 255, 0.78);
+    font-size: 0.82rem;
+    font-weight: 600;
+}
+
+.welcome-page .sms-welcome-shell-body {
+    flex: 1;
+    min-height: 0;
+    grid-template-columns: 1fr;
+}
+
+.welcome-page .sms-welcome-showcase {
+    min-height: 0;
+    justify-content: center;
+    overflow: visible;
+}
+
+.welcome-page .sms-welcome-hero {
+    display: none;
+}
+
+.welcome-page .sms-welcome-showcase::after {
+    display: none;
+}
+
+.welcome-page .sms-welcome-showcase-copy {
+    width: min(740px, 100%);
+    padding: clamp(2rem, 7vh, 4.5rem) 0;
+}
+
+.welcome-page .sms-welcome-tag {
+    margin-bottom: 1.2rem;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: #b7d5f6;
+    font-size: 0.75rem;
+    letter-spacing: 0.12em;
+    box-shadow: none;
+    backdrop-filter: none;
+}
+
+.welcome-page .sms-welcome-showcase h1 {
+    max-width: 100%;
+    margin-bottom: 1rem;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: clamp(2.8rem, 5.4vw, 4rem);
+    font-weight: 400;
+    letter-spacing: -0.04em;
+    line-height: 1.05;
+    text-shadow: none;
+}
+
+.welcome-page .sms-welcome-showcase p {
+    max-width: 62ch;
+    margin-bottom: 1.7rem;
+    color: rgba(255, 255, 255, 0.8);
+    font-size: clamp(0.98rem, 1.6vw, 1.12rem);
+    line-height: 1.65;
+}
+
+.welcome-page .sms-welcome-actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0.8rem;
+}
+
+.welcome-page .sms-welcome-btn {
+    width: auto;
+    min-height: 48px;
+    padding-inline: 1.2rem;
+    border-radius: 9px;
+    font-size: 0.86rem;
+}
+
+.welcome-page .sms-welcome-btn-primary,
+.welcome-page .sms-welcome-btn-primary:hover {
+    background: #ffffff;
+    color: #123660 !important;
+    box-shadow: none;
+}
+
+.welcome-page .sms-welcome-btn-primary::after {
+    display: none;
+}
+
+.welcome-page .sms-welcome-btn-secondary,
+.welcome-page .sms-welcome-btn-secondary:hover {
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    background: rgba(255, 255, 255, 0.04);
+    color: #ffffff !important;
+    box-shadow: none;
+}
+
+.welcome-page .sms-welcome-assurance {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-top: 2rem;
+    color: rgba(255, 255, 255, 0.72);
+    font-size: 0.79rem;
+}
+
+.welcome-page .sms-welcome-assurance i {
+    color: #b7d5f6;
+}
+
+.welcome-page .sms-welcome-shell-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.18);
+    background: transparent;
+    text-align: left;
+}
+
+.welcome-page .sms-welcome-shell-foot p {
+    color: rgba(255, 255, 255, 0.65);
+    font-size: 0.74rem;
+    font-weight: 500;
+}
+
+.welcome-page .sms-welcome-shell-foot nav {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+}
+
+.welcome-page .sms-welcome-shell-foot nav span[aria-hidden="true"] {
+    color: rgba(255, 255, 255, 0.45);
+}
+
+@media (max-width: 640px) {
+    .welcome-page .sms-welcome-main {
+        padding-inline: 1.2rem;
+    }
+
+    .welcome-page .sms-welcome-shell-head {
+        min-height: 68px;
+    }
+
+    .welcome-page .sms-welcome-showcase-copy {
+        padding-block: 3rem;
+    }
+
+    .welcome-page .sms-welcome-showcase h1 {
+        font-size: clamp(2.5rem, 12vw, 3.5rem);
+    }
+
+    .welcome-page .sms-welcome-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .welcome-page .sms-welcome-btn {
+        width: 100%;
+    }
+
+    .welcome-page .sms-welcome-shell-foot {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .welcome-page .sms-welcome-showcase-copy {
+        animation: none;
+    }
+}
+
+body.welcome-page {
+    color-scheme: inherit !important;
+    background: var(--bg-primary) !important;
+    color: var(--text-primary);
+}
+
+body.welcome-page .sms-welcome-bg {
+    background:
+        linear-gradient(90deg, rgba(238, 242, 249, 0.95) 0%, rgba(238, 242, 249, 0.88) 52%, rgba(226, 236, 248, 0.8) 100%),
+        var(--welcome-image, none);
+    background-position: center;
+    background-size: cover;
+}
+
+.welcome-page .sms-welcome-shell-head,
+.welcome-page .sms-welcome-shell-foot {
+    border-color: var(--border-color);
+}
+
+.welcome-page .sms-welcome-brand,
+.welcome-page .sms-welcome-brand:hover,
+.welcome-page .sms-welcome-showcase h1 {
+    color: var(--text-primary);
+}
+
+.welcome-page .sms-welcome-brand small,
+.welcome-page .sms-welcome-help,
+.welcome-page .sms-welcome-shell-foot nav,
+.welcome-page .sms-welcome-shell-foot p,
+.welcome-page .sms-welcome-showcase p,
+.welcome-page .sms-welcome-assurance {
+    color: var(--text-secondary);
+}
+
+.welcome-page .sms-welcome-tag,
+.welcome-page .sms-welcome-assurance i {
+    color: var(--primary-color);
+}
+
+.welcome-page .sms-welcome-btn-primary,
+.welcome-page .sms-welcome-btn-primary:hover {
+    background: var(--primary-color);
+    color: var(--button-text) !important;
+}
+
+.welcome-page .sms-welcome-btn-secondary,
+.welcome-page .sms-welcome-btn-secondary:hover {
+    border-color: var(--border-color);
+    background: var(--bg-surface);
+    color: var(--text-primary) !important;
+}
+
+.welcome-page .sms-welcome-shell-foot nav span[aria-hidden="true"] {
+    color: var(--text-muted);
+}
+
+.welcome-page .auth-theme-toggle {
+    border-color: var(--border-color);
+    background: var(--bg-surface);
+    color: var(--navbar-text) !important;
+}
+
+[data-theme="dark"] body.welcome-page .sms-welcome-bg {
+    background:
+        linear-gradient(90deg, rgba(5, 21, 52, 0.94) 0%, rgba(7, 30, 69, 0.88) 52%, rgba(7, 30, 69, 0.72) 100%),
+        var(--welcome-image, none);
+    background-position: center;
+    background-size: cover;
+}
+
+[data-theme="dark"] .welcome-page .sms-welcome-shell-head,
+[data-theme="dark"] .welcome-page .sms-welcome-shell-foot {
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] .welcome-page .sms-welcome-brand,
+[data-theme="dark"] .welcome-page .sms-welcome-brand:hover,
+[data-theme="dark"] .welcome-page .sms-welcome-showcase h1 {
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .welcome-page .sms-welcome-brand small,
+[data-theme="dark"] .welcome-page .sms-welcome-help,
+[data-theme="dark"] .welcome-page .sms-welcome-shell-foot nav,
+[data-theme="dark"] .welcome-page .sms-welcome-shell-foot p,
+[data-theme="dark"] .welcome-page .sms-welcome-showcase p,
+[data-theme="dark"] .welcome-page .sms-welcome-assurance {
+    color: var(--text-secondary);
+}
+
+[data-theme="dark"] .welcome-page .sms-welcome-tag,
+[data-theme="dark"] .welcome-page .sms-welcome-assurance i {
+    color: var(--link-color);
+}
+
+[data-theme="dark"] .welcome-page .sms-welcome-btn-primary,
+[data-theme="dark"] .welcome-page .sms-welcome-btn-primary:hover {
+    background: var(--primary-color);
+    color: var(--button-text) !important;
+}
+
+[data-theme="dark"] .welcome-page .sms-welcome-btn-secondary,
+[data-theme="dark"] .welcome-page .sms-welcome-btn-secondary:hover {
+    border-color: var(--border-color);
+    background: var(--bg-surface);
+    color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .welcome-page .auth-theme-toggle {
+    border-color: var(--border-color);
+    background: var(--bg-elevated);
+    color: var(--navbar-text) !important;
+}

@@ -13,5 +13,6 @@ if (function_exists('smsIsSystemInMaintenance') && smsIsSystemInMaintenance()) {
     exit;
 }
 
-header('Location: ' . BASE_URL . '/login/login.php');
+$timeout = !empty($_GET['timeout']) ? 1 : 0;
+header('Location: ' . BASE_URL . '/login/login.php' . ($timeout ? '?timeout=1' : ''));
 exit;

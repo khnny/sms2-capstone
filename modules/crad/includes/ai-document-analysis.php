@@ -1,63 +1,20 @@
 <?php
 /**
- * Adviser AI document analysis (grammar + research writing notes)
+ * Adviser AI-assisted document observations (not academic decisions)
  * before Approve / Request Revision.
  */
 declare(strict_types=1);
 
-function rpCursorApiKey(): string
-{
-    if (defined('CURSOR_API_KEY') && is_string(CURSOR_API_KEY) && CURSOR_API_KEY !== '') {
-        return trim(CURSOR_API_KEY);
-    }
-    if (function_exists('sms2_env')) {
-        $env = sms2_env('CURSOR_API_KEY');
-        if (is_string($env) && $env !== '') {
-            return trim($env);
-        }
-    }
-    $file = ROOT_PATH . '/storage/keys/cursor_api_key';
-    if (is_readable($file)) {
-        $raw = trim((string) file_get_contents($file));
-        if ($raw !== '') {
-            return $raw;
-        }
-    }
-
-    return '';
-}
-
-function rpEnsureAiAnalysisSchema(PDO $crad): void
-{
-    $crad->exec(
-        "CREATE TABLE IF NOT EXISTS crad_research_progress_ai_analyses (
-            id INT UNSIGNED NOT NULL AUTO_INCREMENT,
-            progress_update_id INT UNSIGNED NOT NULL,
-            attachment_id INT UNSIGNED NOT NULL DEFAULT 0,
-            milestone_name VARCHAR(180) NOT NULL DEFAULT '',
-            verdict VARCHAR(40) NOT NULL DEFAULT 'needs_revision',
-            grammar_quality VARCHAR(40) NOT NULL DEFAULT 'fair',
-            summary TEXT NOT NULL,
-            notes_json MEDIUMTEXT NOT NULL,
-            source VARCHAR(40) NOT NULL DEFAULT 'cursor',
-            analyzed_by INT UNSIGNED NOT NULL DEFAULT 0,
-            analyzed_by_name VARCHAR(180) NOT NULL DEFAULT '',
-            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY (id),
-            KEY idx_rpai_update (progress_update_id, id)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
-    );
-}
+require_once ROOT_PATH . '/includes/openai-client.php';
 
 function rpLatestAiAnalysisForUpdate(PDO $crad, int $progressUpdateId): ?array
 {
     if ($progressUpdateId <= 0) {
         return null;
     }
-    rpEnsureAiAnalysisSchema($crad);
     $stmt = $crad->prepare(
         "SELECT *
-         FROM crad_research_progress_ai_analyses
+         FROM `crad_research_progress_ai_analyses`
          WHERE progress_update_id = ?
          ORDER BY id DESC
          LIMIT 1"
@@ -67,8 +24,24 @@ function rpLatestAiAnalysisForUpdate(PDO $crad, int $progressUpdateId): ?array
     if (!$row) {
         return null;
     }
-    $notes = json_decode((string) ($row['notes_json'] ?? '[]'), true);
-    $row['notes'] = is_array($notes) ? $notes : [];
+    $decoded = json_decode((string) ($row['notes_json'] ?? '[]'), true);
+    if (is_array($decoded) && array_is_list($decoded)) {
+        $row['notes'] = $decoded;
+        $row['analysis_type'] = 'full';
+        $row['key_points'] = [];
+        $row['sections'] = [];
+        $row['style_observations'] = [];
+        $row['issues'] = $decoded;
+        $row['missing_information'] = [];
+    } else {
+        $row['notes'] = is_array($decoded['notes'] ?? null) ? $decoded['notes'] : [];
+        $row['analysis_type'] = (string) ($decoded['analysis_type'] ?? 'full');
+        $row['key_points'] = is_array($decoded['key_points'] ?? null) ? $decoded['key_points'] : [];
+        $row['sections'] = is_array($decoded['sections'] ?? null) ? $decoded['sections'] : [];
+        $row['style_observations'] = is_array($decoded['style_observations'] ?? null) ? $decoded['style_observations'] : [];
+        $row['issues'] = is_array($decoded['issues'] ?? null) ? $decoded['issues'] : $row['notes'];
+        $row['missing_information'] = is_array($decoded['missing_information'] ?? null) ? $decoded['missing_information'] : [];
+    }
     unset($row['notes_json']);
 
     return $row;
@@ -76,9 +49,8 @@ function rpLatestAiAnalysisForUpdate(PDO $crad, int $progressUpdateId): ?array
 
 function rpSaveAiAnalysis(PDO $crad, array $data): int
 {
-    rpEnsureAiAnalysisSchema($crad);
     $stmt = $crad->prepare(
-        "INSERT INTO crad_research_progress_ai_analyses (
+        "INSERT INTO `crad_research_progress_ai_analyses` (
             progress_update_id, attachment_id, milestone_name, verdict, grammar_quality,
             summary, notes_json, source, analyzed_by, analyzed_by_name
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
@@ -87,11 +59,19 @@ function rpSaveAiAnalysis(PDO $crad, array $data): int
         (int) ($data['progress_update_id'] ?? 0),
         (int) ($data['attachment_id'] ?? 0),
         (string) ($data['milestone_name'] ?? ''),
-        (string) ($data['verdict'] ?? 'needs_revision'),
-        (string) ($data['grammar_quality'] ?? 'fair'),
+        (string) ($data['verdict'] ?? 'advisory_only'),
+        (string) ($data['grammar_quality'] ?? 'not_scored'),
         (string) ($data['summary'] ?? ''),
-        json_encode($data['notes'] ?? [], JSON_UNESCAPED_UNICODE),
-        (string) ($data['source'] ?? 'cursor'),
+        json_encode([
+            'analysis_type' => (string) ($data['analysis_type'] ?? 'full'),
+            'notes' => is_array($data['notes'] ?? null) ? $data['notes'] : [],
+            'key_points' => is_array($data['key_points'] ?? null) ? $data['key_points'] : [],
+            'sections' => is_array($data['sections'] ?? null) ? $data['sections'] : [],
+            'style_observations' => is_array($data['style_observations'] ?? null) ? $data['style_observations'] : [],
+            'issues' => is_array($data['issues'] ?? null) ? $data['issues'] : [],
+            'missing_information' => is_array($data['missing_information'] ?? null) ? $data['missing_information'] : [],
+        ], JSON_UNESCAPED_UNICODE),
+        (string) ($data['source'] ?? 'openai_gpt_4_1'),
         (int) ($data['analyzed_by'] ?? 0),
         (string) ($data['analyzed_by_name'] ?? ''),
     ]);
@@ -254,27 +234,39 @@ function rpExtractPdfText(string $filePath): string
 /**
  * @return array{ok: bool, verdict?: string, grammar_quality?: string, summary?: string, notes?: list<array<string,string>>, source?: string, message?: string}
  */
-function rpAnalyzeResearchDocument(string $text, string $milestoneName, string $fileName): array
+function rpAnalyzeResearchDocument(string $text, string $milestoneName, string $fileName, string $analysisType = 'full'): array
 {
     $text = trim($text);
     if ($text === '') {
-        return ['ok' => false, 'message' => 'The attached file has no readable text. Please ask the student to upload a .docx or .txt research file.'];
+        return ['ok' => false, 'message' => 'No readable text could be extracted. This analysis works best with a text-based PDF or DOCX; scanned images and legacy DOC files may not be readable.'];
     }
 
+    if (!in_array($analysisType, ['summary', 'structure', 'style', 'full'], true)) {
+        $analysisType = 'full';
+    }
     $excerpt = rpTruncateAnalysisText($text, 14000);
-    $cursor = rpAnalyzeWithCursor($excerpt, $milestoneName, $fileName);
-    if (!empty($cursor['ok'])) {
-        return $cursor;
+    $openAi = rpAnalyzeWithOpenAi($excerpt, $milestoneName, $fileName, $analysisType);
+    if (!empty($openAi['ok'])) {
+        return $openAi;
     }
 
-    $fallback = rpAnalyzeWithLanguageTool($excerpt, $milestoneName, $fileName);
+    $fallback = rpAnalyzeWithLanguageTool($excerpt, $milestoneName, $fileName, $analysisType);
     if (!empty($fallback['ok'])) {
+        if (in_array($analysisType, ['summary', 'structure'], true)) {
+            return [
+                'ok' => false,
+                'message' => 'Summary and structure analysis require the configured AI provider. The available language-check fallback can only provide writing and style observations.',
+            ];
+        }
+        $fallback['requested_analysis_type'] = $analysisType;
+        $fallback['analysis_type'] = 'style';
+        $fallback['message'] = 'OpenAI GPT-4.1 was unavailable, so only a limited LanguageTool writing check completed. No AI summary, structure analysis, or academic decision was generated.';
         return $fallback;
     }
 
     return [
         'ok' => false,
-        'message' => (string) ($cursor['message'] ?? $fallback['message'] ?? 'AI analysis could not be completed.'),
+        'message' => (string) ($openAi['message'] ?? $fallback['message'] ?? 'AI analysis could not be completed.'),
     ];
 }
 
@@ -290,59 +282,65 @@ function rpTruncateAnalysisText(string $text, int $maxChars): string
 }
 
 /**
- * @return array{ok: bool, verdict?: string, grammar_quality?: string, summary?: string, notes?: list<array<string,string>>, source?: string, message?: string}
+ * @return array<string, mixed>
  */
-function rpAnalyzeWithCursor(string $text, string $milestoneName, string $fileName): array
+function rpAnalyzeWithOpenAi(string $text, string $milestoneName, string $fileName, string $analysisType = 'full'): array
 {
-    $apiKey = rpCursorApiKey();
-    if ($apiKey === '') {
-        return ['ok' => false, 'message' => 'Cursor API key is not configured.'];
+    $result = smsOpenAiJsonCompletion(
+        'You are an assistive academic research document analyst using OpenAI GPT-4.1. Return only evidence-based observations as JSON. Never approve, reject, grade, score, or decide a student submission.',
+        rpBuildAnalysisPrompt($text, $milestoneName, $fileName, $analysisType),
+        3000
+    );
+    if (empty($result['ok'])) {
+        return ['ok' => false, 'message' => (string) ($result['message'] ?? 'OpenAI GPT-4.1 analysis is unavailable.')];
     }
-
-    $prompt = rpBuildAnalysisPrompt($text, $milestoneName, $fileName);
-    $chat = rpCursorChatCompletions($apiKey, $prompt);
-    if (!empty($chat['ok']) && !empty($chat['text'])) {
-        $parsed = rpParseAnalysisPayload((string) $chat['text']);
-        if ($parsed !== null) {
-            $parsed['ok'] = true;
-            $parsed['source'] = 'cursor';
-            return $parsed;
-        }
+    $parsed = rpParseAnalysisPayload((string) json_encode($result['data'], JSON_UNESCAPED_UNICODE));
+    if ($parsed === null) {
+        return ['ok' => false, 'message' => 'OpenAI returned analysis that could not be validated. Please retry.'];
     }
-
-    $message = (string) ($chat['message'] ?? 'Cursor analysis is not available from this endpoint.');
-    return ['ok' => false, 'message' => $message];
+    $parsed['ok'] = true;
+    $parsed['source'] = 'openai_gpt_4_1';
+    $parsed['model'] = (string) ($result['model'] ?? 'gpt-4.1');
+    return $parsed;
 }
 
-function rpBuildAnalysisPrompt(string $text, string $milestoneName, string $fileName): string
+function rpBuildAnalysisPrompt(string $text, string $milestoneName, string $fileName, string $analysisType = 'full'): string
 {
     $milestone = $milestoneName !== '' ? $milestoneName : 'research milestone';
+    $focus = match ($analysisType) {
+        'summary' => 'Prioritize a concise overview and main key points. Keep other observations brief.',
+        'structure' => 'Prioritize detected headings, section order, and information that may not be apparent in the text.',
+        'style' => 'Prioritize academic tone, clarity, sentence quality, and actionable writing observations.',
+        default => 'Provide a balanced overview, key points, structure observations, writing feedback, and items for a human to verify.',
+    };
     return <<<PROMPT
-You are an academic English grammarian for a college research monitoring system.
-Analyze the student research file for "{$milestone}" (filename: {$fileName}).
-
-Focus on:
-1. Grammar, spelling, punctuation, subject-verb agreement, tense consistency
-2. Academic writing quality (clarity, formality, citation language if present)
-3. Whether this chapter/section looks complete enough to approve
+You are an assistive academic research document reviewer. Analyze the student research file for "{$milestone}" (filename: {$fileName}).
+The selected analysis mode is "{$analysisType}". {$focus}
+Your observations are advisory. Never approve, reject, grade, or make a final academic decision about the document.
+Review only what can be inferred from the extracted text. Do not claim citation validity or research correctness without evidence.
 
 Reply with JSON only. No markdown. Use this shape:
 {
-  "verdict": "acceptable" or "needs_revision",
-  "grammar_quality": "good" or "fair" or "poor",
-  "summary": "2-4 sentence English summary for the faculty adviser",
-  "notes": [
+    "analysis_type": "{$analysisType}",
+    "summary": "2-4 sentence neutral overview of the document",
+    "key_points": ["main point 1", "main point 2"],
+    "sections": [{"name":"Introduction", "present":true, "observation":"brief note", "suggestion":"optional improvement"}],
+    "style_observations": [{"observation":"writing observation", "suggestion":"actionable suggestion"}],
+    "issues": [{"issue":"area to review", "suggestion":"suggested check", "example":"optional short excerpt", "severity":"review|attention"}],
+    "missing_information": [{"item":"information or section not apparent in the text", "why_it_matters":"brief research-oriented context", "suggestion":"what the human author may consider adding"}],
+    "notes": [
     {
+      "category": "style|structure|issue",
       "issue": "what is wrong",
       "suggestion": "what the student should change",
-      "example": "optional short excerpt from the paper"
+      "example": "optional short excerpt from the paper",
+      "severity": "review|attention"
     }
   ]
 }
 
-If grammar is generally correct, set verdict to "acceptable" and still include 1-3 optional improvement notes.
-If grammar is wrong, set verdict to "needs_revision" and list concrete notes the adviser can require before approval.
-Write all notes in English.
+Do not include an approval/rejection verdict, grade, score, or recommendation about whether the submission should pass. Do not infer that expected sections are mandatory unless the document context makes this clear. Describe potentially missing information as items for the author and human reviewer to verify.
+Use neutral, specific language. Include evidence-based observations and do not invent content absent from the extracted document.
 
 STUDENT DOCUMENT TEXT:
 {$text}
@@ -350,165 +348,15 @@ PROMPT;
 }
 
 /**
- * @return array{ok: bool, text?: string, message?: string}
+ * @return string
  */
-function rpCursorChatCompletions(string $apiKey, string $prompt): array
+function rpAnalysisTextValue(mixed $value): string
 {
-    $endpoints = [
-        'https://api.cursor.com/v1/chat/completions',
-        'https://api.cursor.com/chat/completions',
-    ];
-    foreach ($endpoints as $url) {
-        $payload = [
-            'model' => 'composer-2.5',
-            'temperature' => 0.2,
-            'messages' => [
-                ['role' => 'system', 'content' => 'You are a strict academic grammar reviewer. Return JSON only.'],
-                ['role' => 'user', 'content' => $prompt],
-            ],
-        ];
-        $result = rpCursorHttpJson('POST', $url, $apiKey, $payload);
-        if (!$result['ok']) {
-            continue;
-        }
-        $body = $result['body'] ?? [];
-        $text = (string) ($body['choices'][0]['message']['content'] ?? $body['result'] ?? $body['text'] ?? '');
-        if ($text !== '') {
-            return ['ok' => true, 'text' => $text];
-        }
-    }
-
-    return ['ok' => false, 'message' => 'Cursor chat completions endpoint is not available.'];
+    return is_string($value) || is_numeric($value) ? trim((string) $value) : '';
 }
 
 /**
- * @return array{ok: bool, text?: string, message?: string}
- */
-function rpCursorCreateAgentAndWait(string $apiKey, string $prompt): array
-{
-    $created = rpCursorHttpJson('POST', 'https://api.cursor.com/v1/agents', $apiKey, [
-        'prompt' => ['text' => $prompt],
-        'model' => ['id' => 'composer-2.5'],
-        'name' => 'SMS2 research grammar review',
-    ]);
-    if (empty($created['ok'])) {
-        return ['ok' => false, 'message' => (string) ($created['message'] ?? 'Unable to start Cursor agent.')];
-    }
-    $body = $created['body'] ?? [];
-    $agentId = (string) ($body['agent']['id'] ?? $body['id'] ?? '');
-    $runId = (string) ($body['run']['id'] ?? $body['agent']['latestRunId'] ?? $body['latestRunId'] ?? '');
-    if ($agentId === '' || $runId === '') {
-        $text = rpExtractCursorResultText($body);
-        if ($text !== '') {
-            return ['ok' => true, 'text' => $text];
-        }
-        return ['ok' => false, 'message' => 'Cursor agent started but no run id was returned.'];
-    }
-
-    $deadline = time() + 75;
-    $lastMessage = 'Cursor agent timed out.';
-    while (time() < $deadline) {
-        sleep(4);
-        $run = rpCursorHttpJson('GET', 'https://api.cursor.com/v1/agents/' . rawurlencode($agentId) . '/runs/' . rawurlencode($runId), $apiKey, null);
-        if (empty($run['ok'])) {
-            $lastMessage = (string) ($run['message'] ?? 'Cursor run polling failed.');
-            continue;
-        }
-        $runBody = $run['body'] ?? [];
-        $status = strtolower((string) ($runBody['status'] ?? $runBody['run']['status'] ?? ''));
-        $text = rpExtractCursorResultText($runBody);
-        if (in_array($status, ['finished', 'completed', 'success', 'done'], true) && $text !== '') {
-            return ['ok' => true, 'text' => $text];
-        }
-        if (in_array($status, ['error', 'failed', 'cancelled', 'canceled'], true)) {
-            return ['ok' => false, 'message' => $text !== '' ? $text : 'Cursor agent run failed.'];
-        }
-        if ($text !== '') {
-            return ['ok' => true, 'text' => $text];
-        }
-    }
-
-    return ['ok' => false, 'message' => $lastMessage];
-}
-
-function rpExtractCursorResultText(array $body): string
-{
-    $candidates = [
-        $body['result']['text'] ?? null,
-        $body['result'] ?? null,
-        $body['run']['result']['text'] ?? null,
-        $body['run']['result'] ?? null,
-        $body['output'] ?? null,
-        $body['text'] ?? null,
-        $body['message'] ?? null,
-    ];
-    foreach ($candidates as $candidate) {
-        if (is_string($candidate) && trim($candidate) !== '' && strlen($candidate) > 20) {
-            return trim($candidate);
-        }
-        if (is_array($candidate)) {
-            foreach (['text', 'content', 'summary', 'output'] as $key) {
-                if (isset($candidate[$key]) && is_string($candidate[$key]) && trim($candidate[$key]) !== '') {
-                    return trim($candidate[$key]);
-                }
-            }
-        }
-    }
-
-    return '';
-}
-
-/**
- * @param array<string, mixed>|null $payload
- * @return array{ok: bool, status?: int, body?: array<string, mixed>, message?: string}
- */
-function rpCursorHttpJson(string $method, string $url, string $apiKey, ?array $payload): array
-{
-    $ch = curl_init($url);
-    if ($ch === false) {
-        return ['ok' => false, 'message' => 'Unable to start HTTP request.'];
-    }
-    $headers = ['Accept: application/json'];
-    $opts = [
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_TIMEOUT => 45,
-        CURLOPT_USERPWD => $apiKey . ':',
-        CURLOPT_HTTPHEADER => $headers,
-        CURLOPT_CUSTOMREQUEST => $method,
-    ];
-    if ($payload !== null) {
-        $headers[] = 'Content-Type: application/json';
-        $opts[CURLOPT_HTTPHEADER] = $headers;
-        $opts[CURLOPT_POSTFIELDS] = json_encode($payload, JSON_UNESCAPED_UNICODE);
-    }
-    curl_setopt_array($ch, $opts);
-    $raw = curl_exec($ch);
-    $status = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    $err = curl_error($ch);
-    curl_close($ch);
-    if (!is_string($raw)) {
-        return ['ok' => false, 'status' => $status, 'message' => $err !== '' ? $err : 'Empty Cursor API response.'];
-    }
-    $decoded = json_decode($raw, true);
-    if ($status >= 200 && $status < 300 && is_array($decoded)) {
-        return ['ok' => true, 'status' => $status, 'body' => $decoded];
-    }
-    $message = 'Cursor API HTTP ' . $status;
-    if (is_array($decoded)) {
-        if (isset($decoded['message']) && is_string($decoded['message'])) {
-            $message = $decoded['message'];
-        } elseif (isset($decoded['error']) && is_string($decoded['error'])) {
-            $message = $decoded['error'];
-        } elseif (isset($decoded['error']['message']) && is_string($decoded['error']['message'])) {
-            $message = $decoded['error']['message'];
-        }
-    }
-
-    return ['ok' => false, 'status' => $status, 'message' => $message, 'body' => is_array($decoded) ? $decoded : []];
-}
-
-/**
- * @return array{verdict: string, grammar_quality: string, summary: string, notes: list<array<string,string>>}|null
+ * @return array<string, mixed>|null
  */
 function rpParseAnalysisPayload(string $raw): ?array
 {
@@ -525,35 +373,109 @@ function rpParseAnalysisPayload(string $raw): ?array
     if (!is_array($data)) {
         return null;
     }
-    $verdict = strtolower(trim((string) ($data['verdict'] ?? '')));
-    if (!in_array($verdict, ['acceptable', 'needs_revision'], true)) {
-        $verdict = 'needs_revision';
+    $summary = rpAnalysisTextValue($data['summary'] ?? null);
+    if ($summary === '') {
+        return null;
     }
-    $quality = strtolower(trim((string) ($data['grammar_quality'] ?? '')));
-    if (!in_array($quality, ['good', 'fair', 'poor'], true)) {
-        $quality = $verdict === 'acceptable' ? 'good' : 'fair';
+    $verdict = 'advisory_only';
+    $quality = 'not_scored';
+    $analysisType = strtolower(rpAnalysisTextValue($data['analysis_type'] ?? 'full'));
+    if (!in_array($analysisType, ['summary', 'structure', 'style', 'full'], true)) {
+        $analysisType = 'full';
+    }
+    $keyPoints = array_values(array_filter(array_map(
+        static fn($point): string => rpAnalysisTextValue($point),
+        is_array($data['key_points'] ?? null) ? $data['key_points'] : []
+    ), static fn(string $point): bool => $point !== ''));
+    $sections = [];
+    foreach (is_array($data['sections'] ?? null) ? $data['sections'] : [] as $section) {
+        if (is_string($section)) {
+            $section = ['name' => $section];
+        }
+        if (!is_array($section) || rpAnalysisTextValue($section['name'] ?? null) === '') {
+            continue;
+        }
+        $sections[] = [
+            'name' => rpAnalysisTextValue($section['name']),
+            'present' => !array_key_exists('present', $section) || (bool) $section['present'],
+            'observation' => rpAnalysisTextValue($section['observation'] ?? null),
+            'suggestion' => rpAnalysisTextValue($section['suggestion'] ?? null),
+        ];
+    }
+    $styleObservations = [];
+    foreach (is_array($data['style_observations'] ?? null) ? $data['style_observations'] : [] as $observation) {
+        if (is_string($observation)) {
+            $observation = ['observation' => $observation];
+        }
+        if (!is_array($observation) || rpAnalysisTextValue($observation['observation'] ?? null) === '') {
+            continue;
+        }
+        $styleObservations[] = [
+            'observation' => rpAnalysisTextValue($observation['observation']),
+            'suggestion' => rpAnalysisTextValue($observation['suggestion'] ?? null),
+        ];
     }
     $notes = [];
-    foreach (($data['notes'] ?? []) as $note) {
+    foreach (is_array($data['notes'] ?? null) ? $data['notes'] : [] as $note) {
         if (!is_array($note)) {
             continue;
         }
-        $issue = trim((string) ($note['issue'] ?? $note['problem'] ?? ''));
-        $suggestion = trim((string) ($note['suggestion'] ?? $note['fix'] ?? ''));
+        $issue = rpAnalysisTextValue($note['issue'] ?? $note['problem'] ?? null);
+        $suggestion = rpAnalysisTextValue($note['suggestion'] ?? $note['fix'] ?? null);
         if ($issue === '' && $suggestion === '') {
             continue;
         }
         $notes[] = [
+            'category' => in_array(($note['category'] ?? ''), ['style', 'structure', 'issue'], true) ? (string) $note['category'] : 'issue',
             'issue' => $issue !== '' ? $issue : $suggestion,
             'suggestion' => $suggestion,
-            'example' => trim((string) ($note['example'] ?? $note['excerpt'] ?? '')),
+            'example' => rpAnalysisTextValue($note['example'] ?? $note['excerpt'] ?? null),
+            'severity' => in_array(($note['severity'] ?? ''), ['review', 'attention'], true) ? (string) $note['severity'] : 'review',
+        ];
+    }
+    $issues = [];
+    foreach (is_array($data['issues'] ?? null) ? $data['issues'] : [] as $issue) {
+        if (is_string($issue)) {
+            $issue = ['issue' => $issue];
+        }
+        if (!is_array($issue) || rpAnalysisTextValue($issue['issue'] ?? null) === '') {
+            continue;
+        }
+        $issues[] = [
+            'issue' => rpAnalysisTextValue($issue['issue']),
+            'suggestion' => rpAnalysisTextValue($issue['suggestion'] ?? null),
+            'example' => rpAnalysisTextValue($issue['example'] ?? null),
+            'severity' => in_array(($issue['severity'] ?? ''), ['review', 'attention'], true) ? (string) $issue['severity'] : 'review',
+        ];
+    }
+    if ($issues === []) {
+        $issues = $notes;
+    }
+    $missingInformation = [];
+    foreach (is_array($data['missing_information'] ?? null) ? $data['missing_information'] : [] as $missing) {
+        if (is_string($missing)) {
+            $missing = ['item' => $missing];
+        }
+        if (!is_array($missing) || rpAnalysisTextValue($missing['item'] ?? null) === '') {
+            continue;
+        }
+        $missingInformation[] = [
+            'item' => rpAnalysisTextValue($missing['item']),
+            'why_it_matters' => rpAnalysisTextValue($missing['why_it_matters'] ?? null),
+            'suggestion' => rpAnalysisTextValue($missing['suggestion'] ?? null),
         ];
     }
 
     return [
+        'analysis_type' => $analysisType,
         'verdict' => $verdict,
         'grammar_quality' => $quality,
-        'summary' => trim((string) ($data['summary'] ?? 'AI grammar review completed.')),
+        'summary' => $summary,
+        'key_points' => $keyPoints,
+        'sections' => $sections,
+        'style_observations' => $styleObservations,
+        'issues' => $issues,
+        'missing_information' => $missingInformation,
         'notes' => $notes,
     ];
 }
@@ -561,7 +483,7 @@ function rpParseAnalysisPayload(string $raw): ?array
 /**
  * @return array{ok: bool, verdict?: string, grammar_quality?: string, summary?: string, notes?: list<array<string,string>>, source?: string, message?: string}
  */
-function rpAnalyzeWithLanguageTool(string $text, string $milestoneName, string $fileName): array
+function rpAnalyzeWithLanguageTool(string $text, string $milestoneName, string $fileName, string $analysisType = 'full'): array
 {
     $notes = [];
     $chunks = rpSplitTextChunks($text, 18000);
@@ -584,9 +506,11 @@ function rpAnalyzeWithLanguageTool(string $text, string $milestoneName, string $
                 $context = trim((string) $match['context']['text']);
             }
             $notes[] = [
+                'category' => 'style',
                 'issue' => $message,
                 'suggestion' => $suggestion !== '' ? $suggestion : 'Revise this sentence for correct academic English.',
                 'example' => $context,
+                'severity' => 'review',
             ];
             if (count($notes) >= 12) {
                 break 2;
@@ -597,47 +521,50 @@ function rpAnalyzeWithLanguageTool(string $text, string $milestoneName, string $
     $wordCount = str_word_count($text);
     if ($wordCount < 80) {
         $notes[] = [
-            'issue' => 'The submitted file is too short for a complete ' . ($milestoneName !== '' ? $milestoneName : 'research') . ' chapter.',
-            'suggestion' => 'Ask the student to upload the full chapter with introduction, discussion, and proper academic sentences.',
+            'category' => 'structure',
+            'issue' => 'The extracted text is brief for the selected ' . ($milestoneName !== '' ? $milestoneName : 'research') . ' submission.',
+            'suggestion' => 'Confirm that the complete intended document was submitted; this length check is only an automated observation.',
             'example' => 'Readable words found: ' . $wordCount . ' in ' . $fileName,
+            'severity' => 'attention',
         ];
     }
     if (preg_match('/\\b(asap|gonna|wanna|u r|idk|lol)\\b/i', $text)) {
         $notes[] = [
-            'issue' => 'Informal or chat-style wording appears in the manuscript.',
-            'suggestion' => 'Replace slang with formal academic English before approval.',
+            'category' => 'style',
+            'issue' => 'Informal or chat-style wording may be present in the manuscript.',
+            'suggestion' => 'Review the highlighted wording and consider a formal academic alternative.',
             'example' => '',
+            'severity' => 'review',
         ];
-    }
-
-    $quality = 'good';
-    $verdict = 'acceptable';
-    if ($errorCount >= 8 || $wordCount < 80) {
-        $quality = 'poor';
-        $verdict = 'needs_revision';
-    } elseif ($errorCount >= 3) {
-        $quality = 'fair';
-        $verdict = 'needs_revision';
     }
 
     if ($notes === []) {
         $notes[] = [
+            'category' => 'style',
             'issue' => 'No major grammar errors were detected in the extracted text.',
-            'suggestion' => 'You may still read the full document before approving.',
+            'suggestion' => 'A human reviewer should still read the full document and assess it in context.',
             'example' => '',
+            'severity' => 'review',
         ];
     }
 
-    $summary = $verdict === 'acceptable'
-        ? 'Grammar for ' . ($milestoneName !== '' ? $milestoneName : 'this submission') . ' looks generally acceptable. Review the notes, then approve or request revision.'
-        : 'Grammar and writing issues were found in ' . ($milestoneName !== '' ? $milestoneName : 'this submission') . '. Do not approve until the student revises the notes below.';
+    $summary = 'LanguageTool checked grammar and sentence-level patterns only. It does not generate a document summary or evaluate research structure.';
+    $styleObservations = array_values(array_map(static fn(array $note): array => [
+        'observation' => (string) ($note['issue'] ?? ''),
+        'suggestion' => (string) ($note['suggestion'] ?? ''),
+    ], array_filter($notes, static fn(array $note): bool => ($note['category'] ?? '') === 'style')));
 
     return [
         'ok' => true,
         'source' => 'grammar_engine',
-        'verdict' => $verdict,
-        'grammar_quality' => $quality,
+        'analysis_type' => 'style',
+        'verdict' => 'advisory_only',
+        'grammar_quality' => 'not_scored',
         'summary' => $summary,
+        'key_points' => [],
+        'sections' => [],
+        'style_observations' => $styleObservations,
+        'issues' => $notes,
         'notes' => $notes,
     ];
 }
@@ -693,13 +620,12 @@ function rpLanguageToolMatches(string $text): array
 function rpFormatAiNotesForRevision(array $analysis): string
 {
     $lines = [];
-    $lines[] = 'AI grammar review (' . (string) ($analysis['milestone_name'] ?? 'submission') . ')';
-    $lines[] = 'Verdict: ' . (string) ($analysis['verdict'] ?? 'needs_revision');
+    $lines[] = 'AI-assisted observations (' . (string) ($analysis['milestone_name'] ?? 'submission') . ')';
     if (!empty($analysis['summary'])) {
         $lines[] = trim((string) $analysis['summary']);
     }
     $lines[] = '';
-    $lines[] = 'Please revise the following:';
+    $lines[] = 'Optional areas to review with the complete document:';
     foreach (($analysis['notes'] ?? []) as $i => $note) {
         if (!is_array($note)) {
             continue;
@@ -711,6 +637,15 @@ function rpFormatAiNotesForRevision(array $analysis): string
         }
         if (!empty($note['example'])) {
             $lines[] = '   Example: ' . trim((string) $note['example']);
+        }
+    }
+    foreach (($analysis['missing_information'] ?? []) as $missing) {
+        if (!is_array($missing) || trim((string) ($missing['item'] ?? '')) === '') {
+            continue;
+        }
+        $lines[] = 'Potentially missing information to verify: ' . trim((string) $missing['item']);
+        if (!empty($missing['suggestion'])) {
+            $lines[] = '   Suggestion: ' . trim((string) $missing['suggestion']);
         }
     }
 

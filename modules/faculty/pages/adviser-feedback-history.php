@@ -77,9 +77,9 @@ try {
     $feedbackStmt = $crad->prepare("
         SELECT rpf.*, rpu.update_title, rpu.submitted_by_name,
                rm.milestone_name, rm.milestone_order
-        FROM crad_research_progress_feedback rpf
-        INNER JOIN crad_research_progress_updates rpu ON rpu.id = rpf.progress_update_id
-        LEFT  JOIN crad_research_milestones rm ON rm.id = rpf.milestone_id
+        FROM `crad_research_progress_feedback` rpf
+        INNER JOIN `crad_research_progress_updates` rpu ON rpu.id = rpf.progress_update_id
+        LEFT  JOIN `crad_research_milestones` rm ON rm.id = rpf.milestone_id
         WHERE {$whereClause}
         ORDER BY rpf.created_at DESC
     ");
@@ -90,7 +90,7 @@ try {
 try {
     if (!empty($plan['id'])) {
         $milestonesStmt = $crad->prepare("
-            SELECT id, milestone_name, milestone_order FROM crad_research_milestones
+            SELECT id, milestone_name, milestone_order FROM `crad_research_milestones`
             WHERE research_plan_id = ? ORDER BY milestone_order ASC
         ");
         $milestonesStmt->execute([(int) $plan['id']]);

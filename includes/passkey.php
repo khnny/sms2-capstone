@@ -11,39 +11,143 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/security.php';
 require_once __DIR__ . '/authentication.php';
 
+function smsPasskeyTableSql(): string
+{
+    return sms2_quote_table(sms2_table('user_passkeys'));
+}
+
+function smsPasskeyUsersTableSql(): string
+{
+    return sms2_quote_table(sms2_table('users'));
+}
+
+/**
+ * HostForge / partial dumps sometimes create id without AUTO_INCREMENT (MySQL 1364).
+ * Also widen credential_id when still VARCHAR(255).
+ */
+function smsPasskeyEnsureSchema(PDO $pdo): void
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+
+    $tableSql = smsPasskeyTableSql();
+
+    try {
+        $stmt = $pdo->query('SHOW COLUMNS FROM ' . $tableSql . " LIKE 'id'");
+        $col = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : false;
+        if (is_array($col)) {
+            $extra = strtolower((string) ($col['Extra'] ?? ''));
+            if (!str_contains($extra, 'auto_increment')) {
+                $keyStmt = $pdo->query('SHOW KEYS FROM ' . $tableSql . " WHERE Key_name = 'PRIMARY'");
+                $hasPk = $keyStmt && (bool) $keyStmt->fetch(PDO::FETCH_ASSOC);
+                if (!$hasPk) {
+                    $pdo->exec('ALTER TABLE ' . $tableSql . ' ADD PRIMARY KEY (`id`)');
+                }
+                $pdo->exec('ALTER TABLE ' . $tableSql . ' MODIFY `id` INT UNSIGNED NOT NULL AUTO_INCREMENT');
+            }
+        }
+    } catch (Throwable $e) {
+        error_log('SMS2 passkey id AUTO_INCREMENT repair failed: ' . $e->getMessage());
+    }
+
+    try {
+        $stmt = $pdo->query('SHOW COLUMNS FROM ' . $tableSql . " LIKE 'credential_id'");
+        $col = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : false;
+        if (is_array($col)) {
+            $type = strtolower((string) ($col['Type'] ?? ''));
+            if (preg_match('/varchar\((\d+)\)/', $type, $m) && (int) $m[1] < 1024) {
+                $pdo->exec('ALTER TABLE ' . $tableSql . ' MODIFY `credential_id` VARCHAR(1024) NOT NULL');
+            }
+        }
+    } catch (Throwable $e) {
+        error_log('SMS2 passkey credential_id widen failed: ' . $e->getMessage());
+    }
+
+    try {
+        $keys = $pdo->query('SHOW KEYS FROM ' . $tableSql)->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        $names = [];
+        foreach ($keys as $k) {
+            $names[strtolower((string) ($k['Key_name'] ?? ''))] = true;
+        }
+        if (empty($names['uq_passkey_cred'])) {
+            $pdo->exec('ALTER TABLE ' . $tableSql . ' ADD UNIQUE KEY `uq_passkey_cred` (`credential_id`(255))');
+        }
+        if (empty($names['idx_passkey_user'])) {
+            $pdo->exec('ALTER TABLE ' . $tableSql . ' ADD KEY `idx_passkey_user` (`user_id`)');
+        }
+    } catch (Throwable $e) {
+        error_log('SMS2 passkey index repair failed: ' . $e->getMessage());
+    }
+}
+
 function smsEnsurePasskeyTable(): void
 {
     $pdo = db();
     if (!$pdo) {
         return;
     }
-    $pdo->exec(
-        'CREATE TABLE IF NOT EXISTS sms_user_passkeys (
-            id INT UNSIGNED NOT NULL AUTO_INCREMENT,
-            user_id INT UNSIGNED NOT NULL,
-            credential_id VARCHAR(255) NOT NULL,
-            public_key TEXT NOT NULL,
-            sign_count INT UNSIGNED NOT NULL DEFAULT 0,
-            device_name VARCHAR(120) NOT NULL DEFAULT \'Passkey\',
-            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            last_used_at DATETIME NULL,
-            PRIMARY KEY (id),
-            UNIQUE KEY uq_passkey_cred (credential_id),
-            KEY idx_passkey_user (user_id),
-            CONSTRAINT fk_passkey_user FOREIGN KEY (user_id) REFERENCES sms_users(id) ON DELETE CASCADE
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
-    );
-}
 
+    $tableSql = smsPasskeyTableSql();
+    $usersSql = smsPasskeyUsersTableSql();
+
+    try {
+        $pdo->query('SELECT 1 FROM ' . $tableSql . ' LIMIT 1');
+        smsPasskeyEnsureSchema($pdo);
+        return;
+    } catch (Throwable $e) {
+        // create below
+    }
+
+    try {
+        $pdo->exec(
+            'CREATE TABLE IF NOT EXISTS ' . $tableSql . ' (
+                `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+                `user_id` INT UNSIGNED NOT NULL,
+                `credential_id` VARCHAR(1024) NOT NULL,
+                `public_key` TEXT NOT NULL,
+                `sign_count` INT UNSIGNED NOT NULL DEFAULT 0,
+                `device_name` VARCHAR(120) NOT NULL DEFAULT \'Passkey\',
+                `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                `last_used_at` DATETIME NULL,
+                PRIMARY KEY (`id`),
+                UNIQUE KEY `uq_passkey_cred` (`credential_id`(255)),
+                KEY `idx_passkey_user` (`user_id`),
+                CONSTRAINT `fk_passkey_user` FOREIGN KEY (`user_id`) REFERENCES ' . $usersSql . ' (`id`) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
+        );
+        smsPasskeyEnsureSchema($pdo);
+    } catch (Throwable $e) {
+        error_log('SMS2 passkey table create failed: ' . $e->getMessage());
+    }
+}
 function smsPasskeyRpId(): string
 {
+    // Optional override (HostForge / custom domain). Must match the browser address-bar host.
+    if (function_exists('sms2_env')) {
+        $override = trim((string) (sms2_env('SMS2_WEBAUTHN_RP_ID') ?? ''));
+        if ($override !== '') {
+            $override = preg_replace('/:\d+$/', '', strtolower($override)) ?? '';
+            if ($override !== '') {
+                return $override;
+            }
+        }
+    }
+
     $host = (string) ($_SERVER['HTTP_HOST'] ?? 'localhost');
+    if (isset($_SERVER['HTTP_X_FORWARDED_HOST']) && is_string($_SERVER['HTTP_X_FORWARDED_HOST'])) {
+        $fwd = trim(explode(',', $_SERVER['HTTP_X_FORWARDED_HOST'])[0]);
+        if ($fwd !== '') {
+            $host = $fwd;
+        }
+    }
     $host = preg_replace('/:\d+$/', '', $host) ?? 'localhost';
     $host = strtolower(trim($host));
-    // rpId must match the address bar host exactly (do not remap 127.0.0.1 ↔ localhost)
+    // rpId must match the address bar host exactly (do not remap 127.0.0.1 <-> localhost)
     return $host !== '' ? $host : 'localhost';
 }
-
 function smsPasskeyRpName(): string
 {
     return defined('APP_SHORT_NAME') ? (string) APP_SHORT_NAME : 'SMS2';
@@ -51,10 +155,10 @@ function smsPasskeyRpName(): string
 
 function smsPasskeyOrigin(): string
 {
-    if (!function_exists('smsRequestIsHttps')) {
-        require_once dirname(__DIR__) . '/config/session.php';
-    }
-    $scheme = smsRequestIsHttps() ? 'https' : 'http';
+    $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+        || ((int) ($_SERVER['SERVER_PORT'] ?? 0) === 443)
+        || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https');
+    $scheme = $https ? 'https' : 'http';
     $host = (string) ($_SERVER['HTTP_HOST'] ?? 'localhost');
     // Keep origin host as the browser sent it (including 127.0.0.1 if used)
     return $scheme . '://' . $host;
@@ -108,6 +212,128 @@ function smsB64UrlDecode(string $b64): string
 /**
  * @return list<array<string,mixed>>
  */
+/**
+ * Normalize WebAuthn credential id to unpadded base64url.
+ */
+function smsPasskeyNormalizeCredentialId(string $credId): string
+{
+    $credId = trim($credId);
+    if ($credId === '') {
+        return '';
+    }
+    if (preg_match('#^[A-Za-z0-9_\-+/=]+$#', $credId)) {
+        $raw = smsB64UrlDecode($credId);
+        if ($raw !== '') {
+            return smsB64UrlEncode($raw);
+        }
+        return rtrim(strtr($credId, '+/', '-_'), '=');
+    }
+    return smsB64UrlEncode($credId);
+}
+
+/**
+ * @return list<string>
+ */
+function smsPasskeyCredentialIdLookupKeys(string $credId): array
+{
+    $norm = smsPasskeyNormalizeCredentialId($credId);
+    $keys = [];
+    foreach ([$norm, $credId, rtrim($credId, '='), strtr($credId, '-_', '+/'), strtr($norm, '-_', '+/')] as $k) {
+        $k = trim((string) $k);
+        if ($k !== '' && !in_array($k, $keys, true)) {
+            $keys[] = $k;
+        }
+        $pad = strlen($k) % 4;
+        if ($pad > 0) {
+            $padded = $k . str_repeat('=', 4 - $pad);
+            if (!in_array($padded, $keys, true)) {
+                $keys[] = $padded;
+            }
+        }
+    }
+    return $keys;
+}
+
+function smsPasskeyStepUpClear(): void
+{
+    unset($_SESSION['passkey_stepup_until'], $_SESSION['passkey_stepup_user']);
+}
+
+function smsPasskeyStepUpGrant(int $userId, int $ttlSeconds = 300): void
+{
+    $_SESSION['passkey_stepup_user'] = $userId;
+    $_SESSION['passkey_stepup_until'] = time() + max(60, $ttlSeconds);
+}
+
+function smsPasskeyStepUpOk(int $userId): bool
+{
+    $until = (int) ($_SESSION['passkey_stepup_until'] ?? 0);
+    $uid = (int) ($_SESSION['passkey_stepup_user'] ?? 0);
+    return $userId > 0 && $uid === $userId && $until >= time();
+}
+
+/**
+ * @return array{method:string,label:string,email:string,email_masked:string}
+ */
+function smsPasskeyStepUpMethod(int $userId): array
+{
+    return smsPasskeyRemoveMethod($userId);
+}
+
+/**
+ * @return array{ok:bool,error:string}
+ */
+function smsPasskeyVerifyStepUpProof(int $userId, string $method, array $body, string $otpPurpose = 'passkey_add'): array
+{
+    require_once __DIR__ . '/totp.php';
+    require_once __DIR__ . '/security-workflow.php';
+
+    $expected = smsPasskeyStepUpMethod($userId);
+    if ($method !== (string) ($expected['method'] ?? '')) {
+        return ['ok' => false, 'error' => 'Verification method changed. Refresh and try again.'];
+    }
+
+    $gatePurpose = 'passkey_stepup_' . $otpPurpose;
+    $gate = smsGetCodeGate($userId, $gatePurpose);
+    if (!empty($gate['locked'])) {
+        return ['ok' => false, 'error' => smsCodeFailureMessage($gate, $method === 'password' ? 'password' : 'code')];
+    }
+
+    if ($method === 'authenticator') {
+        $code = trim((string) ($body['totp_code'] ?? $body['code'] ?? ''));
+        if ($code === '' || !smsAuthenticatorVerifyLogin($userId, $code)) {
+            $gate = smsRegisterCodeFailure($userId, $gatePurpose);
+            return ['ok' => false, 'error' => smsCodeFailureMessage($gate, 'code') ?: 'Invalid Authenticator code.'];
+        }
+        smsClearCodeGate($userId, $gatePurpose);
+        return ['ok' => true, 'error' => ''];
+    }
+
+    if ($method === 'email') {
+        $code = trim((string) ($body['otp_code'] ?? $body['code'] ?? ''));
+        if ($code === '' || !smsVerifyOtp($userId, $otpPurpose, $code)) {
+            $gate = smsRegisterCodeFailure($userId, $gatePurpose);
+            return ['ok' => false, 'error' => smsCodeFailureMessage($gate, 'code') ?: 'Invalid or expired email code.'];
+        }
+        smsClearCodeGate($userId, $gatePurpose);
+        return ['ok' => true, 'error' => ''];
+    }
+
+    $password = (string) ($body['password'] ?? '');
+    $pdo = db();
+    if (!$pdo || $userId <= 0 || $password === '') {
+        return ['ok' => false, 'error' => 'Enter your password to continue.'];
+    }
+    $stmt = $pdo->prepare('SELECT password_hash FROM ' . smsPasskeyUsersTableSql() . ' WHERE id = ? LIMIT 1');
+    $stmt->execute([$userId]);
+    $hash = (string) ($stmt->fetchColumn() ?: '');
+    if ($hash === '' || !password_verify($password, $hash)) {
+        $gate = smsRegisterCodeFailure($userId, $gatePurpose);
+        return ['ok' => false, 'error' => smsCodeFailureMessage($gate, 'password') ?: 'Incorrect password.'];
+    }
+    smsClearCodeGate($userId, $gatePurpose);
+    return ['ok' => true, 'error' => ''];
+}
 function smsPasskeysForUser(int $userId): array
 {
     smsEnsurePasskeyTable();
@@ -117,7 +343,7 @@ function smsPasskeysForUser(int $userId): array
     }
     $stmt = $pdo->prepare(
         'SELECT id, credential_id, device_name, sign_count, created_at, last_used_at
-         FROM sms_user_passkeys WHERE user_id = ? ORDER BY id DESC'
+         FROM ' . smsPasskeyTableSql() . ' WHERE user_id = ? ORDER BY id DESC'
     );
     $stmt->execute([$userId]);
     return $stmt->fetchAll() ?: [];
@@ -130,7 +356,7 @@ function smsPasskeyCount(int $userId): int
     if (!$pdo || $userId <= 0) {
         return 0;
     }
-    $stmt = $pdo->prepare('SELECT COUNT(*) FROM sms_user_passkeys WHERE user_id = ?');
+    $stmt = $pdo->prepare('SELECT COUNT(*) FROM ' . smsPasskeyTableSql() . ' WHERE user_id = ?');
     $stmt->execute([$userId]);
     return (int) $stmt->fetchColumn();
 }
@@ -143,7 +369,7 @@ function smsPasskeyDelete(int $userId, int $passkeyId): bool
         return false;
     }
     // Always delete exactly one row by id + owner — never wipe all passkeys.
-    $stmt = $pdo->prepare('DELETE FROM sms_user_passkeys WHERE id = ? AND user_id = ? LIMIT 1');
+    $stmt = $pdo->prepare('DELETE FROM ' . smsPasskeyTableSql() . ' WHERE id = ? AND user_id = ? LIMIT 1');
     $stmt->execute([$passkeyId, $userId]);
     return $stmt->rowCount() > 0;
 }
@@ -154,10 +380,13 @@ function smsPasskeyDelete(int $userId, int $passkeyId): bool
 function smsPasskeyRegisterOptions(int $userId): array
 {
     smsEnsurePasskeyTable();
+    if (!smsPasskeyStepUpOk($userId)) {
+        throw new RuntimeException('Verify your identity before adding a passkey.');
+    }
     $pdo = db();
     $user = null;
     if ($pdo) {
-        $st = $pdo->prepare('SELECT id, email, full_name, username FROM sms_users WHERE id = ? LIMIT 1');
+        $st = $pdo->prepare('SELECT id, email, full_name, username FROM ' . smsPasskeyUsersTableSql() . ' WHERE id = ? LIMIT 1');
         $st->execute([$userId]);
         $user = $st->fetch() ?: null;
     }
@@ -172,9 +401,13 @@ function smsPasskeyRegisterOptions(int $userId): array
 
     $exclude = [];
     foreach (smsPasskeysForUser($userId) as $pk) {
+        $cid = smsPasskeyNormalizeCredentialId((string) ($pk['credential_id'] ?? ''));
+        if ($cid === '') {
+            continue;
+        }
         $exclude[] = [
             'type' => 'public-key',
-            'id' => (string) $pk['credential_id'],
+            'id' => $cid,
         ];
     }
 
@@ -213,6 +446,9 @@ function smsPasskeyRegisterOptions(int $userId): array
 function smsPasskeyRegisterVerify(int $userId, array $cred, string $deviceName = 'Passkey'): array
 {
     smsEnsurePasskeyTable();
+    if (!smsPasskeyStepUpOk($userId)) {
+        return ['ok' => false, 'error' => 'Verify your identity before adding a passkey.'];
+    }
     if (
         (int) ($_SESSION['passkey_reg_user'] ?? 0) !== $userId
         || empty($_SESSION['passkey_reg_challenge'])
@@ -223,7 +459,7 @@ function smsPasskeyRegisterVerify(int $userId, array $cred, string $deviceName =
     }
 
     $challenge = (string) $_SESSION['passkey_reg_challenge'];
-    $credId = (string) ($cred['id'] ?? '');
+    $credId = smsPasskeyNormalizeCredentialId((string) ($cred['id'] ?? ''));
     $clientDataB64 = (string) ($cred['clientDataJSON'] ?? '');
     $publicKeyB64 = (string) ($cred['publicKey'] ?? '');
 
@@ -243,7 +479,7 @@ function smsPasskeyRegisterVerify(int $userId, array $cred, string $deviceName =
         return ['ok' => false, 'error' => 'Challenge mismatch.'];
     }
     if (($clientData['origin'] ?? '') === '' || !smsPasskeyOriginAllowed((string) $clientData['origin'])) {
-        return ['ok' => false, 'error' => 'Origin mismatch. Open the site as http://localhost/… (same address you used to add the passkey).'];
+        return ['ok' => false, 'error' => 'Origin mismatch. Open the site at the same address… (same address you used to add the passkey).'];
     }
 
     $pubDer = smsB64UrlDecode($publicKeyB64);
@@ -266,14 +502,33 @@ function smsPasskeyRegisterVerify(int $userId, array $cred, string $deviceName =
     $name = trim($deviceName) !== '' ? substr(trim($deviceName), 0, 120) : 'Passkey';
     try {
         $pdo->prepare(
-            'INSERT INTO sms_user_passkeys (user_id, credential_id, public_key, sign_count, device_name)
+            'INSERT INTO ' . smsPasskeyTableSql() . ' (user_id, credential_id, public_key, sign_count, device_name)
              VALUES (?, ?, ?, 0, ?)'
         )->execute([$userId, $credId, $pem, $name]);
     } catch (Throwable $e) {
-        return ['ok' => false, 'error' => 'This passkey is already registered.'];
+        $msg = $e->getMessage();
+        error_log('SMS2 passkey register insert failed: ' . $msg);
+        if (stripos($msg, 'Duplicate') !== false || (string) $e->getCode() === '23000') {
+            return ['ok' => false, 'error' => 'This passkey is already registered.'];
+        }
+        if (stripos($msg, "doesn't have a default value") !== false || stripos($msg, '1364') !== false) {
+            smsPasskeyEnsureSchema($pdo);
+            try {
+                $pdo->prepare(
+                    'INSERT INTO ' . smsPasskeyTableSql() . ' (user_id, credential_id, public_key, sign_count, device_name)
+                     VALUES (?, ?, ?, 0, ?)'
+                )->execute([$userId, $credId, $pem, $name]);
+            } catch (Throwable $e2) {
+                error_log('SMS2 passkey register retry failed: ' . $e2->getMessage());
+                return ['ok' => false, 'error' => 'Could not save passkey (database id column). Ask an admin to run the passkey AUTO_INCREMENT patch.'];
+            }
+        } else {
+            return ['ok' => false, 'error' => 'Could not save passkey. Please try again.'];
+        }
     }
 
     unset($_SESSION['passkey_reg_challenge'], $_SESSION['passkey_reg_user'], $_SESSION['passkey_reg_at']);
+    smsPasskeyStepUpClear();
     logActivity('update', 'Added passkey: ' . $name, 'System', $userId);
     return ['ok' => true];
 }
@@ -304,9 +559,13 @@ function smsPasskeyLoginOptions(?string $username = null): array
             $_SESSION['passkey_login_user_id'] = (int) $user['id'];
             $allow = [];
             foreach (smsPasskeysForUser((int) $user['id']) as $pk) {
+                $cid = smsPasskeyNormalizeCredentialId((string) ($pk['credential_id'] ?? ''));
+                if ($cid === '') {
+                    continue;
+                }
                 $allow[] = [
                     'type' => 'public-key',
-                    'id' => (string) $pk['credential_id'],
+                    'id' => $cid,
                     'transports' => ['internal', 'hybrid', 'usb', 'nfc', 'ble'],
                 ];
             }
@@ -336,7 +595,7 @@ function smsPasskeyLoginVerify(array $cred): array
     }
 
     $challenge = (string) $_SESSION['passkey_login_challenge'];
-    $credId = (string) ($cred['id'] ?? '');
+    $credId = smsPasskeyNormalizeCredentialId((string) ($cred['id'] ?? ''));
     $clientDataB64 = (string) ($cred['clientDataJSON'] ?? '');
     $authDataB64 = (string) ($cred['authenticatorData'] ?? '');
     $sigB64 = (string) ($cred['signature'] ?? '');
@@ -349,11 +608,25 @@ function smsPasskeyLoginVerify(array $cred): array
     if (!$pdo) {
         return ['ok' => false, 'error' => 'Database unavailable.'];
     }
-    $stmt = $pdo->prepare('SELECT * FROM sms_user_passkeys WHERE credential_id = ? LIMIT 1');
-    $stmt->execute([$credId]);
-    $pk = $stmt->fetch() ?: null;
+    $pk = null;
+    $keys = smsPasskeyCredentialIdLookupKeys($credId);
+    if ($keys !== []) {
+        $placeholders = implode(',', array_fill(0, count($keys), '?'));
+        $stmt = $pdo->prepare('SELECT * FROM ' . smsPasskeyTableSql() . ' WHERE credential_id IN (' . $placeholders . ') LIMIT 1');
+        $stmt->execute($keys);
+        $pk = $stmt->fetch() ?: null;
+    }
     if (!$pk) {
         return ['ok' => false, 'error' => 'Unknown passkey.'];
+    }
+    $storedId = (string) ($pk['credential_id'] ?? '');
+    if ($storedId !== '' && $storedId !== $credId) {
+        try {
+            $pdo->prepare('UPDATE ' . smsPasskeyTableSql() . ' SET credential_id = ? WHERE id = ? LIMIT 1')->execute([$credId, (int) $pk['id']]);
+            $pk['credential_id'] = $credId;
+        } catch (Throwable $e) {
+            error_log('SMS2 passkey credential_id normalize skipped: ' . $e->getMessage());
+        }
     }
 
     $clientDataRaw = smsB64UrlDecode($clientDataB64);
@@ -368,7 +641,7 @@ function smsPasskeyLoginVerify(array $cred): array
         return ['ok' => false, 'error' => 'Challenge mismatch.'];
     }
     if (($clientData['origin'] ?? '') === '' || !smsPasskeyOriginAllowed((string) $clientData['origin'])) {
-        return ['ok' => false, 'error' => 'Origin mismatch. Open the site as http://localhost/… (same address you used to add the passkey).'];
+        return ['ok' => false, 'error' => 'Origin mismatch. Open the site at the same address… (same address you used to add the passkey).'];
     }
 
     $authData = smsB64UrlDecode($authDataB64);
@@ -423,13 +696,13 @@ function smsPasskeyLoginVerify(array $cred): array
     }
 
     $pdo->prepare(
-        'UPDATE sms_user_passkeys SET sign_count = ?, last_used_at = NOW() WHERE id = ?'
+        'UPDATE ' . smsPasskeyTableSql() . ' SET sign_count = ?, last_used_at = NOW() WHERE id = ?'
     )->execute([max($newCount, $oldCount), (int) $pk['id']]);
 
     $ust = $pdo->prepare(
         'SELECT u.*, r.label AS role_label
-         FROM sms_users u
-         LEFT JOIN sms_roles r ON r.role_key = u.role_key
+         FROM ' . smsPasskeyUsersTableSql() . ' u
+         LEFT JOIN `sms2_roles` r ON r.role_key = u.role_key
          WHERE u.id = ? LIMIT 1'
     );
     $ust->execute([(int) $pk['user_id']]);
@@ -499,7 +772,7 @@ function smsPasskeyRemoveMethod(int $userId): array
     $pdo = db();
     $email = '';
     if ($pdo && $userId > 0) {
-        $stmt = $pdo->prepare('SELECT email FROM sms_users WHERE id = ? LIMIT 1');
+        $stmt = $pdo->prepare('SELECT email FROM ' . smsPasskeyUsersTableSql() . ' WHERE id = ? LIMIT 1');
         $stmt->execute([$userId]);
         $email = trim((string) ($stmt->fetchColumn() ?: ''));
     }
@@ -572,7 +845,7 @@ function smsPasskeyVerifyRemoveProof(int $userId, string $method, array $body): 
     if (!$pdo || $userId <= 0 || $password === '') {
         return ['ok' => false, 'error' => 'Enter your password to continue.'];
     }
-    $stmt = $pdo->prepare('SELECT password_hash FROM sms_users WHERE id = ? LIMIT 1');
+    $stmt = $pdo->prepare('SELECT password_hash FROM ' . smsPasskeyUsersTableSql() . ' WHERE id = ? LIMIT 1');
     $stmt->execute([$userId]);
     $hash = (string) ($stmt->fetchColumn() ?: '');
     if ($hash === '' || !password_verify($password, $hash)) {
@@ -590,22 +863,24 @@ function smsRenderPasskeyCard(int $userId, string $csrfToken, bool $asBox = fals
     $methodInfo = smsPasskeyRemoveMethod($userId);
     $badge = '<span class="badge ' . ($keys ? 'text-bg-success' : 'text-bg-secondary') . '">'
         . ($keys ? count($keys) . ' saved' : 'None') . '</span>';
+    $stepUp = smsPasskeyStepUpMethod($userId);
     echo '<div id="smsPasskeyCard" class="' . ($asBox ? 'h-100' : '') . '" data-passkey-api="' . e($api) . '" data-csrf="' . e($csrfToken) . '"'
-        . ' data-remove-method="' . e($methodInfo['method']) . '">';
+        . ' data-remove-method="' . e($methodInfo['method']) . '"'
+        . ' data-add-method="' . e($stepUp['method']) . '">';
     echo $asBox
         ? smsSecBoxStart('Passkey', 'fa-fingerprint', $badge)
         : smsSecCardStart('Passkey', 'fa-fingerprint', $badge);
     ?>
             <p class="sms-sec-lead">
                 Sign in faster with Windows Hello, Face ID, fingerprint, or a phone passkey — no password needed.
-                Use <strong>http://localhost</strong> (not a LAN IP). Needs a current Chrome, Edge, or Safari.
+                Use the same site address for register and sign-in (localhost locally, or this portal host in production). Needs a current Chrome, Edge, or Safari.
             </p>
             <p class="small text-muted mb-3">
-                Removing a passkey requires a security check:
-                <?php if ($methodInfo['method'] === 'authenticator'): ?>
+                Adding or removing a passkey requires a security check:
+                <?php if ($stepUp['method'] === 'authenticator'): ?>
                     <strong>Authenticator code</strong> (Authenticator is on).
-                <?php elseif ($methodInfo['method'] === 'email'): ?>
-                    <strong>email code</strong> to <?= e($methodInfo['email_masked']) ?>.
+                <?php elseif ($stepUp['method'] === 'email'): ?>
+                    <strong>email code</strong> to <?= e($stepUp['email_masked']) ?>.
                 <?php else: ?>
                     <strong>your password</strong> (no Authenticator or email on this account).
                 <?php endif; ?>
@@ -644,6 +919,54 @@ function smsRenderPasskeyCard(int $userId, string $csrfToken, bool $asBox = fals
             <?php endif; ?>
     <?= $asBox ? smsSecBoxEnd() : smsSecCardEnd() ?>
 
+    
+    <div class="modal fade sms-confirm-modal" id="smsPasskeyAddModal" tabindex="-1" aria-labelledby="smsPasskeyAddTitle" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered sms-confirm-dialog sms-confirm-dialog--wide">
+            <div class="modal-content sms-confirm-content">
+                <div class="sms-confirm-header">
+                    <div class="sms-confirm-header-text">
+                        <span class="sms-confirm-kicker">Passkey</span>
+                        <h5 class="sms-confirm-title" id="smsPasskeyAddTitle">Verify to add a passkey</h5>
+                    </div>
+                    <button type="button" class="sms-confirm-close" data-bs-dismiss="modal" aria-label="Close"><span class="sms-confirm-close__glyph" aria-hidden="true">&times;</span></button>
+                </div>
+                <div class="sms-confirm-body sms-confirm-body--form">
+                    <div class="sms-confirm-icon sms-confirm-icon--info" aria-hidden="true">
+                        <?= smsIcon('shield-check') ?>
+                    </div>
+                    <p class="sms-confirm-msg mb-0" id="smsPasskeyAddLead">Confirm it is you before creating a new passkey.</p>
+                    <div id="smsPasskeyAddErr" class="sms-confirm-notice sms-confirm-notice--danger w-100" hidden></div>
+                    <div id="smsPasskeyAddInfo" class="sms-confirm-notice sms-confirm-notice--info w-100" hidden></div>
+                    <div class="sms-confirm-form w-100">
+                    <div id="smsPkAddVerifyAuthenticator" class="sms-pk-verify w-100" hidden>
+                        <label class="sms-confirm-label" for="smsPkAddTotp"><?= smsIcon('shield-lock') ?>Authenticator code</label>
+                        <input type="text" class="form-control sms-confirm-input" id="smsPkAddTotp" inputmode="numeric" maxlength="6" pattern="\d{6}" autocomplete="one-time-code" placeholder="000000">
+                    </div>
+                    <div id="smsPkAddVerifyEmail" class="sms-pk-verify w-100" hidden>
+                        <label class="sms-confirm-label" for="smsPkAddOtp"><?= smsIcon('mail') ?>Email code</label>
+                        <input type="text" class="form-control sms-confirm-input" id="smsPkAddOtp" inputmode="numeric" maxlength="6" pattern="\d{6}" autocomplete="one-time-code" placeholder="000000">
+                        <button type="button" class="btn btn-link btn-sm px-0 mt-2 sms-confirm-link" id="smsPkAddResendEmail"><?= smsIcon('refresh', ['class' => 'me-1']) ?>Resend email code</button>
+                    </div>
+                    <div id="smsPkAddVerifyPassword" class="sms-pk-verify w-100" hidden>
+                        <label class="sms-confirm-label" for="smsPkAddPassword"><?= smsIcon('lock') ?>Password</label>
+                        <div class="sms-pw-group password-group">
+                            <input type="password" class="form-control sms-confirm-input" id="smsPkAddPassword" autocomplete="new-password" placeholder="Enter your password">
+                            <button class="password-toggle sms-pw-toggle" type="button" data-pw-target="smsPkAddPassword" aria-label="Show password" title="Show password" aria-pressed="false">
+                                <?= smsIcon('eye', ['aria-hidden' => 'true']) ?>
+                            </button>
+                        </div>
+                    </div>
+                    </div>
+                </div>
+                <div class="sms-confirm-footer">
+                    <button type="button" class="btn btn-outline-secondary sms-confirm-cancel" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn sms-confirm-ok sms-confirm-ok--primary" id="smsPasskeyAddConfirm">
+                        <?= smsIcon('check', ['class' => 'me-1', 'aria-hidden' => 'true']) ?>Continue
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
     <div class="modal fade sms-confirm-modal" id="smsPasskeyRemoveModal" tabindex="-1" aria-labelledby="smsPasskeyRemoveTitle" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered sms-confirm-dialog sms-confirm-dialog--wide">
             <div class="modal-content sms-confirm-content">
@@ -677,7 +1000,7 @@ function smsRenderPasskeyCard(int $userId, string $csrfToken, bool $asBox = fals
                     <div id="smsPkVerifyPassword" class="sms-pk-verify w-100" hidden>
                         <label class="sms-confirm-label" for="smsPkPassword"><?= smsIcon('lock') ?>Password</label>
                         <div class="sms-pw-group password-group">
-                            <input type="password" class="form-control sms-confirm-input" id="smsPkPassword" autocomplete="current-password"
+                            <input type="password" class="form-control sms-confirm-input" id="smsPkPassword" autocomplete="new-password"
                                    placeholder="Enter your password">
                             <button class="password-toggle sms-pw-toggle" type="button" data-pw-target="smsPkPassword"
                                     aria-label="Show password" title="Show password" aria-pressed="false">
@@ -697,6 +1020,6 @@ function smsRenderPasskeyCard(int $userId, string $csrfToken, bool $asBox = fals
         </div>
     </div>
     </div>
-    <script src="<?= BASE_URL ?>/assets/js/passkey.js?v=11"></script>
+    <script src="<?= BASE_URL ?>/assets/js/passkey.js?v=12"></script>
     <?php
 }

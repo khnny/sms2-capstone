@@ -77,7 +77,7 @@ $academicPhase = rpGroupAcademicPhase($crad, $groupId);
 
 // Get latest progress update
 $latestUpdateStmt = $crad->prepare("
-    SELECT * FROM crad_research_progress_updates 
+    SELECT * FROM `crad_research_progress_updates` 
     WHERE research_group_id = ?
     ORDER BY submitted_at DESC
     LIMIT 1
@@ -88,9 +88,9 @@ $latestUpdate = $latestUpdateStmt->fetch(PDO::FETCH_ASSOC);
 // Get latest adviser feedback
 $latestFeedbackStmt = $crad->prepare("
     SELECT rpf.*, rm.milestone_name
-    FROM crad_research_progress_feedback rpf
-    INNER JOIN crad_research_progress_updates rpu ON rpu.id = rpf.progress_update_id
-    LEFT JOIN crad_research_milestones rm ON rm.id = rpf.milestone_id
+    FROM `crad_research_progress_feedback` rpf
+    INNER JOIN `crad_research_progress_updates` rpu ON rpu.id = rpf.progress_update_id
+    LEFT JOIN `crad_research_milestones` rm ON rm.id = rpf.milestone_id
     WHERE rpu.research_group_id = ?
     ORDER BY rpf.created_at DESC
     LIMIT 3

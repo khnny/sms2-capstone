@@ -50,11 +50,12 @@ renderBreadcrumbs($breadcrumbs);
                     <th>Research Title</th>
                     <th>Reference / O.R. No.</th>
                     <th>Status</th>
+                    <th>Action</th>
                 </tr>
             </thead>
             <tbody data-rcp-list>
                 <?php if (!$rows): ?>
-                    <tr><td colspan="5" class="text-muted">No clearance payment has been sent to admin yet.</td></tr>
+                    <tr><td colspan="6" class="text-muted">No clearance payment has been sent to admin yet.</td></tr>
                 <?php endif; ?>
             </tbody>
         </table>
@@ -67,9 +68,13 @@ renderBreadcrumbs($breadcrumbs);
             </div>
             <div class="col-lg-5">
                 <div class="mb-2 fw-bold" data-rcp-status></div>
-                <div class="mb-3">
-                    <label class="form-label">Reference / O.R. Number</label>
-                    <input type="text" class="form-control" data-rcp-or readonly>
+                <div class="mb-3" data-rcp-receipt-student-wrap hidden>
+                    <label class="form-label">Name read from receipt</label>
+                    <input type="text" class="form-control" data-rcp-receipt-student readonly>
+                </div>
+                <div class="mb-3" data-rcp-member-references-wrap hidden>
+                    <label class="form-label">Approved Researchers — Reference / O.R. Numbers</label>
+                    <div class="border rounded p-2 bg-light" data-rcp-member-references-admin></div>
                 </div>
                 <div class="mb-3">
                     <label class="form-label">Remarks</label>
@@ -83,5 +88,5 @@ renderBreadcrumbs($breadcrumbs);
         </div>
     </div>
 </div>
-<script src="<?= BASE_URL ?>/modules/crad/assets/js/clearance-payment-live.js?v=rcp-purge-1"></script>
+<script src="<?= BASE_URL ?>/modules/crad/assets/js/clearance-payment-live.js?v=rcp-clearance-view-unview-1"></script>
 <?php require_once ROOT_PATH . '/includes/layout-end.php'; ?>

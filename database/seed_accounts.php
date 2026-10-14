@@ -8,7 +8,7 @@ declare(strict_types=1);
 if (PHP_SAPI !== 'cli') {
     http_response_code(403);
     header('Content-Type: text/plain; charset=utf-8');
-    echo "Forbidden. Run from CLI only:\n  C:\\xampp\\php\\php.exe database/seed_accounts.php\n";
+    echo "Forbidden. Run from CLI only:\n  php database/seed_accounts.php\n";
     exit(1);
 }
 
@@ -43,7 +43,7 @@ $roles = [
 ];
 
 $insRole = $pdo->prepare(
-    'INSERT INTO sms_roles (role_key, label, description) VALUES (?, ?, ?)
+    'INSERT INTO `sms2_roles` (role_key, label, description) VALUES (?, ?, ?)
      ON DUPLICATE KEY UPDATE label = VALUES(label), description = VALUES(description)'
 );
 foreach ($roles as $role) {
@@ -52,10 +52,11 @@ foreach ($roles as $role) {
 
 echo "Updating role permissions…" . PHP_EOL;
 
-$pdo->exec('DELETE FROM sms_role_permissions');
+$pdo->exec('DELETE FROM `sms2_role_permissions`');
 
 $perms = [
     'superadmin'   => ['user-management'],
+    'sms_admin'    => ['enrollment', 'registrar', 'curriculum', 'accreditation', 'payment', 'faculty', 'scheduling', 'cocurricular', 'lms', 'crad'],
     'admission'    => ['enrollment'],
     'registrar'    => ['registrar', 'curriculum', 'scheduling'],
     'crad_officer' => ['crad'],
@@ -77,7 +78,7 @@ $perms = [
 ];
 
 $insPerm = $pdo->prepare(
-    'INSERT INTO sms_role_permissions (role_key, module_key, granted) VALUES (?, ?, 1)'
+    'INSERT INTO `sms2_role_permissions` (role_key, module_key, granted) VALUES (?, ?, 1)'
 );
 foreach ($perms as $role => $modules) {
     foreach ($modules as $mod) {
@@ -260,7 +261,7 @@ $accounts = [
 ];
 
 $upsert = $pdo->prepare(
-    'INSERT INTO sms_users
+    'INSERT INTO `sms2_users`
         (username, email, password_hash, full_name, role_key, student_id, status, password_changed_at, must_change_password, failed_login_attempts, locked_until)
      VALUES (?, ?, ?, ?, ?, ?, \'active\', NOW(), 0, 0, NULL)
      ON DUPLICATE KEY UPDATE
@@ -294,7 +295,7 @@ if (is_file($permFile)) {
 }
 
 $pdo->prepare(
-    'INSERT INTO sms_activity_logs (user_id, user_name, role_key, action, module_key, detail, ip_address)
+    'INSERT INTO `sms2_activity_logs` (user_id, user_name, role_key, action, module_key, detail, ip_address)
      VALUES (NULL, ?, ?, ?, ?, ?, ?)'
 )->execute(['System', 'admin', 'seed', 'System', 'Official role accounts seeded', 'cli']);
 

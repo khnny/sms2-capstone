@@ -26,20 +26,20 @@ require_once __DIR__ . '/../../../includes/breadcrumbs.php';
 function rpEnsureTitleApprovalColumns(PDO $pdo): void
 {
     $columns = [
-        'adviser_signature_data' => "ALTER TABLE crad_title_approvals ADD COLUMN adviser_signature_data MEDIUMTEXT NULL DEFAULT NULL AFTER adviser_remarks",
-        'coordinator_status' => "ALTER TABLE crad_title_approvals ADD COLUMN coordinator_status VARCHAR(30) NOT NULL DEFAULT 'Not Ready' AFTER adviser_signature_data",
-        'coordinator_remarks' => "ALTER TABLE crad_title_approvals ADD COLUMN coordinator_remarks TEXT NULL DEFAULT NULL AFTER coordinator_status",
-        'coordinator_screening_json' => "ALTER TABLE crad_title_approvals ADD COLUMN coordinator_screening_json TEXT NULL DEFAULT NULL AFTER coordinator_remarks",
-        'coordinator_signature_data' => "ALTER TABLE crad_title_approvals ADD COLUMN coordinator_signature_data MEDIUMTEXT NULL DEFAULT NULL AFTER coordinator_remarks",
-        'coordinator_reviewed_at' => "ALTER TABLE crad_title_approvals ADD COLUMN coordinator_reviewed_at DATETIME NULL DEFAULT NULL AFTER coordinator_signature_data",
-        'crad_status' => "ALTER TABLE crad_title_approvals ADD COLUMN crad_status VARCHAR(30) NOT NULL DEFAULT 'Not Ready' AFTER coordinator_reviewed_at",
-        'crad_signature_data' => "ALTER TABLE crad_title_approvals ADD COLUMN crad_signature_data MEDIUMTEXT NULL DEFAULT NULL AFTER crad_status",
-        'crad_reviewed_at' => "ALTER TABLE crad_title_approvals ADD COLUMN crad_reviewed_at DATETIME NULL DEFAULT NULL AFTER crad_signature_data",
+        'adviser_signature_data' => "ALTER TABLE `crad_title_approvals` ADD COLUMN adviser_signature_data MEDIUMTEXT NULL DEFAULT NULL AFTER adviser_remarks",
+        'coordinator_status' => "ALTER TABLE `crad_title_approvals` ADD COLUMN coordinator_status VARCHAR(30) NOT NULL DEFAULT 'Not Ready' AFTER adviser_signature_data",
+        'coordinator_remarks' => "ALTER TABLE `crad_title_approvals` ADD COLUMN coordinator_remarks TEXT NULL DEFAULT NULL AFTER coordinator_status",
+        'coordinator_screening_json' => "ALTER TABLE `crad_title_approvals` ADD COLUMN coordinator_screening_json TEXT NULL DEFAULT NULL AFTER coordinator_remarks",
+        'coordinator_signature_data' => "ALTER TABLE `crad_title_approvals` ADD COLUMN coordinator_signature_data MEDIUMTEXT NULL DEFAULT NULL AFTER coordinator_remarks",
+        'coordinator_reviewed_at' => "ALTER TABLE `crad_title_approvals` ADD COLUMN coordinator_reviewed_at DATETIME NULL DEFAULT NULL AFTER coordinator_signature_data",
+        'crad_status' => "ALTER TABLE `crad_title_approvals` ADD COLUMN crad_status VARCHAR(30) NOT NULL DEFAULT 'Not Ready' AFTER coordinator_reviewed_at",
+        'crad_signature_data' => "ALTER TABLE `crad_title_approvals` ADD COLUMN crad_signature_data MEDIUMTEXT NULL DEFAULT NULL AFTER crad_status",
+        'crad_reviewed_at' => "ALTER TABLE `crad_title_approvals` ADD COLUMN crad_reviewed_at DATETIME NULL DEFAULT NULL AFTER crad_signature_data",
     ];
 
     foreach ($columns as $column => $sql) {
         try {
-            if (!$pdo->query("SHOW COLUMNS FROM crad_title_approvals LIKE " . $pdo->quote($column))->fetch()) {
+            if (!$pdo->query("SHOW COLUMNS FROM `crad_title_approvals` LIKE " . $pdo->quote($column))->fetch()) {
                 $pdo->exec($sql);
             }
         } catch (Throwable $e) {
@@ -59,10 +59,10 @@ function rpTitleApprovalRows(PDO $pdo): array
                 coordinator_status, coordinator_remarks, coordinator_screening_json, coordinator_signature_data,
                 coordinator_reviewed_at, crad_status, crad_signature_data,
                 crad_reviewed_at, sent_at, reviewed_at
-         FROM crad_title_approvals
+         FROM `crad_title_approvals`
          WHERE status = 'Approved'
            AND coordinator_status = 'Approved'
-         ORDER BY FIELD(crad_status, 'Pending', 'Approved', 'Not Ready'),
+         ORDER BY FIELD(crad_status, 'Pending', 'Approved', 'Rejected', 'Not Ready'),
                   coordinator_reviewed_at DESC, id DESC"
     );
     return $stmt->fetchAll() ?: [];
@@ -94,7 +94,7 @@ function rpTitleApprovalApprove(int $id, string $signature): bool
     $pdo = getCradDatabaseConnection();
     rpEnsureTitleApprovalColumns($pdo);
     $stmt = $pdo->prepare(
-        "UPDATE crad_title_approvals
+        "UPDATE `crad_title_approvals`
          SET crad_status = 'Approved',
              crad_signature_data = :signature,
              crad_reviewed_at = NOW()
@@ -112,6 +112,30 @@ function rpTitleApprovalApprove(int $id, string $signature): bool
     return $stmt->rowCount() > 0;
 }
 
+function rpTitleApprovalReject(int $id): bool
+{
+    if ($id <= 0) {
+        return false;
+    }
+
+    $pdo = getCradDatabaseConnection();
+    rpEnsureTitleApprovalColumns($pdo);
+    $stmt = $pdo->prepare(
+        "UPDATE `crad_title_approvals`
+         SET crad_status = 'Rejected',
+             crad_signature_data = NULL,
+             crad_reviewed_at = NOW()
+         WHERE id = :id
+           AND status = 'Approved'
+           AND coordinator_status = 'Approved'
+           AND crad_status = 'Pending'
+         LIMIT 1"
+    );
+    $stmt->execute([':id' => $id]);
+
+    return $stmt->rowCount() > 0;
+}
+
 $formError = '';
 $formSuccess = '';
 
@@ -120,7 +144,7 @@ try {
     rpEnsureTitleApprovalColumns($cradPdo);
 } catch (Throwable $e) {
     error_log('CRAD register setup error: ' . $e->getMessage());
-    $formError = 'Failed to prepare proposal registration database. Please check crad_db. (' . htmlspecialchars($e->getMessage()) . ')';
+    $formError = 'Failed to prepare proposal registration database. Please check  (' . htmlspecialchars($e->getMessage()) . ')';
 }
 
 if (($_GET['ajax'] ?? '') === 'title-approvals') {
@@ -133,10 +157,10 @@ if (($_GET['ajax'] ?? '') === 'title-approval-approve' && $_SERVER['REQUEST_METH
     header('Content-Type: application/json; charset=utf-8');
     try {
         $body = json_decode((string) file_get_contents('php://input'), true) ?: [];
-        $ok = rpTitleApprovalApprove(
-            (int) ($body['id'] ?? 0),
-            trim((string) ($body['crad_signature_data'] ?? ''))
-        );
+        $id = (int) ($body['id'] ?? 0);
+        $ok = ($body['action'] ?? '') === 'reject'
+            ? rpTitleApprovalReject($id)
+            : rpTitleApprovalApprove($id, trim((string) ($body['crad_signature_data'] ?? '')));
         echo json_encode(['ok' => $ok]);
     } catch (Throwable $e) {
         error_log('CRAD officer title approval update failed: ' . $e->getMessage());
@@ -156,7 +180,7 @@ if ($cradPdo instanceof PDO) {
         $proposalStmt = $cradPdo->query(
             "SELECT id, proposal_number, research_title, rep_name, college_department,
                     registered_at, approved_at AS approved_on, registration_status, ref_code
-             FROM crad_research_proposals
+             FROM `crad_research_proposals`
              WHERE status = 'Approved'
              ORDER BY approved_on DESC, id DESC"
         );
@@ -211,6 +235,8 @@ require_once __DIR__ . '/../../../includes/layout-start.php';
 .rp-btn-primary { color: #fff; background: #2563eb; border-color: #2563eb; box-shadow: 0 6px 16px rgba(37,99,235,0.28); }
 .rp-btn-primary:hover { background: #1d4ed8; border-color: #1d4ed8; }
 .rp-btn-done { color: #047857; background: #d1fae5; border-color: #a7f3d0; cursor: default; }
+.rp-btn-danger { color: #fff; background: #dc2626; border-color: #dc2626; }
+.rp-btn-danger:hover { background: #b91c1c; border-color: #b91c1c; color: #fff; }
 .rp-stats { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 0.85rem; }
 .rp-stat {
     display: flex; align-items: center; gap: 0.85rem;
@@ -332,6 +358,7 @@ require_once __DIR__ . '/../../../includes/layout-start.php';
 .rp-status-pending { color: #b45309; background: #fef3c7; }
 .rp-status-registered { color: #047857; background: #d1fae5; }
 .rp-status-approved { color: #047857; background: #d1fae5; }
+.rp-status-rejected { color: #b91c1c; background: #fee2e2; }
 .rp-empty {
     padding: 2rem 1.25rem;
     color: var(--sms-text-muted);
@@ -562,6 +589,7 @@ require_once __DIR__ . '/../../../includes/layout-start.php';
                 <option value="">All Status</option>
                 <option value="pending">Pending</option>
                 <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
             </select>
         </div>
         <div class="rp-table-wrap">
@@ -725,7 +753,10 @@ document.addEventListener('DOMContentLoaded', function () {
         return isNaN(parsed.getTime()) ? String(value) : parsed.toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'});
     };
     const badgeClass = function (status) {
-        return String(status || 'Pending') === 'Approved' ? 'rp-status-approved' : 'rp-status-pending';
+        const normalized = String(status || 'Pending');
+        if (normalized === 'Approved') return 'rp-status-approved';
+        if (normalized === 'Rejected') return 'rp-status-rejected';
+        return 'rp-status-pending';
     };
     const parseMembers = function (raw) {
         try {
@@ -814,12 +845,10 @@ document.addEventListener('DOMContentLoaded', function () {
             const item = members[idx] || {};
             const name = Array.isArray(item) ? (item[0] || '') : (item.name || '');
             const section = Array.isArray(item) ? (item[1] || '') : (item.section || '');
-            const receipt = Array.isArray(item) ? (item[2] || '') : (item.or || '');
             return `<tr>
                 <td style="text-align:center;border:0.8px solid #222;padding:2mm 1.4mm;">${idx + 1}</td>
                 <td style="border:0.8px solid #222;padding:2mm 1.4mm;font-weight:700;">${esc(name)}</td>
                 <td style="border:0.8px solid #222;padding:2mm 1.4mm;">${esc(section)}</td>
-                <td style="border:0.8px solid #222;padding:2mm 1.4mm;">${esc(receipt)}</td>
             </tr>`;
         }).join('');
         const adviserSig = row.adviser_signature_data
@@ -866,7 +895,6 @@ document.addEventListener('DOMContentLoaded', function () {
                         <th style="border:0.8px solid #222;background:#e4edf9;color:#17366f;padding:2mm;width:6%;">No.</th>
                         <th style="border:0.8px solid #222;background:#e4edf9;color:#17366f;padding:2mm;">Name (Last, First, M.I.)</th>
                         <th style="border:0.8px solid #222;background:#e4edf9;color:#17366f;padding:2mm;width:20%;">Section</th>
-                        <th style="border:0.8px solid #222;background:#e4edf9;color:#17366f;padding:2mm;width:25%;">Research Forum OR No.</th>
                     </tr>
                 </thead>
                 <tbody>${memberRows}</tbody>
@@ -914,10 +942,14 @@ document.addEventListener('DOMContentLoaded', function () {
         `;
         statusEl.innerHTML = `CRAD Officer Status: <span class="rp-status ${badgeClass(row.crad_status)}">${esc(row.crad_status || 'Pending')}</span>`;
         actionsEl.innerHTML = String(row.crad_status || 'Pending') === 'Pending'
-            ? `<button type="button" class="rp-btn rp-btn-success" id="cradTaApprove"><?= smsIcon('signature') ?> Approve & Sign</button>`
-            : `<span class="rp-btn rp-btn-done"><?= smsIcon('check') ?> Approved</span>`;
+            ? `<button type="button" class="rp-btn rp-btn-success" id="cradTaApprove"><?= smsIcon('signature') ?> Approve & Sign</button><button type="button" class="rp-btn rp-btn-danger" id="cradTaReject"><?= smsIcon('x') ?> Reject</button>`
+            : (String(row.crad_status || '') === 'Rejected'
+                ? `<span class="rp-btn rp-btn-danger" style="pointer-events:none;"><?= smsIcon('x') ?> Rejected</span>`
+                : `<span class="rp-btn rp-btn-done"><?= smsIcon('check') ?> Approved</span>`);
         const approve = document.getElementById('cradTaApprove');
         if (approve) approve.addEventListener('click', openSignModal);
+        const reject = document.getElementById('cradTaReject');
+        if (reject) reject.addEventListener('click', rejectActive);
     }
 
     function openModal(id) {
@@ -1027,6 +1059,21 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!data.ok) throw new Error(data.error || 'Could not save CRAD officer approval.');
         approveConfirmModal.hidden = true;
         signModal.hidden = true;
+        await refreshRows();
+        const row = findRow(activeId);
+        if (row) renderForm(row);
+    }
+
+    async function rejectActive() {
+        if (!activeId || !window.confirm('Reject this title approval? This decision will be recorded immediately.')) return;
+        const res = await fetch(updateUrl, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
+            credentials: 'same-origin',
+            body: JSON.stringify({id: activeId, action: 'reject'})
+        });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || 'Could not save CRAD officer rejection.');
         await refreshRows();
         const row = findRow(activeId);
         if (row) renderForm(row);

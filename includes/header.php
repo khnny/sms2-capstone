@@ -35,28 +35,23 @@ if ($isCradPage && strpos(' ' . $bodyClass . ' ', ' crad-app ') === false) {
          Bootstrap and our CSS are still loading. -->
     <script>
     (function () {
-        var DARK_BG  = '#0b1224';
-        var LIGHT_BG = '#eef2f9';
-        var LOGIN_BG = '#071c48';
-        var isAuthLanding = <?= json_encode(
-            strpos(' ' . $bodyClass . ' ', ' login-page ') !== false
-            || strpos(' ' . $bodyClass . ' ', ' welcome-page ') !== false
-        ) ?>;
         try {
             var forced = <?= json_encode(isset($forceTheme) && in_array($forceTheme, ['light', 'dark'], true) ? $forceTheme : '') ?>;
             var t = forced || localStorage.getItem('sms2-theme');
             if (t !== 'dark' && t !== 'light') t = 'light';
             var root = document.documentElement;
             root.setAttribute('data-theme', t);
-            root.style.colorScheme = isAuthLanding ? 'light' : t;
-            // Auth screens use navy — never flash light gray/white on refresh
-            root.style.backgroundColor = isAuthLanding ? LOGIN_BG : (t === 'dark' ? DARK_BG : LIGHT_BG);
+            root.setAttribute('data-bs-theme', t);
+            root.style.colorScheme = t;
+            root.style.backgroundColor = 'var(--bg-primary)';
             if (forced) {
                 root.setAttribute('data-theme-locked', '1');
             }
         } catch (e) {
             document.documentElement.setAttribute('data-theme', 'light');
-            document.documentElement.style.backgroundColor = isAuthLanding ? LOGIN_BG : LIGHT_BG;
+            document.documentElement.setAttribute('data-bs-theme', 'light');
+            document.documentElement.style.colorScheme = 'light';
+            document.documentElement.style.backgroundColor = 'var(--bg-primary)';
         }
     })();
     </script>
@@ -88,7 +83,6 @@ if ($isCradPage && strpos(' ' . $bodyClass . ' ', ' crad-app ') === false) {
     $isWelcomeLanding = strpos(' ' . ($bodyClass ?? '') . ' ', ' welcome-page ') !== false;
     if (!$isWelcomeLanding):
     ?>
-    <link href="<?= BASE_URL ?>/assets/css/theme.css?v=13" rel="stylesheet">
     <link href="<?= BASE_URL ?>/assets/css/layout.css?v=13" rel="stylesheet">
     <link href="<?= BASE_URL ?>/assets/css/responsive.css?v=9" rel="stylesheet">
     <link href="<?= BASE_URL ?>/assets/css/components.css?v=6" rel="stylesheet">
@@ -98,16 +92,34 @@ if ($isCradPage && strpos(' ' . $bodyClass . ' ', ' crad-app ') === false) {
     <link href="<?= BASE_URL ?>/assets/css/loader.css?v=6" rel="stylesheet">
     <link href="<?= BASE_URL ?>/assets/css/sms-security-ui.css?v=20" rel="stylesheet">
     <link href="<?= BASE_URL ?>/assets/css/password-strength.css?v=2" rel="stylesheet">
-    <link href="<?= BASE_URL ?>/assets/css/research-monitoring.css?v=2" rel="stylesheet">
+    <link href="<?= BASE_URL ?>/assets/css/research-monitoring.css?v=4" rel="stylesheet">
     <?php else: ?>
     <link href="<?= BASE_URL ?>/assets/css/welcome.css?v=8" rel="stylesheet">
     <link href="<?= BASE_URL ?>/assets/css/auth-transition.css?v=8" rel="stylesheet">
     <?php endif; ?>
+    <link href="<?= BASE_URL ?>/assets/css/theme.css?v=14" rel="stylesheet">
     <?php if ($isCradPage): ?>
     <link href="<?= BASE_URL ?>/modules/crad/assets/css/crad-ui.css?v=12" rel="stylesheet">
     <?php endif; ?>
+    <link href="<?= BASE_URL ?>/assets/css/app-redesign.css?v=9" rel="stylesheet">
+    <link href="<?= BASE_URL ?>/assets/css/communication-prototype.css?v=2" rel="stylesheet">
+    <link href="<?= BASE_URL ?>/assets/css/dashboard-workspace.css?v=2" rel="stylesheet">
+    <?php if ($isWelcomeLanding): ?>
+    <link href="<?= BASE_URL ?>/assets/css/welcome-site.css?v=3" rel="stylesheet">
+    <?php endif; ?>
 </head>
-<body class="<?= htmlspecialchars($bodyClass) ?>"<?= (strpos(' ' . $bodyClass . ' ', ' login-page ') !== false || strpos(' ' . $bodyClass . ' ', ' welcome-page ') !== false) ? ' style="background:#071c48"' : '' ?>>
+<body class="<?= htmlspecialchars($bodyClass) ?>">
+<?php if (strpos(' ' . $bodyClass . ' ', ' login-page ') !== false || strpos(' ' . $bodyClass . ' ', ' welcome-page ') !== false): ?>
+<button type="button"
+        class="btn theme-toggle auth-theme-toggle"
+        data-theme-toggle
+        aria-label="Switch to dark mode"
+        title="Dark mode"
+        aria-pressed="false">
+    <?= smsIcon('moon', ['class' => 'theme-icon-moon', 'aria-hidden' => 'true']) ?>
+    <?= smsIcon('sun', ['class' => 'theme-icon-sun', 'aria-hidden' => 'true']) ?>
+</button>
+<?php endif; ?>
 <?php if (strpos(' ' . $bodyClass . ' ', ' login-page ') === false && strpos(' ' . $bodyClass . ' ', ' welcome-page ') === false): ?>
 <?php
 $loaderCrestUrl = is_readable(ROOT_PATH . '/images/bcp-crest.png')

@@ -1,8 +1,9 @@
 <?php
 /**
- * Web database migration for hosts without CLI (e.g. InfinityFree).
+ * Web database migration for hosts without reliable SSH (HostForge / InfinityFree).
  *
- * 1. Set SMS2_DEPLOY_TOKEN in config/local.php
+ * 1. Set SMS2_DEPLOY_TOKEN in HostForge Environment Variables (preferred)
+ *    or config/local.php
  * 2. Open /setup/deploy-db.php?token=YOUR_TOKEN
  * 3. Remove SMS2_DEPLOY_TOKEN after success
  */
@@ -10,14 +11,21 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../config/config.php';
 
-$expectedToken = defined('SMS2_DEPLOY_TOKEN') ? (string) SMS2_DEPLOY_TOKEN : '';
+$expectedToken = '';
+if (defined('SMS2_DEPLOY_TOKEN')) {
+    $expectedToken = (string) SMS2_DEPLOY_TOKEN;
+}
+if ($expectedToken === '') {
+    $expectedToken = (string) (sms2_env('SMS2_DEPLOY_TOKEN') ?? '');
+}
 $providedToken = trim((string) ($_GET['token'] ?? $_POST['token'] ?? ''));
 
 if ($expectedToken === '' || !hash_equals($expectedToken, $providedToken)) {
     http_response_code(403);
     header('Content-Type: text/html; charset=utf-8');
     echo '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Deploy DB</title></head><body>';
-    echo '<p>Forbidden. Set <code>SMS2_DEPLOY_TOKEN</code> in <code>config/local.php</code>, then open this page with <code>?token=...</code></p>';
+    echo '<p>Forbidden. Set <code>SMS2_DEPLOY_TOKEN</code> in HostForge Environment Variables ';
+    echo 'or <code>config/local.php</code>, then open this page with <code>?token=...</code></p>';
     echo '</body></html>';
     exit;
 }
@@ -58,7 +66,7 @@ header('Content-Type: text/html; charset=utf-8');
 </head>
 <body>
     <h1>SMS 2 — Deploy Database</h1>
-    <p>For InfinityFree and other hosts without SSH/CLI. Applies <code>sms2_db.sql</code> and <code>crad_db.sql</code>.</p>
+    <p>Applies prefixed <code>sms2_db.sql</code> + <code>crad_db.sql</code> into the single database from <code>DB_DATABASE</code> / <code>DB_NAME</code> (HostForge: usually <code>hf_db_…</code>).</p>
 
     <?php if ($error !== ''): ?>
         <div class="err"><strong>Migration failed:</strong> <?= htmlspecialchars($error) ?></div>
@@ -75,6 +83,6 @@ header('Content-Type: text/html; charset=utf-8');
         </form>
     </div>
 
-    <p><small>After success, remove <code>SMS2_DEPLOY_TOKEN</code> from <code>config/local.php</code>.</small></p>
+    <p><small>After success, remove <code>SMS2_DEPLOY_TOKEN</code> from HostForge env / <code>config/local.php</code>.</small></p>
 </body>
 </html>

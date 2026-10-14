@@ -18,7 +18,18 @@ require_once __DIR__ . '/../../../includes/breadcrumbs.php';
 require_once __DIR__ . '/../../../includes/layout-start.php';
 requireSuperAdmin();
 
+// Ensure opening the Super Admin audit screen itself is visible immediately,
+// including on installations that do not yet have historical audit entries.
+$wroteOpen = logActivity('view', 'Opened Activity Logs', 'user-management');
+
 $payload = umActivityLogsPayload(db());
+$auditDiag = null;
+if (!(int) ($payload['stats']['total'] ?? 0)) {
+    $auditDiag = smsActivityLogLastError()
+        ?: ($wroteOpen
+            ? 'Write reported OK but no rows were returned. Check DB_DATABASE.'
+            : 'Activity log write did not persist. The DB user may lack INSERT on sms2_activity_logs.');
+}
 $logs = $payload['logs'];
 $actionOptions = array_fill_keys($payload['actions'], true);
 $moduleOptions = array_fill_keys($payload['modules'], true);
@@ -26,10 +37,16 @@ $total = (int) $payload['stats']['total'];
 $logins = (int) $payload['stats']['logins'];
 $changes = (int) $payload['stats']['changes'];
 $exports = (int) $payload['stats']['exports'];
-$liveEndpoint = BASE_URL . '/modules/user-management/includes/activity-logs-data.php';
+$liveEndpoint = BASE_URL . '/api/activity-logs.php';
 ?>
 
 <link href="<?= BASE_URL ?>/modules/user-management/assets/css/user-management.css" rel="stylesheet">
+
+<?php if (!empty($auditDiag)): ?>
+<div class="alert alert-warning mx-3 mt-3" role="alert">
+    <strong>Activity log diagnostic:</strong> <?= e((string) $auditDiag) ?>
+</div>
+<?php endif; ?>
 
 <?php
 $pageBannerIcon        = 'history';
@@ -76,7 +93,7 @@ renderBreadcrumbs($breadcrumbs);
                 <p class="small text-muted mb-0">Search by user, then narrow by action, module, or date. Export downloads the currently visible rows.</p>
             </div>
             <div class="d-flex align-items-center gap-2">
-                <span class="um-live-badge" id="adminLogLiveBadge" title="Polling every 3 seconds">
+                <span class="um-live-badge" id="adminLogLiveBadge" title="Polling every 2 seconds">
                     <span class="um-live-dot" aria-hidden="true"></span>
                     <span id="adminLogLiveLabel">Live</span>
                 </span>
@@ -187,5 +204,5 @@ renderBreadcrumbs($breadcrumbs);
     </div>
 </section>
 
-<script src="<?= BASE_URL ?>/modules/user-management/assets/js/user-management.js?v=20260918"></script>
+<script src="<?= BASE_URL ?>/modules/user-management/assets/js/user-management.js?v=20260923-activity-live-2"></script>
 <?php require_once __DIR__ . '/../../../includes/layout-end.php'; ?>

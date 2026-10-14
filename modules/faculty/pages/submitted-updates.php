@@ -66,8 +66,6 @@ $updateIdFilter  = isset($_GET['update_id'])    ? (int) $_GET['update_id']    : 
 $statusFilter    = $_GET['status'] ?? 'all';
 
 $plan = rpGetResearchPlan($crad, $groupId);
-rpEnsureProgressAttachmentSchema($crad);
-rpEnsureAiAnalysisSchema($crad);
 
 $whereConditions = ["rpu.research_group_id = ?"];
 $params = [$groupId];
@@ -80,22 +78,22 @@ try {
     $updatesStmt = $crad->prepare("
         SELECT rpu.*,
                rm.milestone_name, rm.milestone_order, rm.status AS milestone_current_status,
-               rpa.id AS attachment_id, rpa.file_name AS attachment_name,
-               rpai.id AS ai_analysis_id, rpai.verdict AS ai_verdict, rpai.grammar_quality AS ai_grammar_quality,
-               rpai.summary AS ai_summary, rpai.notes_json AS ai_notes_json, rpai.created_at AS ai_analyzed_at,
-               (SELECT COUNT(*) FROM crad_research_progress_feedback rpf WHERE rpf.progress_update_id = rpu.id) AS feedback_count
-        FROM crad_research_progress_updates rpu
-        LEFT JOIN crad_research_milestones rm ON rm.id = rpu.milestone_id
-        LEFT JOIN crad_research_progress_attachments rpa ON rpa.id = (
+               rpa.id AS attachment_id, rpa.file_name AS attachment_name, rpa.file_type AS attachment_type, rpa.file_size AS attachment_size,
+               rpai.id AS ai_analysis_id,
+               rpai.summary AS ai_summary, rpai.notes_json AS ai_notes_json, rpai.source AS ai_source, rpai.created_at AS ai_analyzed_at,
+               (SELECT COUNT(*) FROM `crad_research_progress_feedback` rpf WHERE rpf.progress_update_id = rpu.id) AS feedback_count
+        FROM `crad_research_progress_updates` rpu
+        LEFT JOIN `crad_research_milestones` rm ON rm.id = rpu.milestone_id
+        LEFT JOIN `crad_research_progress_attachments` rpa ON rpa.id = (
             SELECT rpa2.id
-            FROM crad_research_progress_attachments rpa2
+            FROM `crad_research_progress_attachments` rpa2
             WHERE rpa2.progress_update_id = rpu.id
             ORDER BY rpa2.id DESC
             LIMIT 1
         )
-        LEFT JOIN crad_research_progress_ai_analyses rpai ON rpai.id = (
+        LEFT JOIN `crad_research_progress_ai_analyses` rpai ON rpai.id = (
             SELECT rpai2.id
-            FROM crad_research_progress_ai_analyses rpai2
+            FROM `crad_research_progress_ai_analyses` rpai2
             WHERE rpai2.progress_update_id = rpu.id
             ORDER BY rpai2.id DESC
             LIMIT 1
@@ -110,7 +108,7 @@ try {
 try {
     if (!empty($plan['id'])) {
         $milestonesStmt = $crad->prepare("
-            SELECT id, milestone_name, milestone_order FROM crad_research_milestones
+            SELECT id, milestone_name, milestone_order FROM `crad_research_milestones`
             WHERE research_plan_id = ? ORDER BY milestone_order ASC
         ");
         $milestonesStmt->execute([(int) $plan['id']]);
@@ -284,19 +282,50 @@ $statusMeta = [
                     $feedbackCount = (int) $update['feedback_count'];
                     $sc = $statusMeta[$update['milestone_status']] ?? ['color'=>'#64748b','bg'=>'#f1f5f9','accent'=>'#64748b'];
                     $aiNotes = [];
+                    $aiKeyPoints = [];
+                    $aiSections = [];
+                    $aiStyleObservations = [];
+                    $aiIssues = [];
+                    $aiMissingInformation = [];
+                    $aiAnalysisType = 'full';
                     if (!empty($update['ai_notes_json'])) {
                         $decodedNotes = json_decode((string) $update['ai_notes_json'], true);
-                        $aiNotes = is_array($decodedNotes) ? $decodedNotes : [];
+                        if (is_array($decodedNotes) && array_is_list($decodedNotes)) {
+                            $aiNotes = $decodedNotes;
+                            $aiIssues = $decodedNotes;
+                        } elseif (is_array($decodedNotes)) {
+                            $aiNotes = is_array($decodedNotes['notes'] ?? null) ? $decodedNotes['notes'] : [];
+                            $aiKeyPoints = is_array($decodedNotes['key_points'] ?? null) ? $decodedNotes['key_points'] : [];
+                            $aiSections = is_array($decodedNotes['sections'] ?? null) ? $decodedNotes['sections'] : [];
+                            $aiStyleObservations = is_array($decodedNotes['style_observations'] ?? null) ? $decodedNotes['style_observations'] : [];
+                            $aiIssues = is_array($decodedNotes['issues'] ?? null) ? $decodedNotes['issues'] : $aiNotes;
+                            $aiMissingInformation = is_array($decodedNotes['missing_information'] ?? null) ? $decodedNotes['missing_information'] : [];
+                            $aiAnalysisType = (string) ($decodedNotes['analysis_type'] ?? 'full');
+                        }
                     }
+                    if ($aiStyleObservations === []) {
+                        $aiStyleObservations = array_values(array_filter($aiNotes, static fn(array $note): bool => ($note['category'] ?? '') === 'style'));
+                    }
+                    $aiObservationCount = count($aiNotes !== [] ? $aiNotes : $aiIssues);
                     $hasAiAnalysis = !empty($update['ai_analysis_id']);
-                    $aiVerdict = (string) ($update['ai_verdict'] ?? '');
+                    $aiSource = (string) ($update['ai_source'] ?? '');
+                    $aiSourceLabel = match ($aiSource) {
+                        'grammar_engine' => 'LanguageTool · writing observations',
+                        'openai_gpt_4_1' => 'OpenAI GPT-4.1',
+                        'cursor' => 'Legacy Cursor AI analysis',
+                        default => $hasAiAnalysis ? 'Legacy AI analysis' : 'Not analyzed',
+                    };
+                    $attachmentExtension = strtoupper(pathinfo((string) ($update['attachment_name'] ?? ''), PATHINFO_EXTENSION));
+                    $attachmentSizeLabel = (int) ($update['attachment_size'] ?? 0) > 0
+                        ? number_format((int) $update['attachment_size'] / 1048576, 1) . ' MB'
+                        : 'Size unavailable';
                     $needsAiBeforeDecision = ($update['milestone_status'] === 'Submitted for Review') && !empty($update['attachment_id']);
                     $aiRevisionText = $hasAiAnalysis
                         ? rpFormatAiNotesForRevision([
                             'milestone_name' => (string) ($update['milestone_name'] ?? ''),
-                            'verdict' => $aiVerdict,
                             'summary' => (string) ($update['ai_summary'] ?? ''),
-                            'notes' => $aiNotes,
+                            'notes' => $aiNotes !== [] ? $aiNotes : $aiIssues,
+                            'missing_information' => $aiMissingInformation,
                         ])
                         : '';
                 ?>
@@ -388,12 +417,6 @@ $statusMeta = [
                                                    href="<?= htmlspecialchars(rpProgressAttachmentUrl((int) $update['attachment_id'], true)) ?>">
                                                     <?= smsIcon('download', ['class' => 'me-1']) ?>Download
                                                 </a>
-                                                <button type="button"
-                                                        class="btn btn-sm rm-ai-generate-btn"
-                                                        data-ai-generate
-                                                        data-update-id="<?= $updateId ?>">
-                                                    <?= smsIcon('robot', ['class' => 'me-1']) ?>Generate to AI
-                                                </button>
                                             </span>
                                         </div>
                                     <?php else: ?>
@@ -402,46 +425,83 @@ $statusMeta = [
                                 </div>
                             </div>
 
-                            <div class="rm-ai-panel<?= $hasAiAnalysis ? '' : ' d-none' ?>"
-                                 data-ai-panel
-                                 data-update-id="<?= $updateId ?>"
-                                 data-verdict="<?= htmlspecialchars($aiVerdict) ?>"
-                                 data-revision-text="<?= htmlspecialchars($aiRevisionText) ?>">
-                                <div class="rm-ai-panel-head">
-                                    <div>
-                                        <div class="rm-ai-panel-title"><?= smsIcon('robot') ?>AI Grammar Review</div>
-                                        <div class="rm-ai-panel-sub">Review these notes before you Approve or Request Revision.</div>
+                            <?php if (!empty($update['attachment_id'])): ?>
+                                <section class="rm-ai-launcher" aria-label="AI document analysis controls">
+                                    <div class="rm-ai-launcher-copy">
+                                        <span class="rm-ai-eyebrow">Research writing support</span>
+                                        <h3><?= smsIcon('robot', ['aria-hidden' => 'true']) ?>AI Research Assistant</h3>
+                                        <p>Get a concise summary and reviewable writing observations for this submission.</p>
                                     </div>
-                                    <span class="rm-ai-verdict" data-ai-verdict-pill>
-                                        <?= $hasAiAnalysis ? htmlspecialchars($aiVerdict === 'acceptable' ? 'Acceptable grammar' : 'Needs revision') : '' ?>
-                                    </span>
+                                    <div class="rm-ai-file-meta">
+                                        <span class="rm-ai-file-icon"><?= smsIcon('file-text', ['aria-hidden' => 'true']) ?></span>
+                                        <span><strong><?= htmlspecialchars((string) $update['attachment_name']) ?></strong><small><?= htmlspecialchars($attachmentExtension ?: 'FILE') ?> · <?= htmlspecialchars($attachmentSizeLabel) ?></small></span>
+                                        <span class="rm-ai-file-status"><?= $hasAiAnalysis ? 'Previously analyzed' : 'Ready to analyze' ?></span>
+                                    </div>
+                                    <div class="rm-ai-controls">
+                                        <label for="aiAnalysisType<?= $updateId ?>">Analysis focus</label>
+                                        <select class="form-select form-select-sm" id="aiAnalysisType<?= $updateId ?>" data-ai-analysis-type>
+                                            <?php foreach (['full' => 'Full analysis', 'summary' => 'Summary', 'structure' => 'Structure analysis', 'style' => 'Writing and style'] as $analysisTypeKey => $analysisTypeLabel): ?>
+                                                <option value="<?= htmlspecialchars($analysisTypeKey) ?>" <?= $aiAnalysisType === $analysisTypeKey ? 'selected' : '' ?>><?= htmlspecialchars($analysisTypeLabel) ?></option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                        <button type="button" class="btn btn-sm btn-sms-primary rm-ai-generate-btn" data-ai-generate data-update-id="<?= $updateId ?>">
+                                            <?= smsIcon('sparkles', ['aria-hidden' => 'true']) ?><?= $hasAiAnalysis ? 'Analyze again' : 'Analyze document' ?>
+                                        </button>
+                                    </div>
+                                    <p class="rm-ai-format-note">Text analysis works best with DOCX or text-based PDFs. Scanned images and legacy DOC files may not contain readable text. Analysis is assistive and does not approve or grade submissions.</p>
+                                    <div class="rm-ai-progress" data-ai-progress hidden role="status"><span></span><strong>Reviewing document text…</strong></div>
+                                    <div class="rm-ai-live" data-ai-status role="status" aria-live="polite"></div>
+                                </section>
+                            <?php endif; ?>
+
+                            <section class="rm-ai-panel<?= $hasAiAnalysis ? '' : ' d-none' ?>"
+                                     data-ai-panel data-update-id="<?= $updateId ?>"
+                                     data-revision-text="<?= htmlspecialchars($aiRevisionText) ?>">
+                                <header class="rm-ai-panel-head">
+                                    <div><span class="rm-ai-eyebrow">Analysis results</span><h3 class="rm-ai-panel-title"><?= smsIcon('sparkles', ['aria-hidden' => 'true']) ?>AI document observations</h3>
+                                        <p class="rm-ai-panel-sub">Assistive feedback only. Review the complete document and make the academic decision yourself.</p></div>
+                                    <span class="rm-ai-verdict" data-ai-verdict-pill><?= $hasAiAnalysis ? 'Advisory only' : '' ?></span>
+                                </header>
+                                <div class="rm-ai-metadata" data-ai-metadata>
+                                    <span><small>Document</small><strong><?= htmlspecialchars((string) $update['attachment_name']) ?></strong></span>
+                                    <span><small>Type</small><strong><?= htmlspecialchars($attachmentExtension ?: 'File') ?></strong></span>
+                                    <span><small>Analyzed</small><strong data-ai-analyzed-at><?= $hasAiAnalysis && !empty($update['ai_analyzed_at']) ? htmlspecialchars(date('M j, Y · g:i A', strtotime((string) $update['ai_analyzed_at']))) : 'Not analyzed' ?></strong></span>
+                                    <span><small>Observations</small><strong data-ai-observation-count><?= $aiObservationCount ?></strong></span>
+                                    <span><small>Analysis method</small><strong data-ai-source><?= htmlspecialchars($aiSourceLabel) ?></strong></span>
                                 </div>
-                                <div class="rm-ai-summary" data-ai-summary><?= $hasAiAnalysis ? nl2br(htmlspecialchars((string) $update['ai_summary'])) : '' ?></div>
-                                <ul class="rm-ai-notes" data-ai-notes>
-                                    <?php foreach ($aiNotes as $note): ?>
-                                        <li>
-                                            <strong><?= htmlspecialchars((string) ($note['issue'] ?? '')) ?></strong>
-                                            <?php if (!empty($note['suggestion'])): ?>
-                                                <div><?= htmlspecialchars((string) $note['suggestion']) ?></div>
-                                            <?php endif; ?>
-                                            <?php if (!empty($note['example'])): ?>
-                                                <div class="rm-ai-example">“<?= htmlspecialchars((string) $note['example']) ?>”</div>
-                                            <?php endif; ?>
-                                        </li>
+                                <nav class="rm-ai-tabs" role="tablist" aria-label="Analysis result sections">
+                                    <?php foreach (['overview' => 'Overview', 'summary' => 'Summary', 'structure' => 'Structure', 'style' => 'Style', 'issues' => 'Issues'] as $tabKey => $tabLabel): ?>
+                                        <button type="button" role="tab" id="aiTab<?= $updateId ?><?= ucfirst($tabKey) ?>" aria-controls="aiContent<?= $updateId ?><?= ucfirst($tabKey) ?>" aria-selected="<?= $tabKey === 'overview' ? 'true' : 'false' ?>" class="<?= $tabKey === 'overview' ? 'is-active' : '' ?>" data-ai-tab="<?= htmlspecialchars($tabKey) ?>"><?= htmlspecialchars($tabLabel) ?></button>
                                     <?php endforeach; ?>
-                                </ul>
-                                <?php if ($needsAiBeforeDecision): ?>
-                                    <button type="button" class="btn btn-sm btn-outline-warning" data-ai-use-notes data-update-id="<?= $updateId ?>">
-                                        <?= smsIcon('redo', ['class' => 'me-1']) ?>Use notes in Request Revision
-                                    </button>
-                                <?php endif; ?>
-                            </div>
+                                </nav>
+                                <div class="rm-ai-tab-content">
+                                    <section id="aiContent<?= $updateId ?>Overview" role="tabpanel" aria-labelledby="aiTab<?= $updateId ?>Overview" data-ai-content="overview">
+                                        <h4>Overview</h4><p class="rm-ai-summary" data-ai-summary><?= $hasAiAnalysis ? nl2br(htmlspecialchars((string) $update['ai_summary'])) : '' ?></p>
+                                        <div class="rm-ai-overview-stats"><span><strong data-ai-section-count><?= count($aiSections) ?></strong> detected sections</span><span><strong data-ai-point-count><?= count($aiKeyPoints) ?></strong> key points</span><span><strong data-ai-issue-count><?= count($aiIssues) ?></strong> review items</span></div>
+                                    </section>
+                                    <section id="aiContent<?= $updateId ?>Summary" role="tabpanel" aria-labelledby="aiTab<?= $updateId ?>Summary" data-ai-content="summary" hidden>
+                                        <h4>Executive summary</h4><p class="rm-ai-summary" data-ai-summary-copy><?= $hasAiAnalysis ? nl2br(htmlspecialchars((string) $update['ai_summary'])) : '' ?></p><h5>Key points</h5><ul class="rm-ai-key-points" data-ai-key-points><?php foreach ($aiKeyPoints as $point): ?><li><?= htmlspecialchars((string) $point) ?></li><?php endforeach; ?></ul><p class="rm-ai-empty-note" data-ai-points-empty <?= $aiKeyPoints ? 'hidden' : '' ?>>Key points are not available for this analysis mode or provider.</p>
+                                    </section>
+                                    <section id="aiContent<?= $updateId ?>Structure" role="tabpanel" aria-labelledby="aiTab<?= $updateId ?>Structure" data-ai-content="structure" hidden>
+                                        <h4>Detected structure</h4><ul class="rm-ai-section-list" data-ai-sections><?php foreach ($aiSections as $section): ?><?php $sectionName = is_array($section) ? (string) ($section['name'] ?? '') : (string) $section; ?><?php if ($sectionName !== ''): ?><li><span><?= smsIcon(!is_array($section) || !empty($section['present']) ? 'check-circle' : 'alert-circle', ['aria-hidden' => 'true']) ?></span><div><strong><?= htmlspecialchars($sectionName) ?></strong><?php if (is_array($section) && !empty($section['observation'])): ?><p><?= htmlspecialchars((string) $section['observation']) ?></p><?php endif; ?></div></li><?php endif; ?><?php endforeach; ?></ul><p class="rm-ai-empty-note" data-ai-structure-empty <?= $aiSections ? 'hidden' : '' ?>>Structure observations were not returned for this analysis. Select Structure or Full Analysis when the AI provider is available.</p>
+                                    </section>
+                                    <section id="aiContent<?= $updateId ?>Style" role="tabpanel" aria-labelledby="aiTab<?= $updateId ?>Style" data-ai-content="style" hidden>
+                                        <h4>Writing and style</h4><ul class="rm-ai-finding-list" data-ai-style><?php foreach ($aiStyleObservations as $finding): ?><li><details><summary><?= htmlspecialchars((string) ($finding['issue'] ?? $finding['observation'] ?? 'Writing observation')) ?></summary><?php if (!empty($finding['suggestion'])): ?><p><?= htmlspecialchars((string) $finding['suggestion']) ?></p><?php endif; ?><?php if (!empty($finding['example'])): ?><blockquote><?= htmlspecialchars((string) $finding['example']) ?></blockquote><?php endif; ?></details></li><?php endforeach; ?></ul><p class="rm-ai-empty-note" data-ai-style-empty <?= $aiStyleObservations ? 'hidden' : '' ?>>No separate style observations were returned for this analysis.</p>
+                                    </section>
+                                    <section id="aiContent<?= $updateId ?>Issues" role="tabpanel" aria-labelledby="aiTab<?= $updateId ?>Issues" data-ai-content="issues" hidden>
+                                        <h4>Areas to review</h4><ul class="rm-ai-finding-list" data-ai-issues><?php foreach ($aiIssues as $finding): ?><?php if (is_array($finding)): ?><li><details><summary><span class="rm-ai-severity <?= htmlspecialchars((string) ($finding['severity'] ?? 'review')) ?>"><?= htmlspecialchars(ucfirst((string) ($finding['severity'] ?? 'review'))) ?></span><?= htmlspecialchars((string) ($finding['issue'] ?? 'Observation')) ?></summary><?php if (!empty($finding['suggestion'])): ?><p><?= htmlspecialchars((string) $finding['suggestion']) ?></p><?php endif; ?><?php if (!empty($finding['example'])): ?><blockquote><?= htmlspecialchars((string) $finding['example']) ?></blockquote><?php endif; ?></details></li><?php endif; ?><?php endforeach; ?></ul><p class="rm-ai-empty-note" data-ai-issues-empty <?= $aiIssues ? 'hidden' : '' ?>>No specific review items were returned.</p>
+                                        <h5 class="mt-4">Potentially missing information to verify</h5><ul class="rm-ai-finding-list" data-ai-missing-information><?php foreach ($aiMissingInformation as $finding): ?><?php if (is_array($finding)): ?><li><details><summary><?= htmlspecialchars((string) ($finding['item'] ?? 'Item to verify')) ?></summary><?php if (!empty($finding['why_it_matters'])): ?><p><?= htmlspecialchars((string) $finding['why_it_matters']) ?></p><?php endif; ?><?php if (!empty($finding['suggestion'])): ?><p><?= htmlspecialchars((string) $finding['suggestion']) ?></p><?php endif; ?></details></li><?php endif; ?><?php endforeach; ?></ul><p class="rm-ai-empty-note" data-ai-missing-empty <?= $aiMissingInformation ? 'hidden' : '' ?>>No potentially missing information was identified. This is not a completeness determination.</p>
+                                    </section>
+                                </div>
+                                <?php if ($needsAiBeforeDecision): ?><button type="button" class="btn btn-sm btn-outline-secondary mt-2" data-ai-use-notes data-update-id="<?= $updateId ?>"><?= smsIcon('redo', ['class' => 'me-1']) ?>Use selected observations in revision request</button><?php endif; ?>
+                            </section>
 
                             <!-- Action buttons -->
                             <div class="rm-action-row" data-action-controls>
                                 <?php if ($needsAiBeforeDecision && !$hasAiAnalysis): ?>
                                     <div class="rm-ai-gate-note" data-ai-gate-note>
-                                        <?= smsIcon('info-circle') ?>Run <strong>Generate to AI</strong> first. The AI will check the student’s grammar before you approve or request revision.
+                                        <?= smsIcon('info-circle') ?>
+                                        Complete the analysis to unlock the existing review controls. AI observations are advisory only; you may <strong>Request Revision</strong> at any time.
                                     </div>
                                 <?php endif; ?>
                                 <button type="button" class="rm-btn rm-btn-comment"
@@ -450,8 +510,7 @@ $statusMeta = [
                                 </button>
                                 <button type="button" class="rm-btn rm-btn-revision"
                                         data-bs-toggle="modal" data-bs-target="#revisionModal<?= $updateId ?>"
-                                        data-decision-btn="revision"
-                                        <?= ($needsAiBeforeDecision && !$hasAiAnalysis) ? 'disabled' : '' ?>>
+                                        data-decision-btn="revision">
                                     <?= smsIcon('redo') ?>Request Revision
                                 </button>
                                 <button type="button" class="rm-btn rm-btn-approve"
@@ -472,7 +531,7 @@ $statusMeta = [
                             <?php if ($feedbackCount > 0):
                                 try {
                                     $fbStmt = $crad->prepare("
-                                        SELECT * FROM crad_research_progress_feedback
+                                        SELECT * FROM `crad_research_progress_feedback`
                                         WHERE progress_update_id = ?
                                         ORDER BY created_at DESC
                                     ");
@@ -647,6 +706,7 @@ $statusMeta = [
 <!-- AJAX feedback submission -->
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    const csrfToken = <?= json_encode(csrfToken()) ?>;
     const initialUpdatesHash = <?= json_encode(array_map(static fn($u) => [
         'id' => (int) $u['id'],
         'status' => (string) $u['milestone_status'],
@@ -679,31 +739,58 @@ document.addEventListener('DOMContentLoaded', function () {
             const updateId = this.getAttribute('data-update-id');
             const card = this.closest('.rm-update-card');
             const origHTML = this.innerHTML;
+            const status = card ? card.querySelector('[data-ai-status]') : null;
+            const progress = card ? card.querySelector('[data-ai-progress]') : null;
+            const analysisType = card ? card.querySelector('[data-ai-analysis-type]') : null;
             this.disabled = true;
-            this.innerHTML = '<?= smsIcon('spinner', ['class' => 'fa-spin me-1']) ?>Analyzing…';
+            this.innerHTML = '<?= smsIcon('spinner', ['class' => 'fa-spin me-1']) ?>Analyzing document…';
+            if (status) status.textContent = '';
+            if (progress) progress.hidden = false;
+            if (card) card.setAttribute('aria-busy', 'true');
             try {
                 const resp = await fetch('<?= BASE_URL ?>/modules/crad/api/ai-document-analysis.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'analyze', update_id: parseInt(updateId, 10) })
+                    body: JSON.stringify({
+                        action: 'analyze',
+                        update_id: parseInt(updateId, 10),
+                        analysis_type: analysisType ? analysisType.value : 'full'
+                    })
                 });
                 const result = await resp.json();
                 if (!resp.ok || !result.success || !result.analysis) {
-                    alert(result.message || 'AI analysis failed. Please try again.');
-                    this.disabled = false;
-                    this.innerHTML = origHTML;
-                    return;
+                    // Keep Request Revision available so adviser can send the student back to revise.
+                    if (card) {
+                        const revisionBtn = card.querySelector('[data-decision-btn="revision"]');
+                        if (revisionBtn) revisionBtn.disabled = false;
+                        const gate = card.querySelector('[data-ai-gate-note]');
+                        if (gate) {
+                            gate.innerHTML = '<?= smsIcon('info-circle') ?>The file could not be analyzed. You can still <strong>Request Revision</strong> so the student can upload a readable, text-based PDF or DOCX. Existing review controls remain subject to the current workflow.';
+                        }
+                        const updateIdForModal = this.getAttribute('data-update-id');
+                        const revisionTextarea = document.querySelector('#revisionModal' + updateIdForModal + ' textarea[name="feedback_text"]');
+                        if (revisionTextarea && !revisionTextarea.value.trim()) {
+                            revisionTextarea.value = 'Please upload a readable, text-based PDF or DOCX file, then resubmit this milestone for review. Scanned images and legacy DOC files may not be readable by the analysis service.';
+                        }
+                    }
+                    if (status) status.textContent = (result.message || 'Analysis could not be completed.') + ' You can still request revision or review the attached file manually.';
+                } else {
+                    renderAiAnalysis(card, result.analysis, result.revision_text || '');
+                    if (status) status.textContent = result.message || 'Analysis complete. Review the observations before taking action.';
                 }
-                renderAiAnalysis(card, result.analysis, result.revision_text || '');
             } catch (err) {
                 console.error(err);
-                alert('AI analysis could not be completed. Please try again.');
+                if (card) {
+                    const revisionBtn = card.querySelector('[data-decision-btn="revision"]');
+                    if (revisionBtn) revisionBtn.disabled = false;
+                }
+                if (status) status.textContent = 'The analysis service could not be reached. You can still review the attached file or request revision.';
+            } finally {
+                if (progress) progress.hidden = true;
+                if (card) card.removeAttribute('aria-busy');
                 this.disabled = false;
                 this.innerHTML = origHTML;
-                return;
             }
-            this.disabled = false;
-            this.innerHTML = origHTML;
         });
     });
 
@@ -726,28 +813,94 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!card || !analysis) return;
         const panel = card.querySelector('[data-ai-panel]');
         if (!panel) return;
-        const verdict = String(analysis.verdict || 'needs_revision');
         panel.classList.remove('d-none');
-        panel.setAttribute('data-verdict', verdict);
         panel.setAttribute('data-revision-text', revisionText || '');
         const pill = panel.querySelector('[data-ai-verdict-pill]');
-        if (pill) {
-            pill.textContent = verdict === 'acceptable' ? 'Acceptable grammar' : 'Needs revision';
-        }
+        if (pill) pill.textContent = 'Advisory only';
         const summary = panel.querySelector('[data-ai-summary]');
-        if (summary) {
-            summary.innerHTML = escapeHtml(String(analysis.summary || '')).replace(/\n/g, '<br>');
-        }
-        const list = panel.querySelector('[data-ai-notes]');
-        if (list) {
-            const notes = Array.isArray(analysis.notes) ? analysis.notes : [];
-            list.innerHTML = notes.map(function (note) {
-                const issue = escapeHtml(String(note.issue || ''));
-                const suggestion = note.suggestion ? '<div>' + escapeHtml(String(note.suggestion)) + '</div>' : '';
-                const example = note.example ? '<div class="rm-ai-example">“' + escapeHtml(String(note.example)) + '”</div>' : '';
-                return '<li><strong>' + issue + '</strong>' + suggestion + example + '</li>';
+        const summaryText = String(analysis.summary || 'No summary was returned.');
+        if (summary) summary.innerHTML = escapeHtml(summaryText).replace(/\n/g, '<br>');
+        const summaryCopy = panel.querySelector('[data-ai-summary-copy]');
+        if (summaryCopy) summaryCopy.innerHTML = escapeHtml(summaryText).replace(/\n/g, '<br>');
+
+        const notes = Array.isArray(analysis.notes) ? analysis.notes : [];
+        const keyPoints = Array.isArray(analysis.key_points) ? analysis.key_points : [];
+        const sections = Array.isArray(analysis.sections) ? analysis.sections : [];
+        const styles = Array.isArray(analysis.style_observations) && analysis.style_observations.length
+            ? analysis.style_observations
+            : notes.filter(function (item) { return item && item.category === 'style'; });
+        const issues = Array.isArray(analysis.issues) && analysis.issues.length ? analysis.issues : notes;
+        const observationCount = notes.length || issues.length;
+        const missingInformation = Array.isArray(analysis.missing_information) ? analysis.missing_information : [];
+        const pointsList = panel.querySelector('[data-ai-key-points]');
+        if (pointsList) pointsList.innerHTML = keyPoints.map(function (point) { return '<li>' + escapeHtml(String(point)) + '</li>'; }).join('');
+        const sectionList = panel.querySelector('[data-ai-sections]');
+        if (sectionList) {
+            sectionList.innerHTML = sections.map(function (section) {
+                const item = typeof section === 'string' ? { name: section, present: true } : section;
+                const icon = item.present === false ? 'alert-circle' : 'check-circle';
+                const explanation = item.observation ? '<p>' + escapeHtml(String(item.observation)) + '</p>' : '';
+                const suggestion = item.suggestion ? '<p>' + escapeHtml(String(item.suggestion)) + '</p>' : '';
+                return '<li><span><i class="ti ti-' + icon + '" aria-hidden="true"></i></span><div><strong>' + escapeHtml(String(item.name || 'Section')) + '</strong>' + explanation + suggestion + '</div></li>';
             }).join('');
         }
+        function findingMarkup(finding, isIssue) {
+            const item = typeof finding === 'string' ? { issue: finding } : finding;
+            const title = String(item.issue || item.observation || 'Observation');
+            const severity = String(item.severity || 'review');
+            const badge = isIssue ? '<span class="rm-ai-severity ' + escapeHtml(severity) + '">' + escapeHtml(severity === 'attention' ? 'Attention' : 'Review') + '</span>' : '';
+            const suggestion = item.suggestion ? '<p>' + escapeHtml(String(item.suggestion)) + '</p>' : '';
+            const example = item.example ? '<blockquote>' + escapeHtml(String(item.example)) + '</blockquote>' : '';
+            return '<li><details><summary>' + badge + escapeHtml(title) + '</summary>' + suggestion + example + '</details></li>';
+        }
+        const styleList = panel.querySelector('[data-ai-style]');
+        if (styleList) styleList.innerHTML = styles.map(function (item) { return findingMarkup(item, false); }).join('');
+        const issueList = panel.querySelector('[data-ai-issues]');
+        if (issueList) issueList.innerHTML = issues.map(function (item) { return findingMarkup(item, true); }).join('');
+        const missingList = panel.querySelector('[data-ai-missing-information]');
+        if (missingList) {
+            missingList.innerHTML = missingInformation.map(function (item) {
+                const finding = typeof item === 'string' ? { item: item } : item;
+                const detail = [finding.why_it_matters, finding.suggestion].filter(Boolean).map(function (text) {
+                    return '<p>' + escapeHtml(String(text)) + '</p>';
+                }).join('');
+                return '<li><details><summary>' + escapeHtml(String(finding.item || 'Item to verify')) + '</summary>' + detail + '</details></li>';
+            }).join('');
+        }
+        const updateEmpty = function (selector, isEmpty) {
+            const element = panel.querySelector(selector);
+            if (element) element.hidden = !isEmpty;
+        };
+        updateEmpty('[data-ai-structure-empty]', sections.length === 0);
+        updateEmpty('[data-ai-points-empty]', keyPoints.length === 0);
+        updateEmpty('[data-ai-style-empty]', styles.length === 0);
+        updateEmpty('[data-ai-issues-empty]', issues.length === 0);
+        updateEmpty('[data-ai-missing-empty]', missingInformation.length === 0);
+        const counts = {
+            '[data-ai-observation-count]': observationCount,
+            '[data-ai-section-count]': sections.length,
+            '[data-ai-point-count]': keyPoints.length,
+            '[data-ai-issue-count]': issues.length
+        };
+        Object.keys(counts).forEach(function (selector) {
+            const element = panel.querySelector(selector);
+            if (element) element.textContent = String(counts[selector]);
+        });
+        const analyzedAt = panel.querySelector('[data-ai-analyzed-at]');
+        if (analyzedAt) {
+            const parsed = analysis.created_at ? new Date(String(analysis.created_at).replace(' ', 'T')) : new Date();
+            analyzedAt.textContent = Number.isNaN(parsed.getTime()) ? String(analysis.created_at || 'Just now') : parsed.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+        }
+        const sourceLabel = panel.querySelector('[data-ai-source]');
+        if (sourceLabel) {
+            sourceLabel.textContent = analysis.source === 'grammar_engine'
+                ? 'LanguageTool · writing observations'
+                : (analysis.source === 'openai_gpt_4_1' ? 'OpenAI GPT-4.1' : 'Legacy AI analysis');
+        }
+        const mode = card.querySelector('[data-ai-analysis-type]');
+        if (mode && ['summary', 'structure', 'style', 'full'].includes(String(analysis.analysis_type || ''))) mode.value = analysis.analysis_type;
+        const activeTab = panel.querySelector('[data-ai-tab="overview"]');
+        if (activeTab) activeTab.click();
         card.querySelectorAll('[data-decision-btn]').forEach(function (decisionBtn) {
             decisionBtn.disabled = false;
         });
@@ -756,10 +909,10 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!panel.querySelector('[data-ai-use-notes]')) {
             const useBtn = document.createElement('button');
             useBtn.type = 'button';
-            useBtn.className = 'btn btn-sm btn-outline-warning';
+            useBtn.className = 'btn btn-sm btn-outline-secondary mt-2';
             useBtn.setAttribute('data-ai-use-notes', '1');
             useBtn.setAttribute('data-update-id', card.getAttribute('data-update-id') || '');
-            useBtn.textContent = 'Use notes in Request Revision';
+            useBtn.textContent = 'Use selected observations in revision request';
             useBtn.addEventListener('click', function () {
                 const updateId = this.getAttribute('data-update-id');
                 const textarea = document.querySelector('#revisionModal' + updateId + ' textarea[name="feedback_text"]');
@@ -772,6 +925,31 @@ document.addEventListener('DOMContentLoaded', function () {
             panel.appendChild(useBtn);
         }
     }
+
+    document.querySelectorAll('.rm-ai-tabs').forEach(function (tablist) {
+        const tabs = Array.from(tablist.querySelectorAll('[data-ai-tab]'));
+        function activateTab(tab) {
+            const panel = tablist.closest('[data-ai-panel]');
+            if (!panel) return;
+            tabs.forEach(function (item) {
+                const active = item === tab;
+                item.classList.toggle('is-active', active);
+                item.setAttribute('aria-selected', active ? 'true' : 'false');
+                const content = panel.querySelector('[data-ai-content="' + item.dataset.aiTab + '"]');
+                if (content) content.hidden = !active;
+            });
+        }
+        tabs.forEach(function (tab, index) {
+            tab.addEventListener('click', function () { activateTab(tab); });
+            tab.addEventListener('keydown', function (event) {
+                if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+                event.preventDefault();
+                const nextIndex = event.key === 'Home' ? 0 : (event.key === 'End' ? tabs.length - 1 : (index + (event.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length);
+                tabs[nextIndex].focus();
+                activateTab(tabs[nextIndex]);
+            });
+        });
+    });
 
     function escapeHtml(value) {
         return value
@@ -794,15 +972,6 @@ document.addEventListener('DOMContentLoaded', function () {
             if (action !== 'approve' && !feedbackText) {
                 alert('Please provide feedback text.'); return;
             }
-            if (action === 'approve') {
-                const card = document.querySelector('.rm-update-card[data-update-id="' + updateId + '"]');
-                const panel = card ? card.querySelector('[data-ai-panel]') : null;
-                if (panel && panel.getAttribute('data-verdict') === 'needs_revision') {
-                    const proceed = confirm('AI found grammar issues in this research file. Approve anyway?');
-                    if (!proceed) return;
-                }
-            }
-
             submitBtn.disabled = true;
             submitBtn.innerHTML = '<?= smsIcon('spinner', ['class' => 'fa-spin me-2']) ?>Submitting…';
 
@@ -814,7 +983,8 @@ document.addEventListener('DOMContentLoaded', function () {
                         action: action,
                         update_id: parseInt(updateId),
                         feedback_text: feedbackText || (action === 'approve' ? 'Progress approved.' : ''),
-                        submission_token: token
+                        submission_token: token,
+                        csrf_token: csrfToken
                     })
                 });
                 const result = await resp.json();

@@ -36,7 +36,7 @@ function chapterLiveEvaluatorName(): string
     if ($sms instanceof PDO && $userId > 0) {
         try {
             $stmt = $sms->prepare(
-                "SELECT full_name FROM sms_users
+                "SELECT full_name FROM `sms2_users`
                  WHERE id = ? AND TRIM(COALESCE(full_name, '')) <> ''
                  LIMIT 1"
             );
@@ -89,24 +89,15 @@ function chapterRegistryStudentIdentity(): array
 function chapterRegisteredStudentGroup(PDO $crad): ?array
 {
     $identity = chapterRegistryStudentIdentity();
-
-    try {
-        if (!(bool) $crad->query("SHOW TABLES LIKE 'crad_research_groups'")->fetchColumn()) {
-            return null;
-        }
-    } catch (Throwable $e) {
-        return null;
-    }
-
     $stmt = $crad->prepare(
         "SELECT rg.*, rp.id AS research_plan_id, rp.status AS plan_status,
                 ca.id AS coord_assignment_id, ca.coordinator_name, ca.coordinator_email,
                 aa.id AS adviser_assignment_id, aa.adviser_user_id, aa.adviser_name, aa.adviser_email
-         FROM crad_research_groups rg
-         JOIN crad_title_approvals t ON t.id = rg.title_approval_id
-         JOIN crad_research_coordinator_assignments ca ON ca.id = (
+         FROM `crad_research_groups` rg
+         JOIN `crad_title_approvals` t ON t.id = rg.title_approval_id
+         JOIN `crad_research_coordinator_assignments` ca ON ca.id = (
             SELECT ca2.id
-            FROM crad_research_coordinator_assignments ca2
+            FROM `crad_research_coordinator_assignments` ca2
             WHERE ca2.status = 'Active'
               AND (
                     ca2.research_group_id = rg.id
@@ -115,9 +106,9 @@ function chapterRegisteredStudentGroup(PDO $crad): ?array
             ORDER BY ca2.updated_at DESC, ca2.id DESC
             LIMIT 1
          )
-         JOIN crad_research_adviser_assignments aa ON aa.id = (
+         JOIN `crad_research_adviser_assignments` aa ON aa.id = (
             SELECT aa2.id
-            FROM crad_research_adviser_assignments aa2
+            FROM `crad_research_adviser_assignments` aa2
             WHERE (
                     aa2.research_group_id = rg.id
                  OR (aa2.research_group_id IS NULL AND aa2.group_number = rg.group_number)
@@ -125,7 +116,7 @@ function chapterRegisteredStudentGroup(PDO $crad): ?array
             ORDER BY (aa2.assignment_status = 'Assigned') DESC, aa2.updated_at DESC, aa2.id DESC
             LIMIT 1
          )
-         LEFT JOIN crad_research_plans rp ON rp.research_group_id = rg.id
+         LEFT JOIN `crad_research_plans` rp ON rp.research_group_id = rg.id
          WHERE rg.title_approval_id IS NOT NULL
            AND " . chapterRegistryFullyApprovedClause('t') . "
            AND TRIM(COALESCE(rg.research_title, '')) <> ''
@@ -139,7 +130,7 @@ function chapterRegisteredStudentGroup(PDO $crad): ?array
              OR (:student_id2 <> '' AND t.student_id = :student_id_match2)
              OR (:name2 <> '' AND LOWER(TRIM(t.student_name)) = :name_match2)
              OR EXISTS (
-                    SELECT 1 FROM crad_proposal_members pm
+                    SELECT 1 FROM `crad_proposal_members` pm
                     WHERE pm.proposal_id = rg.proposal_id
                       AND (
                            (:student_id3 <> '' AND pm.student_id = :student_id_match3)
@@ -202,155 +193,8 @@ function chapterAllowedChapters(): array
 
 function chapterEnsureSchema(PDO $crad): void
 {
-    // Core registry tables required by chapterRegisteredStudentGroup().
-    // HostForge hf_db_* often has SMS tables but never imported crad_research_groups, etc.
     $crad->exec(
-        "CREATE TABLE IF NOT EXISTS crad_title_approvals (
-            id INT UNSIGNED NOT NULL AUTO_INCREMENT,
-            student_id VARCHAR(50) NOT NULL DEFAULT '',
-            student_user_id INT UNSIGNED DEFAULT NULL,
-            student_name VARCHAR(200) NOT NULL DEFAULT '',
-            submission_date DATE NOT NULL,
-            department VARCHAR(200) NOT NULL DEFAULT '',
-            proposed_title VARCHAR(500) NOT NULL DEFAULT '',
-            discipline_cluster VARCHAR(200) NOT NULL DEFAULT '',
-            primary_sdg VARCHAR(120) NOT NULL DEFAULT '',
-            research_agenda VARCHAR(300) NOT NULL DEFAULT '',
-            sdg_justification TEXT NOT NULL,
-            members_json LONGTEXT NOT NULL,
-            adviser_name VARCHAR(200) NOT NULL DEFAULT '',
-            adviser_email VARCHAR(200) NOT NULL DEFAULT '',
-            coordinator_name VARCHAR(200) NOT NULL DEFAULT '',
-            proposal_number VARCHAR(30) DEFAULT NULL,
-            status ENUM('Pending','Reviewed','Approved','Returned') NOT NULL DEFAULT 'Pending',
-            adviser_remarks TEXT DEFAULT NULL,
-            adviser_signature_data MEDIUMTEXT DEFAULT NULL,
-            coordinator_status VARCHAR(30) NOT NULL DEFAULT 'Not Ready',
-            coordinator_remarks TEXT DEFAULT NULL,
-            coordinator_screening_json TEXT DEFAULT NULL,
-            coordinator_signature_data MEDIUMTEXT DEFAULT NULL,
-            coordinator_reviewed_at DATETIME DEFAULT NULL,
-            crad_status VARCHAR(30) NOT NULL DEFAULT 'Not Ready',
-            crad_signature_data MEDIUMTEXT DEFAULT NULL,
-            crad_reviewed_at DATETIME DEFAULT NULL,
-            sent_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            reviewed_at DATETIME DEFAULT NULL,
-            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            PRIMARY KEY (id),
-            KEY idx_title_student (student_id),
-            KEY idx_title_status (status)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
-    );
-
-    $crad->exec(
-        "CREATE TABLE IF NOT EXISTS crad_research_groups (
-            id INT UNSIGNED NOT NULL AUTO_INCREMENT,
-            proposal_id INT UNSIGNED DEFAULT NULL,
-            title_approval_id INT UNSIGNED DEFAULT NULL,
-            proposal_number VARCHAR(30) DEFAULT NULL,
-            group_number VARCHAR(40) NOT NULL,
-            group_name VARCHAR(40) NOT NULL DEFAULT '',
-            research_title VARCHAR(255) NOT NULL DEFAULT '',
-            college_dept VARCHAR(120) NOT NULL DEFAULT '',
-            adviser VARCHAR(120) NOT NULL DEFAULT '',
-            academic_year VARCHAR(20) NOT NULL DEFAULT '',
-            leader_name VARCHAR(120) NOT NULL DEFAULT '',
-            leader_id VARCHAR(40) NOT NULL DEFAULT '',
-            leader_email VARCHAR(120) NOT NULL DEFAULT '',
-            leader_contact VARCHAR(40) NOT NULL DEFAULT '',
-            status VARCHAR(40) NOT NULL DEFAULT 'Approved',
-            date_assigned DATE DEFAULT NULL,
-            created_by INT UNSIGNED DEFAULT NULL,
-            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY (id),
-            KEY idx_rg_title_approval (title_approval_id),
-            KEY idx_rg_group_number (group_number),
-            KEY idx_rg_leader (leader_id, leader_email)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
-    );
-
-    $crad->exec(
-        "CREATE TABLE IF NOT EXISTS crad_research_coordinator_assignments (
-            id INT UNSIGNED NOT NULL AUTO_INCREMENT,
-            research_group_id INT UNSIGNED DEFAULT NULL,
-            proposal_id INT UNSIGNED DEFAULT NULL,
-            title_approval_id INT UNSIGNED DEFAULT NULL,
-            proposal_number VARCHAR(30) DEFAULT NULL,
-            group_number VARCHAR(40) DEFAULT NULL,
-            group_name VARCHAR(120) NOT NULL DEFAULT '',
-            research_title VARCHAR(255) NOT NULL DEFAULT '',
-            student_id VARCHAR(40) DEFAULT NULL,
-            coordinator_user_id INT UNSIGNED DEFAULT NULL,
-            coordinator_name VARCHAR(200) NOT NULL DEFAULT '',
-            coordinator_email VARCHAR(200) NOT NULL DEFAULT '',
-            status ENUM('Active','Inactive') NOT NULL DEFAULT 'Active',
-            assigned_by INT UNSIGNED DEFAULT NULL,
-            assigned_at DATETIME DEFAULT NULL,
-            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            PRIMARY KEY (id),
-            KEY idx_rca_group (research_group_id),
-            KEY idx_rca_title (title_approval_id),
-            KEY idx_rca_status (status)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
-    );
-
-    $crad->exec(
-        "CREATE TABLE IF NOT EXISTS crad_research_adviser_assignments (
-            id INT UNSIGNED NOT NULL AUTO_INCREMENT,
-            research_group_id INT UNSIGNED DEFAULT NULL,
-            proposal_id INT UNSIGNED DEFAULT NULL,
-            proposal_number VARCHAR(30) DEFAULT NULL,
-            group_number VARCHAR(40) DEFAULT NULL,
-            student_id VARCHAR(40) DEFAULT NULL,
-            adviser_name VARCHAR(150) NOT NULL DEFAULT '',
-            adviser_email VARCHAR(190) NOT NULL DEFAULT '',
-            adviser_user_id INT UNSIGNED DEFAULT NULL,
-            expertise VARCHAR(255) NOT NULL DEFAULT '',
-            availability_status VARCHAR(40) NOT NULL DEFAULT 'Pending',
-            assignment_status VARCHAR(40) NOT NULL DEFAULT 'Pending',
-            notes TEXT DEFAULT NULL,
-            assigned_by INT UNSIGNED DEFAULT NULL,
-            assigned_at DATETIME DEFAULT NULL,
-            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            notification_sent_at DATETIME DEFAULT NULL,
-            notification_sent_by INT UNSIGNED DEFAULT NULL,
-            PRIMARY KEY (id),
-            KEY idx_raa_group (research_group_id),
-            KEY idx_raa_status (assignment_status)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
-    );
-
-    $crad->exec(
-        "CREATE TABLE IF NOT EXISTS crad_research_plans (
-            id INT UNSIGNED NOT NULL AUTO_INCREMENT,
-            research_group_id INT UNSIGNED DEFAULT NULL,
-            research_title VARCHAR(500) NOT NULL DEFAULT '',
-            group_number VARCHAR(40) NOT NULL DEFAULT '',
-            adviser_id INT UNSIGNED DEFAULT NULL,
-            adviser_name VARCHAR(150) NOT NULL DEFAULT '',
-            adviser_email VARCHAR(190) NOT NULL DEFAULT '',
-            start_date DATE DEFAULT NULL,
-            target_completion_date DATE DEFAULT NULL,
-            current_stage VARCHAR(100) NOT NULL DEFAULT 'Planning',
-            overall_progress DECIMAL(5,2) NOT NULL DEFAULT 0.00,
-            status ENUM('Active','Completed','On Hold','Cancelled') NOT NULL DEFAULT 'Active',
-            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            final_defense_recommended TINYINT(1) NOT NULL DEFAULT 0,
-            final_defense_recommended_by INT UNSIGNED DEFAULT NULL,
-            final_defense_recommended_by_name VARCHAR(150) DEFAULT NULL,
-            final_defense_recommended_at DATETIME DEFAULT NULL,
-            final_defense_recommendation_remarks TEXT DEFAULT NULL,
-            PRIMARY KEY (id),
-            KEY idx_rp_group (research_group_id)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
-    );
-
-    $crad->exec(
-        "CREATE TABLE IF NOT EXISTS crad_chapter_submissions (
+        "CREATE TABLE IF NOT EXISTS `crad_chapter_submissions` (
             id INT UNSIGNED NOT NULL AUTO_INCREMENT,
             research_group_id INT UNSIGNED NOT NULL,
             research_plan_id INT UNSIGNED DEFAULT NULL,
@@ -382,7 +226,7 @@ function chapterEnsureSchema(PDO $crad): void
     );
 
     $crad->exec(
-        "CREATE TABLE IF NOT EXISTS crad_chapter_submission_history (
+        "CREATE TABLE IF NOT EXISTS `crad_chapter_submission_history` (
             id INT UNSIGNED NOT NULL AUTO_INCREMENT,
             submission_id INT UNSIGNED NOT NULL,
             research_group_id INT UNSIGNED NOT NULL,
@@ -403,7 +247,7 @@ function chapterEnsureSchema(PDO $crad): void
     );
 
     $crad->exec(
-        "CREATE TABLE IF NOT EXISTS crad_chapter_evaluations (
+        "CREATE TABLE IF NOT EXISTS `crad_chapter_evaluations` (
             id INT UNSIGNED NOT NULL AUTO_INCREMENT,
             submission_id INT UNSIGNED NOT NULL,
             research_group_id INT UNSIGNED NOT NULL,
@@ -433,7 +277,7 @@ function chapterEnsureSchema(PDO $crad): void
     );
 
     $crad->exec(
-        "CREATE TABLE IF NOT EXISTS crad_chapter_evaluation_notifications (
+        "CREATE TABLE IF NOT EXISTS `crad_chapter_evaluation_notifications` (
             id INT UNSIGNED NOT NULL AUTO_INCREMENT,
             event_key VARCHAR(120) NOT NULL,
             recipient_user_id INT UNSIGNED DEFAULT NULL,
@@ -455,13 +299,13 @@ function chapterEnsureSchema(PDO $crad): void
     );
 
     try {
-        $grammarScore = $crad->query("SHOW COLUMNS FROM crad_chapter_evaluations LIKE 'grammar_score'")->fetch();
+        $grammarScore = $crad->query("SHOW COLUMNS FROM `crad_chapter_evaluations` LIKE 'grammar_score'")->fetch();
         if (!$grammarScore) {
-            $crad->exec("ALTER TABLE crad_chapter_evaluations ADD COLUMN grammar_score DECIMAL(5,2) NOT NULL DEFAULT 0 AFTER format_score");
+            $crad->exec("ALTER TABLE `crad_chapter_evaluations` ADD COLUMN grammar_score DECIMAL(5,2) NOT NULL DEFAULT 0 AFTER format_score");
         }
-        $grammarRemarks = $crad->query("SHOW COLUMNS FROM crad_chapter_evaluations LIKE 'grammar_remarks'")->fetch();
+        $grammarRemarks = $crad->query("SHOW COLUMNS FROM `crad_chapter_evaluations` LIKE 'grammar_remarks'")->fetch();
         if (!$grammarRemarks) {
-            $crad->exec("ALTER TABLE crad_chapter_evaluations ADD COLUMN grammar_remarks TEXT DEFAULT NULL AFTER format_remarks");
+            $crad->exec("ALTER TABLE `crad_chapter_evaluations` ADD COLUMN grammar_remarks TEXT DEFAULT NULL AFTER format_remarks");
         }
     } catch (Throwable $e) {
         error_log('Chapter evaluation grammar column check skipped: ' . $e->getMessage());
@@ -484,15 +328,15 @@ function chapterCurrentStudentGroup(PDO $crad): ?array
 
     $stmt = $crad->prepare(
         "SELECT rg.*, rp.id AS research_plan_id, rp.status AS plan_status
-         FROM crad_research_groups rg
-         LEFT JOIN crad_research_plans rp ON rp.research_group_id = rg.id
+         FROM `crad_research_groups` rg
+         LEFT JOIN `crad_research_plans` rp ON rp.research_group_id = rg.id
          WHERE rg.status = 'Approved'
            AND (
                 (:student_id <> '' AND rg.leader_id = :student_id_match)
              OR (:email <> '' AND LOWER(TRIM(rg.leader_email)) = :email_match)
              OR (:name <> '' AND LOWER(TRIM(rg.leader_name)) = :name_match)
              OR EXISTS (
-                    SELECT 1 FROM crad_proposal_members pm
+                    SELECT 1 FROM `crad_proposal_members` pm
                     WHERE pm.proposal_id = rg.proposal_id
                       AND (
                            (:student_id2 <> '' AND pm.student_id = :student_id_match2)
@@ -501,7 +345,7 @@ function chapterCurrentStudentGroup(PDO $crad): ?array
                       )
                 )
              OR EXISTS (
-                    SELECT 1 FROM crad_title_approvals ta
+                    SELECT 1 FROM `crad_title_approvals` ta
                     WHERE ta.id = rg.title_approval_id
                       AND (
                            (:student_id3 <> '' AND ta.student_id = :student_id_match3)
@@ -552,9 +396,9 @@ function chapterSubmissionSelectSql(): string
                    ce.grammar_score, ce.grammar_remarks, ce.content_remarks, ce.methodology_remarks,
                    ce.references_remarks, ce.format_remarks,
                    ce.overall_score, ce.overall_feedback, ce.evaluated_at
-            FROM crad_chapter_submissions cs
-            INNER JOIN crad_research_groups rg ON rg.id = cs.research_group_id
-            LEFT JOIN crad_chapter_evaluations ce ON ce.submission_id = cs.id";
+            FROM `crad_chapter_submissions` cs
+            INNER JOIN `crad_research_groups` rg ON rg.id = cs.research_group_id
+            LEFT JOIN `crad_chapter_evaluations` ce ON ce.submission_id = cs.id";
 }
 
 function chapterRegistryGroupGateSql(string $groupAlias = 'rg'): string
@@ -562,7 +406,7 @@ function chapterRegistryGroupGateSql(string $groupAlias = 'rg'): string
     return "{$groupAlias}.title_approval_id IS NOT NULL
         AND EXISTS (
             SELECT 1
-            FROM crad_title_approvals gate_t
+            FROM `crad_title_approvals` gate_t
             WHERE gate_t.id = {$groupAlias}.title_approval_id
               AND " . chapterRegistryFullyApprovedClause('gate_t') . "
               AND TRIM(COALESCE({$groupAlias}.research_title, '')) <> ''
@@ -574,7 +418,7 @@ function chapterRegistryGroupGateSql(string $groupAlias = 'rg'): string
         )
         AND EXISTS (
             SELECT 1
-            FROM crad_research_coordinator_assignments gate_ca
+            FROM `crad_research_coordinator_assignments` gate_ca
             WHERE gate_ca.status = 'Active'
               AND (
                     gate_ca.research_group_id = {$groupAlias}.id
@@ -583,7 +427,7 @@ function chapterRegistryGroupGateSql(string $groupAlias = 'rg'): string
         )
         AND EXISTS (
             SELECT 1
-            FROM crad_research_adviser_assignments gate_aa
+            FROM `crad_research_adviser_assignments` gate_aa
             WHERE (
                     gate_aa.research_group_id = {$groupAlias}.id
                  OR (gate_aa.research_group_id IS NULL AND gate_aa.group_number = {$groupAlias}.group_number)
@@ -595,7 +439,7 @@ function chapterCurrentLatestSubmissionSql(string $submissionAlias = 'cs'): stri
 {
     return "{$submissionAlias}.id = (
         SELECT latest_cs.id
-        FROM crad_chapter_submissions latest_cs
+        FROM `crad_chapter_submissions` latest_cs
         WHERE latest_cs.research_group_id = {$submissionAlias}.research_group_id
           AND latest_cs.chapter_number = {$submissionAlias}.chapter_number
         ORDER BY latest_cs.version_number DESC, latest_cs.id DESC
@@ -610,8 +454,8 @@ function chapterSubmissionIsCurrentValid(PDO $crad, int $submissionId): bool
     }
     $stmt = $crad->prepare(
         "SELECT 1
-         FROM crad_chapter_submissions cs
-         INNER JOIN crad_research_groups rg ON rg.id = cs.research_group_id
+         FROM `crad_chapter_submissions` cs
+         INNER JOIN `crad_research_groups` rg ON rg.id = cs.research_group_id
          WHERE cs.id = :id
            AND " . chapterCurrentLatestSubmissionSql('cs') . "
            AND " . chapterRegistryGroupGateSql('rg') . "
@@ -628,9 +472,9 @@ function chapterSubmissionIsActiveEvaluation(PDO $crad, int $submissionId): bool
     }
     $stmt = $crad->prepare(
         "SELECT 1
-         FROM crad_chapter_submissions cs
-         INNER JOIN crad_research_groups rg ON rg.id = cs.research_group_id
-         LEFT JOIN crad_chapter_evaluations ce ON ce.submission_id = cs.id
+         FROM `crad_chapter_submissions` cs
+         INNER JOIN `crad_research_groups` rg ON rg.id = cs.research_group_id
+         LEFT JOIN `crad_chapter_evaluations` ce ON ce.submission_id = cs.id
          WHERE cs.id = :id
            AND cs.status IN ('Submitted','Under Review')
            AND ce.id IS NULL
@@ -648,7 +492,7 @@ function chapterLatestSubmissionsForGroup(PDO $crad, int $groupId): array
         chapterSubmissionSelectSql() . "
          WHERE cs.research_group_id = :gid
            AND cs.id IN (
-                SELECT MAX(id) FROM crad_chapter_submissions
+                SELECT MAX(id) FROM `crad_chapter_submissions`
                 WHERE research_group_id = :gid2
                 GROUP BY chapter_number
            )
@@ -662,8 +506,8 @@ function chapterSubmissionHistoryForGroup(PDO $crad, int $groupId): array
 {
     $stmt = $crad->prepare(
         "SELECT h.*, rg.group_number, rg.group_name, rg.research_title
-         FROM crad_chapter_submission_history h
-         INNER JOIN crad_research_groups rg ON rg.id = h.research_group_id
+         FROM `crad_chapter_submission_history` h
+         INNER JOIN `crad_research_groups` rg ON rg.id = h.research_group_id
          WHERE h.research_group_id = :gid
          ORDER BY h.created_at ASC, h.id ASC"
     );
@@ -739,7 +583,7 @@ function chapterLabel(int $chapter): string
 function chapterHistoryInsert(PDO $crad, int $submissionId, int $groupId, int $chapter, int $version, string $status, string $eventType, string $detail = ''): void
 {
     $stmt = $crad->prepare(
-        "INSERT INTO crad_chapter_submission_history
+        "INSERT INTO `crad_chapter_submission_history`
             (submission_id, research_group_id, chapter_number, version_number, status, event_type,
              actor_user_id, actor_name, actor_role, detail)
          VALUES
@@ -762,7 +606,7 @@ function chapterHistoryInsert(PDO $crad, int $submissionId, int $groupId, int $c
 function chapterNotify(PDO $crad, string $eventKey, int $submissionId, array $recipient, string $type, string $title, string $body, string $url): void
 {
     $stmt = $crad->prepare(
-        "INSERT IGNORE INTO crad_chapter_evaluation_notifications
+        "INSERT IGNORE INTO `crad_chapter_evaluation_notifications`
             (event_key, recipient_user_id, recipient_role, recipient_email, submission_id, type, title, body, url)
          VALUES
             (:event_key, :user_id, :role, :email, :submission_id, :type, :title, :body, :url)"
@@ -786,7 +630,7 @@ function chapterNotifyEvaluators(PDO $crad, array $submission): void
     if (!$sms) {
         return;
     }
-    $users = $sms->query("SELECT id, email, role_key FROM sms_users WHERE role_key = 'grammarian' AND status = 'active'")->fetchAll() ?: [];
+    $users = $sms->query("SELECT id, email, role_key FROM `sms2_users` WHERE role_key = 'grammarian' AND status = 'active'")->fetchAll() ?: [];
     foreach ($users as $user) {
         $chapter = chapterLabel((int) $submission['chapter_number']);
         $isRevision = (int) $submission['version_number'] > 1;
@@ -832,7 +676,7 @@ function chapterNotifyStudent(PDO $crad, array $submission, string $type, string
 
 function chapterNextVersion(PDO $crad, int $groupId, int $chapter): int
 {
-    $stmt = $crad->prepare("SELECT MAX(version_number) FROM crad_chapter_submissions WHERE research_group_id = :gid AND chapter_number = :chapter");
+    $stmt = $crad->prepare("SELECT MAX(version_number) FROM `crad_chapter_submissions` WHERE research_group_id = :gid AND chapter_number = :chapter");
     $stmt->execute([':gid' => $groupId, ':chapter' => $chapter]);
     return ((int) $stmt->fetchColumn()) + 1;
 }
@@ -840,7 +684,7 @@ function chapterNextVersion(PDO $crad, int $groupId, int $chapter): int
 function chapterMaySubmitNewVersion(PDO $crad, int $groupId, int $chapter): array
 {
     $stmt = $crad->prepare(
-        "SELECT status, version_number FROM crad_chapter_submissions
+        "SELECT status, version_number FROM `crad_chapter_submissions`
          WHERE research_group_id = :gid AND chapter_number = :chapter
          ORDER BY version_number DESC, id DESC
          LIMIT 1"
@@ -872,12 +716,32 @@ function chapterIsReadyForPreOral(PDO $crad, int $groupId): bool
         return false;
     }
 
+    // A completed Research 1 clearance is the final CRAD gate for the
+    // Pre-Oral workflow. It must remain valid even if older chapter records
+    // were migrated with legacy statuses.
+    try {
+        $clearance = $crad->prepare(
+            "SELECT 1 FROM `crad_research_services_clearances`
+             WHERE research_group_id = ?
+               AND research_stage = 'research_1'
+               AND status = 'clearance_done'
+             LIMIT 1"
+        );
+        $clearance->execute([$groupId]);
+        if ($clearance->fetchColumn()) {
+            return true;
+        }
+    } catch (Throwable $e) {
+        // The clearance table may not exist during a first-time migration;
+        // retain the chapter-based fallback below.
+    }
+
     $stmt = $crad->prepare(
         "SELECT COUNT(*)
-         FROM crad_chapter_submissions latest
+         FROM `crad_chapter_submissions` latest
          INNER JOIN (
              SELECT chapter_number, MAX(version_number) AS version_number
-             FROM crad_chapter_submissions
+             FROM `crad_chapter_submissions`
              WHERE research_group_id = :group_id
                AND chapter_number IN (1, 2, 3)
              GROUP BY chapter_number
@@ -937,7 +801,7 @@ function chapterSubmitDocument(PDO $crad, array $group, int $chapter, array $fil
         $crad->beginTransaction();
         $version = chapterNextVersion($crad, (int) $group['id'], $chapter);
         $stmt = $crad->prepare(
-            "INSERT INTO crad_chapter_submissions
+            "INSERT INTO `crad_chapter_submissions`
                 (research_group_id, research_plan_id, chapter_number, version_number, status,
                  submitted_by_user, submitted_by_name, submitted_by_email, submission_notes,
                  original_name, stored_subdir, stored_name, file_size, file_mime, submission_token)
@@ -1004,7 +868,7 @@ function chapterStartReview(PDO $crad, array $submission): array
     try {
         $crad->beginTransaction();
         $stmt = $crad->prepare(
-            "UPDATE crad_chapter_submissions
+            "UPDATE `crad_chapter_submissions`
              SET status = 'Under Review', review_started_at = COALESCE(review_started_at, NOW())
              WHERE id = :id AND status = 'Submitted'"
         );
@@ -1089,14 +953,14 @@ function chapterSubmitEvaluation(PDO $crad, array $submission, array $data): arr
 
     try {
         $crad->beginTransaction();
-        $check = $crad->prepare('SELECT id FROM crad_chapter_evaluations WHERE submission_id = :sid LIMIT 1');
+        $check = $crad->prepare('SELECT id FROM `crad_chapter_evaluations` WHERE submission_id = :sid LIMIT 1');
         $check->execute([':sid' => (int) $submission['id']]);
         if ($check->fetch()) {
             $crad->rollBack();
             return ['ok' => false, 'error' => 'This submission already has an evaluation.'];
         }
         $stmt = $crad->prepare(
-            "INSERT INTO crad_chapter_evaluations
+            "INSERT INTO `crad_chapter_evaluations`
                 (submission_id, research_group_id, evaluator_user_id, evaluator_name,
                  content_score, methodology_score, references_score, format_score, grammar_score,
                  content_remarks, methodology_remarks, references_remarks, format_remarks, grammar_remarks,
@@ -1126,7 +990,7 @@ function chapterSubmitEvaluation(PDO $crad, array $submission, array $data): arr
             ':result' => $result,
             ':overall_score' => $overall,
         ]);
-        $crad->prepare("UPDATE crad_chapter_submissions SET status = :status, reviewed_at = NOW() WHERE id = :id")
+        $crad->prepare("UPDATE `crad_chapter_submissions` SET status = :status, reviewed_at = NOW() WHERE id = :id")
             ->execute([':status' => $studentStatus, ':id' => (int) $submission['id']]);
         chapterHistoryInsert(
             $crad,

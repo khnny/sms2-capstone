@@ -12,14 +12,14 @@ require_once ROOT_PATH . '/includes/navigation-context.php';
 $roles = [
     'student' => ['mode' => 'student', 'module' => 'student_portal', 'dashboard' => false, 'home' => '/modules/student-portal/pages/dashboard.php'],
     'registrar' => ['mode' => 'admin_modules', 'module' => 'registrar', 'dashboard' => true, 'home' => '/dashboard/index.php'],
-    'finance' => ['mode' => 'admin_modules', 'module' => 'payment', 'dashboard' => true, 'home' => '/dashboard/index.php'],
-    'crad_officer' => ['mode' => 'admin_modules', 'module' => 'crad', 'dashboard' => true, 'home' => '/dashboard/index.php'],
-    'research_coordinator' => ['mode' => 'admin_modules', 'module' => 'crad', 'dashboard' => false, 'home' => '/modules/crad/index.php'],
-    'department_head' => ['mode' => 'admin_modules', 'module' => 'crad', 'dashboard' => false, 'home' => '/modules/crad/pages/research-coordinator-management.php'],
+    'finance' => ['mode' => 'admin_modules', 'module' => 'payment', 'dashboard' => true, 'home' => '/modules/payment/pages/approval-workflows.php'],
+    'crad_officer' => ['mode' => 'admin_modules', 'module' => 'crad', 'dashboard' => true, 'home' => '/modules/crad/pages/research-workspace.php'],
+    'research_coordinator' => ['mode' => 'admin_modules', 'module' => 'crad', 'dashboard' => false, 'home' => '/modules/crad/pages/research-workspace.php'],
+    'department_head' => ['mode' => 'admin_modules', 'module' => 'crad', 'dashboard' => false, 'home' => '/modules/crad/pages/research-workspace.php'],
     'panel' => ['mode' => 'faculty_workspace', 'module' => 'faculty', 'dashboard' => false, 'home' => '/modules/faculty/pages/assigned-defenses.php'],
     'grammarian' => ['mode' => 'faculty_workspace', 'module' => 'faculty', 'dashboard' => false, 'home' => '/modules/faculty/pages/for-evaluation.php'],
     'research_director' => ['mode' => 'faculty_workspace', 'module' => 'faculty', 'dashboard' => false, 'home' => '/modules/faculty/pages/research-director.php'],
-    'hr' => ['mode' => 'admin_modules', 'module' => 'faculty', 'dashboard' => true, 'home' => '/dashboard/index.php'],
+    'hr' => ['mode' => 'faculty_workspace', 'module' => 'faculty', 'dashboard' => false, 'home' => '/modules/faculty/pages/approval-workflows.php'],
     'superadmin' => ['mode' => 'admin_modules', 'module' => 'user-management', 'dashboard' => true, 'home' => '/dashboard/index.php'],
 ];
 

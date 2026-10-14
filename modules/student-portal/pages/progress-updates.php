@@ -97,8 +97,8 @@ $selectedIsPending = $selectedMilestone && !empty($selectedMilestone['has_pendin
 try {
     $recentUpdatesStmt = $crad->prepare("
         SELECT rpu.*, rm.milestone_name
-        FROM crad_research_progress_updates rpu
-        LEFT JOIN crad_research_milestones rm ON rm.id = rpu.milestone_id
+        FROM `crad_research_progress_updates` rpu
+        LEFT JOIN `crad_research_milestones` rm ON rm.id = rpu.milestone_id
         WHERE rpu.research_group_id = ?
         ORDER BY rpu.submitted_at DESC
         LIMIT 5
@@ -127,6 +127,7 @@ try {
                         </div>
 
                         <form id="progressUpdateForm" enctype="multipart/form-data">
+                            <?= csrfField() ?>
                             <input type="hidden" id="submission_token" name="submission_token" value="">
                             <div id="progress_form_alert" class="alert d-none" role="alert"></div>
 
@@ -186,6 +187,11 @@ try {
                                 </label>
                                 <input type="file" class="form-control" id="document" name="document" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
                                 <div class="form-text">Allowed: PDF, DOC, DOCX, JPG, PNG. Max 10 MB.</div>
+                                <div class="student-file-selection" id="documentSelection" hidden aria-live="polite">
+                                    <span><?= smsIcon('file-text', ['aria-hidden' => 'true']) ?></span>
+                                    <div><strong id="documentSelectionName"></strong><small id="documentSelectionMeta"></small></div>
+                                    <span class="student-file-selection-state">Selected · not submitted</span>
+                                </div>
                             </div>
 
                             <!-- Update Title -->
@@ -381,6 +387,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const currentProgressDisplay = document.getElementById('current_progress_display');
     const statusSelect           = document.getElementById('milestone_status');
     const documentInput          = document.getElementById('document');
+    const documentSelection      = document.getElementById('documentSelection');
+    const documentSelectionName  = document.getElementById('documentSelectionName');
+    const documentSelectionMeta  = document.getElementById('documentSelectionMeta');
     const documentRequiredMarker = document.getElementById('document_required_marker');
     const submitBtn              = document.getElementById('submitBtn');
     const pendingReviewState     = document.getElementById('pending_review_state');
@@ -390,6 +399,21 @@ document.addEventListener('DOMContentLoaded', function() {
 
     progressInput.addEventListener('input', function() {
         progressDisplay.textContent = this.value;
+    });
+
+    documentInput.addEventListener('change', function() {
+        const file = this.files && this.files[0];
+        if (!file) {
+            documentSelection.hidden = true;
+            return;
+        }
+        const extension = file.name.includes('.') ? file.name.split('.').pop().toUpperCase() : 'FILE';
+        const size = file.size >= 1048576
+            ? (file.size / 1048576).toFixed(1) + ' MB'
+            : Math.max(1, Math.round(file.size / 1024)) + ' KB';
+        documentSelectionName.textContent = file.name;
+        documentSelectionMeta.textContent = extension + ' · ' + size;
+        documentSelection.hidden = false;
     });
 
     // ------------------------------------------------------------------ //
@@ -701,6 +725,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
 
+            // Session expired: server returned JSON 401.
+            if (response.status === 401 && result.error === 'session_expired') {
+                showFormAlert('danger', '<?= smsIcon('exclamation-triangle', ['class' => 'me-2']) ?><strong>Session expired.</strong> ' + (result.message || 'Please log in again and re-submit.'));
+                restoreSubmitButton();
+                setTimeout(function () {
+                    window.location.href = '<?= BASE_URL ?>/login/login.php?timeout=1';
+                }, 3000);
+                return;
+            }
+
             if (!response.ok) {
                 showFormAlert('danger', '<?= smsIcon('exclamation-triangle', ['class' => 'me-2']) ?>' + (result.message || 'Failed to submit progress update. Please try again.'));
                 restoreSubmitButton();
@@ -732,17 +766,23 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         } catch (error) {
             console.error('Submission error:', error);
-            const message = error.message === 'invalid_success_response'
-                ? '<?= smsIcon('check-circle', ['class' => 'me-2']) ?><strong>Done Sent.</strong> The update was submitted, but the confirmation response could not be read. Redirecting...'
-                : '<?= smsIcon('wifi', ['class' => 'me-2']) ?>Network error. Please check your connection and try again.';
-            showFormAlert(error.message === 'invalid_success_response' ? 'success' : 'danger', message);
+
+            // Session expired: the server now returns JSON 401, so the
+            // normal response-handler above will already show an error.
+            // But if for any reason we land here with the old
+            // 'invalid_success_response' (non-JSON 200 from login page
+            // redirect), treat it as a session-timeout error — NOT a
+            // success.
             if (error.message === 'invalid_success_response') {
-                setSubmittedState();
+                showFormAlert('danger', '<?= smsIcon('exclamation-triangle', ['class' => 'me-2']) ?><strong>Session expired.</strong> Your session timed out before the submission could be saved. Please log in again and re-submit your progress update.');
+                restoreSubmitButton();
                 setTimeout(function () {
-                    window.location.href = '<?= BASE_URL ?>/modules/student-portal/pages/progress-updates.php';
-                }, 1800);
+                    window.location.href = '<?= BASE_URL ?>/login/login.php?timeout=1';
+                }, 3000);
                 return;
             }
+
+            showFormAlert('danger', '<?= smsIcon('wifi', ['class' => 'me-2']) ?>Network error. Please check your connection and try again.');
             restoreSubmitButton();
         }
     });

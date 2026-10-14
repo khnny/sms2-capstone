@@ -8,3 +8,4 @@
     </div>
 </div>
 <?php require_once ROOT_PATH . '/includes/scripts.php'; ?>
+<?php require_once ROOT_PATH . '/includes/assignment-confirmation-modal.php'; ?>

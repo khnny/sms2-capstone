@@ -50,6 +50,39 @@ try {
             exit;
         }
 
+        if ($action === 'student_update_or') {
+            if ($role !== 'student') {
+                throw new RuntimeException('Forbidden');
+            }
+            $group = chapterRegisteredStudentGroup($crad);
+            if (!$group) {
+                throw new InvalidArgumentException('No research group is registered yet.');
+            }
+            $stage = rcpNormalizeStage((string) ($_POST['research_stage'] ?? 'research_1'));
+            $memberReferences = json_decode((string) ($_POST['member_or_numbers'] ?? '{}'), true);
+            $savedReferences = rcpSaveMemberReferences(
+                $crad,
+                (int) $group['id'],
+                is_array($memberReferences) ? $memberReferences : [],
+                $stage
+            );
+            if (empty($savedReferences['ok'])) throw new InvalidArgumentException((string) ($savedReferences['error'] ?? 'Invalid reference numbers.'));
+            $primaryReference = trim((string) ($_POST['or_number'] ?? '')) ?: (string) (reset($savedReferences['references']) ?: '');
+            $result = rcpStudentUpdateOr(
+                $crad,
+                (int) $group['id'],
+                $stage,
+                $primaryReference
+            );
+            echo json_encode([
+                'ok' => !empty($result['ok']),
+                'error' => $result['error'] ?? null,
+                'payment' => isset($result['payment']) ? rcpPublicRow($result['payment']) : null,
+                'rows' => rcpStudentInbox($crad, (int) $group['id']),
+            ], JSON_INVALID_UTF8_SUBSTITUTE);
+            exit;
+        }
+
         if ($action === 'admin_approve' || $action === 'admin_reject') {
             if (!rcpCanApprove()) {
                 throw new RuntimeException('Forbidden');
@@ -103,6 +136,11 @@ try {
         'last_sync' => date('M j, Y g:i:s A'),
         'rows' => array_map(static function (array $row) use ($crad): array {
             $row = rcpEnsureOrFromImage($crad, $row);
+            $row['members'] = rcpGroupPaymentMembers(
+                $crad,
+                (int) ($row['research_group_id'] ?? 0),
+                rcpNormalizeStage((string) ($row['research_stage'] ?? 'research_1'))
+            );
             $public = rcpPublicRow($row);
             $public['group_number'] = (string) ($row['group_number'] ?? '');
             $public['research_title'] = (string) ($row['research_title'] ?? '');

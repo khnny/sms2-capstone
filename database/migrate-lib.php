@@ -39,7 +39,7 @@ function sms2MigrateSqlCreateTables(string $sqlFile): array
         return [];
     }
 
-    preg_match_all('/CREATE\s+TABLE\s+`([^`]+)`/i', (string) file_get_contents($sqlFile), $matches);
+    preg_match_all('/CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?`([^`]+)`/i', (string) file_get_contents($sqlFile), $matches);
 
     return array_values(array_unique($matches[1] ?? []));
 }
@@ -150,8 +150,9 @@ function sms2MigrateApplySqlFile(PDO $pdo, string $sqlFile): int
 
 function sms2MigrateEnsureTrackingTable(PDO $pdo): void
 {
+    // Prefer prefixed name; keep creating legacy name only if migrating old installs mid-cutover.
     $pdo->exec(
-        'CREATE TABLE IF NOT EXISTS `sms_schema_migrations` (
+        'CREATE TABLE IF NOT EXISTS `schema_migrations` (
             `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT,
             `migration_key` varchar(120) NOT NULL,
             `source_file` varchar(255) NOT NULL,
@@ -168,7 +169,7 @@ function sms2MigrateWasRecorded(PDO $pdo, string $migrationKey): bool
     sms2MigrateEnsureTrackingTable($pdo);
 
     $stmt = $pdo->prepare(
-        'SELECT 1 FROM `sms_schema_migrations` WHERE `migration_key` = ? LIMIT 1'
+        'SELECT 1 FROM `schema_migrations` WHERE `migration_key` = ? LIMIT 1'
     );
     $stmt->execute([$migrationKey]);
 
@@ -180,7 +181,7 @@ function sms2MigrateRecord(PDO $pdo, string $migrationKey, string $sourceFile): 
     sms2MigrateEnsureTrackingTable($pdo);
 
     $stmt = $pdo->prepare(
-        'INSERT INTO `sms_schema_migrations` (`migration_key`, `source_file`, `source_sha256`)
+        'INSERT INTO `schema_migrations` (`migration_key`, `source_file`, `source_sha256`)
          VALUES (?, ?, ?)
          ON DUPLICATE KEY UPDATE
              `source_file` = VALUES(`source_file`),
@@ -192,6 +193,41 @@ function sms2MigrateRecord(PDO $pdo, string $migrationKey, string $sourceFile): 
         str_replace('\\', '/', $sourceFile),
         hash_file('sha256', $sourceFile),
     ]);
+}
+
+/** A failed dump can leave every table present but its indexes unfinished. */
+function sms2MigrateValidateExistingSchema(PDO $pdo, string $sourceFile): void
+{
+    $sql = (string) file_get_contents($sourceFile);
+    preg_match_all('/CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?`([^`]+)`\s*\((.*?)\)\s*ENGINE/is', $sql, $tables, PREG_SET_ORDER);
+    foreach ($tables as $table) {
+        $name = $table[1];
+        $ddl = $table[2];
+        preg_match_all('/ALTER\s+TABLE\s+`' . preg_quote($name, '/') . '`\s+(.*?);/is', $sql, $alters);
+        $definitions = $ddl . "\n" . implode("\n", $alters[1]);
+        $columns = $pdo->prepare('SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?');
+        $columns->execute([$name]);
+        $existing = $columns->fetchAll(PDO::FETCH_KEY_PAIR);
+        preg_match_all('/^\s*`([^`]+)`\s+\w+/m', $ddl, $expected);
+        foreach ($expected[1] as $column) {
+            if (!array_key_exists($column, $existing)) {
+                throw new RuntimeException('Incomplete schema: ' . $name . '.' . $column . ' is missing. Repair the schema before recording the dump; do not use --fresh on live data.');
+            }
+        }
+        if (preg_match('/PRIMARY\s+KEY/i', $definitions)) {
+            $keys = $pdo->prepare("SELECT COUNT(*) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND INDEX_NAME = 'PRIMARY'");
+            $keys->execute([$name]);
+            if (!(int) $keys->fetchColumn()) {
+                throw new RuntimeException('Incomplete schema: ' . $name . ' has no primary key. Finish or repair the import before recording the dump.');
+            }
+        }
+        preg_match_all('/(?:^|\n)\s*(?:MODIFY\s+)?`([^`]+)`[^\n,]*AUTO_INCREMENT/i', $definitions, $auto);
+        foreach (array_unique($auto[1]) as $column) {
+            if (!str_contains(strtolower($existing[$column] ?? ''), 'auto_increment')) {
+                throw new RuntimeException('Incomplete schema: ' . $name . '.' . $column . ' is missing AUTO_INCREMENT. Run the additive schema repair before retrying.');
+            }
+        }
+    }
 }
 
 function sms2MigrateOneDatabase(array $target, array $options, ?callable $sink = null): void
@@ -221,15 +257,27 @@ function sms2MigrateOneDatabase(array $target, array $options, ?callable $sink =
     sms2MigrateEnsureDatabase($pdo, $database, $sink);
     $pdo->exec('USE ' . $quotedDatabase);
 
+    if ($options['force'] && sms2MigrateExistingTargetTableCount($pdo, sms2MigrateSqlCreateTables($target['sql_file'])) > 0) {
+        throw new RuntimeException('Cannot replay a full dump over existing tables. Use additive repairs for upgrades; --fresh is only for disposable databases or an intentional rebuild.');
+    }
+
+    sms2MigrateEnsureV3Columns($pdo, $sink);
+
     if (!$options['fresh'] && !$options['force']) {
         if (sms2MigrateWasRecorded($pdo, $target['migration_key'])) {
-            sms2MigrateOut('Skipped: migration was already recorded. Use --force to re-apply.', $sink);
+            $recorded = $pdo->prepare('SELECT source_sha256 FROM schema_migrations WHERE migration_key = ?');
+            $recorded->execute([$target['migration_key']]);
+            if ($recorded->fetchColumn() !== hash_file('sha256', $target['sql_file'])) {
+                sms2MigrateOut('Warning: the recorded dump differs from this release. Existing data is preserved; run the documented additive repairs. Replaying a full dump is not an upgrade.', $sink);
+            }
+            sms2MigrateOut('Skipped: migration was already recorded.', $sink);
             return;
         }
 
         $targetTables = sms2MigrateSqlCreateTables($target['sql_file']);
         $existingTargetTables = sms2MigrateExistingTargetTableCount($pdo, $targetTables);
         if ($targetTables && $existingTargetTables === count($targetTables)) {
+            sms2MigrateValidateExistingSchema($pdo, $target['sql_file']);
             sms2MigrateRecord($pdo, $target['migration_key'], $target['sql_file']);
             sms2MigrateOut('Skipped: target tables already exist; recorded this migration as applied.', $sink);
             return;
@@ -249,6 +297,97 @@ function sms2MigrateOneDatabase(array $target, array $options, ?callable $sink =
     sms2MigrateOut('Applied ' . $applied . ' SQL statement(s).', $sink);
 }
 
+/** Keep clearance/payment images in HostForge's managed database across redeploys. */
+function sms2MigrateEnsureDurableUploadColumns(PDO $pdo, ?callable $sink = null): void
+{
+    $tables = [
+        'crad_research_clearance_payments',
+        'crad_research_services_clearances',
+    ];
+    $columns = [
+        'uploaded_blob' => 'MEDIUMBLOB NULL',
+        'uploaded_mime' => "VARCHAR(100) NOT NULL DEFAULT ''",
+        'uploaded_size' => 'INT UNSIGNED NOT NULL DEFAULT 0',
+    ];
+    foreach ($tables as $table) {
+        // MariaDB does not accept native PDO placeholders in SHOW statements.
+        // Query information_schema instead so this works on HostForge.
+        $exists = $pdo->prepare(
+            'SELECT 1 FROM information_schema.TABLES
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? LIMIT 1'
+        );
+        $exists->execute([$table]);
+        if (!$exists->fetchColumn()) continue;
+        foreach ($columns as $column => $definition) {
+            $check = $pdo->prepare(
+                'SELECT 1 FROM information_schema.COLUMNS
+                 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ? LIMIT 1'
+            );
+            $check->execute([$table, $column]);
+            if ($check->fetchColumn()) continue;
+            $pdo->exec('ALTER TABLE `' . $table . '` ADD COLUMN `' . $column . '` ' . $definition);
+            sms2MigrateOut('Added durable upload column ' . $table . '.' . $column, $sink);
+        }
+    }
+}
+
+/** Keep legacy member receipts separate for Research 1 and Research 2. */
+function sms2MigrateEnsureMemberStages(PDO $pdo, ?callable $sink = null): void
+{
+    $table = 'crad_research_group_members';
+    $exists = $pdo->prepare('SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?');
+    $exists->execute([$table]);
+    if (!$exists->fetchColumn()) {
+        return;
+    }
+    $column = $pdo->prepare("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'research_stage'");
+    $column->execute([$table]);
+    if (!$column->fetchColumn()) {
+        $pdo->exec("ALTER TABLE `crad_research_group_members` ADD COLUMN `research_stage` VARCHAR(20) NOT NULL DEFAULT 'research_1' AFTER `research_group_id`");
+        sms2MigrateOut('Added research-stage separation for member receipt references.', $sink);
+    }
+    $index = $pdo->prepare("SELECT 1 FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND INDEX_NAME = 'idx_rgm_group_stage'");
+    $index->execute([$table]);
+    if (!$index->fetchColumn()) {
+        $pdo->exec('ALTER TABLE `crad_research_group_members` ADD KEY `idx_rgm_group_stage` (`research_group_id`, `research_stage`)');
+    }
+}
+
+/** Verified additive changes from the original capstone schema to v3. */
+function sms2MigrateEnsureV3Columns(PDO $pdo, ?callable $sink = null): void
+{
+    $changes = [
+        'sms2_admin_announcements' => [
+            'category' => "VARCHAR(40) NOT NULL DEFAULT 'General'",
+            'scheduled_for' => 'DATE NULL',
+            'expires_at' => 'DATE NULL',
+        ],
+        'crad_panel_member_availability' => [
+            'availability_windows_json' => 'LONGTEXT NULL',
+        ],
+        'crad_research_services_clearances' => [
+            'crad_remarks' => "VARCHAR(500) NOT NULL DEFAULT ''",
+        ],
+    ];
+    foreach ($changes as $table => $columns) {
+        $exists = $pdo->prepare('SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?');
+        $exists->execute([$table]);
+        if (!$exists->fetchColumn()) {
+            continue;
+        }
+        foreach ($columns as $column => $definition) {
+            $check = $pdo->prepare('SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?');
+            $check->execute([$table, $column]);
+            if (!$check->fetchColumn()) {
+                $pdo->exec('ALTER TABLE ' . sms2MigrateQuoteIdentifier($table) . ' ADD COLUMN ' . sms2MigrateQuoteIdentifier($column) . ' ' . $definition);
+                sms2MigrateOut('Added v3 column ' . $table . '.' . $column, $sink);
+            }
+        }
+    }
+    sms2MigrateEnsureDurableUploadColumns($pdo, $sink);
+    sms2MigrateEnsureMemberStages($pdo, $sink);
+}
+
 /**
  * @return array<int, string>
  */
@@ -258,15 +397,19 @@ function sms2RunMigrations(array $options = []): array
     require_once __DIR__ . '/../modules/crad/config/config.php';
 
     $options = array_merge(['fresh' => false, 'force' => false], $options);
+    if (CRAD_DB_NAME !== DB_NAME || CRAD_DB_HOST !== DB_HOST || CRAD_DB_PORT !== DB_PORT) {
+        throw new RuntimeException('Single-database mode requires CRAD_DB_HOST, CRAD_DB_PORT and CRAD_DB_NAME to match the main database. Omit the CRAD overrides or update them before migrating.');
+    }
     $lines = [];
     $sink = static function (string $message) use (&$lines): void {
         $lines[] = $message;
     };
 
+    // Single-database architecture: both dumps apply into DB_NAME (sms2_* + crad_*).
     $targets = [
         [
-            'label' => 'SMS2 main database',
-            'migration_key' => '2026_08_28_sms2_db_dump',
+            'label' => 'SMS2 schema (sms2_*)',
+            'migration_key' => '2026_09_21_sms2_prefixed_dump',
             'host' => DB_HOST,
             'port' => DB_PORT,
             'database' => DB_NAME,
@@ -276,17 +419,19 @@ function sms2RunMigrations(array $options = []): array
             'sql_file' => __DIR__ . '/sms2_db.sql',
         ],
         [
-            'label' => 'CRAD module database',
-            'migration_key' => '2026_08_28_crad_db_dump',
-            'host' => CRAD_DB_HOST,
-            'port' => CRAD_DB_PORT,
-            'database' => CRAD_DB_NAME,
-            'user' => CRAD_DB_USER,
-            'pass' => CRAD_DB_PASS,
-            'charset' => CRAD_DB_CHARSET,
+            'label' => 'CRAD schema (crad_*)',
+            'migration_key' => '2026_09_21_crad_prefixed_dump',
+            'host' => DB_HOST,
+            'port' => DB_PORT,
+            'database' => DB_NAME,
+            'user' => DB_USER,
+            'pass' => DB_PASS,
+            'charset' => DB_CHARSET,
             'sql_file' => dirname(__DIR__) . '/modules/crad/database/crad_db.sql',
         ],
     ];
+
+    sms2MigrateOut('Single-database mode: applying SMS2 + CRAD into ' . DB_NAME, $sink);
 
     $connection = strtolower((string) sms2_env_first(['SMS2_DB_CONNECTION', 'DB_CONNECTION'], 'mysql'));
     if (!in_array($connection, ['mysql', 'mariadb'], true)) {
@@ -296,9 +441,28 @@ function sms2RunMigrations(array $options = []): array
     }
 
     sms2MigrateOut('SMS 2 deployment migration started.', $sink);
+    if (!$options['fresh']) {
+        $server = sms2MigrateConnectServer(DB_HOST, DB_PORT, DB_USER, DB_PASS, DB_CHARSET);
+        $legacy = $server->prepare("SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_NAME IN ('users', 'sms_users')");
+        $legacy->execute([DB_NAME]);
+        if ((int) $legacy->fetchColumn() > 0) {
+            throw new RuntimeException('Legacy users tables detected. Back up the database, run database/migrate_to_single_prefixed.php --dry-run, then the prefix migration and additive repairs. Initial-install dumps must not replace legacy accounts.');
+        }
+    }
+    // Both schemas share a physical database. Rebuild it once, before either dump.
+    if ($options['fresh']) {
+        $pdo = sms2MigrateConnectServer(DB_HOST, DB_PORT, DB_USER, DB_PASS, DB_CHARSET);
+        sms2MigrateOut('Dropping the shared database because --fresh was provided...', $sink);
+        $pdo->exec('DROP DATABASE IF EXISTS ' . sms2MigrateQuoteIdentifier(DB_NAME));
+        $options['fresh'] = false;
+    }
     foreach ($targets as $target) {
         sms2MigrateOneDatabase($target, $options, $sink);
     }
+    $pdo = sms2MigrateConnectServer(DB_HOST, DB_PORT, DB_USER, DB_PASS, DB_CHARSET);
+    $pdo->exec('USE ' . sms2MigrateQuoteIdentifier(DB_NAME));
+    sms2MigrateEnsureDurableUploadColumns($pdo, $sink);
+    sms2MigrateEnsureMemberStages($pdo, $sink);
     sms2MigrateOut('', $sink);
     sms2MigrateOut('Migration complete.', $sink);
 

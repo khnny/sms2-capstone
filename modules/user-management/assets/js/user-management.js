@@ -188,10 +188,12 @@
             var action = trigger.dataset.umAction || 'add';
             var title  = modal.querySelector('#umModalTitle');
             var form   = modal.querySelector('#umUserForm');
+            var usernameHelp = modal.querySelector('#umUsernameHelp');
 
             if (title) {
                 title.textContent = action === 'edit' ? 'Edit User' : 'Add New User';
             }
+            if (usernameHelp) usernameHelp.hidden = action === 'edit';
 
             if (action === 'edit' && form) {
                 var row = trigger.closest ? trigger.closest('.um-user-row') : null;
@@ -217,11 +219,13 @@
                     pwInput.removeAttribute('required');
                     pwInput.value = '';
                     pwInput.setAttribute('readonly', 'readonly');
+                    pwInput.setAttribute('autocomplete', 'new-password');
                 }
                 if (pwConfirm) {
                     pwConfirm.removeAttribute('required');
                     pwConfirm.value = '';
                     pwConfirm.setAttribute('readonly', 'readonly');
+                    pwConfirm.setAttribute('autocomplete', 'new-password');
                 }
                 pwRequired.forEach(function (el) { el.hidden = true; });
                 if (pwStrength) pwStrength.hidden = true;
@@ -240,11 +244,13 @@
                 }
                 if (pwInput) {
                     pwInput.setAttribute('required', 'required');
-                    pwInput.removeAttribute('readonly');
+                    pwInput.setAttribute('readonly', 'readonly');
+                    pwInput.setAttribute('autocomplete', 'new-password');
                 }
                 if (pwConfirm) {
                     pwConfirm.setAttribute('required', 'required');
-                    pwConfirm.removeAttribute('readonly');
+                    pwConfirm.setAttribute('readonly', 'readonly');
+                    pwConfirm.setAttribute('autocomplete', 'new-password');
                 }
                 pwRequired.forEach(function (el) { el.hidden = false; });
                 if (pwStrength) pwStrength.hidden = false;
@@ -292,11 +298,28 @@
             });
         }
 
+        var passwordSink = document.getElementById('umPasswordSink');
+        if (passwordSink) {
+            passwordSink.setAttribute('autocomplete', 'off');
+            passwordSink.addEventListener('submit', function (e) {
+                e.preventDefault();
+            });
+        }
+
         ['um_password', 'um_password_confirm'].forEach(function (id) {
             var field = document.getElementById(id);
             if (!field) return;
+            field.setAttribute('autocomplete', 'new-password');
             field.addEventListener('focus', function () {
                 field.removeAttribute('readonly');
+            });
+            field.addEventListener('keydown', function (e) {
+                if (e.key !== 'Enter') return;
+                e.preventDefault();
+                var userForm = document.getElementById('umUserForm');
+                if (!userForm) return;
+                if (typeof userForm.requestSubmit === 'function') userForm.requestSubmit();
+                else userForm.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
             });
             field.addEventListener('input', function () {
                 var userForm = document.getElementById('umUserForm');
@@ -468,10 +491,6 @@
 
             var incomingId = parseInt(data.latest_id || 0, 10) || 0;
             var logs = Array.isArray(data.logs) ? data.logs : [];
-            if (incomingId === latestId && tableBody.querySelectorAll('tr.log-row').length === logs.length) {
-                return;
-            }
-
             if (data.stats) {
                 Object.keys(data.stats).forEach(function (key) {
                     var el = document.querySelector('[data-um-log-stat="' + key + '"]');
@@ -502,19 +521,27 @@
         function poll() {
             if (inFlight || document.hidden) return;
             inFlight = true;
-            fetch(endpoint, {
+            // The HostForge edge can cache static and JSON responses despite
+            // ordinary cache headers.  A per-request parameter guarantees
+            // that the admin sees the current audit payload, not a stale one.
+            var separator = endpoint.indexOf('?') === -1 ? '?' : '&';
+            var liveUrl = endpoint + separator + '_live=' + Date.now();
+            fetch(liveUrl, {
                 headers: { 'Accept': 'application/json' },
                 credentials: 'same-origin',
                 cache: 'no-store'
             })
-                .then(function (res) { return res.ok ? res.json() : null; })
+                .then(function (res) {
+                    if (!res.ok) throw new Error('Activity log feed unavailable (' + res.status + ')');
+                    return res.json();
+                })
                 .then(applyPayload)
                 .catch(function () { setLiveState(false); })
                 .finally(function () { inFlight = false; });
         }
 
         poll();
-        setInterval(poll, 3000);
+        setInterval(poll, 2000);
         document.addEventListener('visibilitychange', function () {
             if (!document.hidden) poll();
         });
@@ -617,25 +644,53 @@
     window.umShowToast = function (message, type) {
         type = type || 'success';
         var container = document.getElementById('umToastContainer');
-        if (!container) return;
-
-        var id = 'toast-' + Date.now();
-        var icons = { success: 'fa-check-circle', danger: 'fa-exclamation-circle', warning: 'fa-exclamation-triangle', info: 'fa-info-circle' };
-        var icon  = icons[type] || icons.info;
-
-        var html = '<div id="' + id + '" class="toast align-items-center text-bg-' + type + ' border-0 mb-2" role="alert" aria-live="assertive" aria-atomic="true">'
-            + '<div class="d-flex"><div class="toast-body d-flex align-items-center gap-2">'
-            + (window.smsIconHtml ? window.smsIconHtml(icon.replace(/^fa-/, '')) : '') + ' ' + message
-            + '</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>'
-            + '</div></div>';
-
-        container.insertAdjacentHTML('beforeend', html);
-        var el = document.getElementById(id);
-        if (el && window.bootstrap) {
-            var t = new bootstrap.Toast(el, { delay: 3500 });
-            t.show();
-            el.addEventListener('hidden.bs.toast', function () { el.remove(); });
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'umToastContainer';
+            container.className = 'position-fixed bottom-0 end-0 p-3';
+            document.body.appendChild(container);
+        } else if (container.parentNode !== document.body) {
+            document.body.appendChild(container);
         }
+        container.style.zIndex = '2000';
+
+        var icons = { success: 'fa-check-circle', danger: 'fa-exclamation-circle', warning: 'fa-exclamation-triangle', info: 'fa-info-circle' };
+        var icon = icons[type] || icons.info;
+        var el = document.createElement('div');
+        el.className = 'toast align-items-center text-bg-' + type + ' border-0 mb-2';
+        el.setAttribute('role', 'alert');
+        el.setAttribute('aria-live', 'assertive');
+        el.setAttribute('aria-atomic', 'true');
+
+        var flex = document.createElement('div');
+        flex.className = 'd-flex';
+        var body = document.createElement('div');
+        body.className = 'toast-body d-flex align-items-center gap-2';
+        try {
+            if (window.smsIconHtml) {
+                body.insertAdjacentHTML('afterbegin', window.smsIconHtml(icon.replace(/^fa-/, '')));
+            }
+        } catch (err) { /* icon is optional */ }
+        body.appendChild(document.createTextNode(String(message == null ? '' : message)));
+        var close = document.createElement('button');
+        close.type = 'button';
+        close.className = 'btn-close btn-close-white me-2 m-auto';
+        close.setAttribute('data-bs-dismiss', 'toast');
+        close.setAttribute('aria-label', 'Close');
+        flex.appendChild(body);
+        flex.appendChild(close);
+        el.appendChild(flex);
+        container.appendChild(el);
+
+        if (window.bootstrap && window.bootstrap.Toast) {
+            try {
+                var t = new bootstrap.Toast(el, { delay: type === 'danger' || type === 'warning' ? 8000 : 5000 });
+                t.show();
+                el.addEventListener('hidden.bs.toast', function () { el.remove(); });
+                return;
+            } catch (err) { /* fall through to a visible toast */ }
+        }
+        el.classList.add('show');
     };
 
     /* ── Boot ───────────────────────────────────────────────── */
@@ -649,7 +704,7 @@
         // Show toast from URL param (after form submit redirect)
         var params = new URLSearchParams(window.location.search);
         if (params.get('saved') === '1')   window.umShowToast('Changes saved successfully.', 'success');
-        if (params.get('created') === '1') window.umShowToast('User account created.', 'success');
+        if (params.get('created') === '1') window.umShowToast('User account created. They can sign in with the username and password you set.', 'success');
         if (params.get('updated') === '1') window.umShowToast('User account updated.', 'success');
         if (params.get('password') === '1') window.umShowToast('Password updated. The user can sign in with the new password now.', 'success');
         if (params.get('archived') === '1') window.umShowToast('Moved to User Archive.', 'warning');

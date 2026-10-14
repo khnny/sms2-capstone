@@ -13,7 +13,9 @@ function smsCryptoKeyPath(): string
 }
 
 /**
- * 32-byte application key (auto-created once). Keep storage/keys off the web.
+ * 32-byte application key (auto-created once). It is independent of account
+ * passwords and must remain stable to decrypt existing application secrets.
+ * Keep storage/keys off the web.
  */
 function smsCryptoAppKey(): string
 {
@@ -22,37 +24,94 @@ function smsCryptoAppKey(): string
         return $key;
     }
 
-    $path = smsCryptoKeyPath();
-    $dir = dirname($path);
-    if (!is_dir($dir)) {
-        @mkdir($dir, 0700, true);
+    // 1. Check explicit configuration / environment variable
+    $configuredKey = '';
+    if (defined('SMS2_APP_KEY') && is_string(SMS2_APP_KEY) && SMS2_APP_KEY !== '') {
+        $configuredKey = SMS2_APP_KEY;
+    } elseif (function_exists('sms2_env')) {
+        $configuredKey = (string) sms2_env('SMS2_APP_KEY', sms2_env('APP_KEY', ''));
+    } else {
+        $configuredKey = (string) (getenv('SMS2_APP_KEY') ?: (getenv('APP_KEY') ?: ''));
     }
 
-    if (is_readable($path)) {
-        $raw = (string) file_get_contents($path);
-        // Accept raw 32 bytes or base64 of 32 bytes
-        if (strlen($raw) === 32) {
-            $key = $raw;
+    if ($configuredKey !== '') {
+        if (strlen($configuredKey) === 32) {
+            $key = $configuredKey;
             return $key;
         }
-        $decoded = base64_decode(trim($raw), true);
+        $decoded = base64_decode(trim($configuredKey), true);
         if (is_string($decoded) && strlen($decoded) === 32) {
             $key = $decoded;
             return $key;
         }
-    }
-
-    $generated = random_bytes(32);
-    $written = @file_put_contents($path, base64_encode($generated), LOCK_EX);
-    if ($written === false) {
-        error_log('SMS2: could not write encryption key to ' . $path);
-        // Ephemeral fallback for this request only (not ideal — log loudly)
-        $key = $generated;
+        // If 64 hex characters
+        if (strlen($configuredKey) === 64 && ctype_xdigit($configuredKey)) {
+            $key = (string) hex2bin($configuredKey);
+            return $key;
+        }
+        // Arbitrary passphrase - hash to 32 bytes
+        $key = hash('sha256', $configuredKey, true);
         return $key;
     }
-    @chmod($path, 0600);
-    $key = $generated;
-    return $key;
+
+    // 2. Primary file path: storage/keys/app.key
+    $path = smsCryptoKeyPath();
+    $dir = dirname($path);
+    if (!is_dir($dir)) {
+        if (!@mkdir($dir, 0700, true) && !is_dir($dir)) {
+            throw new RuntimeException('SMS2 encryption key directory could not be created.');
+        }
+    }
+
+    $lockPath = $path . '.lock';
+    $lock = @fopen($lockPath, 'c');
+    if ($lock === false) {
+        throw new RuntimeException('SMS2 encryption key lock could not be opened.');
+    }
+    @chmod($lockPath, 0600);
+
+    try {
+        if (!flock($lock, LOCK_EX)) {
+            throw new RuntimeException('SMS2 encryption key lock could not be acquired.');
+        }
+
+        clearstatcache(true, $path);
+        if (file_exists($path) || is_link($path)) {
+            if (!is_file($path) || !is_readable($path)) {
+                throw new RuntimeException('SMS2 encryption key exists but cannot be read; refusing to replace it.');
+            }
+            $raw = file_get_contents($path);
+            if (!is_string($raw)) {
+                throw new RuntimeException('SMS2 encryption key could not be read; refusing to replace it.');
+            }
+            if (strlen($raw) === 32) {
+                $key = $raw;
+                return $key;
+            }
+            $decoded = base64_decode(trim($raw), true);
+            if (is_string($decoded) && strlen($decoded) === 32) {
+                $key = $decoded;
+                return $key;
+            }
+
+            throw new RuntimeException('SMS2 encryption key is invalid; refusing to replace it.');
+        }
+
+        // Serialize first-time creation so concurrent requests cannot replace the key.
+        $generated = random_bytes(32);
+        $written = @file_put_contents($path, base64_encode($generated), LOCK_EX);
+        if ($written === false) {
+            throw new RuntimeException(
+                'SMS2 encryption key could not be written. Configure SMS2_APP_KEY or make storage/keys/app.key persistent and writable.'
+            );
+        }
+        @chmod($path, 0600);
+        $key = $generated;
+        return $key;
+    } finally {
+        flock($lock, LOCK_UN);
+        fclose($lock);
+    }
 }
 
 function smsCryptoIsEncrypted(string $value): bool
@@ -72,8 +131,7 @@ function smsSecretEncrypt(string $plaintext): string
         return $plaintext;
     }
     if (!function_exists('openssl_encrypt')) {
-        error_log('SMS2: openssl_encrypt unavailable — storing secret in plaintext');
-        return $plaintext;
+        throw new RuntimeException('OpenSSL is required to encrypt application secrets.');
     }
 
     $iv = random_bytes(12);
@@ -89,8 +147,7 @@ function smsSecretEncrypt(string $plaintext): string
         16
     );
     if ($cipher === false || $tag === '') {
-        error_log('SMS2: encryption failed');
-        return $plaintext;
+        throw new RuntimeException('Application secret encryption failed.');
     }
 
     return 'sms2enc1.' . base64_encode($iv . $tag . $cipher);
@@ -105,13 +162,12 @@ function smsSecretDecrypt(string $stored): string
         return $stored;
     }
     if (!function_exists('openssl_decrypt')) {
-        error_log('SMS2: openssl_decrypt unavailable');
-        return '';
+        throw new RuntimeException('OpenSSL is required to decrypt application secrets.');
     }
 
     $blob = base64_decode(substr($stored, strlen('sms2enc1.')), true);
     if ($blob === false || strlen($blob) < 28) {
-        return '';
+        throw new RuntimeException('Stored application secret is corrupt.');
     }
     $iv = substr($blob, 0, 12);
     $tag = substr($blob, 12, 16);
@@ -124,7 +180,10 @@ function smsSecretDecrypt(string $stored): string
         $iv,
         $tag
     );
-    return is_string($plain) ? $plain : '';
+    if (!is_string($plain)) {
+        throw new RuntimeException('Stored application secret could not be decrypted. Check SMS2_APP_KEY or storage/keys/app.key.');
+    }
+    return $plain;
 }
 
 /** Setting keys stored encrypted at rest. */

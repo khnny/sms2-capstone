@@ -8,7 +8,7 @@ requireAuth();
 // requests it returns clean JSON (no HTML prefix) and exits early.
 require_once ROOT_PATH . '/modules/faculty/includes/faculty-account-page.php';
 
-$pageTitle  = 'Approved Research';
+$pageTitle  = 'Research Status';
 $activeModule = 'faculty';
 $activePage = 'approved-research';
 require_once ROOT_PATH . '/includes/layout-start.php';

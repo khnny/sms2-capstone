@@ -1,6 +1,6 @@
 <?php
 /**
- * Install Research Director Panel Assignment tables.
+ * Install Research Director Panel Assignment and availability support.
  * Run: C:\xampp\php\php.exe modules/crad/database/install_panel_assignment.php
  */
 declare(strict_types=1);
@@ -16,7 +16,7 @@ require_once __DIR__ . '/../config/config.php';
 $pdo = getCradDatabaseConnection();
 
 $pdo->exec(
-    "CREATE TABLE IF NOT EXISTS crad_research_panel_assignments (
+    "CREATE TABLE IF NOT EXISTS `crad_research_panel_assignments` (
         id INT UNSIGNED NOT NULL AUTO_INCREMENT,
         research_group_id INT UNSIGNED NOT NULL,
         defense_schedule_id INT UNSIGNED DEFAULT NULL,
@@ -46,10 +46,11 @@ $pdo->exec(
 );
 
 $pdo->exec(
-    "CREATE TABLE IF NOT EXISTS crad_panel_member_availability (
+    "CREATE TABLE IF NOT EXISTS `crad_panel_member_availability` (
         id INT UNSIGNED NOT NULL AUTO_INCREMENT,
         panel_user_id INT UNSIGNED NOT NULL,
         availability_status VARCHAR(40) NOT NULL DEFAULT 'Pending',
+        availability_windows_json LONGTEXT DEFAULT NULL,
         notes TEXT DEFAULT NULL,
         updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -58,9 +59,13 @@ $pdo->exec(
         KEY idx_panel_availability_status (availability_status)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
 );
+$availabilityColumns = $pdo->query("SHOW COLUMNS FROM `crad_panel_member_availability`")->fetchAll(PDO::FETCH_COLUMN, 0);
+if (!in_array('availability_windows_json', $availabilityColumns, true)) {
+    $pdo->exec("ALTER TABLE `crad_panel_member_availability` ADD COLUMN `availability_windows_json` LONGTEXT DEFAULT NULL AFTER `availability_status`");
+}
 
 $pdo->exec(
-    "CREATE TABLE IF NOT EXISTS crad_panel_assignment_notifications (
+    "CREATE TABLE IF NOT EXISTS `crad_panel_assignment_notifications` (
         id INT UNSIGNED NOT NULL AUTO_INCREMENT,
         event_key VARCHAR(140) NOT NULL,
         recipient_user_id INT UNSIGNED NOT NULL,
@@ -80,4 +85,4 @@ $pdo->exec(
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
 );
 
-echo "DONE. Panel Assignment tables ready.\n";
+echo "DONE. Panel Assignment tables and weekly availability field ready.\n";

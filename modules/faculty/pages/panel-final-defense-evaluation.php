@@ -25,7 +25,8 @@ $showHistory = (($_GET['history'] ?? '') === '1');
 if (!$crad instanceof PDO) {
     $error = 'CRAD database connection is unavailable.';
 } else {
-    finalDefenseEnsureSchema($crad);
+    // Final Defense tables are provisioned through the CRAD deployment schema.
+    // Runtime schema creation was retired, so this page must not call the old helper.
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'submit_final_evaluation') {
         if (!csrfVerify()) {
             $error = 'Security check failed. Please refresh and try again.';

@@ -23,11 +23,11 @@ function smsSendSecurityHeaders(): void
     // Baseline CSP — local assets + Cloudflare Turnstile CAPTCHA only when used
     header(
         "Content-Security-Policy: default-src 'self'; " .
-        "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com; " .
+        "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com https://static.cloudflareinsights.com; " .
         "style-src 'self' 'unsafe-inline'; " .
         "font-src 'self' data:; " .
         "img-src 'self' data: blob:; " .
-        "connect-src 'self' https://challenges.cloudflare.com; " .
+        "connect-src 'self' https://challenges.cloudflare.com https://cloudflareinsights.com https://static.cloudflareinsights.com; " .
         "frame-src 'self' https://challenges.cloudflare.com https://bcp-admissions.elearningcommons.com; " .
         "child-src 'self' https://challenges.cloudflare.com https://bcp-admissions.elearningcommons.com; " .
         "frame-ancestors 'self'; " .
@@ -96,8 +96,12 @@ function requireCsrf(?string $token = null): void
         http_response_code(403);
         if (str_contains($_SERVER['HTTP_ACCEPT'] ?? '', 'application/json')
             || str_contains($_SERVER['CONTENT_TYPE'] ?? '', 'application/json')) {
-            header('Content-Type: application/json');
-            echo json_encode(['ok' => false, 'error' => 'Invalid CSRF token']);
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode([
+                'success' => false,
+                'error' => 'csrf_invalid',
+                'message' => 'Invalid CSRF token.',
+            ]);
         } else {
             echo 'Forbidden: invalid CSRF token.';
         }
@@ -135,7 +139,7 @@ function smsSetting(string $key, string $default = ''): string
     }
 
     try {
-        $stmt = $pdo->prepare('SELECT setting_value FROM sms_system_settings WHERE setting_key = ? LIMIT 1');
+        $stmt = $pdo->prepare('SELECT setting_value FROM `sms2_system_settings` WHERE setting_key = ? LIMIT 1');
         $stmt->execute([$key]);
         $row = $stmt->fetch();
         $raw = $row ? (string) $row['setting_value'] : $default;
@@ -147,19 +151,21 @@ function smsSetting(string $key, string $default = ''): string
                     try {
                         $enc = smsSecretEncrypt($raw);
                         $upd = $pdo->prepare(
-                            'UPDATE sms_system_settings SET setting_value = ? WHERE setting_key = ?'
+                            'UPDATE `sms2_system_settings` SET setting_value = ? WHERE setting_key = ?'
                         );
                         $upd->execute([$enc, $key]);
                     } catch (Throwable $e) {
                         // keep serving plaintext this request
                     }
                 } else {
-                    $raw = smsSecretDecrypt($raw);
+                    $dec = smsSecretDecrypt($raw);
+                    $raw = $dec;
                 }
             }
         }
         $cache[$key] = $raw;
     } catch (Throwable $e) {
+        error_log("SMS2 smsSetting failed for '{$key}': " . $e->getMessage());
         $cache[$key] = $default;
     }
 
@@ -179,14 +185,14 @@ function smsSetSetting(string $key, string $value): bool
         return false;
     }
 
-    $storeValue = $value;
-    if (smsIsEncryptedSettingKey($key) && $value !== '') {
-        $storeValue = smsSecretEncrypt($value);
-    }
-
     try {
+        $storeValue = $value;
+        if (smsIsEncryptedSettingKey($key) && $value !== '') {
+            $storeValue = smsSecretEncrypt($value);
+        }
+
         $stmt = $pdo->prepare(
-            'INSERT INTO sms_system_settings (setting_key, setting_value) VALUES (?, ?)
+            'INSERT INTO `sms2_system_settings` (setting_key, setting_value) VALUES (?, ?)
              ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)'
         );
         $stmt->execute([$key, $storeValue]);

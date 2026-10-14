@@ -1,23 +1,33 @@
 <?php
 /**
- * InfinityFree — i-upload bilang config/local.php sa server (htdocs/config/local.php)
- * Values mula sa vPanel → MySQL Databases
+ * InfinityFree — upload as config/local.php on the server if needed.
+ * Values from vPanel → MySQL Databases.
+ *
+ * PLACEHOLDERS ONLY — never commit real passwords.
+ * Prefer a single shared database (free plan usually allows one DB).
  */
 
-define('SMS2_DEPLOY_TOKEN', 'bcp-sms2-deploy-2026');
+// define('SMS2_DEPLOY_TOKEN', 'YOUR_DEPLOY_TOKEN');
+// For a live CAPTCHA, use keys whose hostname list includes this site domain.
+// define('SMS2_TURNSTILE_SITE_KEY', 'YOUR_TURNSTILE_SITE_KEY');
+// define('SMS2_TURNSTILE_SECRET_KEY', 'YOUR_TURNSTILE_SECRET_KEY');
+
+// Optional: Fixed 32-byte or base64 encryption key for secrets (AES-256).
+// define('SMS2_APP_KEY', '');
 
 // Auto-detect URL (blank = htdocs root)
 // define('BASE_URL', '');
 
-define('DB_HOST', 'sql211.infinityfree.com');
+define('DB_CONNECTION', 'mysql');
+define('DB_HOST', 'YOUR_INFINITYFREE_SQL_HOST');
 define('DB_PORT', '3306');
-define('DB_NAME', 'if0_42794375_sms2');
-define('DB_USER', 'if0_42794375');
-define('DB_PASS', 'HVfvZIn3gF8RfyR');
+define('DB_NAME', 'YOUR_DATABASE_NAME');
+define('DB_USER', 'YOUR_USERNAME');
+define('DB_PASS', 'YOUR_PASSWORD');
 define('DB_CHARSET', 'utf8mb4');
 
-// Free plan: iisa lang ang database para sa lahat ng module
-define('CRAD_DB_NAME', 'if0_42794375_sms2');
-define('STUDENT_PORTAL_DB_NAME', 'if0_42794375_sms2');
-define('REPORTS_DB_NAME', 'if0_42794375_sms2');
-define('USERMGMT_DB_NAME', 'if0_42794375_sms2');
+// Single database for all modules
+define('CRAD_DB_NAME', 'YOUR_DATABASE_NAME');
+define('STUDENT_PORTAL_DB_NAME', 'YOUR_DATABASE_NAME');
+define('REPORTS_DB_NAME', 'YOUR_DATABASE_NAME');
+define('USERMGMT_DB_NAME', 'YOUR_DATABASE_NAME');

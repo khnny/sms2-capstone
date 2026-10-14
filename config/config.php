@@ -21,21 +21,32 @@ if (!defined('ROOT_PATH')) {
     define('ROOT_PATH', dirname(__DIR__));
 }
 
-// Optional machine-specific overrides. Copy config/local.example.php to
-// config/local.php on another computer if its MySQL settings are different.
+// Optional machine-specific overrides. Copy config/local.example.php (local)
+// or config/local.hostforge.example.php (HostForge) to config/local.php.
+// Prefer HostForge Environment Variables for DB_* when available.
 $sms2LocalConfig = __DIR__ . '/local.php';
 if (is_readable($sms2LocalConfig)) {
     require_once $sms2LocalConfig;
 }
 
+// Central sms2_* / crad_* table map (see config/tables.php).
+require_once __DIR__ . '/tables.php';
+
 if (!function_exists('sms2_env')) {
     function sms2_env(string $key, ?string $default = null): ?string
     {
+        // HostForge / PHP-FPM may expose vars via $_ENV or $_SERVER but not getenv().
         $value = getenv($key);
+        if (($value === false || $value === '') && isset($_ENV[$key]) && is_scalar($_ENV[$key])) {
+            $value = (string) $_ENV[$key];
+        }
+        if (($value === false || $value === '') && isset($_SERVER[$key]) && is_scalar($_SERVER[$key])) {
+            $value = (string) $_SERVER[$key];
+        }
         if ($value === false || $value === '') {
             return $default;
         }
-        return $value;
+        return (string) $value;
     }
 }
 
@@ -60,6 +71,7 @@ if (!function_exists('sms2_detect_base_url')) {
         $markers = [
             '/account/',
             '/api/',
+            '/communication/',
             '/dashboard/',
             '/database/',
             '/login/',
@@ -532,17 +544,19 @@ $MODULES = [
         'label' => 'CRAD',
         'icon'  => 'fa-flask',
         'groups' => [
-            'Research Clearance' => [
-                'research-clearance',
-            ],
             'Research Proposal' => [
                 'register-proposal',
                 'research-group-number',
+                'retrieve-approved-research',
             ],
             'Research Management' => [
                 'research-coordinator-management',
                 'research-defense-scheduling',
                 'capstone-group-student-registry',
+            ],
+            'Research Clearance' => [
+                'research-clearance',
+                'approval-clearance-payment',
             ],
             'Core System' => [
                 'dashboard-analytics',
@@ -552,6 +566,8 @@ $MODULES = [
             'Review & Workflow' => [
                 'reviewer-evaluation',
                 'approval-workflows',
+                'panelist-applications',
+                'panel-configuration',
             ],
             'Financial & Tracking' => [
                 'approved-funded',
@@ -577,6 +593,7 @@ $MODULES = [
         'pages' => [
             ['slug' => 'register-proposal', 'title' => 'Register Proposal'],
             ['slug' => 'research-group-number', 'title' => 'Research Group Number'],
+            ['slug' => 'retrieve-approved-research', 'title' => 'Retrieve Approved Research'],
             ['slug' => 'adviser-panel-assignment', 'title' => 'Record Adviser/Panel Assignment'],
             ['slug' => 'research-coordinator-management', 'title' => 'Research Coordinator Management'],
             ['slug' => 'capstone-group-student-registry', 'title' => 'Capstone Group/Student Registry'],
@@ -586,13 +603,15 @@ $MODULES = [
             ['slug' => 'proposals-applications', 'title' => 'Proposals & Applications'],
             ['slug' => 'reviewer-evaluation', 'title' => 'Reviewer Evaluation'],
             ['slug' => 'approval-workflows', 'title' => 'Approval Workflows'],
+            ['slug' => 'panelist-applications', 'title' => 'Panelist Applications'],
+            ['slug' => 'panel-configuration', 'title' => 'Panel Configuration'],
             ['slug' => 'approved-funded', 'title' => 'Approved & Funded'],
             ['slug' => 'funded-research', 'title' => 'Conduct Funded Research'],
             ['slug' => 'budget-disbursement', 'title' => 'Budget & Disbursement'],
             ['slug' => 'project-milestones', 'title' => 'Project Milestones'],
             ['slug' => 'publications-ip', 'title' => 'Publications & IP'],
             ['slug' => 'document-repository', 'title' => 'Document Repository'],
-            ['slug' => 'research-clearance', 'title' => 'Research Services Clearance'],
+            ['slug' => 'research-clearance', 'title' => 'Approve Signed Clearance'],
             ['slug' => 'approval-clearance-payment', 'title' => 'Approval Clearance Payment'],
             ['slug' => 'documentation-publication-management', 'title' => 'Documentation & Publication Management'],
             ['slug' => 'final-manuscript-review', 'title' => 'Final Manuscript Review'],

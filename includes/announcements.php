@@ -20,13 +20,16 @@ function smsEnsureAnnouncementTables(): void
 
     try {
         $pdo->exec(
-            "CREATE TABLE IF NOT EXISTS sms_admin_announcements (
+            "CREATE TABLE IF NOT EXISTS `sms2_admin_announcements` (
                 id INT UNSIGNED NOT NULL AUTO_INCREMENT,
                 title VARCHAR(180) NOT NULL,
                 body TEXT NOT NULL,
                 image_path VARCHAR(255) NULL,
-                status ENUM('published','unpublished') NOT NULL DEFAULT 'published',
+                status ENUM('draft','published','unpublished','archived') NOT NULL DEFAULT 'draft',
                 audience VARCHAR(40) NOT NULL DEFAULT 'student',
+                category VARCHAR(40) NOT NULL DEFAULT 'General',
+                scheduled_for DATE NULL,
+                expires_at DATE NULL,
                 created_by INT UNSIGNED NULL,
                 created_by_name VARCHAR(150) NULL,
                 created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -38,12 +41,35 @@ function smsEnsureAnnouncementTables(): void
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
         );
         try {
-            $col = $pdo->query("SHOW COLUMNS FROM sms_admin_announcements LIKE 'image_path'")->fetch();
+            $col = $pdo->query("SHOW COLUMNS FROM `sms2_admin_announcements` LIKE 'image_path'")->fetch();
             if (!$col) {
-                $pdo->exec("ALTER TABLE sms_admin_announcements ADD image_path VARCHAR(255) NULL AFTER body");
+                $pdo->exec("ALTER TABLE `sms2_admin_announcements` ADD image_path VARCHAR(255) NULL AFTER body");
             }
         } catch (Throwable $e) {
             error_log('smsEnsureAnnouncementTables image_path: ' . $e->getMessage());
+        }
+        foreach ([
+            'category' => "ALTER TABLE `sms2_admin_announcements` ADD category VARCHAR(40) NOT NULL DEFAULT 'General' AFTER audience",
+            'scheduled_for' => 'ALTER TABLE `sms2_admin_announcements` ADD scheduled_for DATE NULL AFTER published_at',
+            'expires_at' => 'ALTER TABLE `sms2_admin_announcements` ADD expires_at DATE NULL AFTER scheduled_for',
+        ] as $column => $alterSql) {
+            try {
+                $col = $pdo->query("SHOW COLUMNS FROM `sms2_admin_announcements` LIKE " . $pdo->quote($column))->fetch();
+                if (!$col) {
+                    $pdo->exec($alterSql);
+                }
+            } catch (Throwable $e) {
+                error_log('smsEnsureAnnouncementTables ' . $column . ': ' . $e->getMessage());
+            }
+        }
+        try {
+            $statusColumn = $pdo->query("SHOW COLUMNS FROM `sms2_admin_announcements` LIKE 'status'")->fetch();
+            $statusType = strtolower((string) ($statusColumn['Type'] ?? ''));
+            if (!str_contains($statusType, "'draft'") || !str_contains($statusType, "'archived'")) {
+                $pdo->exec("ALTER TABLE `sms2_admin_announcements` MODIFY status ENUM('draft','published','unpublished','archived') NOT NULL DEFAULT 'draft'");
+            }
+        } catch (Throwable $e) {
+            error_log('smsEnsureAnnouncementTables status: ' . $e->getMessage());
         }
         $ready = true;
     } catch (Throwable $e) {
@@ -51,10 +77,19 @@ function smsEnsureAnnouncementTables(): void
     }
 }
 
+function smsAnnouncementCanManage(): bool
+{
+    $role = function_exists('getCurrentUserRoleKey') ? getCurrentUserRoleKey() : '';
+    if (function_exists('smsNormalizeRoleKey')) {
+        $role = smsNormalizeRoleKey($role);
+    }
+    return $role === 'crad_officer' || (function_exists('smsIsGrantedAdminRole') && smsIsGrantedAdminRole($role));
+}
+
 /**
  * @return list<array<string, mixed>>
  */
-function smsAnnouncementFetch(bool $publishedOnly = false, int $limit = 50): array
+function smsAnnouncementFetch(bool $publishedOnly = false, int $limit = 50, ?string $audience = null): array
 {
     smsEnsureAnnouncementTables();
     $pdo = db();
@@ -63,14 +98,19 @@ function smsAnnouncementFetch(bool $publishedOnly = false, int $limit = 50): arr
     }
 
     $limit = max(1, min(100, $limit));
-    $sql = 'SELECT id, title, body, image_path, status, audience, created_by, created_by_name,
+    $sql = 'SELECT id, title, body, image_path, status, audience, category, scheduled_for, expires_at, created_by, created_by_name,
                    DATE_FORMAT(created_at, "%b %e, %Y %h:%i %p") AS created_label,
                    DATE_FORMAT(updated_at, "%b %e, %Y %h:%i %p") AS updated_label,
                    DATE_FORMAT(published_at, "%b %e, %Y %h:%i %p") AS published_label,
+                   DATE_FORMAT(IFNULL(published_at, updated_at), "%Y-%m-%d") AS date_iso,
                    UNIX_TIMESTAMP(IFNULL(published_at, updated_at)) AS stamp
-              FROM sms_admin_announcements';
+              FROM `sms2_admin_announcements`';
     if ($publishedOnly) {
-        $sql .= " WHERE status = 'published' AND audience = 'student'";
+        $sql .= " WHERE status = 'published' AND (scheduled_for IS NULL OR scheduled_for <= CURDATE())
+                  AND (expires_at IS NULL OR expires_at >= CURDATE())";
+        if ($audience !== null && $audience !== '') {
+            $sql .= ' AND audience IN (\'all\', ' . $pdo->quote($audience) . ')';
+        }
     }
     $sql .= ' ORDER BY IFNULL(published_at, updated_at) DESC, id DESC LIMIT ' . $limit;
 
@@ -97,6 +137,10 @@ function smsAnnouncementPublicRows(array $rows): array
             'title' => (string) ($row['title'] ?? ''),
             'body' => (string) ($row['body'] ?? ''),
             'status' => (string) ($row['status'] ?? ''),
+            'audience' => (string) ($row['audience'] ?? 'all'),
+            'category' => (string) ($row['category'] ?? 'General'),
+            'scheduled_for' => (string) ($row['scheduled_for'] ?? ''),
+            'expires_at' => (string) ($row['expires_at'] ?? ''),
             'image_url' => smsAnnouncementImageUrl($id, $imageName),
             'posted_by' => (string) ($row['created_by_name'] ?? 'Admin'),
             'posted_at' => (string) ($row['published_label'] ?: ($row['updated_label'] ?? '')),
@@ -192,14 +236,38 @@ function smsAnnouncementStamp(array $rows): string
     return $maxId . ':' . $maxStamp . ':' . count($rows);
 }
 
-function smsAnnouncementPublish(string $title, string $body, ?array $imageFile = null): array
+function smsAnnouncementSave(array $input, ?int $id = null, ?array $imageFile = null): array
 {
     smsEnsureAnnouncementTables();
     $pdo = db();
-    $title = trim($title);
-    $body = trim($body);
+    $title = trim((string) ($input['title'] ?? ''));
+    $body = trim((string) ($input['body'] ?? ''));
+    $audience = strtolower(trim((string) ($input['audience'] ?? 'all')));
+    $category = trim((string) ($input['category'] ?? 'General'));
+    $status = strtolower(trim((string) ($input['status'] ?? 'draft')));
+    $scheduledFor = trim((string) ($input['scheduled_for'] ?? ''));
+    $expiresAt = trim((string) ($input['expires_at'] ?? ''));
+    $categories = ['General', 'Research', 'Defense', 'Deadline', 'Important', 'Submission', 'Consultation', 'Policy'];
+    $audiences = ['all', 'student', 'adviser', 'research_coordinator', 'department_head', 'panel', 'crad_officer', 'research_director', 'grammarian', 'department_chair', 'research_office', 'research_grant', 'review_committee', 'vpaa', 'superadmin', 'sms_admin', 'admission', 'registrar', 'finance', 'hr', 'it_office', 'osa', 'qa'];
     if ($title === '' || $body === '') {
         return ['ok' => false, 'error' => 'Title and message are required.'];
+    }
+    if (!in_array($category, $categories, true) || !in_array($audience, $audiences, true)) {
+        return ['ok' => false, 'error' => 'Choose a valid category and audience.'];
+    }
+    if (!in_array($status, ['draft', 'published', 'unpublished', 'archived'], true)) {
+        return ['ok' => false, 'error' => 'Choose a valid publication status.'];
+    }
+    foreach ([$scheduledFor, $expiresAt] as $date) {
+        if ($date !== '') {
+            $parsedDate = DateTimeImmutable::createFromFormat('!Y-m-d', $date);
+            if (!$parsedDate || $parsedDate->format('Y-m-d') !== $date) {
+                return ['ok' => false, 'error' => 'Enter valid announcement dates.'];
+            }
+        }
+    }
+    if ($scheduledFor !== '' && $expiresAt !== '' && $expiresAt < $scheduledFor) {
+        return ['ok' => false, 'error' => 'The end date must be on or after the publication date.'];
     }
     if (function_exists('mb_strlen')) {
         if (mb_strlen($title) > 180) {
@@ -215,34 +283,66 @@ function smsAnnouncementPublish(string $title, string $body, ?array $imageFile =
         return ['ok' => false, 'error' => 'Database is unavailable.'];
     }
 
+    $isCreate = $id === null;
+    $existingImage = null;
+    if ($id !== null) {
+        $lookup = $pdo->prepare('SELECT image_path FROM `sms2_admin_announcements` WHERE id = ? LIMIT 1');
+        $lookup->execute([$id]);
+        $existingImage = $lookup->fetchColumn();
+        if ($existingImage === false) {
+            return ['ok' => false, 'error' => 'Announcement not found.'];
+        }
+    }
+
     $image = smsAnnouncementStorePng($imageFile);
     if (empty($image['ok'])) {
         return ['ok' => false, 'error' => (string) ($image['error'] ?: 'PNG upload failed.')];
     }
 
     try {
-        $stmt = $pdo->prepare(
-            'INSERT INTO sms_admin_announcements
-                (title, body, image_path, status, audience, created_by, created_by_name, published_at)
-             VALUES (?, ?, ?, \'published\', \'student\', ?, ?, NOW())'
-        );
-        $stmt->execute([
-            $title,
-            $body,
-            $image['stored_name'],
-            getCurrentUserId(),
-            substr((string) getCurrentUserName(), 0, 150),
-        ]);
+        $imagePath = $image['stored_name'] ?? $existingImage;
+        if ($id === null) {
+            $stmt = $pdo->prepare(
+                'INSERT INTO `sms2_admin_announcements`
+                    (title, body, image_path, status, audience, category, scheduled_for, expires_at, created_by, created_by_name, published_at)
+                 VALUES (?, ?, ?, ?, ?, ?, NULLIF(?, \'\'), NULLIF(?, \'\'), ?, ?, IF(? = \'published\', NOW(), NULL))'
+            );
+            $stmt->execute([$title, $body, $imagePath, $status, $audience, $category, $scheduledFor, $expiresAt,
+                getCurrentUserId(), substr((string) getCurrentUserName(), 0, 150), $status]);
+            $id = (int) $pdo->lastInsertId();
+        } else {
+            $stmt = $pdo->prepare(
+                'UPDATE `sms2_admin_announcements`
+                    SET title = ?, body = ?, image_path = ?, status = ?, audience = ?, category = ?,
+                        scheduled_for = NULLIF(?, \'\'), expires_at = NULLIF(?, \'\'),
+                        published_at = IF(? = \'published\', IFNULL(published_at, NOW()), published_at), updated_at = NOW()
+                  WHERE id = ?'
+            );
+            $stmt->execute([$title, $body, $imagePath, $status, $audience, $category, $scheduledFor, $expiresAt, $status, $id]);
+        }
         if (function_exists('logActivity')) {
-            logActivity('create', 'Published student announcement: ' . $title, 'dashboard');
+            logActivity($isCreate ? 'create' : 'update', 'Saved announcement: ' . $title, 'communication');
         }
 
-        return ['ok' => true, 'id' => (int) $pdo->lastInsertId()];
+        return ['ok' => true, 'id' => (int) $id];
     } catch (Throwable $e) {
-        smsAnnouncementDeleteFile($image['stored_name'] ?? null);
-        error_log('smsAnnouncementPublish: ' . $e->getMessage());
-        return ['ok' => false, 'error' => 'Could not publish the announcement.'];
+        if (!empty($image['stored_name'])) {
+            smsAnnouncementDeleteFile($image['stored_name']);
+        }
+        error_log('smsAnnouncementSave: ' . $e->getMessage());
+        return ['ok' => false, 'error' => 'Could not save the announcement.'];
     }
+}
+
+function smsAnnouncementPublish(string $title, string $body, ?array $imageFile = null): array
+{
+    return smsAnnouncementSave([
+        'title' => $title,
+        'body' => $body,
+        'audience' => 'student',
+        'category' => 'General',
+        'status' => 'published',
+    ], null, $imageFile);
 }
 
 function smsAnnouncementSetStatus(int $id, string $status): array
@@ -252,18 +352,18 @@ function smsAnnouncementSetStatus(int $id, string $status): array
     if ($id < 1 || !$pdo) {
         return ['ok' => false, 'error' => 'Invalid announcement.'];
     }
-    if (!in_array($status, ['published', 'unpublished'], true)) {
+    if (!in_array($status, ['draft', 'published', 'unpublished', 'archived'], true)) {
         return ['ok' => false, 'error' => 'Invalid status.'];
     }
 
     try {
         $sql = $status === 'published'
-            ? 'UPDATE sms_admin_announcements SET status = ?, published_at = IFNULL(published_at, NOW()), updated_at = NOW() WHERE id = ?'
-            : 'UPDATE sms_admin_announcements SET status = ?, updated_at = NOW() WHERE id = ?';
+            ? 'UPDATE `sms2_admin_announcements` SET status = ?, published_at = IFNULL(published_at, NOW()), updated_at = NOW() WHERE id = ?'
+            : 'UPDATE `sms2_admin_announcements` SET status = ?, updated_at = NOW() WHERE id = ?';
         $stmt = $pdo->prepare($sql);
         $stmt->execute([$status, $id]);
         if (function_exists('logActivity')) {
-            logActivity('update', ($status === 'published' ? 'Republished' : 'Unpublished') . ' student announcement #' . $id, 'dashboard');
+            logActivity('update', ucfirst($status) . ' announcement #' . $id, 'communication');
         }
 
         return ['ok' => true];
@@ -282,14 +382,14 @@ function smsAnnouncementDelete(int $id): array
     }
 
     try {
-        $lookup = $pdo->prepare('SELECT image_path FROM sms_admin_announcements WHERE id = ? LIMIT 1');
+        $lookup = $pdo->prepare('SELECT image_path FROM `sms2_admin_announcements` WHERE id = ? LIMIT 1');
         $lookup->execute([$id]);
         $imagePath = (string) ($lookup->fetchColumn() ?: '');
-        $stmt = $pdo->prepare('DELETE FROM sms_admin_announcements WHERE id = ?');
+        $stmt = $pdo->prepare('DELETE FROM `sms2_admin_announcements` WHERE id = ?');
         $stmt->execute([$id]);
         smsAnnouncementDeleteFile($imagePath);
         if (function_exists('logActivity')) {
-            logActivity('delete', 'Deleted student announcement #' . $id, 'dashboard');
+            logActivity('delete', 'Deleted announcement #' . $id, 'communication');
         }
 
         return ['ok' => true];

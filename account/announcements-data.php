@@ -18,16 +18,10 @@ if (!isAuthenticated()) {
 }
 
 $role = getCurrentUserRoleKey();
-$isAdmin = smsIsGrantedAdminRole($role);
-$isStudent = $role === 'student';
+$role = function_exists('smsNormalizeRoleKey') ? smsNormalizeRoleKey($role) : $role;
+$canManage = smsAnnouncementCanManage();
 
-if (!$isAdmin && !$isStudent) {
-    http_response_code(403);
-    echo json_encode(['ok' => false, 'error' => 'Forbidden']);
-    exit;
-}
-
-$published = smsAnnouncementPublicRows(smsAnnouncementFetch(true, 20));
+$published = smsAnnouncementPublicRows(smsAnnouncementFetch(true, 20, $role));
 $payload = [
     'ok' => true,
     'stamp' => smsAnnouncementStamp($published),
@@ -35,7 +29,7 @@ $payload = [
     'announcements' => $published,
 ];
 
-if ($isAdmin) {
+if ($canManage) {
     $all = smsAnnouncementFetch(false, 50);
     $payload['all'] = smsAnnouncementPublicRows($all);
     $payload['stamp'] = smsAnnouncementStamp($all);

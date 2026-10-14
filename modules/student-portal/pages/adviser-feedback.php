@@ -69,9 +69,9 @@ try {
                rpu.update_title,
                rpu.new_progress,
                rpu.submitted_at as update_submitted_at
-        FROM crad_research_progress_feedback rpf
-        INNER JOIN crad_research_progress_updates rpu ON rpu.id = rpf.progress_update_id
-        LEFT JOIN crad_research_milestones rm ON rm.id = rpf.milestone_id
+        FROM `crad_research_progress_feedback` rpf
+        INNER JOIN `crad_research_progress_updates` rpu ON rpu.id = rpf.progress_update_id
+        LEFT JOIN `crad_research_milestones` rm ON rm.id = rpf.milestone_id
         WHERE rpu.research_group_id = ?
         ORDER BY rpf.created_at DESC
     ");

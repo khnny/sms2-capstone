@@ -23,7 +23,7 @@ function smsNeedsSetup(): bool
         return false;
     }
     try {
-        $count = (int) $pdo->query('SELECT COUNT(*) AS c FROM sms_users')->fetch()['c'];
+        $count = (int) $pdo->query('SELECT COUNT(*) AS c FROM `sms2_users`')->fetch()['c'];
         return $count === 0;
     } catch (Throwable $e) {
         return false;
@@ -149,6 +149,32 @@ function isAuthenticated(): bool
 function requireAuth(): void
 {
     if (!isAuthenticated()) {
+        // Detect AJAX / fetch / API requests so we return JSON 401
+        // instead of an HTML redirect.  This prevents the "phantom
+        // success" bug where fetch() follows 302→200 (login page HTML)
+        // and the client-side JS misinterprets it as a successful action.
+        $isApiRequest = (
+            (!empty($_SERVER['HTTP_X_REQUESTED_WITH'])
+                && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest')
+            || (!empty($_SERVER['HTTP_ACCEPT'])
+                && strpos($_SERVER['HTTP_ACCEPT'], 'application/json') !== false)
+            || ($_SERVER['REQUEST_METHOD'] === 'POST'
+                && !empty($_SERVER['CONTENT_TYPE'])
+                && (strpos($_SERVER['CONTENT_TYPE'], 'multipart/form-data') !== false
+                    || strpos($_SERVER['CONTENT_TYPE'], 'application/json') !== false))
+        );
+
+        if ($isApiRequest) {
+            http_response_code(401);
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode([
+                'success' => false,
+                'error'   => 'session_expired',
+                'message' => 'Your session has expired. Please log in again.',
+            ]);
+            exit;
+        }
+
         require_once __DIR__ . '/module-controls.php';
         if (function_exists('smsIsSystemInMaintenance') && smsIsSystemInMaintenance()) {
             header('Location: ' . BASE_URL . '/account/maintenance.php');
@@ -207,8 +233,8 @@ function smsRefreshCurrentUserSession(): void
         $stmt = $pdo->prepare(
             'SELECT u.full_name, u.email, u.role_key, u.student_id, u.must_change_password,
                     r.label AS role_label
-             FROM sms_users u
-             LEFT JOIN sms_roles r ON r.role_key = u.role_key
+             FROM `sms2_users` u
+             LEFT JOIN `sms2_roles` r ON r.role_key = u.role_key
              WHERE u.id = ?
              LIMIT 1'
         );
@@ -290,7 +316,7 @@ function smsAllowedModuleKeysForRole(string $roleKey): array
             $lookupKeys = smsRolePermissionLookupKeys($roleKey);
             $placeholders = implode(',', array_fill(0, count($lookupKeys), '?'));
             $stmt = $pdo->prepare(
-                "SELECT module_key, granted FROM sms_role_permissions WHERE role_key IN ($placeholders)"
+                "SELECT module_key, granted FROM `sms2_role_permissions` WHERE role_key IN ($placeholders)"
             );
             $stmt->execute($lookupKeys);
             $rows = $stmt->fetchAll();
@@ -339,6 +365,14 @@ function smsAllowedModuleKeysForRole(string $roleKey): array
         $allowed = array_values(array_filter(
             $allowed,
             static fn($moduleKey) => $moduleKey !== 'student_portal'
+        ));
+    }
+
+    // Super Admin: never grant CRAD modules (sidebar + direct URL checks).
+    if ($roleKey === 'superadmin') {
+        $allowed = array_values(array_filter(
+            $allowed,
+            static fn(string $moduleKey): bool => !in_array($moduleKey, ['crad', 'crad_grant'], true)
         ));
     }
 
@@ -494,7 +528,6 @@ function smsAdminDefenseSchedulingNav(): array
                 'manual-scheduling-optimizer',
                 'proposed-schedules',
                 'alternative-time-slots',
-                'calendar',
                 'venues',
                 'finalize-defense-schedule',
             ],
@@ -510,7 +543,6 @@ function smsAdminDefenseSchedulingNav(): array
             ['slug' => 'manual-scheduling-optimizer', 'title' => 'AI Scheduling Optimizer'],
             ['slug' => 'proposed-schedules', 'title' => 'Proposed Schedules'],
             ['slug' => 'alternative-time-slots', 'title' => 'Alternative Time Slots'],
-            ['slug' => 'calendar', 'title' => 'Calendar'],
             ['slug' => 'venues', 'title' => 'Venues'],
             ['slug' => 'finalize-defense-schedule', 'title' => 'Finalize Schedule'],
             ['slug' => 'final-defense-scheduling-queue', 'title' => 'Ready for Scheduling'],
@@ -528,7 +560,6 @@ function smsAdminDefenseSchedulingHref(string $slug): ?string
         'manual-scheduling-optimizer' => ['view' => 'manual-scheduling-optimizer'],
         'proposed-schedules' => ['view' => 'proposed-schedules'],
         'alternative-time-slots' => ['view' => 'alternative-time-slots'],
-        'calendar' => ['view' => 'calendar'],
         'venues' => ['view' => 'venues'],
         'finalize-defense-schedule' => ['view' => 'finalize-defense-schedule'],
         'final-defense-scheduling-queue' => ['view' => 'defense-scheduling-queue', 'defense_type' => 'Final Defense'],
@@ -557,7 +588,7 @@ function smsAdminCoreSystemNav(): array
             ],
         ],
         'pages' => [
-            ['slug' => 'approval-clearance-payment', 'title' => 'Approval Clearance Payment'],
+            ['slug' => 'approval-clearance-payment', 'title' => 'Clearance Status'],
             ['slug' => 'dashboard-analytics', 'title' => 'Dashboard & Analytics'],
             ['slug' => 'grant-opportunities', 'title' => 'Grant Opportunities'],
             ['slug' => 'proposals-applications', 'title' => 'Proposals & Applications'],
@@ -592,8 +623,9 @@ function smsCanManageCoordinatorAssignments(?string $roleKey = null): bool
 {
     $roleKey = $roleKey ?? getCurrentUserRoleKey();
 
+    // Only Department Head may assign Research Coordinator and Adviser.
+    // sms_admin / superadmin kept as support override.
     return smsIsGrantedAdminRole($roleKey)
-        || $roleKey === 'research_coordinator'
         || $roleKey === 'department_head';
 }
 
@@ -602,8 +634,9 @@ function smsDepartmentHeadWorkflowPaths(): array
     return [
         '/account/module-security.php',
         '/account/security.php',
+        '/modules/crad/pages/research-workspace.php',
         '/modules/crad/pages/research-coordinator-management.php',
-        '/modules/crad/pages/retrieve-approved-research.php',
+        '/modules/crad/pages/research-group-approvals.php',
         '/modules/crad/pages/find-contact-adviser.php',
         '/modules/crad/pages/adviser-availability.php',
         '/modules/crad/pages/assign-research-adviser.php',
@@ -616,6 +649,36 @@ function smsDepartmentHeadWorkflowPaths(): array
     ];
 }
 
+/**
+ * CRAD nav pages the CRAD Officer never sees in the sidebar.
+ *
+ * Single source of truth so the sidebar and the CRAD Officer dashboard can
+ * never drift apart.
+ *
+ * @return list<string>
+ */
+function smsCradOfficerHiddenNavSlugs(): array
+{
+    return ['research-defense-scheduling', 'reviewer-evaluation'];
+}
+
+/**
+ * The CRAD report sub-pages shown under the "Reports" group.
+ *
+ * @return list<array{slug: string, label: string, icon: string}>
+ */
+function smsCradReportSidebarItems(): array
+{
+    return [
+        ['slug' => 'capstone-analytics', 'label' => 'Capstone Analytics', 'icon' => 'fa-chart-pie'],
+        ['slug' => 'progress-reports', 'label' => 'Progress Reports', 'icon' => 'fa-chart-line'],
+        ['slug' => 'defense-reports', 'label' => 'Defense Reports', 'icon' => 'fa-gavel'],
+        ['slug' => 'adviser-reports', 'label' => 'Adviser Reports', 'icon' => 'fa-user-tie'],
+        ['slug' => 'completion-reports', 'label' => 'Completion Reports', 'icon' => 'fa-check-double'],
+        ['slug' => 'publication-reports', 'label' => 'Publication Reports', 'icon' => 'fa-book-open'],
+    ];
+}
+
 function smsDepartmentHeadCradModule(): array
 {
     return [
@@ -624,13 +687,6 @@ function smsDepartmentHeadCradModule(): array
         'hide_overview' => true,
         'show_ungrouped_pages' => true,
         'groups' => [
-            'A. Adviser Assignment' => [
-                'retrieve-approved-research',
-                'find-contact-adviser',
-                'adviser-availability',
-                'assign-research-adviser',
-                'manage-assignments',
-            ],
             'B. Panel Assignment' => [
                 'retrieve-defense-ready-research',
                 'select-panel-members',
@@ -639,12 +695,9 @@ function smsDepartmentHeadCradModule(): array
             ],
         ],
         'pages' => [
-            ['slug' => 'research-coordinator-management', 'title' => 'Research Coordinator Management'],
-            ['slug' => 'retrieve-approved-research', 'title' => 'Retrieve Approved Research'],
-            ['slug' => 'find-contact-adviser', 'title' => 'Find/Contact Adviser'],
-            ['slug' => 'adviser-availability', 'title' => 'Check Adviser Availability'],
-            ['slug' => 'assign-research-adviser', 'title' => 'Assign Research Adviser'],
-            ['slug' => 'manage-assignments', 'title' => 'View/Manage Adviser Assignments'],
+            // Ungrouped order = process order: Research Groups (DH approve) then Coordinator & Adviser Management
+            ['slug' => 'research-group-approvals', 'title' => 'Research Groups'],
+            ['slug' => 'research-coordinator-management', 'title' => 'Assign Coordinator & Adviser'],
             ['slug' => 'retrieve-defense-ready-research', 'title' => 'Retrieve Defense-Ready Research'],
             ['slug' => 'select-panel-members', 'title' => 'Select Panel Members'],
             ['slug' => 'check-panel-availability', 'title' => 'Check Panel Availability'],
@@ -665,13 +718,53 @@ function getVisibleModules(array $modules): array
     $allowedModules = getAllowedModuleKeys();
     $visible = array_intersect_key($modules, array_flip($allowedModules));
 
+    // The operational Admin approves payments and signed clearances.  Keep
+    // that inbox in the CRAD navigation; only Super Admin is intentionally
+    // kept out of CRAD's operational workflow.
+    if (getCurrentUserRoleKey() === 'superadmin' && isset($visible['crad'])) {
+        $visible['crad'] = smsRemoveModuleNavSlug($visible['crad'], 'research-clearance');
+    }
+
     if (getCurrentUserRoleKey() === 'crad_officer' && isset($visible['crad'])) {
+        // Move Retrieve Approved Research into Research Proposal area for CRAD Officer.
+        $cradGroupsTmp = isset($visible['crad']['groups']) && is_array($visible['crad']['groups']) ? $visible['crad']['groups'] : [];
+        if (isset($cradGroupsTmp['Research Proposal']) && is_array($cradGroupsTmp['Research Proposal'])) {
+            if (!in_array('retrieve-approved-research', $cradGroupsTmp['Research Proposal'], true)) {
+                $cradGroupsTmp['Research Proposal'][] = 'retrieve-approved-research';
+            }
+        } else {
+            $cradGroupsTmp = ['Research Proposal' => ['retrieve-approved-research']] + $cradGroupsTmp;
+        }
+        $visible['crad']['groups'] = $cradGroupsTmp;
+        $hasRetrievePage = false;
+        foreach ((array) ($visible['crad']['pages'] ?? []) as $cradPageTmp) {
+            if (($cradPageTmp['slug'] ?? '') === 'retrieve-approved-research') {
+                $hasRetrievePage = true;
+                break;
+            }
+        }
+        if (!$hasRetrievePage) {
+            $visible['crad']['pages'][] = ['slug' => 'retrieve-approved-research', 'title' => 'Retrieve Approved Research'];
+        }
         $visible['crad'] = smsRemoveModuleNavSlug($visible['crad'], 'research-coordinator-management');
         $visible['crad'] = smsRemoveModuleNavSlug($visible['crad'], 'dashboard-analytics');
         $visible['crad'] = smsRemoveModuleNavSlug($visible['crad'], 'grant-opportunities');
         $visible['crad'] = smsRemoveModuleNavSlug($visible['crad'], 'proposals-applications');
         $cradGroups = isset($visible['crad']['groups']) && is_array($visible['crad']['groups']) ? $visible['crad']['groups'] : [];
-        $visible['crad']['groups'] = ['Research Clearance' => ['research-clearance']] + $cradGroups;
+        // Process order: early Research Proposal (incl. Retrieve) first; Clearance stays later.
+        if (isset($cradGroups['Research Clearance'])) {
+            unset($cradGroups['Research Clearance']);
+        }
+        $orderedCrad = [];
+        if (isset($cradGroups['Research Proposal'])) {
+            $orderedCrad['Research Proposal'] = $cradGroups['Research Proposal'];
+            unset($cradGroups['Research Proposal']);
+        }
+        foreach ($cradGroups as $gLabel => $gSlugs) {
+            $orderedCrad[$gLabel] = $gSlugs;
+        }
+        $orderedCrad['Research Clearance'] = ['research-clearance'];
+        $visible['crad']['groups'] = $orderedCrad;
         $hasClearancePage = false;
         foreach ((array) ($visible['crad']['pages'] ?? []) as $cradPage) {
             if (($cradPage['slug'] ?? '') === 'research-clearance') {
@@ -680,7 +773,14 @@ function getVisibleModules(array $modules): array
             }
         }
         if (!$hasClearancePage) {
-            $visible['crad']['pages'][] = ['slug' => 'research-clearance', 'title' => 'Research Services Clearance'];
+            $visible['crad']['pages'][] = ['slug' => 'research-clearance', 'title' => 'Approve Signed Clearance'];
+        } else {
+            foreach ($visible['crad']['pages'] as &$cradPageRef) {
+                if (($cradPageRef['slug'] ?? '') === 'research-clearance') {
+                    $cradPageRef['title'] = 'Approve Signed Clearance';
+                }
+            }
+            unset($cradPageRef);
         }
     }
 
@@ -708,24 +808,24 @@ function getVisibleModules(array $modules): array
         $visible['crad_grant'] = smsReviewCommitteeGrantModule();
     }
 
-    if (smsIsGrantedAdminRole(getCurrentUserRoleKey())) {
+    // Operational Admin (sms_admin) uses the operational CRAD workspace.
+    // Super Admin keeps the system-wide User Management navigation instead.
+    if (smsNormalizeRoleKey(getCurrentUserRoleKey()) === 'sms_admin') {
         $assignmentNav = smsMergeModuleNav(
             smsAdminCoreSystemNav(),
             smsAdminDefenseSchedulingNav()
         );
-        if (!isset($visible['crad'])) {
-            $visible['crad'] = smsMergeModuleNav([
+        $visible = [
+            'crad' => smsMergeModuleNav([
                 'label' => 'CRAD',
                 'icon'  => 'fa-flask',
                 'hide_overview' => true,
-            ], $assignmentNav);
-        } else {
-            $visible['crad'] = smsMergeModuleNav($visible['crad'], $assignmentNav);
-        }
-        $visible['crad'] = smsRemoveModuleNavSlug($visible['crad'], 'research-coordinator-management');
-        if (isset($visible['crad']['groups']['Research Management'])) {
-            unset($visible['crad']['groups']['Research Management']);
-        }
+            ], $assignmentNav),
+        ];
+    }
+
+    if (smsNormalizeRoleKey(getCurrentUserRoleKey()) === 'superadmin') {
+        unset($visible['crad'], $visible['crad_grant']);
     }
 
     if (in_array('student_portal', $allowedModules, true) && !isset($visible['student_portal'])) {
@@ -737,7 +837,7 @@ function getVisibleModules(array $modules): array
                 'Student Information' => ['my-profile', 'student-id'],
                 'Financial' => ['account-balance', 'payment-history'],
                 'Academics' => ['class-schedule', 'academic-records', 'subjects-professors', 'grades-portal'],
-                'Research' => ['research-proposal-submission'],
+                'Research' => ['research-group', 'research-proposal-submission'],
                 'Document Submission' => ['submit-chapters', 'my-submissions', 'submission-status', 'submission-history'],
                 'Research Clearance' => ['college-payment', 'research-clearance'],
             ],
@@ -751,6 +851,7 @@ function getVisibleModules(array $modules): array
                 ['slug' => 'academic-records', 'title' => 'Academic Records'],
                 ['slug' => 'subjects-professors', 'title' => 'Subject & Professors'],
                 ['slug' => 'grades-portal', 'title' => 'Grades Portal'],
+                ['slug' => 'research-group', 'title' => 'Research Group'],
                 ['slug' => 'research-proposal-submission', 'title' => 'Research Proposal'],
                 ['slug' => 'submit-chapters', 'title' => 'Submit Chapter 1-3'],
                 ['slug' => 'college-payment', 'title' => 'Upload Collage Payment'],
@@ -783,12 +884,16 @@ function smsResearchCoordinatorCradModule(): array
         'label' => 'Research Coordinator',
         'icon'  => 'fa-microscope',
         'groups' => [
-            'Approved Research' => [
+            'Assignments' => [
+                'assignment-confirmation',
+            ],
+            'Research Status' => [
                 'approved-research',
             ],
         ],
         'pages' => [
-            ['slug' => 'approved-research', 'title' => 'View Approved Research'],
+            ['slug' => 'assignment-confirmation', 'title' => 'Assignment Confirmation'],
+            ['slug' => 'approved-research', 'title' => 'Research Status'],
         ],
     ];
 }
@@ -866,7 +971,9 @@ function requireModuleAccess(string $moduleKey): void
             '/account/module-security.php',
             '/account/security.php',
             '/modules/crad/index.php',
+            '/modules/crad/pages/research-workspace.php',
             '/modules/crad/pages/approved-research.php',
+            '/modules/crad/pages/assignment-confirmation.php',
             '/modules/crad/pages/final-manuscript-review.php',
             '/modules/crad/pages/final-manuscript-approval.php',
             '/modules/crad/pages/revision-compliance.php',
@@ -1067,8 +1174,8 @@ function smsFindUserByLogin(string $input): ?array
     try {
         $placeholders = implode(',', array_fill(0, count($lookups), '?'));
         $sql = "SELECT u.*, r.label AS role_label
-             FROM sms_users u
-             LEFT JOIN sms_roles r ON r.role_key = u.role_key
+             FROM `sms2_users` u
+             LEFT JOIN `sms2_roles` r ON r.role_key = u.role_key
              WHERE LOWER(TRIM(u.username)) IN ($placeholders)
                 OR LOWER(TRIM(u.email)) IN ($placeholders)
                 OR LOWER(TRIM(IFNULL(u.student_id, ''))) IN ($placeholders)";
@@ -1124,7 +1231,7 @@ function smsClearLockIfExpired(array $user): void
     }
 
     $pdo->prepare(
-        'UPDATE sms_users SET locked_until = NULL, failed_login_attempts = 0,
+        'UPDATE `sms2_users` SET locked_until = NULL, failed_login_attempts = 0,
          status = CASE WHEN status = \'locked\' THEN \'active\' ELSE status END
          WHERE id = ?'
     )->execute([(int) $user['id']]);
@@ -1188,6 +1295,56 @@ function smsLoginThrottleKey(string $loginInput = ''): string
     return hash('sha256', 'ip|' . $ip);
 }
 
+function smsEnsureLoginThrottleTables(): void
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+
+    $pdo = db();
+    if (!$pdo) {
+        return;
+    }
+
+    try {
+        $pdo->exec(
+            'CREATE TABLE IF NOT EXISTS `sms2_login_throttles` (
+                id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+                throttle_key CHAR(64) NOT NULL,
+                ip_address VARCHAR(45) NOT NULL,
+                attempts INT UNSIGNED NOT NULL DEFAULT 0,
+                locked_until DATETIME NULL,
+                updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                UNIQUE KEY uq_login_throttle_key (throttle_key),
+                KEY idx_login_throttle_ip (ip_address),
+                KEY idx_login_throttle_locked (locked_until)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
+        );
+    } catch (Throwable $e) {
+        error_log('smsEnsureLoginThrottleTables: ' . $e->getMessage());
+    }
+
+    // phpMyAdmin dumps often create this table without PK / AUTO_INCREMENT.
+    // CREATE IF NOT EXISTS will not repair an existing broken schema — self-heal here.
+    foreach ([
+        'ALTER TABLE `sms2_login_throttles` ADD PRIMARY KEY (`id`)',
+        'ALTER TABLE `sms2_login_throttles` MODIFY `id` INT UNSIGNED NOT NULL AUTO_INCREMENT',
+        'ALTER TABLE `sms2_login_throttles` ADD UNIQUE KEY `uq_login_throttle_key` (`throttle_key`)',
+        'ALTER TABLE `sms2_login_throttles` ADD KEY `idx_login_throttle_ip` (`ip_address`)',
+        'ALTER TABLE `sms2_login_throttles` ADD KEY `idx_login_throttle_locked` (`locked_until`)',
+    ] as $repairSql) {
+        try {
+            $pdo->exec($repairSql);
+        } catch (Throwable $e) {
+            // Already correct, duplicate key name, or no ALTER privilege — safe to ignore.
+        }
+    }
+
+    $done = true;
+}
+
 /**
  * @return array{attempts:int,max:int,remaining:?int,locked:bool,lock_seconds:int,locked_until:?string}
  */
@@ -1210,7 +1367,7 @@ function smsGetLoginThrottle(string $loginInput = ''): array
     }
 
     $key = smsLoginThrottleKey($loginInput);
-    $stmt = $pdo->prepare('SELECT attempts, locked_until FROM sms_login_throttles WHERE throttle_key = ? LIMIT 1');
+    $stmt = $pdo->prepare('SELECT attempts, locked_until FROM `sms2_login_throttles` WHERE throttle_key = ? LIMIT 1');
     $stmt->execute([$key]);
     $row = $stmt->fetch();
     if (!$row) {
@@ -1221,7 +1378,7 @@ function smsGetLoginThrottle(string $loginInput = ''): array
     if ($lockedUntil) {
         $untilTs = strtotime((string) $lockedUntil);
         if ($untilTs !== false && $untilTs <= time()) {
-            $pdo->prepare('UPDATE sms_login_throttles SET attempts = 0, locked_until = NULL WHERE throttle_key = ?')
+            $pdo->prepare('UPDATE `sms2_login_throttles` SET attempts = 0, locked_until = NULL WHERE throttle_key = ?')
                 ->execute([$key]);
             return $empty;
         }
@@ -1278,48 +1435,54 @@ function smsRegisterLoginThrottleFailure(string $loginInput = ''): array
         return $current;
     }
 
-    // Atomic increment — prevents spam/race from skipping the lock threshold
-    $pdo->prepare(
-        'INSERT INTO sms_login_throttles (throttle_key, ip_address, attempts, locked_until)
-         VALUES (?, ?, 1, NULL)
-         ON DUPLICATE KEY UPDATE
-            attempts = attempts + 1,
-            ip_address = VALUES(ip_address),
-            locked_until = IF(locked_until IS NOT NULL AND locked_until > NOW(), locked_until, NULL)'
-    )->execute([$key, $ip]);
-
-    $stmt = $pdo->prepare('SELECT attempts, locked_until FROM sms_login_throttles WHERE throttle_key = ? LIMIT 1');
-    $stmt->execute([$key]);
-    $row = $stmt->fetch() ?: [];
-    $attempts = max(1, (int) ($row['attempts'] ?? 1));
-    $lockedUntil = null;
-    $locked = false;
-
-    if ($maxFails > 0 && $attempts >= $maxFails) {
-        $locked = true;
+    try {
+        // Atomic increment — prevents spam/race from skipping the lock threshold
         $pdo->prepare(
-            'UPDATE sms_login_throttles
-             SET locked_until = DATE_ADD(NOW(), INTERVAL ? SECOND)
-             WHERE throttle_key = ?'
-        )->execute([$lockSeconds, $key]);
-        $fresh = $pdo->prepare('SELECT locked_until FROM sms_login_throttles WHERE throttle_key = ? LIMIT 1');
-        $fresh->execute([$key]);
-        $lockedUntil = $fresh->fetchColumn() ?: null;
-        if (is_string($lockedUntil) && $lockedUntil !== '') {
-            $lockedUntil = (string) $lockedUntil;
-        } else {
-            $lockedUntil = null;
-        }
-    }
+            'INSERT INTO `sms2_login_throttles` (throttle_key, ip_address, attempts, locked_until)
+             VALUES (?, ?, 1, NULL)
+             ON DUPLICATE KEY UPDATE
+                attempts = attempts + 1,
+                ip_address = VALUES(ip_address),
+                locked_until = IF(locked_until IS NOT NULL AND locked_until > NOW(), locked_until, NULL)'
+        )->execute([$key, $ip]);
 
-    return [
-        'attempts' => $attempts,
-        'max' => $maxFails,
-        'remaining' => $maxFails > 0 ? max(0, $maxFails - $attempts) : null,
-        'locked' => $locked,
-        'lock_seconds' => $lockSeconds,
-        'locked_until' => $lockedUntil,
-    ];
+        $stmt = $pdo->prepare('SELECT attempts, locked_until FROM `sms2_login_throttles` WHERE throttle_key = ? LIMIT 1');
+        $stmt->execute([$key]);
+        $row = $stmt->fetch() ?: [];
+        $attempts = max(1, (int) ($row['attempts'] ?? 1));
+        $lockedUntil = null;
+        $locked = false;
+
+        if ($maxFails > 0 && $attempts >= $maxFails) {
+            $locked = true;
+            $pdo->prepare(
+                'UPDATE `sms2_login_throttles`
+                 SET locked_until = DATE_ADD(NOW(), INTERVAL ? SECOND)
+                 WHERE throttle_key = ?'
+            )->execute([$lockSeconds, $key]);
+            $fresh = $pdo->prepare('SELECT locked_until FROM `sms2_login_throttles` WHERE throttle_key = ? LIMIT 1');
+            $fresh->execute([$key]);
+            $lockedUntil = $fresh->fetchColumn() ?: null;
+            if (is_string($lockedUntil) && $lockedUntil !== '') {
+                $lockedUntil = (string) $lockedUntil;
+            } else {
+                $lockedUntil = null;
+            }
+        }
+
+        return [
+            'attempts' => $attempts,
+            'max' => $maxFails,
+            'remaining' => $maxFails > 0 ? max(0, $maxFails - $attempts) : null,
+            'locked' => $locked,
+            'lock_seconds' => $lockSeconds,
+            'locked_until' => $lockedUntil,
+        ];
+    } catch (Throwable $e) {
+        error_log('smsRegisterLoginThrottleFailure: ' . $e->getMessage());
+        // Never fatal the login page if throttle storage is misconfigured.
+        return $result;
+    }
 }
 
 function smsClearLoginThrottle(string $loginInput = ''): void
@@ -1329,7 +1492,7 @@ function smsClearLoginThrottle(string $loginInput = ''): void
         return;
     }
     smsEnsureLoginThrottleTables();
-    $pdo->prepare('DELETE FROM sms_login_throttles WHERE throttle_key = ?')
+    $pdo->prepare('DELETE FROM `sms2_login_throttles` WHERE throttle_key = ?')
         ->execute([smsLoginThrottleKey($loginInput)]);
 }
 
@@ -1346,19 +1509,24 @@ function smsForceLoginThrottleLock(string $loginInput = '', ?int $lockSeconds = 
     $seconds = max(1, $lockSeconds ?? smsLockoutSeconds());
     $attempts = max(1, $minAttempts ?? max(1, (int) smsSetting('max_failed_logins', '3')));
     $key = smsLoginThrottleKey($loginInput);
-    $pdo->prepare(
-        'INSERT INTO sms_login_throttles (throttle_key, ip_address, attempts, locked_until)
-         VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL ? SECOND))
-         ON DUPLICATE KEY UPDATE
-            attempts = GREATEST(attempts, VALUES(attempts)),
-            locked_until = DATE_ADD(NOW(), INTERVAL ? SECOND),
-            ip_address = VALUES(ip_address)'
-    )->execute([$key, smsClientIp(), $attempts, $seconds, $seconds]);
+    try {
+        $pdo->prepare(
+            'INSERT INTO `sms2_login_throttles` (throttle_key, ip_address, attempts, locked_until)
+             VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL ? SECOND))
+             ON DUPLICATE KEY UPDATE
+                attempts = GREATEST(attempts, VALUES(attempts)),
+                locked_until = DATE_ADD(NOW(), INTERVAL ? SECOND),
+                ip_address = VALUES(ip_address)'
+        )->execute([$key, smsClientIp(), $attempts, $seconds, $seconds]);
 
-    $stmt = $pdo->prepare('SELECT locked_until FROM sms_login_throttles WHERE throttle_key = ? LIMIT 1');
-    $stmt->execute([$key]);
-    $until = $stmt->fetchColumn();
-    return $until ? (string) $until : null;
+        $stmt = $pdo->prepare('SELECT locked_until FROM `sms2_login_throttles` WHERE throttle_key = ? LIMIT 1');
+        $stmt->execute([$key]);
+        $until = $stmt->fetchColumn();
+        return $until ? (string) $until : null;
+    } catch (Throwable $e) {
+        error_log('smsForceLoginThrottleLock: ' . $e->getMessage());
+        return null;
+    }
 }
 
 function smsLoginGateSet(?string $lockedUntil, string $message, string $alert = 'warning', ?int $lockSeconds = null): void
@@ -1481,11 +1649,11 @@ function smsRegisterFailedLogin(array $user): array
 
     // Atomic increment — rapid spam clicks must still hit the lock threshold
     $pdo->prepare(
-        'UPDATE sms_users SET failed_login_attempts = failed_login_attempts + 1 WHERE id = ?'
+        'UPDATE `sms2_users` SET failed_login_attempts = failed_login_attempts + 1 WHERE id = ?'
     )->execute([(int) $user['id']]);
 
     $fresh = $pdo->prepare(
-        'SELECT failed_login_attempts, locked_until, status FROM sms_users WHERE id = ? LIMIT 1'
+        'SELECT failed_login_attempts, locked_until, status FROM `sms2_users` WHERE id = ? LIMIT 1'
     );
     $fresh->execute([(int) $user['id']]);
     $row = $fresh->fetch() ?: [];
@@ -1495,14 +1663,14 @@ function smsRegisterFailedLogin(array $user): array
 
     if ($maxFails > 0 && $attempts >= $maxFails) {
         $pdo->prepare(
-            'UPDATE sms_users
+            'UPDATE `sms2_users`
              SET locked_until = DATE_ADD(NOW(), INTERVAL ? SECOND), status = \'locked\'
              WHERE id = ?'
         )->execute([$lockSeconds, (int) $user['id']]);
 
         $result['locked'] = true;
         $result['remaining'] = 0;
-        $untilStmt = $pdo->prepare('SELECT locked_until FROM sms_users WHERE id = ? LIMIT 1');
+        $untilStmt = $pdo->prepare('SELECT locked_until FROM `sms2_users` WHERE id = ? LIMIT 1');
         $untilStmt->execute([(int) $user['id']]);
         $result['locked_until'] = $untilStmt->fetchColumn() ?: null;
 
@@ -1528,7 +1696,7 @@ function smsRegisterSuccessfulLogin(array $user): void
     }
 
     $pdo->prepare(
-        'UPDATE sms_users
+        'UPDATE `sms2_users`
          SET failed_login_attempts = 0, locked_until = NULL,
              last_login_at = NOW(), last_login_ip = ?,
              status = CASE WHEN status = \'locked\' THEN \'active\' ELSE status END
@@ -1707,7 +1875,7 @@ function smsLoginAttempt(string $username, string $password): array
     if (password_needs_rehash((string) $user['password_hash'], PASSWORD_DEFAULT)) {
         $pdo = db();
         if ($pdo) {
-            $pdo->prepare('UPDATE sms_users SET password_hash = ?, password_changed_at = password_changed_at WHERE id = ?')
+            $pdo->prepare('UPDATE `sms2_users` SET password_hash = ?, password_changed_at = password_changed_at WHERE id = ?')
                 ->execute([password_hash($password, PASSWORD_DEFAULT), (int) $user['id']]);
         }
     }
@@ -1817,11 +1985,11 @@ function smsCreatePasswordResetToken(int $userId): ?string
 
     // Invalidate previous unused tokens
     $pdo->prepare(
-        'UPDATE sms_password_resets SET used_at = NOW() WHERE user_id = ? AND used_at IS NULL'
+        'UPDATE `sms2_password_resets` SET used_at = NOW() WHERE user_id = ? AND used_at IS NULL'
     )->execute([$userId]);
 
     $pdo->prepare(
-        'INSERT INTO sms_password_resets (user_id, token_hash, expires_at, created_ip)
+        'INSERT INTO `sms2_password_resets` (user_id, token_hash, expires_at, created_ip)
          VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 1 HOUR), ?)'
     )->execute([$userId, $hash, smsClientIp()]);
 
@@ -1840,7 +2008,7 @@ function smsResetPasswordWithToken(string $rawToken, string $newPassword): bool
 
     $hash = hash('sha256', $rawToken);
     $stmt = $pdo->prepare(
-        'SELECT * FROM sms_password_resets
+        'SELECT * FROM `sms2_password_resets`
          WHERE token_hash = ? AND used_at IS NULL AND expires_at > NOW()
          LIMIT 1'
     );
@@ -1854,14 +2022,14 @@ function smsResetPasswordWithToken(string $rawToken, string $newPassword): bool
     $pdo->beginTransaction();
     try {
         $pdo->prepare(
-            'UPDATE sms_users
+            'UPDATE `sms2_users`
              SET password_hash = ?, must_change_password = 0, password_changed_at = NOW(),
                  failed_login_attempts = 0, locked_until = NULL,
                  status = CASE WHEN status = \'locked\' THEN \'active\' ELSE status END
              WHERE id = ?'
         )->execute([password_hash($newPassword, PASSWORD_DEFAULT), $userId]);
 
-        $pdo->prepare('UPDATE sms_password_resets SET used_at = NOW() WHERE id = ?')
+        $pdo->prepare('UPDATE `sms2_password_resets` SET used_at = NOW() WHERE id = ?')
             ->execute([(int) $row['id']]);
 
         $pdo->commit();
@@ -1886,7 +2054,7 @@ function smsSetUserPassword(int $userId, string $newPassword, bool $forceChange 
     }
 
     $pdo->prepare(
-        'UPDATE sms_users
+        'UPDATE `sms2_users`
          SET password_hash = ?, must_change_password = ?, password_changed_at = NOW(),
              failed_login_attempts = 0, locked_until = NULL,
              status = CASE WHEN status = \'locked\' THEN \'active\' ELSE status END
@@ -1898,7 +2066,7 @@ function smsSetUserPassword(int $userId, string $newPassword, bool $forceChange 
     ]);
 
     try {
-        $user = $pdo->prepare('SELECT username, email FROM sms_users WHERE id = ? LIMIT 1');
+        $user = $pdo->prepare('SELECT username, email FROM `sms2_users` WHERE id = ? LIMIT 1');
         $user->execute([$userId]);
         $row = $user->fetch() ?: [];
         if (function_exists('smsClearLoginThrottle')) {
@@ -1959,10 +2127,10 @@ function smsEnsureUserPresenceColumn(): void
         return;
     }
     try {
-        $col = $pdo->query("SHOW COLUMNS FROM sms_users LIKE 'last_seen_at'")->fetch();
+        $col = $pdo->query("SHOW COLUMNS FROM `sms2_users` LIKE 'last_seen_at'")->fetch();
         if (!$col) {
             $pdo->exec(
-                'ALTER TABLE sms_users
+                'ALTER TABLE `sms2_users`
                  ADD COLUMN last_seen_at DATETIME NULL AFTER last_login_at,
                  ADD KEY idx_users_last_seen (last_seen_at)'
             );
@@ -1995,7 +2163,7 @@ function smsTouchUserPresence(?int $userId = null): void
         return;
     }
     try {
-        $stmt = $pdo->prepare('UPDATE sms_users SET last_seen_at = ? WHERE id = ? LIMIT 1');
+        $stmt = $pdo->prepare('UPDATE `sms2_users` SET last_seen_at = ? WHERE id = ? LIMIT 1');
         $stmt->execute([date('Y-m-d H:i:s', $now), $userId]);
         $_SESSION['presence_touched_at'] = $now;
     } catch (Throwable $e) {
@@ -2014,7 +2182,7 @@ function smsMarkUserOffline(int $userId): void
         return;
     }
     try {
-        $stmt = $pdo->prepare('UPDATE sms_users SET last_seen_at = NULL WHERE id = ? LIMIT 1');
+        $stmt = $pdo->prepare('UPDATE `sms2_users` SET last_seen_at = NULL WHERE id = ? LIMIT 1');
         $stmt->execute([$userId]);
     } catch (Throwable $e) {
         // ignore

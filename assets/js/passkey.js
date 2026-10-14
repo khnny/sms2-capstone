@@ -366,6 +366,19 @@
         return postJson(api, { action: 'delete_prepare', csrf: csrf, passkey_id: id });
     }
 
+    async function prepareAddStepUp(api, csrf) {
+        return postJson(api, { action: 'stepup_prepare', csrf: csrf });
+    }
+
+    async function resendAddStepUpEmail(api, csrf) {
+        return postJson(api, { action: 'stepup_send_email', csrf: csrf });
+    }
+
+    async function verifyAddStepUp(api, csrf, proof) {
+        var body = Object.assign({ action: 'stepup_verify', csrf: csrf }, proof || {});
+        return postJson(api, body);
+    }
+
     async function resendRemoveEmail(api, csrf) {
         return postJson(api, { action: 'delete_send_email', csrf: csrf });
     }
@@ -486,19 +499,141 @@
                 if (addBtn) addBtn.disabled = true;
             }
 
+            var addModalEl = document.getElementById('smsPasskeyAddModal');
+            var addModal = null;
+            var pendingAddMethod = card.getAttribute('data-add-method') || 'password';
+            var pendingDeviceName = 'Passkey';
+            if (addModalEl && window.bootstrap && bootstrap.Modal) {
+                addModal = bootstrap.Modal.getOrCreateInstance(addModalEl);
+            }
+
+            function showAddVerifyPanel(method) {
+                ['smsPkAddVerifyAuthenticator', 'smsPkAddVerifyEmail', 'smsPkAddVerifyPassword'].forEach(function (id) {
+                    var el = document.getElementById(id);
+                    if (el) el.hidden = true;
+                });
+                var map = {
+                    authenticator: 'smsPkAddVerifyAuthenticator',
+                    email: 'smsPkAddVerifyEmail',
+                    password: 'smsPkAddVerifyPassword'
+                };
+                var panel = document.getElementById(map[method] || 'smsPkAddVerifyPassword');
+                if (panel) panel.hidden = false;
+                if (window.smsSecurityUi && typeof window.smsSecurityUi.enhancePasswords === 'function') {
+                    window.smsSecurityUi.enhancePasswords(addModalEl);
+                }
+            }
+
+            function setAddErr(text) {
+                var el = document.getElementById('smsPasskeyAddErr');
+                if (!el) return;
+                if (!text) { el.hidden = true; el.innerHTML = ''; return; }
+                el.hidden = false;
+                el.className = 'sms-confirm-notice sms-confirm-notice--danger w-100';
+                el.innerHTML = noticeIcon('alert-circle') + '<span>' + String(text) + '</span>';
+            }
+
+            function setAddInfo(text, otpDev) {
+                var el = document.getElementById('smsPasskeyAddInfo');
+                if (!el) return;
+                if (!text && !otpDev) { el.hidden = true; el.innerHTML = ''; return; }
+                el.hidden = false;
+                el.className = 'sms-confirm-notice sms-confirm-notice--info w-100';
+                var body = text ? String(text) : '';
+                if (otpDev) body += (body ? ' ' : '') + '<strong>Local OTP:</strong> <code>' + String(otpDev) + '</code>';
+                el.innerHTML = noticeIcon('info-circle') + '<span>' + body + '</span>';
+            }
+
+            function collectAddProof(method) {
+                if (method === 'authenticator') {
+                    return { method: 'authenticator', totp_code: (document.getElementById('smsPkAddTotp') || {}).value || '' };
+                }
+                if (method === 'email') {
+                    return { method: 'email', otp_code: (document.getElementById('smsPkAddOtp') || {}).value || '' };
+                }
+                return { method: 'password', password: (document.getElementById('smsPkAddPassword') || {}).value || '' };
+            }
+
             if (addBtn) {
                 addBtn.addEventListener('click', async function () {
                     addBtn.disabled = true;
+                    setAddErr('');
+                    setAddInfo('');
                     try {
                         assertCanUsePasskeys('register');
-                        var name = window.prompt('Name this passkey (e.g. This PC, Phone)', 'This device') || 'Passkey';
-                        await register(api, csrf, name);
+                        pendingDeviceName = window.prompt('Name this passkey (e.g. This PC, Phone)', 'This device') || 'Passkey';
+                        var prep = await prepareAddStepUp(api, csrf);
+                        pendingAddMethod = prep.method || card.getAttribute('data-add-method') || 'password';
+                        setAddInfo(prep.message || '', prep.otp_dev || '');
+                        showAddVerifyPanel(pendingAddMethod);
+                        ['smsPkAddTotp', 'smsPkAddOtp', 'smsPkAddPassword'].forEach(function (fid) {
+                            var f = document.getElementById(fid);
+                            if (f) f.value = '';
+                        });
+                        if (addModal) {
+                            addModal.show();
+                            addBtn.disabled = false;
+                        } else {
+                            var proof;
+                            if (pendingAddMethod === 'authenticator') {
+                                proof = { method: 'authenticator', totp_code: window.prompt('Authenticator code') || '' };
+                            } else if (pendingAddMethod === 'email') {
+                                proof = { method: 'email', otp_code: window.prompt((prep.message || 'Email code') + '\nEnter code') || '' };
+                            } else {
+                                proof = { method: 'password', password: window.prompt('Enter your password') || '' };
+                            }
+                            await verifyAddStepUp(api, csrf, proof);
+                            await register(api, csrf, pendingDeviceName);
+                            showMsg(msg, 'Passkey added. Reloading…', true);
+                            window.location.reload();
+                        }
+                    } catch (err) {
+                        showMsg(msg, (err && err.message) ? err.message : 'Could not start passkey setup.', false);
+                        addBtn.disabled = false;
+                    }
+                });
+            }
+
+            var addConfirmBtn = document.getElementById('smsPasskeyAddConfirm');
+            if (addConfirmBtn) {
+                addConfirmBtn.addEventListener('click', async function () {
+                    addConfirmBtn.disabled = true;
+                    setAddErr('');
+                    try {
+                        var proof = collectAddProof(pendingAddMethod);
+                        await verifyAddStepUp(api, csrf, proof);
+                        if (addModal) addModal.hide();
+                        showMsg(msg, 'Verified. Continue in your browser…', true);
+                        await register(api, csrf, pendingDeviceName);
                         showMsg(msg, 'Passkey added. Reloading…', true);
                         window.location.reload();
                     } catch (err) {
-                        showMsg(msg, (err && err.message) ? err.message : 'Could not add passkey.', false);
-                        addBtn.disabled = false;
+                        setAddErr((err && err.message) ? err.message : 'Could not add passkey.');
+                        addConfirmBtn.disabled = false;
                     }
+                });
+            }
+
+            var addResendBtn = document.getElementById('smsPkAddResendEmail');
+            if (addResendBtn) {
+                addResendBtn.addEventListener('click', async function () {
+                    addResendBtn.disabled = true;
+                    try {
+                        var out = await resendAddStepUpEmail(api, csrf);
+                        setAddInfo(out.message || 'Code sent.', out.otp_dev || '');
+                    } catch (err) {
+                        setAddErr((err && err.message) ? err.message : 'Could not resend code.');
+                    }
+                    addResendBtn.disabled = false;
+                });
+            }
+
+            if (addModalEl) {
+                addModalEl.addEventListener('hidden.bs.modal', function () {
+                    setAddErr('');
+                    setAddInfo('');
+                    if (addConfirmBtn) addConfirmBtn.disabled = false;
+                    if (addBtn) addBtn.disabled = false;
                 });
             }
 

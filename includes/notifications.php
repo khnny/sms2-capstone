@@ -13,13 +13,14 @@ function smsAssignmentNotificationEnsureSentSchema(PDO $crad): void
 {
     foreach (['crad_research_adviser_assignments'] as $table) {
         try {
-            $sentAt = $crad->query("SHOW COLUMNS FROM {$table} LIKE 'notification_sent_at'")->fetch();
+            $quoted = '`' . str_replace('`', '``', $table) . '`';
+            $sentAt = $crad->query("SHOW COLUMNS FROM {$quoted} LIKE 'notification_sent_at'")->fetch();
             if (!$sentAt) {
-                $crad->exec("ALTER TABLE {$table} ADD notification_sent_at DATETIME DEFAULT NULL AFTER updated_at");
+                $crad->exec("ALTER TABLE {$quoted} ADD notification_sent_at DATETIME DEFAULT NULL AFTER updated_at");
             }
-            $sentBy = $crad->query("SHOW COLUMNS FROM {$table} LIKE 'notification_sent_by'")->fetch();
+            $sentBy = $crad->query("SHOW COLUMNS FROM {$quoted} LIKE 'notification_sent_by'")->fetch();
             if (!$sentBy) {
-                $crad->exec("ALTER TABLE {$table} ADD notification_sent_by INT UNSIGNED DEFAULT NULL AFTER notification_sent_at");
+                $crad->exec("ALTER TABLE {$quoted} ADD notification_sent_by INT UNSIGNED DEFAULT NULL AFTER notification_sent_at");
             }
         } catch (Throwable $e) {
             error_log('Assignment notification sent schema check failed for ' . $table . ': ' . $e->getMessage());
@@ -108,8 +109,8 @@ function smsMarkResearchAdviserAssignmentNotificationSent(PDO $crad, string $gro
 
     $groupStmt = $crad->prepare("
         SELECT g.id, g.proposal_id, g.group_number
-        FROM crad_research_groups g
-        LEFT JOIN crad_title_approvals t ON t.id = g.title_approval_id
+        FROM `crad_research_groups` g
+        LEFT JOIN `crad_title_approvals` t ON t.id = g.title_approval_id
         WHERE g.group_number = :group_number
           AND (g.title_approval_id IS NULL OR g.title_approval_id = 0 OR t.id IS NOT NULL)
         LIMIT 1
@@ -129,7 +130,7 @@ function smsMarkResearchAdviserAssignmentNotificationSent(PDO $crad, string $gro
 
     $adviserStmt = $crad->prepare("
         SELECT COUNT(*)
-        FROM crad_research_adviser_assignments a
+        FROM `crad_research_adviser_assignments` a
         WHERE a.assignment_status = 'Assigned'
           AND (
             a.research_group_id = :research_group_id
@@ -143,7 +144,7 @@ function smsMarkResearchAdviserAssignmentNotificationSent(PDO $crad, string $gro
     }
 
     $crad->prepare("
-        UPDATE crad_research_adviser_assignments a
+        UPDATE `crad_research_adviser_assignments` a
            SET a.notification_sent_at = NOW(),
                a.notification_sent_by = :sent_by,
                a.updated_at = NOW()
@@ -189,7 +190,7 @@ function smsCurrentUserNotifications(int $limit = 8): array
                AND cs.research_group_id = :registered_group_id
                AND cs.id = (
                     SELECT latest_cs.id
-                    FROM crad_chapter_submissions latest_cs
+                    FROM `crad_chapter_submissions` latest_cs
                     WHERE latest_cs.research_group_id = cs.research_group_id
                       AND latest_cs.chapter_number = cs.chapter_number
                     ORDER BY latest_cs.version_number DESC, latest_cs.id DESC
@@ -216,7 +217,7 @@ function smsCurrentUserNotifications(int $limit = 8): array
                     AND " . chapterRegistryGroupGateSql('rg') . "
                     AND NOT EXISTS (
                         SELECT 1
-                        FROM crad_chapter_evaluation_notifications newer_n
+                        FROM `crad_chapter_evaluation_notifications` newer_n
                         WHERE newer_n.submission_id = n.submission_id
                           AND newer_n.type = n.type
                           AND COALESCE(newer_n.recipient_user_id, 0) = COALESCE(n.recipient_user_id, 0)
@@ -229,10 +230,10 @@ function smsCurrentUserNotifications(int $limit = 8): array
         }
         $stmt = $crad->prepare(
             "SELECT n.id, n.event_key, n.type, n.title, n.body, n.url, n.is_read, n.created_at
-             FROM crad_chapter_evaluation_notifications n
-             LEFT JOIN crad_chapter_submissions cs ON cs.id = n.submission_id
-             LEFT JOIN crad_research_groups rg ON rg.id = cs.research_group_id
-             LEFT JOIN crad_chapter_evaluations ce ON ce.submission_id = cs.id
+             FROM `crad_chapter_evaluation_notifications` n
+             LEFT JOIN `crad_chapter_submissions` cs ON cs.id = n.submission_id
+             LEFT JOIN `crad_research_groups` rg ON rg.id = cs.research_group_id
+             LEFT JOIN `crad_chapter_evaluations` ce ON ce.submission_id = cs.id
              WHERE {$where['sql']}
              {$studentChapterFilter}
              {$evaluatorChapterFilter}
@@ -256,15 +257,15 @@ function smsCurrentUserNotifications(int $limit = 8): array
                     research_group_id IS NULL
                     OR EXISTS (
                         SELECT 1
-                        FROM crad_research_groups panel_rg
-                        WHERE panel_rg.id = panel_assignment_notifications.research_group_id
+                        FROM `crad_research_groups` panel_rg
+                        WHERE panel_rg.id = crad_panel_assignment_notifications.research_group_id
                           AND " . cradOfficialRegistryGroupWhereSql('panel_rg') . "
                     )
                 )"
                 : '';
             $panelStmt = $crad->prepare(
                 "SELECT id, event_key, 'panel_assignment' AS type, title, body, url, is_read, created_at
-                 FROM crad_panel_assignment_notifications
+                 FROM `crad_panel_assignment_notifications`
                  WHERE {$where['sql']}
                  {$panelRegistryFilter}
                  ORDER BY created_at DESC, id DESC
@@ -286,7 +287,7 @@ function smsCurrentUserNotifications(int $limit = 8): array
         if ($clearanceTable) {
             $clearanceStmt = $crad->prepare(
                 "SELECT id, event_key, type, title, body, url, is_read, created_at
-                 FROM crad_research_clearance_notifications
+                 FROM `crad_research_clearance_notifications`
                  WHERE {$where['sql']}
                  ORDER BY created_at DESC, id DESC
                  LIMIT :limit"
@@ -310,7 +311,7 @@ function smsCurrentUserNotifications(int $limit = 8): array
     return array_map(static function (array $row): array {
         $type = (string) ($row['type'] ?? '');
         $isPanel = $type === 'panel_assignment';
-        $isClearance = in_array($type, ['sent_to_adviser', 'adviser_signed', 'mis_aa_signed', 'clearance_done', 'payment_approved'], true);
+        $isClearance = in_array($type, ['sent_to_adviser', 'adviser_signed', 'mis_aa_signed', 'clearance_done', 'payment_approved', 'student_signed_upload', 'clearance_rejected', 'panel_assignment_ready'], true);
         return [
             'id' => $isPanel ? -1 * (int) $row['id'] : ($isClearance ? (800000000 + (int) $row['id']) : (int) $row['id']),
             'batch_key' => (string) ($row['event_key'] ?? ''),
@@ -357,7 +358,7 @@ function smsMarkCurrentUserNotificationRead(int $notificationId): void
         try {
             $where = smsCurrentUserNotificationWhere();
             $stmt = $crad->prepare(
-                "UPDATE crad_research_clearance_notifications
+                "UPDATE `crad_research_clearance_notifications`
                  SET is_read = 1
                  WHERE id = :notification_id
                    AND {$where['sql']}
@@ -381,7 +382,7 @@ function smsMarkCurrentUserNotificationRead(int $notificationId): void
         }
         $where = smsCurrentUserNotificationWhere();
         $stmt = $crad->prepare(
-            "UPDATE crad_chapter_evaluation_notifications
+            "UPDATE `crad_chapter_evaluation_notifications`
              SET is_read = 1
              WHERE id = :notification_id
                AND {$where['sql']}
@@ -408,6 +409,26 @@ function smsMarkCurrentUserSyntheticNotificationRead(string $batchKey): void
         $readIds = array_map('intval', (array) ($_SESSION['read_research_group_notifications'] ?? []));
         $readIds[] = (int) $matches[1];
         $_SESSION['read_research_group_notifications'] = array_values(array_unique(array_filter($readIds)));
+        return;
+    }
+
+    if (strpos($batchKey, 'research-group-decision:') === 0) {
+        $readKeys = array_map(
+            static fn($key): string => strtolower(trim((string) $key)),
+            (array) ($_SESSION['read_research_group_decisions'] ?? [])
+        );
+        $readKeys[] = $batchKey;
+        $_SESSION['read_research_group_decisions'] = array_values(array_unique(array_filter($readKeys)));
+        return;
+    }
+
+    if (strpos($batchKey, 'dual-assignment:') === 0) {
+        $readKeys = array_map(
+            static fn($key): string => strtolower(trim((string) $key)),
+            (array) ($_SESSION['read_dual_assignment_notifications'] ?? [])
+        );
+        $readKeys[] = $batchKey;
+        $_SESSION['read_dual_assignment_notifications'] = array_values(array_unique(array_filter($readKeys)));
         return;
     }
 
@@ -450,7 +471,7 @@ function smsMarkCurrentUserSyntheticNotificationRead(string $batchKey): void
             grantEnsureEvaluationTables($crad);
             $where = smsCurrentUserNotificationWhere();
             $stmt = $crad->prepare(
-                "UPDATE crad_grant_proposal_notifications
+                "UPDATE `crad_grant_proposal_notifications`
                  SET is_read = 1
                  WHERE event_key = :event_key
                    AND {$where['sql']}
@@ -475,7 +496,7 @@ function smsMarkCurrentUserSyntheticNotificationRead(string $batchKey): void
         try {
             $where = smsCurrentUserNotificationWhere();
             $stmt = $crad->prepare(
-                "UPDATE crad_chapter_evaluation_notifications
+                "UPDATE `crad_chapter_evaluation_notifications`
                  SET is_read = 1
                  WHERE event_key = :event_key
                    AND {$where['sql']}
@@ -711,17 +732,17 @@ function smsCurrentUserAssignmentNotifications(int $limit = 8): array
                 a.adviser_name,
                 a.adviser_email,
                 COALESCE(a.notification_sent_at, '1000-01-01 00:00:00') AS completed_at
-             FROM crad_research_groups g
-             LEFT JOIN crad_research_proposals p ON p.id = g.proposal_id
-             LEFT JOIN crad_title_approvals t ON t.id = g.title_approval_id
-             INNER JOIN crad_research_adviser_assignments a
+             FROM `crad_research_groups` g
+             LEFT JOIN `crad_research_proposals` p ON p.id = g.proposal_id
+             LEFT JOIN `crad_title_approvals` t ON t.id = g.title_approval_id
+             INNER JOIN `crad_research_adviser_assignments` a
                 ON a.assignment_status = 'Assigned'
                AND (a.research_group_id = g.id OR a.group_number = g.group_number OR a.proposal_id = g.proposal_id)
              WHERE a.notification_sent_at IS NOT NULL
                AND (g.title_approval_id IS NULL OR g.title_approval_id = 0 OR t.id IS NOT NULL)
                AND NOT EXISTS (
                     SELECT 1
-                    FROM crad_research_adviser_assignments pending_a
+                    FROM `crad_research_adviser_assignments` pending_a
                     WHERE pending_a.assignment_status = 'Assigned'
                       AND pending_a.notification_sent_at IS NULL
                       AND (
@@ -826,10 +847,10 @@ function smsCurrentUserAssignmentNotificationDetail(string $groupNumber = '', st
                 a.adviser_name,
                 a.adviser_email,
                 a.notification_sent_at
-            FROM crad_research_groups g
-            LEFT JOIN crad_research_proposals p ON p.id = g.proposal_id
-            LEFT JOIN crad_title_approvals t ON t.id = g.title_approval_id
-            INNER JOIN crad_research_adviser_assignments a
+            FROM `crad_research_groups` g
+            LEFT JOIN `crad_research_proposals` p ON p.id = g.proposal_id
+            LEFT JOIN `crad_title_approvals` t ON t.id = g.title_approval_id
+            INNER JOIN `crad_research_adviser_assignments` a
                ON a.assignment_status = 'Assigned'
               AND (
                     a.research_group_id = g.id
@@ -1045,6 +1066,8 @@ function smsNotificationPayloadForCurrentUser(): array
         smsCurrentUserAssignmentNotifications(8),
         $items,
         smsStudentResearchStatusNotifications(),
+        smsStudentResearchGroupDecisionNotifications(),
+        smsDualAssignmentCycleNotifications(),
         smsStudentReturnedTitleApprovalNotifications()
     ));
 }
@@ -1089,9 +1112,9 @@ function smsStudentResearchStatusNotifications(): array
                     COALESCE(p.proposal_number, t.proposal_number, g.proposal_number) AS proposal_number,
                     COALESCE(p.research_title, t.proposed_title, g.research_title) AS research_title,
                     g.title_approval_id, g.group_number, g.group_name, g.created_at, g.date_assigned
-             FROM crad_research_groups g
-             LEFT JOIN crad_research_proposals p ON p.id = g.proposal_id
-             LEFT JOIN crad_title_approvals t ON t.id = g.title_approval_id
+             FROM `crad_research_groups` g
+             LEFT JOIN `crad_research_proposals` p ON p.id = g.proposal_id
+             LEFT JOIN `crad_title_approvals` t ON t.id = g.title_approval_id
              WHERE g.group_number IS NOT NULL
                AND g.group_number <> ''
                AND (g.title_approval_id IS NULL OR g.title_approval_id = 0 OR t.id IS NOT NULL)
@@ -1166,6 +1189,323 @@ function smsStudentReturnedProposalNotifications(): array
     return [];
 }
 
+/**
+ * Student in-app notifications when Department Head Approves/Rejects a Research Group.
+ * Synthetic (same pattern as returned title approvals): reads dh_* columns already
+ * written by cradRgFlowDhDecide — no parallel notification table.
+ *
+ * Recipients: submitting lead (leader_id / submitted_by_user_id / leader_email)
+ * and any listed group members (crad_research_group_members.student_id).
+ *
+ * @return list<array<string, mixed>>
+ */
+/**
+ * Synthetic in-app notifications for dual coordinator/adviser assignment confirmation.
+ * Same pattern as research-group DH decision notifications (no parallel table).
+ *
+ * @return list<array<string,mixed>>
+ */
+function smsDualAssignmentCycleNotifications(): array
+{
+    $role = (string) ($_SESSION['user_role_key'] ?? '');
+    $userId = (int) ($_SESSION['user_id'] ?? 0);
+    $email = strtolower(trim((string) ($_SESSION['user_email'] ?? '')));
+    $name = strtolower(trim((string) ($_SESSION['user_name'] ?? $_SESSION['full_name'] ?? '')));
+    if ($userId <= 0 && $email === '') {
+        return [];
+    }
+
+    $crad = function_exists('cradDb') ? cradDb() : null;
+    if (!$crad) {
+        return [];
+    }
+
+    if (function_exists('cradRgFlowEnsureSchema')) {
+        try {
+            cradRgFlowEnsureSchema($crad);
+        } catch (Throwable $e) {
+            error_log('Dual assignment notif schema skipped: ' . $e->getMessage());
+        }
+    }
+
+    try {
+        $stmt = $crad->query(
+            "SELECT c.*, g.research_title, g.group_name, g.leader_name,
+                    a.adviser_name, a.adviser_email, a.adviser_user_id,
+                    r.coordinator_name, r.coordinator_email, r.coordinator_user_id
+             FROM `crad_research_assignment_cycles` c
+             LEFT JOIN `crad_research_groups` g ON g.id = c.research_group_id
+             LEFT JOIN `crad_research_adviser_assignments` a ON a.id = c.adviser_assignment_id
+             LEFT JOIN `crad_research_coordinator_assignments` r ON r.id = c.coordinator_assignment_id
+             WHERE c.status IN (
+                'pending_confirmation','waiting_adviser','waiting_coordinator',
+                'confirmed','needs_reassignment','cancelled','declined'
+             )
+             ORDER BY c.updated_at DESC, c.id DESC
+             LIMIT 40"
+        );
+        $rows = $stmt ? ($stmt->fetchAll(PDO::FETCH_ASSOC) ?: []) : [];
+    } catch (Throwable $e) {
+        error_log('Dual assignment cycle notifications failed: ' . $e->getMessage());
+        return [];
+    }
+
+    $readKeys = array_map(
+        static fn($key): string => strtolower(trim((string) $key)),
+        (array) ($_SESSION['read_dual_assignment_notifications'] ?? [])
+    );
+
+    $facultyConfirmUrl = function_exists('smsNotificationAppUrl')
+        ? smsNotificationAppUrl('/modules/faculty/pages/assignment-confirmation.php')
+        : '#';
+    $cradConfirmUrl = function_exists('smsNotificationAppUrl')
+        ? smsNotificationAppUrl('/modules/crad/pages/assignment-confirmation.php')
+        : '#';
+    $rcmUrl = function_exists('smsNotificationAppUrl')
+        ? smsNotificationAppUrl('/modules/crad/pages/research-coordinator-management.php')
+        : '#';
+
+    $isDhRole = in_array($role, ['department_head', 'dept_head', 'superadmin', 'crad_officer'], true);
+
+    $out = [];
+    foreach ($rows as $row) {
+        $id = (int) ($row['id'] ?? 0);
+        $status = strtolower(trim((string) ($row['status'] ?? '')));
+        $overall = function_exists('cradRgFlowOverallStatusFromCycle')
+            ? cradRgFlowOverallStatusFromCycle($row)
+            : $status;
+        $labelStatus = function_exists('cradRgFlowOverallStatusLabel')
+            ? cradRgFlowOverallStatusLabel($overall !== '' ? $overall : $status)
+            : ucwords(str_replace('_', ' ', $status));
+
+        $title = trim((string) (($row['research_title'] ?? '') ?: 'Research Assignment'));
+        $groupLabel = trim((string) (($row['group_name'] ?? '') ?: ($row['group_number'] ?? '') ?: ('Cycle #' . $id)));
+        $leader = trim((string) (($row['leader_name'] ?? '') ?: ($row['student_id'] ?? '')));
+        $coorName = trim((string) ($row['coordinator_name'] ?? ''));
+        $advName = trim((string) ($row['adviser_name'] ?? ''));
+
+        $stampSrc = (string) (($row['updated_at'] ?? '') ?: ($row['created_at'] ?? '') ?: (string) $id);
+        $stamp = preg_replace('/\D+/', '', $stampSrc) ?: (string) $id;
+        $batchKey = 'dual-assignment:' . $id . ':' . $status . ':' . $stamp;
+
+        $coorUid = (int) ($row['coordinator_user_id'] ?? 0);
+        $advUid = (int) ($row['adviser_user_id'] ?? 0);
+        $assignedBy = (int) ($row['assigned_by'] ?? 0);
+        $coorEmail = strtolower(trim((string) ($row['coordinator_email'] ?? '')));
+        $advEmail = strtolower(trim((string) ($row['adviser_email'] ?? '')));
+        $coorNameL = strtolower($coorName);
+        $advNameL = strtolower($advName);
+
+        $isCoordinator = ($coorUid > 0 && $userId === $coorUid)
+            || ($coorEmail !== '' && $email === $coorEmail)
+            || ($coorNameL !== '' && $name === $coorNameL);
+        $isAdviser = ($advUid > 0 && $userId === $advUid)
+            || ($advEmail !== '' && $email === $advEmail)
+            || ($advNameL !== '' && $name === $advNameL);
+        $isAssigner = $assignedBy > 0 && $userId === $assignedBy;
+
+        $pendingStatuses = ['pending_confirmation', 'waiting_adviser', 'waiting_coordinator'];
+        $declinedStatuses = ['needs_reassignment', 'cancelled', 'declined'];
+
+        $match = false;
+        $eventLabel = '';
+        $body = '';
+        $icon = 'fa-handshake';
+        $class = 'text-primary';
+        $url = '#';
+        $preview = $labelStatus;
+
+        // Pending Accept/Decline: always show in navbar bell (modal may also prompt).
+        // Later only suppresses the modal via session; bell stays actionable until Accept/Decline.
+        // Keep Fully Assigned / Needs Reassignment / Declined as regular sidebar notifications.
+        if (in_array($status, $pendingStatuses, true) && ($isCoordinator || $isAdviser)) {
+            if ($isAdviser && !empty($row['adviser_confirmed_at']) && $status === 'waiting_coordinator') {
+                $eventLabel = 'Waiting for Coordinator';
+                $body = "Research: {$title}\nGroup: {$groupLabel}\nStudent/Leader: {$leader}\nStatus: {$labelStatus}\nYour approval is recorded. Waiting for the Research Coordinator.";
+                $icon = 'fa-clock';
+                $class = 'text-warning';
+                $url = $facultyConfirmUrl;
+                $match = true;
+            } elseif ($isCoordinator && !empty($row['coordinator_confirmed_at']) && $status === 'waiting_adviser') {
+                $eventLabel = 'Waiting for Adviser';
+                $body = "Research: {$title}\nGroup: {$groupLabel}\nStudent/Leader: {$leader}\nStatus: {$labelStatus}\nYour approval is recorded. Waiting for the Research Adviser.";
+                $icon = 'fa-clock';
+                $class = 'text-warning';
+                $url = $cradConfirmUrl;
+                $match = true;
+            } elseif (($isAdviser && empty($row['adviser_confirmed_at'])) || ($isCoordinator && empty($row['coordinator_confirmed_at']))) {
+                $eventLabel = 'Approve Assignment';
+                $body = "You were assigned by the Department Head.\nResearch: {$title}\nGroup: {$groupLabel}\nStudent/Leader: {$leader}\nCoordinator: {$coorName}\nAdviser: {$advName}\nStatus: {$labelStatus}\nPlease Approve Assignment or Decline Assignment.";
+                $icon = 'fa-user-check';
+                $class = 'text-primary';
+                $url = $isAdviser ? $facultyConfirmUrl : $cradConfirmUrl;
+                $match = true;
+            }
+        } elseif ($status === 'confirmed' && ($isCoordinator || $isAdviser)) {
+            $eventLabel = 'Fully Assigned';
+            $body = "Both Coordinator and Adviser approved.\nResearch: {$title}\nGroup: {$groupLabel}\nStudent/Leader: {$leader}\nStatus: Fully Assigned\nThis research now appears under Assigned Research.";
+            $icon = 'fa-check-circle';
+            $class = 'text-success';
+            $url = $isAdviser ? $facultyConfirmUrl : $cradConfirmUrl;
+            $match = true;
+        } elseif (in_array($status, $declinedStatuses, true) && ($isAssigner || $isDhRole)) {
+            $reason = trim((string) ($row['cancel_reason'] ?? ''));
+            $byRole = trim((string) ($row['cancel_role'] ?? ''));
+            $eventLabel = 'Needs Reassignment';
+            $body = "An assignment was declined.\nResearch: {$title}\nGroup: {$groupLabel}\nStudent/Leader: {$leader}\nCoordinator: {$coorName}\nAdviser: {$advName}\nStatus: Needs Reassignment";
+            if ($byRole !== '') {
+                $body .= "\nDeclined by role: " . $byRole;
+            }
+            if ($reason !== '') {
+                $body .= "\nReason: " . $reason;
+            }
+            $body .= "\nPlease reassign from Research Coordinator Management.";
+            $icon = 'fa-user-times';
+            $class = 'text-danger';
+            $url = $rcmUrl;
+            $preview = $reason !== '' ? $reason : 'Assignment declined';
+            $match = true;
+        } elseif (in_array($status, $declinedStatuses, true) && ($isCoordinator || $isAdviser)) {
+            $eventLabel = 'Assignment Declined';
+            $body = "This dual assignment was declined.\nResearch: {$title}\nGroup: {$groupLabel}\nStatus: Needs Reassignment\nDepartment Head will reassign.";
+            $icon = 'fa-times-circle';
+            $class = 'text-danger';
+            $url = $isAdviser ? $facultyConfirmUrl : $cradConfirmUrl;
+            $match = true;
+        }
+
+        if (!$match) {
+            continue;
+        }
+
+        $updated = strtotime((string) (($row['updated_at'] ?? '') ?: ($row['created_at'] ?? ''))) ?: time();
+        $isUnread = $id > 0 && !in_array(strtolower($batchKey), $readKeys, true);
+
+        $out[] = [
+            'id' => 0,
+            'batch_key' => $batchKey,
+            'icon' => $icon,
+            'class' => $class,
+            'label' => $eventLabel,
+            'body' => $body,
+            'preview' => $preview,
+            'status' => $isUnread ? 'unread' : 'read',
+            'is_unread' => $isUnread,
+            'time' => date('M j, Y h:i A', $updated),
+            'url' => $url,
+        ];
+    }
+
+    return $out;
+}
+function smsStudentResearchGroupDecisionNotifications(): array
+{
+    if (($_SESSION['user_role_key'] ?? '') !== 'student') {
+        return [];
+    }
+
+    $crad = cradDb();
+    if (!$crad) {
+        return [];
+    }
+
+    $studentId = trim((string) ($_SESSION['student_id'] ?? ''));
+    $studentEmail = strtolower(trim((string) ($_SESSION['user_email'] ?? '')));
+    $studentUserId = (int) ($_SESSION['user_id'] ?? 0);
+
+    try {
+        $stmt = $crad->prepare(
+            "SELECT g.id, g.group_number, g.group_name, g.leader_name, g.flow_status,
+                    g.dh_decision, g.dh_remarks, g.dh_decision_at, g.submitted_at
+             FROM `crad_research_groups` g
+             WHERE LOWER(TRIM(g.dh_decision)) IN ('approved', 'rejected')
+               AND g.dh_decision_at IS NOT NULL
+               AND (
+                    (:student_id_value <> '' AND LOWER(TRIM(g.leader_id)) = LOWER(:student_id_match))
+                 OR (:user_id_value > 0 AND g.submitted_by_user_id = :user_id_match)
+                 OR (:student_email_value <> '' AND LOWER(TRIM(g.leader_email)) = :student_email_match)
+                 OR (
+                        :member_id_value <> ''
+                    AND EXISTS (
+                        SELECT 1
+                        FROM `crad_research_group_members` m
+                        WHERE m.research_group_id = g.id
+                          AND LOWER(TRIM(m.student_id)) = LOWER(:member_id_match)
+                    )
+                 )
+               )
+             ORDER BY g.dh_decision_at DESC, g.id DESC
+             LIMIT 8"
+        );
+        $stmt->execute([
+            ':student_id_value' => $studentId,
+            ':student_id_match' => $studentId,
+            ':user_id_value' => $studentUserId,
+            ':user_id_match' => $studentUserId,
+            ':student_email_value' => $studentEmail,
+            ':student_email_match' => $studentEmail,
+            ':member_id_value' => $studentId,
+            ':member_id_match' => $studentId,
+        ]);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    } catch (Throwable $e) {
+        error_log('Research group DH decision notification load failed: ' . $e->getMessage());
+        return [];
+    }
+
+    $rgUrl = smsNotificationAppUrl('/modules/student-portal/pages/research-group.php');
+    $readKeys = array_map(
+        static fn($key): string => strtolower(trim((string) $key)),
+        (array) ($_SESSION['read_research_group_decisions'] ?? [])
+    );
+
+    return array_map(static function (array $row) use ($rgUrl, $readKeys): array {
+        $id = (int) ($row['id'] ?? 0);
+        $decision = strtolower(trim((string) ($row['dh_decision'] ?? '')));
+        $decidedAt = (string) ($row['dh_decision_at'] ?? '');
+        $stamp = preg_replace('/\D+/', '', $decidedAt) ?: (string) $id;
+        $batchKey = 'research-group-decision:' . $id . ':' . $decision . ':' . $stamp;
+        $isUnread = $id > 0 && !in_array(strtolower($batchKey), $readKeys, true);
+        $remarks = trim((string) ($row['dh_remarks'] ?? ''));
+        $groupLabel = trim((string) (($row['group_number'] ?? '') ?: ($row['group_name'] ?? '') ?: ('#' . $id)));
+        $approved = $decision === 'approved';
+
+        if ($approved) {
+            $label = 'Research Group Approved';
+            $body = 'Your Research Group (' . $groupLabel . ') was approved by the Department Head.';
+            if ($remarks !== '') {
+                $body .= "\nRemarks: " . $remarks;
+            }
+            $body .= "\nYou may proceed to the next assignment steps.";
+            $icon = 'fa-check-circle';
+            $class = 'text-success';
+            $preview = $remarks !== '' ? $remarks : 'Approved by Department Head';
+        } else {
+            $label = 'Group Submission rejected';
+            $body = 'Group Submission rejected' . "\n" . 'reason: ' . $remarks . "\n" . 'Update and submit.';
+            $icon = 'fa-times-circle';
+            $class = 'text-danger';
+            $preview = $remarks !== '' ? ('reason: ' . $remarks) : 'Update and submit.';
+        }
+
+        $updated = strtotime($decidedAt) ?: time();
+
+        return [
+            'id' => 0,
+            'batch_key' => $batchKey,
+            'icon' => $icon,
+            'class' => $class,
+            'label' => $label,
+            'body' => $body,
+            'preview' => $preview,
+            'status' => $isUnread ? 'unread' : 'read',
+            'is_unread' => $isUnread,
+            'time' => date('M j, Y h:i A', $updated),
+            'url' => $rgUrl,
+        ];
+    }, $rows);
+}
+
 function smsStudentReturnedTitleApprovalNotifications(): array
 {
     if (($_SESSION['user_role_key'] ?? '') !== 'student') {
@@ -1184,7 +1524,7 @@ function smsStudentReturnedTitleApprovalNotifications(): array
     try {
         $stmt = $crad->prepare(
             "SELECT id, proposed_title, adviser_remarks, coordinator_remarks, reviewed_at, coordinator_reviewed_at, sent_at
-             FROM crad_title_approvals
+             FROM `crad_title_approvals`
              WHERE status = 'Returned'
                AND (
                     (:student_id_value <> '' AND student_id = :student_id_match)

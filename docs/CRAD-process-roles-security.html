@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>SMS 2 — CRAD Process, Role Navigation, and Security Features</title>
+  <style>
+    @page { size: A4; margin: 16mm 14mm; }
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Segoe UI", Calibri, Arial, sans-serif;
+      font-size: 10.5pt;
+      line-height: 1.4;
+      color: #1a1a1a;
+      margin: 0;
+    }
+    h1 { font-size: 20pt; margin: 0 0 6pt; letter-spacing: -0.02em; }
+    h2 {
+      font-size: 13pt;
+      margin: 22pt 0 8pt;
+      padding-bottom: 4pt;
+      border-bottom: 1.5pt solid #1a1a1a;
+      page-break-after: avoid;
+    }
+    h3 { font-size: 11pt; margin: 14pt 0 6pt; page-break-after: avoid; }
+    p, li { margin: 0 0 6pt; }
+    .meta { color: #555; font-size: 9.5pt; margin-bottom: 14pt; }
+    .cover {
+      border: 1pt solid #ccc;
+      padding: 16pt 18pt;
+      margin-bottom: 16pt;
+    }
+    .kicker { font-size: 9pt; text-transform: uppercase; letter-spacing: 0.08em; color: #555; margin-bottom: 6pt; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 0 0 12pt;
+      font-size: 9.2pt;
+    }
+    th, td {
+      border: 0.6pt solid #ccc;
+      padding: 5pt 6pt;
+      vertical-align: top;
+      text-align: left;
+    }
+    th { background: #f2f2f2; font-weight: 600; }
+    tr { page-break-inside: avoid; }
+    code, .path {
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 8.5pt;
+      background: #f5f5f5;
+      padding: 0 3pt;
+    }
+    ol.flow { padding-left: 18pt; }
+    ol.flow li { margin-bottom: 5pt; }
+    .note {
+      border-left: 3pt solid #888;
+      padding: 6pt 10pt;
+      background: #fafafa;
+      margin: 8pt 0 12pt;
+    }
+    .role { page-break-inside: avoid; }
+    ul.compact { margin: 0; padding-left: 16pt; }
+    ul.compact li { margin: 0 0 3pt; }
+    .toc a { color: inherit; text-decoration: none; }
+    .footer-note { font-size: 8.5pt; color: #666; margin-top: 18pt; }
+  </style>
+</head>
+<body>
+
+<div class="cover">
+  <div class="kicker">Bestlink College of the Philippines · SMS 2 Capstone</div>
+  <h1>CRAD Process, Role Navigation, and Security Features</h1>
+  <p class="meta">Center for Research and Development (CRAD) · School Management System 2<br>
+  Document generated from the running codebase (sidebar, authentication, CRAD modules) · 23 September 2026</p>
+  <p>This packet maps (1) the end-to-end CRAD research workflow, (2) every sidebar / navbar function per user role, and (3) security controls with where they appear in the system and the code that implements them.</p>
+</div>
+
+<h2>1. Contents</h2>
+<ol class="toc">
+  <li>CRAD academic pipeline</li>
+  <li>Official title / group rule</li>
+  <li>Grant funding pipeline (parallel track)</li>
+  <li>Actors and responsibilities</li>
+  <li>Shared top navbar</li>
+  <li>Sidebar functions by role</li>
+  <li>Security features and proof</li>
+  <li>Limitation to disclose</li>
+</ol>
+
+<h2>2. CRAD academic pipeline</h2>
+<p>Capstone / thesis work is a gated chain. Later steps are blocked until earlier records exist (registered group, assigned adviser, approved chapters, scheduled defense).</p>
+<ol class="flow">
+  <li><strong>Title proposal.</strong> Student submits CRAD Form S2 (Title Approval) in Student Portal → Research Proposal (<span class="path">modules/student-portal/pages/research-proposal-submission.php</span>). If the title was Returned, the sidebar opens the returned-title notification instead of a blank form.</li>
+  <li><strong>Triple sign-off.</strong> Adviser, Research Coordinator, and CRAD Officer must all approve, with stored signature data. See Section 3.</li>
+  <li><strong>Register proposal.</strong> CRAD Officer registers the title (<span class="path">registration_status</span>: Pending → Registered) in Register Proposal.</li>
+  <li><strong>Research group number.</strong> Official group number is issued (<span class="path">research-group-number.php</span>).</li>
+  <li><strong>Assign adviser.</strong> Department Head retrieves approved research, checks availability, and assigns an adviser.</li>
+  <li><strong>Research development.</strong> Student uses My Research, Research Plan, Milestones, Progress Updates, Adviser Feedback. Adviser monitors the same group from the faculty workspace.</li>
+  <li><strong>Submit Chapters 1–3.</strong> Student uploads documents. Grammarian scores five criteria at 20% each (content, methodology, references, format, grammar).</li>
+  <li><strong>Pre-oral defense scheduling.</strong> Research Director (or operational Admin) queues groups that have approved Chapters 1–3, proposes slots (max 3 panel members), and finalizes venue/time.</li>
+  <li><strong>Panel evaluation.</strong> Assigned panel members score the defense (Evaluation &amp; Scoring).</li>
+  <li><strong>Implementation / Chapters 4–5.</strong> Student continues milestones (system development, testing, documentation) in 2nd semester phase.</li>
+  <li><strong>Final manuscript.</strong> Student uploads versions; CRAD / adviser review and revision compliance.</li>
+  <li><strong>Final defense.</strong> Director schedules Final Defense; panel uses Final Defense Evaluation.</li>
+  <li><strong>Revisions.</strong> Adviser tracks Final Defense Revisions / Revision Monitoring.</li>
+  <li><strong>Research clearance.</strong> Student uploads collage/college payment and the signed clearance image. CRAD Officer approves or rejects from the clearance inbox.</li>
+  <li><strong>Repository / Publications &amp; IP.</strong> Completed work is recorded and archived.</li>
+</ol>
+
+<h2>3. Official title / group rule (integrity gate)</h2>
+<p>A research group is treated as official only when all of the following are true on <span class="path">crad_title_approvals</span>:</p>
+<ul>
+  <li><span class="path">status = 'Approved'</span></li>
+  <li><span class="path">coordinator_status = 'Approved'</span></li>
+  <li><span class="path">crad_status = 'Approved'</span></li>
+  <li>Adviser, coordinator, and CRAD signature fields are non-empty</li>
+</ul>
+<p>Implemented by <span class="path">cradValidTitleApprovalWhereSql()</span> in <span class="path">modules/crad/config/config.php</span>. Department Head “Retrieve Approved Research” and registry queries reuse this rule.</p>
+<table>
+  <thead><tr><th>Stage</th><th>Key statuses</th><th>Where it appears</th></tr></thead>
+  <tbody>
+    <tr><td>Title (Form S2)</td><td>Pending / Approved / Returned; coordinator_status; crad_status</td><td>Student Research Proposal; CRAD Register Proposal</td></tr>
+    <tr><td>Registration</td><td>Pending → Registered + proposal_number</td><td>register-proposal.php, research-group-number.php</td></tr>
+    <tr><td>Adviser / panel</td><td>Assigned / Confirmed; availability Available</td><td>Department Head Research Management</td></tr>
+    <tr><td>Chapters 1–3</td><td>Submitted → scored / For Revision; all three approved</td><td>Student Submit Chapter 1-3; Grammarian For Evaluation</td></tr>
+    <tr><td>Milestones</td><td>Not Started / in progress / Approved / Completed; 1st vs 2nd semester</td><td>Student Milestones; Adviser Research Progress</td></tr>
+    <tr><td>Manuscript</td><td>Submitted / Under Review / For Revision / Approved</td><td>Final manuscript pages</td></tr>
+    <tr><td>Clearance</td><td>Uploaded signed image → Approve / Reject</td><td>Student clearance pages; CRAD inbox</td></tr>
+    <tr><td>Grant</td><td>workflow_status; Returned loops to researcher</td><td>Approval Workflows YES/NO + signature dialog</td></tr>
+  </tbody>
+</table>
+
+<h2>4. Grant funding pipeline (parallel track)</h2>
+<p>Researchers (student or adviser) apply from Grant Opportunities. Scoring happens in Reviewer Evaluation. Funding then requires six sequential office signatures. A step cannot be skipped. Choosing NO sets status Returned; the applicant sees it under Revisions Requested and the chain restarts.</p>
+<table>
+  <thead><tr><th>Order</th><th>Office</th><th>role_key</th><th>Function</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td>Academic Adviser</td><td>adviser</td><td>First signature on the grant application</td></tr>
+    <tr><td>2</td><td>Department Chair</td><td>department_chair</td><td>College/department sign-off</td></tr>
+    <tr><td>3</td><td>College Dean</td><td>hr</td><td>Dean step (Dean account uses faculty HR workspace)</td></tr>
+    <tr><td>4</td><td>Research Office</td><td>research_office</td><td>Research office review</td></tr>
+    <tr><td>5</td><td>VPAA</td><td>vpaa</td><td>VPAA sign-off (Accreditation shell URLs)</td></tr>
+    <tr><td>6</td><td>Finance Office</td><td>finance</td><td>Final sign-off; can release disbursement</td></tr>
+  </tbody>
+</table>
+<p>Code: <span class="path">grantApprovalStepDefinitions()</span> in <span class="path">modules/crad/includes/grant-approval-helpers.php</span>.</p>
+
+<h2>5. Actors and responsibilities</h2>
+<table>
+  <thead><tr><th>Actor</th><th>Function in CRAD</th></tr></thead>
+  <tbody>
+    <tr><td>Student</td><td>Submit title, chapters, progress, manuscript, clearance files, grant applications</td></tr>
+    <tr><td>Adviser</td><td>Sign title, monitor group, grant step 1, feedback on updates</td></tr>
+    <tr><td>Research Coordinator</td><td>View approved titles; coordinator_status + signature on Form S2</td></tr>
+    <tr><td>CRAD Officer</td><td>crad_status + signature; register proposal; group number; approve clearance</td></tr>
+    <tr><td>Department Head</td><td>Assign adviser, then panel when defense-ready</td></tr>
+    <tr><td>Grammarian</td><td>Score Chapters 1–3 before pre-oral queue</td></tr>
+    <tr><td>Research Director / sms_admin</td><td>Schedule pre-oral and final defense; venues; finalize</td></tr>
+    <tr><td>Panel / Dept. Chair</td><td>Score assigned defenses; chair also grant step 2</td></tr>
+    <tr><td>Dean, Research Office, VPAA, Finance</td><td>Grant chain steps 3–6; finance disbursement</td></tr>
+    <tr><td>Super Admin</td><td>Users, RBAC, logs, settings — excluded from operational CRAD</td></tr>
+  </tbody>
+</table>
+
+<h2>6. Shared top navbar</h2>
+<p>Source: <span class="path">includes/navbar.php</span>. Same chrome for every signed-in user; notification payload is role-specific.</p>
+<table>
+  <thead><tr><th>Control</th><th>Function</th></tr></thead>
+  <tbody>
+    <tr><td>Sidebar toggle</td><td>Collapse / expand left navigation</td></tr>
+    <tr><td>Brand / logo</td><td>Goes to that role’s home URL (<span class="path">smsRoleHomeUrl()</span>)</td></tr>
+    <tr><td>Global search (Ctrl+K)</td><td>Searches only modules and pages the role can see</td></tr>
+    <tr><td>PH clock</td><td>Philippine Standard Time (Asia/Manila)</td></tr>
+    <tr><td>Theme toggle</td><td>Light / dark</td></tr>
+    <tr><td>Messages</td><td>Inbox dropdown</td></tr>
+    <tr><td>Notifications</td><td>Returned titles, assignments, defenses</td></tr>
+    <tr><td>User menu</td><td>My Profile, Security, Logout (confirm modal)</td></tr>
+  </tbody>
+</table>
+<p>Sidebar templates come from <span class="path">smsSidebarMode()</span> in <span class="path">includes/navigation-context.php</span>: <em>student</em>, <em>faculty_workspace</em>, or <em>admin_modules</em>.</p>
+
+<h2>7. Sidebar functions by role</h2>
+<p>Source of truth: <span class="path">includes/sidebar.php</span> plus <span class="path">getVisibleModules()</span> in <span class="path">includes/authentication.php</span> and <span class="path">$MODULES</span> in <span class="path">config/config.php</span>.</p>
+
+<div class="role">
+<h3>7.1 Student · home: student-portal dashboard</h3>
+<table>
+  <thead><tr><th>Nav group</th><th>Item</th><th>Function</th></tr></thead>
+  <tbody>
+    <tr><td>Overview</td><td>Dashboard</td><td>Student home: group, payments, research status</td></tr>
+    <tr><td>Student Information</td><td>My Profile / Student ID</td><td>Profile and digital ID</td></tr>
+    <tr><td>Financial</td><td>Account Balance / Payment History</td><td>Balances and paid transactions</td></tr>
+    <tr><td>Academics</td><td>Class Schedule, Academic Records, Subject &amp; Professors, Grades Portal</td><td>Academic self-service</td></tr>
+    <tr><td>Research</td><td>Research Proposal</td><td>Form S2 title approval (or returned-title notice)</td></tr>
+    <tr><td>Research Development</td><td>My Research, Research Plan, Milestones, Progress Updates, Adviser Feedback, Final Manuscript</td><td>Implementation and monitoring after group exists</td></tr>
+    <tr><td>Document Submission</td><td>Submit Chapter 1-3, My Submissions, Submission Status, Submission History</td><td>Chapter upload and version tracking (CSRF + file whitelist)</td></tr>
+    <tr><td>Research Clearance</td><td>Upload Collage Payment / Research Services Clearance</td><td>Payment proof and signed clearance image</td></tr>
+    <tr><td>Core System</td><td>Grant Opportunities, Proposals &amp; Applications, Revisions Requested</td><td>Apply to published grant calls</td></tr>
+    <tr><td>Funded Research / Outputs</td><td>Funded Research, Project Milestones, Publications &amp; IP</td><td>Execute funded work and record outputs</td></tr>
+    <tr><td>System</td><td>Security Settings</td><td>Password, OTP, passkey, module logs</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="role">
+<h3>7.2 Adviser · home: assigned-research.php</h3>
+<ul class="compact">
+  <li><strong>Approved Research</strong> — View Approved Research</li>
+  <li><strong>Research Monitoring</strong> — My Research Groups, Final Defense Revisions, Research Progress, Milestones, Revision Monitoring, Submitted Updates, Adviser Feedback</li>
+  <li><strong>Grades Portal / Schedule / Profile</strong> — Grade Entry, Records, Summary; My Schedule, Defense Schedule; Profile, Expertise, Availability (used in matching)</li>
+  <li><strong>Grants</strong> — Opportunities, Applications, Revisions, Funded Research, Milestones, Reviewer Evaluation, Approval Workflows (grant step 1)</li>
+  <li><strong>Hidden for adviser only</strong> — the “My Research” submenu (Assigned Research / Final Manuscript Review) is unset in the sidebar; backend pages are not deleted</li>
+</ul>
+</div>
+
+<div class="role">
+<h3>7.3 Panel · home: assigned-defenses.php</h3>
+<ul class="compact">
+  <li><strong>DEFENSE</strong> — Assigned Defenses, Defense Details, Evaluation &amp; Scoring, Evaluation History, Final Defense Evaluation</li>
+  <li><strong>PROFILE</strong> — My Profile, Availability (used when Department Head checks panel load)</li>
+  <li><strong>System</strong> — Security Settings</li>
+</ul>
+</div>
+
+<div class="role">
+<h3>7.4 Grammarian · home: for-evaluation.php</h3>
+<ul class="compact">
+  <li><strong>Evaluation</strong> — For Evaluation (queue), Evaluation &amp; Scoring (5×20% rubric), Evaluation History</li>
+  <li><strong>System</strong> — Security Settings</li>
+</ul>
+</div>
+
+<div class="role">
+<h3>7.5 Research Director · home: research-director.php</h3>
+<p>The SMS left sidebar only lists Security Settings. Operations live in the in-page views of <span class="path">modules/faculty/pages/research-director.php</span>:</p>
+<ul class="compact">
+  <li>Overview</li>
+  <li>Ready for Scheduling (pre-oral and final)</li>
+  <li>AI Scheduling Optimizer, Proposed Schedules, Alternative Time Slots</li>
+  <li>Calendar, Venues, Finalize Schedule</li>
+  <li>Researchers, Advisers, Panel Members</li>
+  <li>Notifications, Defense Results, Digital Scores, Defense History</li>
+  <li>Proceed to Archiving</li>
+</ul>
+<p>Access is gated by <span class="path">smsCanManageDefenseScheduling()</span> (granted admin or research_director).</p>
+</div>
+
+<div class="role">
+<h3>7.6 Research Coordinator · home: crad/index.php</h3>
+<p><span class="path">smsResearchCoordinatorCradModule()</span> trims CRAD to a single item: <strong>View Approved Research</strong>, plus System → Security Settings.</p>
+</div>
+
+<div class="role">
+<h3>7.7 Department Head · home: research-coordinator-management.php</h3>
+<ul class="compact">
+  <li>Research Coordinator Management (ungrouped)</li>
+  <li><strong>A. Adviser Assignment</strong> — Retrieve Approved Research, Find/Contact Adviser, Check Adviser Availability, Assign Research Adviser, View/Manage Assignments</li>
+  <li><strong>B. Panel Assignment</strong> — Retrieve Defense-Ready Research, Select Panel Members, Check Panel Availability, Assign Panel Members</li>
+</ul>
+<p>Direct URLs outside <span class="path">smsDepartmentHeadWorkflowPaths()</span> are blocked.</p>
+</div>
+
+<div class="role">
+<h3>7.8 CRAD Officer · home: dashboard</h3>
+<ul class="compact">
+  <li><strong>Research Clearance</strong> — Approve Signed Clearance (inbox), Approval Clearance Payment</li>
+  <li><strong>Research Proposal</strong> — Register Proposal, Research Group Number</li>
+  <li><strong>Research Management</strong> — Capstone Group/Student Registry (defense scheduling and reviewer-evaluation are skipped in this role’s CRAD nav)</li>
+  <li><strong>Documents / Reports</strong> — manuscript review/approval/revision, publication create, repository, analytics reports</li>
+</ul>
+<p><span class="path">research-coordinator-management</span>, grant dashboard, and grant opportunity slugs are removed from this role’s visible CRAD module.</p>
+</div>
+
+<div class="role">
+<h3>7.9 Operational Admin (sms_admin)</h3>
+<p><span class="path">getVisibleModules()</span> replaces every module with a CRAD-only workspace:</p>
+<ul class="compact">
+  <li>Approval Clearance Payment, Dashboard &amp; Analytics, Grant Opportunities, Proposals &amp; Applications</li>
+  <li>Full pre-oral and final defense scheduling (same director views)</li>
+  <li>Announcements (granted-admin extra)</li>
+  <li>Security via Profile → Security tab</li>
+</ul>
+</div>
+
+<div class="role">
+<h3>7.10 Super Admin · User Management only</h3>
+<ul class="compact">
+  <li>User Accounts — create, lock, assign roles</li>
+  <li>Role &amp; Permissions — <span class="path">sms2_role_permissions</span> matrix</li>
+  <li>Module Security — password-reset approvals, per-module logs</li>
+  <li>Activity Logs — <span class="path">sms2_activity_logs</span></li>
+  <li>System Settings — idle timeout, CAPTCHA/Turnstile, maintenance</li>
+</ul>
+<p>Hard rule: Super Admin is stripped of <span class="path">crad</span> and <span class="path">crad_grant</span> in <span class="path">smsAllowedModuleKeysForRole()</span>.</p>
+</div>
+
+<div class="role">
+<h3>7.11 Grant-chain offices</h3>
+<table>
+  <thead><tr><th>Role</th><th>Sidebar</th><th>Function</th></tr></thead>
+  <tbody>
+    <tr><td>Department Chair</td><td>DEFENSE (same as panel) + Review &amp; Workflow. CRAD module is unset.</td><td>Panel scoring plus grant step 2</td></tr>
+    <tr><td>Research Office</td><td>Review &amp; Workflow only (CRAD unset)</td><td>Grant step 4</td></tr>
+    <tr><td>Dean / HR (hr)</td><td>Faculty Management + Review &amp; Workflow</td><td>HR faculty ops plus grant step 3</td></tr>
+    <tr><td>VPAA</td><td>Review &amp; Workflow under Accreditation URLs (accreditation module hidden)</td><td>Grant step 5</td></tr>
+    <tr><td>Finance</td><td>Full Payment module + Approval Workflows (reviewer-evaluation skipped)</td><td>Grant step 6; budget disbursement is finance-gated</td></tr>
+    <tr><td>Research Grant officer</td><td>crad_grant: publish calls, applications, evaluation, funding, monitoring, outputs</td><td>Operate the grant program</td></tr>
+    <tr><td>Review Committee</td><td>Reviewer Evaluation + Security only</td><td>Score applications</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="role">
+<h3>7.12 Other office defaults (smsDefaultModulesForRole)</h3>
+<ul class="compact">
+  <li><strong>admission</strong> — Enrollment Management (pre-registration through enrollment dashboard)</li>
+  <li><strong>registrar</strong> — Registrar + Curriculum + Scheduling</li>
+  <li><strong>qa</strong> — Accreditation Management, plus Review &amp; Workflow for grants</li>
+  <li><strong>it_office</strong> — Online Learning &amp; LMS</li>
+  <li><strong>osa</strong> — Co-Curricular (clubs, events, volunteer hours)</li>
+</ul>
+<p>Live installs may add modules through Role &amp; Permissions; the table above is the code fallback when the matrix is empty.</p>
+</div>
+
+<h2>8. Security features and proof</h2>
+<p>For defense: show the UI first, then name the file. Every row exists in this repository.</p>
+<table>
+  <thead>
+    <tr><th>Feature</th><th>How it is seen in the running system</th><th>Code proof</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Login required</td>
+      <td>Opening a module while logged out redirects to <span class="path">login/login.php</span>. AJAX/API calls receive JSON 401 <span class="path">session_expired</span> instead of HTML (avoids fake “success”).</td>
+      <td><span class="path">requireAuth()</span> in <span class="path">includes/authentication.php</span></td>
+    </tr>
+    <tr>
+      <td>Role-based modules (RBAC)</td>
+      <td>Student never sees User Management. Super Admin never sees CRAD. Sidebar is built from allowed modules only.</td>
+      <td><span class="path">smsAllowedModuleKeysForRole()</span> + table <span class="path">sms2_role_permissions</span>; students forced to <span class="path">student_portal</span> only</td>
+    </tr>
+    <tr>
+      <td>Page-level role gates</td>
+      <td>Pasting another role’s URL shows Forbidden or a redirect, not the page.</td>
+      <td>Examples: <span class="path">submit-chapters.php</span> requires student; CRAD clearance uses <span class="path">rscCanManageAsCrad()</span>; director uses <span class="path">smsCanManageDefenseScheduling()</span>; grammarian uses <span class="path">chapterIsEvaluator()</span></td>
+    </tr>
+    <tr>
+      <td>Password hashing</td>
+      <td>Sign-in form. Failed login does not reveal whether the username exists (dummy <span class="path">password_verify</span> on unknown user).</td>
+      <td><span class="path">password_verify</span> against <span class="path">password_hash</span>; dummy hash path in <span class="path">authentication.php</span></td>
+    </tr>
+    <tr>
+      <td>CAPTCHA / Cloudflare Turnstile</td>
+      <td>Checkbox or Turnstile widget on Sign In, evaluated before password and 2FA.</td>
+      <td><span class="path">includes/captcha.php</span>; login.php: CAPTCHA first so bots never reach password check</td>
+    </tr>
+    <tr>
+      <td>Passkey (WebAuthn)</td>
+      <td>“Sign in with passkey” on login; enroll under Security Settings.</td>
+      <td><span class="path">includes/passkey.php</span>, <span class="path">assets/js/passkey.js</span>, <span class="path">api/passkey.php</span>, table <span class="path">sms2_user_passkeys</span></td>
+    </tr>
+    <tr>
+      <td>Authenticator TOTP + email OTP</td>
+      <td>Security Settings / Profile: enable Google Authenticator; 6-digit codes. Password change requires Authenticator or email OTP.</td>
+      <td><span class="path">includes/totp.php</span>; <span class="path">smsCreateOtp()</span> / <span class="path">smsVerifyOtp()</span>; <span class="path">sms2_security_otps</span> stores SHA-256 of the code</td>
+    </tr>
+    <tr>
+      <td>Login throttle / lockout</td>
+      <td>After too many failures, Sign In is disabled until cooldown; wait time is shown.</td>
+      <td><span class="path">sms2_login_throttles</span>; <span class="path">smsLoginGateSet()</span> / <span class="path">smsLoginGateStatus()</span></td>
+    </tr>
+    <tr>
+      <td>Force password change</td>
+      <td>After an admin reset, next login goes to Change Password.</td>
+      <td><span class="path">must_change_password</span> column and session flag → <span class="path">login/change-password.php</span></td>
+    </tr>
+    <tr>
+      <td>CSRF tokens</td>
+      <td>Hidden <span class="path">csrf_token</span> in forms. Invalid token shows “Security check failed.”</td>
+      <td><span class="path">csrfToken()</span> / <span class="path">csrfVerify()</span> using <span class="path">hash_equals</span> in <span class="path">includes/security.php</span></td>
+    </tr>
+    <tr>
+      <td>Session hardening + idle logout</td>
+      <td>Cookie name <span class="path">SMS2SESSID</span>. After idle time, overlay then redirect to <span class="path">login.php?timeout=1</span>.</td>
+      <td><span class="path">config/session.php</span>: HttpOnly, SameSite Lax, Secure on HTTPS, <span class="path">session.use_strict_mode</span>; <span class="path">smsEnforceSessionTimeout()</span>; <span class="path">assets/js/idle-logout.js</span></td>
+    </tr>
+    <tr>
+      <td>Security headers + CSP</td>
+      <td>Browser DevTools → Network → response headers on any page.</td>
+      <td><span class="path">smsSendSecurityHeaders()</span>: X-Frame-Options SAMEORIGIN, X-Content-Type-Options nosniff, CSP default-src self (+ Turnstile)</td>
+    </tr>
+    <tr>
+      <td>Prepared SQL statements</td>
+      <td>Not a visible widget; identity lookups still use bound parameters.</td>
+      <td>PDO <span class="path">prepare</span> / <span class="path">execute</span> throughout CRAD helpers and sidebar queries</td>
+    </tr>
+    <tr>
+      <td>HTML escaping</td>
+      <td>User-supplied titles and names render as text, not HTML.</td>
+      <td><span class="path">e()</span> → <span class="path">htmlspecialchars(..., ENT_QUOTES)</span></td>
+    </tr>
+    <tr>
+      <td>Secure file uploads</td>
+      <td>Chapter / clearance upload accepts PDF/DOC/images only; files are not directly executable from the web.</td>
+      <td><span class="path">includes/uploads.php</span>: MIME + extension whitelist, random stored names, <span class="path">storage/uploads/.htaccess</span> Deny from all</td>
+    </tr>
+    <tr>
+      <td>Secrets encryption at rest</td>
+      <td>System Settings stores Turnstile / SMTP secrets; they are not shown in plaintext after save.</td>
+      <td><span class="path">includes/crypto.php</span> AES-256-GCM; TOTP secrets in <span class="path">sms2_user_authenticators</span></td>
+    </tr>
+    <tr>
+      <td>Activity audit log</td>
+      <td>Super Admin → Activity Logs; also Security Settings module logs. Failed logins are recorded.</td>
+      <td><span class="path">logActivity()</span> → <span class="path">sms2_activity_logs</span> (user, role, action, IP, user agent)</td>
+    </tr>
+    <tr>
+      <td>Maintenance lock</td>
+      <td>Public users hit the maintenance page; admins use <span class="path">?access=admin</span>.</td>
+      <td><span class="path">smsEnforceSystemMaintenance()</span> / <span class="path">smsIsModuleInMaintenance()</span></td>
+    </tr>
+    <tr>
+      <td>Title approval integrity</td>
+      <td>Group is not official until three statuses and three signatures exist (Section 3).</td>
+      <td><span class="path">cradValidTitleApprovalWhereSql()</span></td>
+    </tr>
+    <tr>
+      <td>Grant sequential signatures</td>
+      <td>Approval Workflows: only the current office can YES/NO; NO returns the proposal.</td>
+      <td><span class="path">grantApprovalStepDefinitions()</span> and step-ownership checks</td>
+    </tr>
+    <tr>
+      <td>Password reset workflow</td>
+      <td>Staff request a reset; Super Admin approves in Module Security.</td>
+      <td><span class="path">sms2_password_reset_requests</span> (pending / approved / rejected)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>9. Limitation to disclose</h2>
+<div class="note">
+  The student sidebar “Research Forum paid” lock still uses a hardcoded sample payment list in <span class="path">includes/sidebar.php</span>, not a live ledger query. Do not claim that lock is production-complete unless it is wired to Payment History.
+</div>
+
+<p class="footer-note">End of document · SMS 2 · CRAD process, role navigation, and security proof · generated from repository analysis 23 September 2026</p>
+
+</body>
+</html>

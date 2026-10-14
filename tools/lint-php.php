@@ -1,6 +1,6 @@
 <?php
 $root = dirname(__DIR__);
-$php = 'C:\\xampp\\php\\php.exe';
+$php = (defined('PHP_BINARY') && PHP_BINARY !== '') ? PHP_BINARY : 'php';
 $errors = [];
 $it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root));
 foreach ($it as $file) {

@@ -1,0 +1,244 @@
+SMS 2 + CRAD — HostForge deploy checklist
+==========================================
+
+Same codebase as local. Only DB environment variables change.
+
+Prerequisites
+-------------
+- GitHub repo is up to date (origin/main has the prefixed single-DB code).
+- HostForge app is linked to the updated https://github.com/khnny/sms2-capstone repository.
+- HostForge MySQL/MariaDB addon is provisioned (one database).
+- You have the HostForge .env values (DB_HOST, DB_DATABASE, …).
+  NEVER commit that file or paste the real password into the repo.
+
+
+STEP 1 — Deploy code
+--------------------
+In HostForge:
+1. Connect / redeploy from GitHub branch `main`.
+2. Confirm the latest commit is live (should include config/tables.php
+   and database/migrate_to_single_prefixed.php).
+3. Document root should point at the project root (where index/login live),
+   not a nested obsolete folder.
+
+
+STEP 2 — Set environment variables (preferred)
+----------------------------------------------
+In HostForge → Environment Variables, set:
+
+  DB_CONNECTION=mysql
+  DB_HOST=<from HostForge .env — usually *.internal>
+  DB_PORT=3306
+  DB_DATABASE=hf_db_kn5x0oao
+  DB_USERNAME=<from HostForge .env>
+  DB_PASSWORD=<from HostForge .env>
+  DB_CHARSET=utf8mb4
+
+Optional (recommended for web migrate):
+  SMS2_DEPLOY_TOKEN=<long random secret you invent>
+
+Encryption key (REQUIRED to preserve existing encrypted SMS2 secrets):
+  SMS2_APP_KEY=<the exact existing application key, stored as a HostForge secret>
+
+The application reads its key in this order: a non-empty SMS2_APP_KEY constant
+in config/local.php; the SMS2_APP_KEY environment variable (then APP_KEY as a
+compatibility fallback); storage/keys/app.key; finally, it generates a key
+only when no key file exists.
+Set SMS2_APP_KEY explicitly in HostForge to the existing key. The Docker build
+intentionally excludes storage/keys/* and creates an empty runtime directory,
+so a key generated inside an ephemeral container is not a persistent key.
+Password changes do not rotate this key. Keep the same HostForge secret across
+password changes, logout/login, restarts, and redeployments. Key-file creation
+is serialized across concurrent requests; if an existing key file is unreadable
+or invalid, the application now reports an error instead of silently replacing
+it with a new key.
+When that key changes, AES-256-GCM cannot authenticate/decrypt existing
+sms2enc1 values (including encrypted TOTP, SMTP, and CAPTCHA secrets).
+
+Recover the original key only from the still-running container that encrypted
+the data, its persistent storage/volume, or a secure backup/secret manager.
+The generated app.key file contains the base64 representation of the 32-byte
+key and can be used as the SMS2_APP_KEY value. If the original key was supplied
+through configuration instead, preserve that exact original value. Do not
+generate a replacement, save the key in Git/SQL, or paste it into tickets/chat.
+After setting the value as a protected HostForge environment secret, restart or
+redeploy and leave that variable unchanged. Do not define a conflicting
+SMS2_APP_KEY constant in config/local.php because constants take precedence
+over environment variables.
+
+If the previous container, persistent key file, and secure backups are all
+gone, the key cannot be recovered from sms2enc1 ciphertext or from the
+database. Stop before changing encrypted values; retain the current database
+and escalate to the operator who may hold the old container or key backup.
+
+After configuring the key, verify a normal password login and, for an account
+with authenticator-based 2FA enabled, complete the existing TOTP login. Also
+test existing encrypted SMTP/CAPTCHA settings where configured. Repeat the
+checks after a container restart to verify the HostForge secret remains set.
+
+Optional SMTP (Gmail App Password):
+  SMS2_SMTP_USERNAME=your.account@gmail.com
+  SMS2_SMTP_PASSWORD=xxxxxxxxxxxxxxxx
+
+The SMTP environment variables override the stored SMTP configuration; they
+do not restore the encryption key and do not make existing TOTP or CAPTCHA
+ciphertexts decryptable.
+
+Optional live CAPTCHA (recommended):
+  SMS2_TURNSTILE_SITE_KEY=<Cloudflare Turnstile site key>
+  SMS2_TURNSTILE_SECRET_KEY=<Cloudflare Turnstile secret key>
+
+Add the exact production hostname to the Turnstile widget's hostname list.
+Environment variables take precedence over values saved in System Settings,
+so they remain usable after a container redeploy.
+
+Do NOT set a separate crad_db. CRAD uses the same DB automatically
+(CRAD_DB_NAME falls back to DB_DATABASE / DB_NAME).
+
+Optional explicit overrides (same value as DB_DATABASE):
+  CRAD_DB_NAME=hf_db_kn5x0oao
+  STUDENT_PORTAL_DB_NAME=hf_db_kn5x0oao
+  REPORTS_DB_NAME=hf_db_kn5x0oao
+  USERMGMT_DB_NAME=hf_db_kn5x0oao
+
+
+STEP 2b — Fallback if env vars are unavailable
+----------------------------------------------
+On the server only (not in Git):
+  copy config/local.hostforge.example.php → config/local.php
+  fill YOUR_* placeholders with real HostForge values
+  set SMS2_DEPLOY_TOKEN to a random secret
+
+config/local.php is gitignored — never commit it.
+
+
+STEP 3 — Backup HostForge DB
+----------------------------
+Before migrating, backup hf_db_kn5x0oao from HostForge / phpMyAdmin / CLI.
+
+
+STEP 4 — Create schema (choose ONE path)
+
+A) Empty HostForge database (fresh)
+   Web terminal / SSH:
+     php database/migrate.php
+
+   Or browser (if SMS2_DEPLOY_TOKEN is set):
+     https://YOUR-HOSTFORGE-URL/setup/deploy-db.php?token=YOUR_TOKEN
+     Click "Run database migration"
+
+   This applies sms2_* + crad_* dumps into DB_DATABASE.
+
+B) HostForge DB already has OLD unprefixed or sms_* tables
+   (users, sms_users, title_approvals, or mixed sms_* + crad_*)
+   Keep SMS2_RUN_MIGRATIONS=0 for the initial cutover. Run these commands
+   before enabling automatic startup migrations:
+   Web terminal / SSH:
+     php database/migrate_to_single_prefixed.php --dry-run
+     php database/migrate_to_single_prefixed.php
+     php database/tools/hostforge_repair.php
+     php database/migrate.php
+
+   The verified v3 upgrade adds missing columns without replacing users
+   or settings. Arbitrary partial imports still require schema repair;
+   replaying a full dump is not a data-preserving repair.
+
+After every release that adds a database migration, run `php database/migrate.php`
+again from the HostForge web terminal. The current release adds durable image
+storage for payment and signed-clearance uploads; this step is required before
+the release can accept new uploads. New images are stored in managed MySQL,
+so they survive container rebuilds and redeployments.
+
+
+STEP 4c — Repair HostForge schema drift (once after deploy)
+-----------------------------------------------------------
+Do not run the old patch one-liners separately. From the HostForge web
+terminal, once per deploy:
+
+  php database/tools/hostforge_repair.php
+
+That command applies every additive repair, in order:
+  - sms2_users.id primary key, then AUTO_INCREMENT (errors 1364 and 1075)
+  - sms2_users account columns the Add User form writes
+  - sms2_user_passkeys id AUTO_INCREMENT (and credential_id width)
+  - sms2_activity_logs id AUTO_INCREMENT
+  - research group flow tables and columns
+
+It does not drop tables, delete rows, or pass --fresh. Duplicate column,
+table, and key errors are skipped. The command ends with a short smoke
+check and prints Repair OK.
+
+
+STEP 5 — First admin
+--------------------
+Open:
+  https://YOUR-HOSTFORGE-URL/setup/
+
+Create the Super Admin (if users table is empty / no admin yet).
+
+If you imported local data that already has users, skip setup and log in
+with an existing account instead.
+
+
+STEP 6 — Verify
+---------------
+Web terminal (repair already smokes; this is the check alone):
+  php database/tools/smoke_single_db.php
+
+Expect:
+  DB_NAME=hf_db_kn5x0oao  CRAD_DB_NAME=hf_db_kn5x0oao  Same DB: yes
+  sms2_users count > 0 (after setup or data import)
+  Smoke OK
+
+Browser checks:
+  - Login / logout
+  - User Management
+  - CRAD title approvals / proposals / panels / grants
+  - No SQL errors about missing `users` or `crad_db`
+
+
+STEP 7 — Harden
+---------------
+- Remove SMS2_DEPLOY_TOKEN from env / local.php after migrate succeeds.
+- Confirm no real password is in any committed file.
+- Keep HostForge *.internal host — it only works from HostForge, not XAMPP.
+
+
+Local vs HostForge reminder
+---------------------------
+Local XAMPP:   DB_HOST=localhost   DB_DATABASE=sms2_db
+HostForge:     DB_HOST=*.internal  DB_DATABASE=hf_db_kn5x0oao
+
+Same PHP. Same sms2_* + crad_* tables. Config only.
+
+
+Troubleshooting
+---------------
+"Database unavailable"
+  → Env vars not injected, or DB_HOST is wrong for the container.
+
+"Unknown table users" / "sms2_users"
+  → Migration not run, or PHP code/DB prefix mismatch. Re-deploy latest main
+    then run migrate / migrate_to_single_prefixed.
+
+"Field 'id' doesn't have a default value" (1364)
+or "there can be only one auto column and it must be defined as a key" (1075)
+  → Partial import left a table id without a key or AUTO_INCREMENT.
+    Run php database/tools/hostforge_repair.php once. Do not apply the
+    database/patches/fix_*_autoincrement.sql files one by one.
+
+"sms2_db.users" errors
+  → Old code still deployed. Pull/redeploy latest main.
+
+Cannot connect from your PC to mariadb-*.internal
+  → Expected. Use HostForge terminal / phpMyAdmin, not local XAMPP.
+
+"SMTP password is missing or could not be decrypted"
+  → The configured application key differs from the key used to encrypt the DB
+    secret, or SMTP was never configured. Restore the original SMS2_APP_KEY
+    from the old container/persistent key/secure backup first if other stored
+    encrypted secrets must keep working. For SMTP-only recovery, set HostForge
+    env SMS2_SMTP_PASSWORD to the Gmail App Password (no spaces needed), then
+    Test email in System Settings. This does not repair encrypted TOTP/CAPTCHA
+    secrets. Also set smtp_host=smtp.gmail.com, port 587, TLS, and smtp_username
+    in System Settings if those are empty.

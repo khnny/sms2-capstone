@@ -8,7 +8,7 @@
 <script src="<?= BASE_URL ?>/assets/js/sms-icons.js?v=2"></script>
 <!-- SMS 2 App -->
 <?php if (empty($omitThemeJs)): ?>
-<script src="<?= BASE_URL ?>/assets/js/theme.js"></script>
+<script src="<?= BASE_URL ?>/assets/js/theme.js?v=2"></script>
 <?php endif; ?>
 <?php if (empty($omitAppChromeJs)): ?>
 <script src="<?= BASE_URL ?>/assets/js/ph-clock.js"></script>
@@ -18,6 +18,20 @@
 <script src="<?= BASE_URL ?>/assets/js/sms-security-ui.js?v=6"></script>
 <!-- Global Search -->
 <script src="<?= BASE_URL ?>/assets/js/search.js?v=3"></script>
+<?php
+    $idleMinutes = 2;
+    if (function_exists('smsSetting')) {
+        $idleMinutes = max(1, (int) smsSetting('session_timeout_minutes', '2'));
+    }
+    $idleSeconds = $idleMinutes * 60;
+?>
+<script>
+window.SMS_IDLE_LOGOUT = {
+    idleSeconds: <?= (int) $idleSeconds ?>,
+    logoutUrl: <?= json_encode(BASE_URL . '/login/logout.php?timeout=1', JSON_UNESCAPED_SLASHES) ?>
+};
+</script>
+<script src="<?= BASE_URL ?>/assets/js/idle-logout.js?v=1"></script>
 <?php endif; ?>
 
 <?php 

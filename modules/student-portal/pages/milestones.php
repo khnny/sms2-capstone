@@ -79,7 +79,7 @@ try {
         
         $updateStmt = $crad->prepare("
             SELECT id, update_title, submitted_at, submitted_by_name
-            FROM crad_research_progress_updates 
+            FROM `crad_research_progress_updates` 
             WHERE milestone_id = ? 
             ORDER BY submitted_at DESC 
             LIMIT 1

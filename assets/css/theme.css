@@ -12,11 +12,11 @@
     color-scheme: light;
 
     /* Brand blues */
-    --sms-primary:         #1e40af;
-    --sms-primary-dark:    #1e3a8a;
-    --sms-primary-light:   #3b82f6;
-    --sms-primary-xlight:  #dbeafe;
-    --sms-accent:          #0ea5e9;
+    --sms-primary:         #17477f;
+    --sms-primary-dark:    #123660;
+    --sms-primary-light:   #3477ba;
+    --sms-primary-xlight:  #eaf2fb;
+    --sms-accent:          #5595cf;
 
     /* Status accents */
     --sms-success:         #16a34a;
@@ -25,20 +25,20 @@
     --sms-info:            #0284c7;
 
     /* Sidebar */
-    --sms-sidebar-bg:      #f1f5fb;
-    --sms-sidebar-hover:   rgba(30, 64, 175, 0.10);
-    --sms-sidebar-active:  rgba(30, 64, 175, 0.16);
-    --sms-sidebar-border:  #dbe3f0;
-    --sms-sidebar-text:    #0f172a;
-    --sms-sidebar-text-muted: #334155;
-    --sms-sidebar-icon:    #1e40af;
-    --sms-sidebar-active-accent: #1e40af;
+    --sms-sidebar-bg:      #ffffff;
+    --sms-sidebar-hover:   #f1f5fa;
+    --sms-sidebar-active:  #e8f0fa;
+    --sms-sidebar-border:  #e5eaf0;
+    --sms-sidebar-text:    #1e293b;
+    --sms-sidebar-text-muted: #667085;
+    --sms-sidebar-icon:    #55708e;
+    --sms-sidebar-active-accent: #17477f;
     --sms-sidebar-width:   262px;
     --sms-sidebar-collapsed-width: 76px;
 
     /* Layout */
     --sms-navbar-height:   56px;
-    --sms-body-bg:         #f4f7fb;
+    --sms-body-bg:         #f5f7fa;
     --sms-body-bg-image:   none;
 
     /* Surfaces (solid academic) */
@@ -50,15 +50,15 @@
     --sms-glass-border:    #e2e8f0;
 
     /* Text */
-    --sms-text:            #334155;
-    --sms-text-strong:     #0f172a;
-    --sms-text-muted:      #64748b;
-    --sms-text-faint:      #94a3b8;
-    --sms-heading:         #0f172a;
+    --sms-text:            #475467;
+    --sms-text-strong:     #172b4d;
+    --sms-text-muted:      #667085;
+    --sms-text-faint:      #98a2b3;
+    --sms-heading:         #172b4d;
 
     /* Elevation & chrome */
-    --sms-border:          #e2e8f0;
-    --sms-border-soft:     rgba(226,232,240,0.85);
+    --sms-border:          #e5eaf0;
+    --sms-border-soft:     #edf0f4;
     --sms-shadow-xs:       0 1px 3px rgba(15,33,88,0.07);
     --sms-shadow-sm:       0 2px 8px rgba(15,33,88,0.09);
     --sms-shadow-md:       0 4px 18px rgba(15,33,88,0.11);
@@ -82,9 +82,9 @@
     --sms-dropdown-shadow: 0 8px 28px rgba(15,33,88,0.16);
 
     /* Navbar */
-    --sms-navbar-bg:       linear-gradient(90deg, #0f1f5c 0%, #1e3a8a 55%, #1e40af 100%);
-    --sms-navbar-border:   rgba(255,255,255,0.07);
-    --sms-navbar-shadow:   0 2px 16px rgba(10,20,70,0.28);
+    --sms-navbar-bg:       #ffffff;
+    --sms-navbar-border:   #e6eaf0;
+    --sms-navbar-shadow:   0 1px 3px rgba(16,24,40,0.04);
 
     /* Charts */
     --sms-chart-grid:      rgba(15,33,88,0.06);
@@ -100,9 +100,37 @@
     --sms-surface-padding: 1.15rem;
     --sms-surface-gap:     1rem;
     --sms-transition:      all 0.22s ease;
-    --sms-hover-tint:      linear-gradient(160deg, #f0f5ff 0%, #e8f0ff 100%);
+    --sms-hover-tint:      linear-gradient(160deg, #f4f7fb 0%, #eaf2fb 100%);
     --sms-placeholder-bg:  #dbeafe;
     --sms-highlight:       #fef08a;
+
+    --bg-primary: var(--sms-body-bg);
+    --bg-secondary: var(--sms-surface-muted);
+    --bg-surface: var(--sms-surface);
+    --bg-elevated: var(--sms-surface-elevated);
+    --text-primary: var(--sms-text-strong);
+    --text-secondary: var(--sms-text);
+    --text-muted: var(--sms-text-muted);
+    --border-color: var(--sms-border);
+    --border-subtle: var(--sms-border-soft);
+    --primary-color: var(--sms-primary);
+    --primary-hover: var(--sms-primary-dark);
+    --button-text: #ffffff;
+    --input-bg: var(--sms-input-bg);
+    --input-border: var(--sms-input-border);
+    --sidebar-bg: var(--sms-sidebar-bg);
+    --sidebar-text: var(--sms-sidebar-text);
+    --sidebar-active: var(--sms-sidebar-active);
+    --navbar-bg: var(--sms-navbar-bg);
+    --navbar-text: #344054;
+    --card-bg: var(--sms-surface);
+    --modal-bg: var(--sms-surface-elevated);
+    --link-color: var(--sms-primary);
+    --icon-color: var(--sms-sidebar-icon);
+    --success: var(--sms-success);
+    --warning: var(--sms-warning);
+    --danger: var(--sms-danger);
+    --info: var(--sms-info);
 }
 
 /* ============================================================
@@ -114,7 +142,7 @@
     --sms-primary:         #60a5fa;
     --sms-primary-dark:    #3b82f6;
     --sms-primary-light:   #93c5fd;
-    --sms-primary-xlight:  rgba(59,130,246,0.18);
+    --sms-primary-xlight:  rgba(96,165,250,0.14);
     --sms-accent:          #38bdf8;
 
     --sms-success:         #34d399;
@@ -122,10 +150,10 @@
     --sms-danger:          #f87171;
     --sms-info:            #38bdf8;
 
-    --sms-sidebar-bg:      #070d1a;
-    --sms-sidebar-hover:   rgba(255,255,255,0.10);
-    --sms-sidebar-active:  rgba(96,165,250,0.20);
-    --sms-sidebar-border:  rgba(255,255,255,0.08);
+    --sms-sidebar-bg:      #0f172a;
+    --sms-sidebar-hover:   rgba(148,163,184,0.10);
+    --sms-sidebar-active:  rgba(96,165,250,0.18);
+    --sms-sidebar-border:  rgba(148,163,184,0.16);
     --sms-sidebar-text:    #f8fafc;
     --sms-sidebar-text-muted: #cbd5e1;
     --sms-sidebar-icon:    #93c5fd;
@@ -168,17 +196,45 @@
     --sms-dropdown-border: rgba(148,163,184,0.16);
     --sms-dropdown-shadow: 0 12px 40px rgba(0,0,0,0.5);
 
-    --sms-navbar-bg:       linear-gradient(90deg, rgba(8,14,32,0.92) 0%, rgba(15,30,70,0.90) 55%, rgba(20,40,90,0.88) 100%);
-    --sms-navbar-border:   rgba(255,255,255,0.08);
+    --sms-navbar-bg:       #111c2e;
+    --sms-navbar-border:   rgba(148,163,184,0.16);
     --sms-navbar-shadow:   0 2px 20px rgba(0,0,0,0.45);
 
     --sms-chart-grid:      rgba(148,163,184,0.12);
     --sms-chart-text:      #94a3b8;
     --sms-chart-doughnut-border: #121c34;
 
-    --sms-hover-tint:      linear-gradient(160deg, rgba(59,130,246,0.16) 0%, rgba(14,165,233,0.10) 100%);
+    --sms-hover-tint:      linear-gradient(160deg, rgba(96,130,180,0.16) 0%, rgba(14,165,233,0.10) 100%);
     --sms-placeholder-bg:  rgba(59,130,246,0.22);
     --sms-highlight:       rgba(250,204,21,0.35);
+
+    --bg-primary: var(--sms-body-bg);
+    --bg-secondary: var(--sms-surface-muted);
+    --bg-surface: var(--sms-surface);
+    --bg-elevated: var(--sms-surface-elevated);
+    --text-primary: var(--sms-text-strong);
+    --text-secondary: var(--sms-text);
+    --text-muted: var(--sms-text-muted);
+    --border-color: var(--sms-border);
+    --border-subtle: var(--sms-border-soft);
+    --primary-color: var(--sms-primary);
+    --primary-hover: var(--sms-primary-dark);
+    --button-text: #0b1224;
+    --input-bg: var(--sms-input-bg);
+    --input-border: var(--sms-input-border);
+    --sidebar-bg: var(--sms-sidebar-bg);
+    --sidebar-text: var(--sms-sidebar-text);
+    --sidebar-active: var(--sms-sidebar-active);
+    --navbar-bg: var(--sms-navbar-bg);
+    --navbar-text: #e2e8f0;
+    --card-bg: var(--sms-surface);
+    --modal-bg: var(--sms-surface-elevated);
+    --link-color: var(--sms-primary-light);
+    --icon-color: var(--sms-sidebar-icon);
+    --success: var(--sms-success);
+    --warning: var(--sms-warning);
+    --danger: var(--sms-danger);
+    --info: var(--sms-info);
 }
 
 /* ============================================================
@@ -1632,27 +1688,35 @@ hr { border-color: var(--sms-border); opacity: 1; }
    Theme toggle button
    ============================================================ */
 .theme-toggle {
-    width: 34px;
-    height: 34px;
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    min-height: 40px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border-radius: 8px;
-    border: 1px solid rgba(255,255,255,0.18);
-    background: rgba(255,255,255,0.10);
-    color: rgba(255,255,255,0.9) !important;
+    border-radius: 10px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+    color: var(--navbar-text);
     padding: 0;
-    transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+    transition: color 0.18s ease, background 0.18s ease, border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
 }
 .theme-toggle:hover {
-    background: rgba(255,255,255,0.18);
-    border-color: rgba(255,255,255,0.35);
-    color: #fff !important;
+    background: var(--sms-dropdown-hover);
+    border-color: var(--primary-color);
+    color: var(--link-color);
     transform: translateY(-1px);
 }
 .theme-toggle:focus-visible {
-    outline: 2px solid rgba(147,197,253,0.7);
+    outline: 3px solid var(--sms-input-focus);
     outline-offset: 2px;
+}
+.theme-toggle .ti {
+   width: 1.15rem;
+   height: 1.15rem;
+   font-size: 1.15rem;
+   line-height: 1;
 }
 .theme-toggle .theme-icon-sun { display: none; }
 .theme-toggle .theme-icon-moon { display: inline-block; }
@@ -1672,7 +1736,6 @@ hr { border-color: var(--sms-border); opacity: 1; }
     align-items: center;
     justify-content: center;
     padding: 0;
-    color-scheme: light;
     transition: none !important;
 }
 .login-shell {
@@ -1814,11 +1877,6 @@ hr { border-color: var(--sms-border); opacity: 1; }
 }
 .auth-card .sms-otp-hint {
     text-align: center;
-}
-
-.login-page,
-.welcome-page {
-    color-scheme: light !important;
 }
 
 /* ============================================================

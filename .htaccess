@@ -8,6 +8,12 @@ RewriteRule ^images/ - [L]
 
 RewriteRule ^up$ up.php [END]
 
+# Keep deployment schemas and configuration files server-side only.
+RewriteRule ^(?:database|tools)(?:/|$) - [F,L,NC]
+RewriteRule ^modules/[^/]+/database(?:/|$) - [F,L,NC]
+RewriteRule \.(?:sql|bak|env)$ - [F,L,NC]
+RewriteRule ^config/local(?:\..*)?\.php$ - [F,L,NC]
+
 <IfModule mod_headers.c>
     Header set X-Content-Type-Options "nosniff"
     Header set X-Frame-Options "SAMEORIGIN"
@@ -15,10 +21,10 @@ RewriteRule ^up$ up.php [END]
 </IfModule>
 
 <IfModule mod_php.c>
-    php_value post_max_size 24M
-    php_value upload_max_filesize 24M
+    php_value post_max_size 16M
+    php_value upload_max_filesize 16M
 </IfModule>
 <IfModule mod_php8.c>
-    php_value post_max_size 24M
-    php_value upload_max_filesize 24M
+    php_value post_max_size 16M
+    php_value upload_max_filesize 16M
 </IfModule>

@@ -1270,23 +1270,24 @@ html[data-theme="dark"] .login-glass .sms-cf-widget.is-verified {
                     <label for="username" class="form-label">Email or username <span class="login-req">*</span></label>
                     <div class="input-group">
                         <input type="text" class="form-control" id="username" name="username"
-                               placeholder="Email or username" value="<?= e($usernameValue) ?>" autocomplete="username">
+                               placeholder="Email or username" value="<?= e($usernameValue) ?>" autocomplete="off">
                     </div>
                 </div>
                 <div class="mb-4">
                     <label for="password" class="form-label">Password <span class="login-req">*</span></label>
                     <div class="input-group password-group">
                         <input type="password" class="form-control" id="password" name="password"
-                               placeholder="Enter your password" autocomplete="current-password">
+                               placeholder="Enter your password" autocomplete="new-password">
                     </div>
                 </div>
                 <button type="button" class="btn btn-secondary w-100" disabled>Sign In unavailable</button>
             </fieldset>
             <div class="login-links">
                 <a href="<?= BASE_URL ?>/login/forgot-password.php" data-auth-transition data-auth-direction="left">Forgot password?</a>
+                <a class="panelist-apply-link" href="<?= e(BASE_URL . '/login/panelist-application.php') ?>">Apply as Research Panelist</a>
             </div>
         <?php else: ?>
-        <form method="POST" action="" novalidate id="loginForm">
+        <form method="POST" action="" novalidate id="loginForm" autocomplete="off">
             <?= csrfField() ?>
             <?php if ($adminAccess): ?>
             <input type="hidden" name="admin_access" value="1">
@@ -1296,7 +1297,7 @@ html[data-theme="dark"] .login-glass .sms-cf-widget.is-verified {
                 <div class="input-group">
                     <input type="text" class="form-control" id="username" name="username"
                            placeholder="Email or username" required autofocus
-                           value="<?= e($usernameValue) ?>" autocomplete="username"
+                           value="<?= e($usernameValue) ?>" autocomplete="off"
                            aria-describedby="usernameError">
                 </div>
                 <div class="login-field-error" id="usernameError" role="alert">Email or username is required.</div>
@@ -1305,7 +1306,7 @@ html[data-theme="dark"] .login-glass .sms-cf-widget.is-verified {
                 <label for="password" class="form-label">Password <span class="login-req">*</span></label>
                 <div class="input-group password-group">
                     <input type="password" class="form-control" id="password" name="password"
-                           placeholder="Enter your password" required autocomplete="current-password"
+                           placeholder="Enter your password" required autocomplete="new-password"
                            aria-describedby="passwordError">
                     <button class="password-toggle" type="button" aria-label="Show password" title="Show password" data-pw-target="password" aria-pressed="false">
                         <?= smsIcon('eye') ?>
@@ -1331,9 +1332,10 @@ html[data-theme="dark"] .login-glass .sms-cf-widget.is-verified {
             </button>
             <div class="login-links">
                 <a href="<?= BASE_URL ?>/login/forgot-password.php" data-auth-transition data-auth-direction="left">Forgot password?</a>
+                <a class="panelist-apply-link" href="<?= e(BASE_URL . '/login/panelist-application.php') ?>">Apply as Research Panelist</a>
             </div>
         </form>
-        <script src="<?= BASE_URL ?>/assets/js/passkey.js?v=10"></script>
+        <script src="<?= BASE_URL ?>/assets/js/passkey.js?v=12"></script>
         <?php endif; ?>
     </div>
     <aside class="login-side" aria-label="Student admission">

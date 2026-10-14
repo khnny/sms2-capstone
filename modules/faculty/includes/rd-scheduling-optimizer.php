@@ -5,6 +5,8 @@
  */
 declare(strict_types=1);
 
+require_once ROOT_PATH . '/includes/openai-client.php';
+
 /**
  * @return array{ok: bool, slots?: list<array<string, mixed>>, summary?: string, message?: string, meta?: array<string, mixed>}
  */
@@ -52,7 +54,7 @@ function rdScheduleGenerateOptimizedSlots(
 
     $venues = $pdo->query(
         "SELECT id, venue_name, capacity, venue_type, status
-           FROM crad_research_venues
+           FROM `crad_research_venues`
           WHERE LOWER(status) = 'available'
             AND capacity >= " . (int) $expectedAttendees . "
           ORDER BY capacity ASC, venue_name ASC"
@@ -72,6 +74,7 @@ function rdScheduleGenerateOptimizedSlots(
         date('Y-m-d', $endTs),
         $defenseType
     );
+    $panelRows = function_exists('rdSchedulePanelRows') ? rdSchedulePanelRows($pdo, $groupId) : [];
 
     // Varied start hours so options are not all 09:00.
     $startHours = [8, 9, 10, 11, 13, 14, 15];
@@ -79,6 +82,7 @@ function rdScheduleGenerateOptimizedSlots(
     $evaluated = 0;
     $hourLoadCache = [];
     $dayVenueLoadCache = [];
+    $availabilityRejected = [];
 
     for ($dayTs = $startTs; $dayTs <= $endTs; $dayTs += 86400) {
         $weekday = (int) date('N', $dayTs);
@@ -102,6 +106,13 @@ function rdScheduleGenerateOptimizedSlots(
             $endTime = date('H:i', $slotEndTs);
             $startAt = date('Y-m-d H:i:s', $slotStartTs);
             $endAt = date('Y-m-d H:i:s', $slotEndTs);
+            $unavailablePanels = rdScheduleAiPanelsOutsideAvailability($panelRows, $date, $startTime, $endTime);
+            if ($unavailablePanels !== []) {
+                foreach ($unavailablePanels as $panelName) {
+                    $availabilityRejected[$panelName] = true;
+                }
+                continue;
+            }
 
             $hourKey = $date . '|' . $startTime;
             if (!isset($hourLoadCache[$hourKey])) {
@@ -169,9 +180,12 @@ function rdScheduleGenerateOptimizedSlots(
     }
 
     if ($candidates === []) {
+        $availabilityMessage = $availabilityRejected !== []
+            ? ' Weekly availability windows exclude these panelists from candidate times: ' . implode(', ', array_keys($availabilityRejected)) . '.'
+            : '';
         return [
             'ok' => false,
-            'message' => 'No free slots found in this period for this adviser, panel, and venue set. Try a wider date range or fewer expected attendees.',
+            'message' => 'No free slots found in this period for this adviser, panel, and venue set.' . $availabilityMessage . ' Try a wider date range or fewer expected attendees.',
             'meta' => ['candidates_evaluated' => $evaluated],
         ];
     }
@@ -181,6 +195,8 @@ function rdScheduleGenerateOptimizedSlots(
         static fn(array $a, array $b): int => ($b['score'] <=> $a['score']) ?: strcmp((string) $a['start_at'], (string) $b['start_at'])
     );
 
+    $recommendation = rdScheduleAiRankValidCandidates($candidates, $slotCount, $defenseType);
+    $candidates = $recommendation['candidates'];
     $picked = rdSchedulePickDiverseSlots($candidates, $slotCount);
 
     $venueNames = array_unique(array_map(static fn(array $s): string => (string) ($s['venue_name'] ?? ''), $picked));
@@ -189,11 +205,13 @@ function rdScheduleGenerateOptimizedSlots(
     return [
         'ok' => true,
         'slots' => $picked,
-        'summary' => 'AI scanned ' . number_format($evaluated) . ' live combinations and picked '
+        'summary' => 'CRAD rules evaluated ' . number_format($evaluated) . ' live combinations and selected '
             . count($picked) . ' different free slots'
             . (count($venueNames) > 1 ? ' across ' . count($venueNames) . ' venues' : '')
             . (count($times) > 1 ? ' and ' . count($times) . ' start times' : '')
-            . '.',
+            . ($recommendation['applied']
+                ? '. GPT-4.1 ranked only rule-validated options; the CRAD Officer retains final scheduling authority.'
+                : '. GPT-4.1 recommendations are unavailable; the CRAD rule-based ranking is shown. The CRAD Officer retains final scheduling authority.'),
         'meta' => [
             'candidates_evaluated' => $evaluated,
             'candidates_valid' => count($candidates),
@@ -202,8 +220,148 @@ function rdScheduleGenerateOptimizedSlots(
             'period_end' => date('Y-m-d', $endTs),
             'venues_used' => array_values($venueNames),
             'times_used' => array_values($times),
+            'recommendation_source' => $recommendation['applied'] ? 'openai_gpt_4_1' : 'crad_rules',
         ],
     ];
+}
+
+/**
+ * A configured weekly window must contain the entire defense duration.
+ * Empty windows preserve status-only behavior for availability records created
+ * before weekly windows were introduced.
+ *
+ * @param list<array<string, mixed>> $panelRows
+ * @return list<string>
+ */
+function rdScheduleAiPanelsOutsideAvailability(array $panelRows, string $date, string $startTime, string $endTime): array
+{
+    $day = date('l', strtotime($date) ?: 0);
+    $unavailable = [];
+    foreach ($panelRows as $panel) {
+        $raw = trim((string) ($panel['availability_windows_json'] ?? ''));
+        if ($raw === '') {
+            continue;
+        }
+        $windows = json_decode($raw, true);
+        $fits = false;
+        if (is_array($windows) && isset($windows[$day]) && is_array($windows[$day])) {
+            foreach ($windows[$day] as $window) {
+                if (!is_array($window)) {
+                    continue;
+                }
+                $windowStart = (string) ($window['start'] ?? '');
+                $windowEnd = (string) ($window['end'] ?? '');
+                if (preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/', $windowStart)
+                    && preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/', $windowEnd)
+                    && $windowEnd > $windowStart
+                    && $windowStart <= $startTime
+                    && $windowEnd >= $endTime
+                ) {
+                    $fits = true;
+                    break;
+                }
+            }
+        }
+        if (!$fits) {
+            $name = trim((string) ($panel['panel_name'] ?? 'Panel member'));
+            $unavailable[$name] = true;
+        }
+    }
+
+    return array_keys($unavailable);
+}
+
+/**
+ * Ask GPT-4.1 to rank only already-valid CRAD candidates. Any unknown, duplicate,
+ * or malformed references are discarded and the deterministic order is retained.
+ *
+ * @param list<array<string, mixed>> $candidates
+ * @return array{applied: bool, candidates: list<array<string, mixed>>}
+ */
+function rdScheduleAiRankValidCandidates(array $candidates, int $slotCount, string $defenseType): array
+{
+    foreach ($candidates as $index => &$candidate) {
+        $candidate['candidate_ref'] = $index + 1;
+    }
+    unset($candidate);
+
+    $shortlist = array_slice($candidates, 0, 30);
+    $publicCandidates = array_map(static fn(array $candidate): array => [
+        'candidate_ref' => (int) $candidate['candidate_ref'],
+        'date' => (string) $candidate['date'],
+        'start_time' => (string) $candidate['start_time'],
+        'end_time' => (string) $candidate['end_time'],
+        'venue' => (string) $candidate['venue_name'],
+        'capacity' => (int) $candidate['capacity'],
+        'expected_headroom' => (int) $candidate['headroom'],
+        'day_load' => (int) $candidate['day_load'],
+        'hour_load' => (int) $candidate['hour_load'],
+        'crad_rule_score' => (int) $candidate['score'],
+    ], $shortlist);
+    $payload = json_encode($publicCandidates, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
+    if (!is_string($payload)) {
+        return ['applied' => false, 'candidates' => $candidates];
+    }
+    $result = smsOpenAiJsonCompletion(
+        'You are an advisory scheduling recommender. Rank only the supplied CRAD-validated candidate references. Never propose a new date, time, venue, or reference. CRAD rules and staff authority are final.',
+        'Recommend up to ' . max(1, min(3, $slotCount)) . ' diverse options for a ' . $defenseType
+            . ' defense. Consider balanced workload, practical time, venue capacity, and diversity. Return JSON with "ranked_candidate_refs" as an ordered array of integer references and "reasons" as an array of objects with candidate_ref and a concise reason. Candidates: ' . $payload,
+        1200
+    );
+    if (empty($result['ok']) || !is_array($result['data']['ranked_candidate_refs'] ?? null)) {
+        return ['applied' => false, 'candidates' => $candidates];
+    }
+
+    $byRef = [];
+    foreach ($shortlist as $candidate) {
+        $byRef[(int) $candidate['candidate_ref']] = $candidate;
+    }
+    $reasonByRef = [];
+    foreach (is_array($result['data']['reasons'] ?? null) ? $result['data']['reasons'] : [] as $reason) {
+        if (!is_array($reason)) {
+            continue;
+        }
+        $ref = (int) ($reason['candidate_ref'] ?? 0);
+        $text = trim(strip_tags((string) ($reason['reason'] ?? '')));
+        if (isset($byRef[$ref]) && $text !== '') {
+            $reasonByRef[$ref] = function_exists('mb_substr') ? mb_substr($text, 0, 240) : substr($text, 0, 240);
+        }
+    }
+    $ordered = [];
+    $seen = [];
+    foreach ($result['data']['ranked_candidate_refs'] as $rawRef) {
+        if (!is_int($rawRef) && !(is_string($rawRef) && ctype_digit($rawRef))) {
+            continue;
+        }
+        $ref = (int) $rawRef;
+        if (!isset($byRef[$ref]) || isset($seen[$ref])) {
+            continue;
+        }
+        $seen[$ref] = true;
+        $candidate = $byRef[$ref];
+        if (isset($reasonByRef[$ref])) {
+            $candidate['reason'] = 'GPT-4.1 recommendation: ' . $reasonByRef[$ref];
+        }
+        $ordered[] = $candidate;
+    }
+    if ($ordered === []) {
+        return ['applied' => false, 'candidates' => $candidates];
+    }
+    foreach ($shortlist as $candidate) {
+        $ref = (int) $candidate['candidate_ref'];
+        if (!isset($seen[$ref])) {
+            $ordered[] = $candidate;
+        }
+    }
+    foreach (array_slice($candidates, count($shortlist)) as $candidate) {
+        $ordered[] = $candidate;
+    }
+    foreach ($ordered as $index => &$candidate) {
+        $candidate['recommendation_rank'] = $index + 1;
+    }
+    unset($candidate);
+
+    return ['applied' => true, 'candidates' => $ordered];
 }
 
 /**
@@ -242,7 +400,9 @@ function rdScheduleAiReadinessGate(PDO $pdo, int $groupId, string $defenseType):
 
 /**
  * Load live busy windows once for the period (venues + adviser + panel + other groups).
- * Own-group proposed/selected rows are ignored so Generate can re-suggest better options.
+ * Own-group proposed/selected rows for the *current* defense type are ignored so Generate
+ * can re-suggest better options. Own-group official schedules (any type) stay busy so
+ * Final Defense cannot overlap a finalized Pre-Oral (and vice versa).
  *
  * @return list<array<string, mixed>>
  */
@@ -266,8 +426,8 @@ function rdScheduleAiBusyBlocks(PDO $pdo, int $groupId, string $periodStart, str
                    END AS is_own_group,
                    CASE
                      WHEN EXISTS (
-                        SELECT 1 FROM crad_research_adviser_assignments aa_new
-                        JOIN crad_research_adviser_assignments aa_old
+                        SELECT 1 FROM `crad_research_adviser_assignments` aa_new
+                        JOIN `crad_research_adviser_assignments` aa_old
                           ON aa_old.adviser_user_id = aa_new.adviser_user_id
                          AND aa_old.adviser_user_id IS NOT NULL
                          AND aa_old.research_group_id = rds.research_group_id
@@ -278,8 +438,8 @@ function rdScheduleAiBusyBlocks(PDO $pdo, int $groupId, string $periodStart, str
                    END AS shares_adviser,
                    CASE
                      WHEN EXISTS (
-                        SELECT 1 FROM crad_research_panel_assignments pa_new
-                        JOIN crad_research_panel_assignments pa_old
+                        SELECT 1 FROM `crad_research_panel_assignments` pa_new
+                        JOIN `crad_research_panel_assignments` pa_old
                           ON pa_old.panel_user_id = pa_new.panel_user_id
                          AND pa_old.research_group_id = rds.research_group_id
                          AND {$panelActive}
@@ -287,12 +447,16 @@ function rdScheduleAiBusyBlocks(PDO $pdo, int $groupId, string $periodStart, str
                           AND {$panelActiveNew}
                      ) THEN 1 ELSE 0
                    END AS shares_panel
-            FROM crad_research_defense_schedules rds
+            FROM `crad_research_defense_schedules` rds
             {$join}
             WHERE rds.defense_datetime IS NOT NULL
               AND LOWER(rds.status) IN ('proposed', 'selected', 'scheduled', 'finalized', 'final')
               AND DATE(rds.defense_datetime) BETWEEN :pstart AND :pend
-              AND rds.research_group_id <> :gid_skip";
+              AND NOT (
+                    rds.research_group_id = :gid_skip
+                AND LOWER(rds.status) IN ('proposed', 'selected')
+                AND LOWER(TRIM(COALESCE(rds.defense_type, ''))) = LOWER(:dtype_skip)
+              )";
 
     $stmt = $pdo->prepare($sql);
     $stmt->execute([
@@ -302,6 +466,7 @@ function rdScheduleAiBusyBlocks(PDO $pdo, int $groupId, string $periodStart, str
         ':pstart' => $periodStart,
         ':pend' => $periodEnd,
         ':gid_skip' => $groupId,
+        ':dtype_skip' => $defenseType,
     ]);
 
     return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
@@ -325,6 +490,9 @@ function rdScheduleAiHasConflict(array $blocks, int $groupId, int $venueId, stri
         }
         if (!($bStart < $end && $bEnd > $start)) {
             continue;
+        }
+        if (!empty($block['is_own_group'])) {
+            return true;
         }
         $blockVenue = (int) ($block['venue_id'] ?? 0);
         if ($blockVenue > 0 && $blockVenue === $venueId) {
@@ -387,7 +555,7 @@ function rdScheduleVenueDayLoad(PDO $pdo, int $venueId, string $date): int
     $join = function_exists('rdOfficialScheduleJoinSql') ? rdOfficialScheduleJoinSql() : '';
     $stmt = $pdo->prepare(
         "SELECT COUNT(*)
-           FROM crad_research_defense_schedules rds
+           FROM `crad_research_defense_schedules` rds
            {$join}
           WHERE rds.venue_id = ?
             AND DATE(rds.defense_datetime) = ?
@@ -434,6 +602,11 @@ function rdSchedulePickDiverseSlots(array $candidates, int $count): array
 
         foreach ($pool as $index => $candidate) {
             $quality = (float) ($candidate['score'] ?? 0);
+            if (isset($candidate['recommendation_rank'])) {
+                $maxRank = max(1, count($candidates) - 1);
+                $recommendationQuality = max(0, 100 - (((int) $candidate['recommendation_rank'] - 1) * 100 / $maxRank));
+                $quality = ($quality * 0.65) + ($recommendationQuality * 0.35);
+            }
             $diversity = rdScheduleDiversityBonus($candidate, $picked);
             if ($diversity < 0) {
                 continue;
@@ -542,25 +715,4 @@ function rdScheduleDiversityBonus(array $candidate, array $picked): float
     }
 
     return $score;
-}
-
-function rdScheduleCursorApiKey(): string
-{
-    if (defined('CURSOR_API_KEY') && CURSOR_API_KEY !== '') {
-        return (string) CURSOR_API_KEY;
-    }
-
-    $env = function_exists('sms2_env') ? sms2_env('CURSOR_API_KEY') : getenv('CURSOR_API_KEY');
-    if (is_string($env) && $env !== '') {
-        return $env;
-    }
-    $file = defined('ROOT_PATH') ? ROOT_PATH . '/storage/keys/cursor_api_key' : '';
-    if ($file !== '' && is_readable($file)) {
-        $raw = trim((string) file_get_contents($file));
-        if ($raw !== '') {
-            return $raw;
-        }
-    }
-
-    return '';
 }

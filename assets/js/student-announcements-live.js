@@ -37,15 +37,11 @@
             return;
         }
         if (emptyEl) emptyEl.hidden = true;
-        listEl.innerHTML = rows.map(function (row) {
-            var image = row.image_url
-                ? '<img class="student-ann-image" src="' + esc(row.image_url) + '" alt="">'
-                : '';
+        listEl.innerHTML = rows.slice(0, 3).map(function (row) {
             return '<article class="student-ann-item">'
                 + '<h3>' + esc(row.title) + '</h3>'
-                + image
                 + '<p>' + esc(row.body).replace(/\n/g, '<br>') + '</p>'
-                + '<small>' + esc(row.posted_by || 'Admin') + ' · ' + esc(row.posted_at || '') + '</small>'
+                + '<small>' + esc(row.posted_at || '') + '</small>'
                 + '</article>';
         }).join('');
     }

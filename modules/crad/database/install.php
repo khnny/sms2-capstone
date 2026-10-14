@@ -1,13 +1,14 @@
 <?php
 /**
  * CRAD Module — Database Installer
+ * Run this ONCE via browser: /sms2_system/modules/crad/database/install.php
+ * or via CLI:  php modules/crad/database/install.php
  *
- * Imports crad_* tables into the MAIN application database (DB_NAME / sms2_db).
- * Never creates a separate crad_db database.
- *
- * Prefer importing the combined dump: database/sms2_db.sql
- * Or this module extract: modules/crad/database/crad_db.sql (crad_* only).
+ * Creates CRAD tables (crad_*) inside CRAD_DB_NAME.
+ * Target architecture: CRAD_DB_NAME should equal the main SMS2 database
+ * (local: sms2_db, HostForge: hf_db_…).
  */
+
 declare(strict_types=1);
 
 require_once __DIR__ . '/../config/config.php';
@@ -33,7 +34,6 @@ $pass    = CRAD_DB_PASS;
 $dbName  = CRAD_DB_NAME;
 $charset = CRAD_DB_CHARSET;
 $sqlFile = __DIR__ . '/crad_db.sql';
-$unifiedWithMain = defined('DB_NAME') && DB_NAME === $dbName;
 
 if (!$isCli) {
     echo '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
@@ -46,17 +46,13 @@ if (!$isCli) {
         .err { background: #fee2e2; color: #991b1b; }
         .fin { background: #dbeafe; color: #1e40af; font-weight: 700; margin-top: 1.2rem; }
     </style></head><body>
-    <h1>CRAD Module — Database Installer</h1>';
-}
-
-if ($unifiedWithMain) {
-    out('Unified mode: installing into main DB `' . $dbName . '` (no separate crad_db).');
+    <h1>🔧 CRAD Module — Database Installer</h1>';
 }
 
 // ── Step 1: Connect without selecting a database ─────────────────────────────
 try {
     $pdo = new PDO(
-        'mysql:host=' . $host . ';port=' . CRAD_DB_PORT . ';charset=' . $charset,
+        'mysql:host=' . $host . ';charset=' . $charset,
         $user,
         $pass,
         [
@@ -71,9 +67,18 @@ try {
     exit(1);
 }
 
-// ── Step 2: Never create crad_db — always use the existing app database ───────
-out('Skipping CREATE DATABASE (unified sms2_db / DB_NAME only; no crad_db).');
-
+// ── Step 2: Create database ───────────────────────────────────────────────────
+try {
+    $pdo->exec(
+        'CREATE DATABASE IF NOT EXISTS `' . $dbName . '`
+         CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci'
+    );
+    out('Database `' . $dbName . '` ready (created or already existed)');
+} catch (PDOException $e) {
+    out('Failed to create database: ' . $e->getMessage(), false);
+    if (!$isCli) { echo '</body></html>'; }
+    exit(1);
+}
 
 // ── Step 3: Select database ───────────────────────────────────────────────────
 try {

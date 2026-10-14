@@ -1,0 +1,1799 @@
+/* Shared visual language inspired by the SMS2 academic portal prototype. */
+body.sms-app {
+    background: var(--bg-primary);
+    color: var(--text-secondary);
+    font-family: "Inter", "Segoe UI", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+}
+
+.sms-app .sms-navbar {
+    background: var(--sms-navbar-bg) !important;
+    border-bottom: 1px solid var(--sms-navbar-border);
+    box-shadow: var(--sms-navbar-shadow);
+}
+
+.sms-app .sms-navbar .navbar-brand,
+.sms-app .sms-navbar .navbar-ph-clock,
+.sms-app .sms-navbar .nav-link,
+.sms-app .sms-navbar .dropdown-toggle,
+.sms-app .sms-navbar .btn-link {
+    color: var(--navbar-text) !important;
+    -webkit-text-fill-color: currentColor;
+}
+
+.sms-app .sms-navbar .navbar-brand {
+    font-weight: 700;
+    letter-spacing: -0.02em;
+}
+
+.sms-app .sms-navbar .navbar-brand img {
+    height: 34px !important;
+}
+
+.sms-app .sms-navbar .sidebar-toggle,
+.sms-app .sms-navbar .btn-link:hover {
+    color: var(--link-color) !important;
+}
+
+.sms-app .sidebar-header {
+    min-height: 58px;
+    padding-inline: 1.15rem;
+    border-bottom-color: var(--sms-sidebar-border);
+}
+
+.sms-app .sidebar-nav {
+    padding: 0.75rem 0.7rem 1.25rem;
+}
+
+.sms-app .sidebar-nav > ul > .nav-item > .nav-link {
+    min-height: 42px;
+    border-radius: 9px;
+    font-size: 0.84rem;
+    font-weight: 550;
+}
+
+.sms-app #smsSidebar .sidebar-group-label {
+    margin: 1.05rem 0 0.35rem;
+}
+
+.sms-app #smsSidebar .sidebar-group-label:first-child {
+    margin-top: 0.2rem;
+}
+
+.sms-app #smsSidebar .sidebar-group-heading {
+    padding-inline: 0.75rem !important;
+    color: var(--sms-text-faint) !important;
+    font-size: 0.66rem !important;
+    font-weight: 750 !important;
+    letter-spacing: 0.09em !important;
+}
+
+.sms-app #smsSidebar.admin-sidebar-collapsible .admin-module-toggle {
+    min-height: 42px;
+    padding: 0.62rem 0.72rem !important;
+    border: 1px solid transparent;
+    border-radius: 9px;
+    background: transparent !important;
+    color: var(--sms-text) !important;
+    font-size: 0.83rem !important;
+    font-weight: 600 !important;
+}
+
+.sms-app #smsSidebar.admin-sidebar-collapsible .admin-module-toggle:hover {
+    background: var(--sms-sidebar-hover) !important;
+    color: var(--sms-primary) !important;
+}
+
+.sms-app #smsSidebar.admin-sidebar-collapsible .admin-module-toggle.active,
+.sms-app #smsSidebar.admin-sidebar-collapsible .admin-module-toggle[aria-expanded="true"] {
+    border-color: var(--sms-border);
+    background: var(--sms-sidebar-active) !important;
+    box-shadow: none !important;
+    color: var(--sms-primary) !important;
+}
+
+.sms-app #smsSidebar.admin-sidebar-collapsible .admin-module-toggle > i:first-child {
+    color: var(--sms-sidebar-icon) !important;
+}
+
+.sms-app #smsSidebar.admin-sidebar-collapsible .admin-module-toggle.active > i:first-child,
+.sms-app #smsSidebar.admin-sidebar-collapsible .admin-module-toggle[aria-expanded="true"] > i:first-child {
+    color: var(--sms-sidebar-active-accent) !important;
+}
+
+.sms-app #smsSidebar .sidebar-home-link {
+    border: 1px solid transparent;
+    background: transparent;
+}
+
+.sms-app #smsSidebar .sidebar-home-link.active {
+    border-color: var(--sms-border);
+    background: var(--sms-sidebar-active) !important;
+    box-shadow: none;
+    color: var(--sms-primary) !important;
+}
+
+.sms-app .sidebar-nav > ul > .nav-item > .nav-link.active,
+.sms-app .sidebar-submenu .nav-link.active {
+    color: var(--sms-primary) !important;
+    background: var(--sms-sidebar-active);
+    box-shadow: none;
+    font-weight: 700;
+}
+
+.sms-app .sidebar-nav > ul > .nav-item > .nav-link.active > i:first-child,
+.sms-app .sidebar-submenu .nav-link.active i {
+    color: var(--sms-primary) !important;
+}
+
+.sms-app #smsSidebar .admin-module-body {
+    margin: 0.2rem 0 0.55rem;
+    padding: 0.25rem 0 0.2rem 0.55rem;
+    border-left: 1px solid var(--sms-border);
+}
+
+.sms-app #smsSidebar .admin-module-body > .nav > .nav-item:first-child {
+    margin-bottom: 0.4rem;
+    padding-bottom: 0.35rem;
+    border-bottom-color: var(--sms-border-soft);
+}
+
+.sms-app #smsSidebar .admin-module-body .sidebar-sub,
+.sms-app #smsSidebar .sidebar-submenu .nav-link {
+    min-height: 38px;
+    padding: 0.5rem 0.65rem !important;
+    border-radius: 8px;
+    color: var(--sms-sidebar-text-muted) !important;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.sms-app #smsSidebar .admin-module-body .sidebar-sub:hover,
+.sms-app #smsSidebar .sidebar-submenu .nav-link:hover {
+    background: var(--sms-sidebar-hover) !important;
+    color: var(--sms-primary) !important;
+}
+
+.sms-app #smsSidebar .admin-module-body .sidebar-sub.active,
+.sms-app #smsSidebar .sidebar-submenu .nav-link.active {
+    background: var(--sms-sidebar-active) !important;
+    color: var(--sms-primary) !important;
+    font-weight: 650;
+}
+
+.sms-app #smsSidebar .admin-module-body .sidebar-sub > i:first-child,
+.sms-app #smsSidebar .sidebar-submenu .nav-link > i:first-child {
+    color: var(--sms-sidebar-icon) !important;
+}
+
+.sms-app #smsSidebar .admin-module-body .sidebar-sub.active > i:first-child,
+.sms-app #smsSidebar .sidebar-submenu .nav-link.active > i:first-child {
+    color: var(--sms-sidebar-active-accent) !important;
+}
+
+.sms-app .sms-main {
+    width: min(1480px, 100%);
+    margin-inline: auto;
+    padding: clamp(1.15rem, 2.5vw, 2rem);
+}
+
+.sms-app .page-header {
+    margin-bottom: 1.35rem;
+}
+
+.sms-app .page-header h1,
+.sms-app .student-portal-header h1 {
+    color: var(--sms-heading);
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: clamp(1.55rem, 2.6vw, 2rem);
+    font-weight: 500;
+    letter-spacing: -0.035em;
+    line-height: 1.15;
+}
+
+.sms-app .page-header p {
+    color: var(--sms-text-muted);
+}
+
+.sms-app .card,
+.sms-app .academic-notices-panel,
+.sms-app .module-card {
+    border: 1px solid var(--sms-border);
+    border-radius: var(--sms-surface-radius);
+    background: var(--sms-surface-solid);
+    box-shadow: var(--sms-shadow-xs);
+}
+
+.sms-app .glass-dashboard {
+    color: var(--sms-text);
+    font-family: "Inter", "Segoe UI", Arial, sans-serif;
+}
+
+.sms-app .glass-board {
+    gap: 1rem;
+}
+
+.sms-app .glass-panel {
+    border: 1px solid var(--sms-border);
+    border-radius: var(--sms-surface-radius);
+    background: var(--sms-surface-solid);
+    box-shadow: var(--sms-shadow-xs);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+
+.sms-app .glass-panel:hover {
+    border-color: var(--sms-primary-light);
+    box-shadow: var(--sms-shadow-sm);
+    transform: translateY(-1px);
+}
+
+.sms-app .glass-panel-title {
+    color: var(--sms-heading);
+    font-family: "Inter", "Segoe UI", Arial, sans-serif;
+    font-weight: 700;
+}
+
+.sms-app .badge-sms {
+    border: 1px solid transparent;
+    border-radius: 999px;
+    padding: 0.24rem 0.58rem;
+    font-weight: 650;
+}
+
+.sms-app .badge.bg-success,
+.sms-app .badge.text-bg-success {
+    border: 1px solid color-mix(in srgb, var(--sms-success) 32%, var(--sms-surface));
+    background-color: color-mix(in srgb, var(--sms-success) 10%, var(--sms-surface)) !important;
+    color: var(--sms-success) !important;
+}
+
+.sms-app .badge.bg-warning,
+.sms-app .badge.text-bg-warning {
+    border: 1px solid color-mix(in srgb, var(--sms-warning) 32%, var(--sms-surface));
+    background-color: color-mix(in srgb, var(--sms-warning) 10%, var(--sms-surface)) !important;
+    color: var(--sms-warning) !important;
+}
+
+.sms-app .badge.bg-danger,
+.sms-app .badge.text-bg-danger {
+    border: 1px solid color-mix(in srgb, var(--sms-danger) 32%, var(--sms-surface));
+    background-color: color-mix(in srgb, var(--sms-danger) 10%, var(--sms-surface)) !important;
+    color: var(--sms-danger) !important;
+}
+
+.sms-app .badge.bg-info,
+.sms-app .badge.text-bg-info {
+    border: 1px solid color-mix(in srgb, var(--sms-info) 32%, var(--sms-surface));
+    background-color: color-mix(in srgb, var(--sms-info) 10%, var(--sms-surface)) !important;
+    color: var(--sms-info) !important;
+}
+
+.sms-app .badge.bg-primary,
+.sms-app .badge.text-bg-primary {
+    border: 1px solid color-mix(in srgb, var(--sms-primary) 32%, var(--sms-surface));
+    background-color: var(--sms-primary-xlight) !important;
+    color: var(--sms-primary) !important;
+}
+
+.sms-app .badge.bg-secondary,
+.sms-app .badge.text-bg-secondary {
+    border: 1px solid var(--sms-border);
+    background-color: var(--sms-surface-muted) !important;
+    color: var(--sms-text-muted) !important;
+}
+
+.sms-app .badge-sms--success,
+.sms-app .badge-sms--active,
+.sms-app .badge.text-bg-success {
+    border-color: color-mix(in srgb, var(--sms-success) 32%, var(--sms-surface));
+    background: color-mix(in srgb, var(--sms-success) 10%, var(--sms-surface)) !important;
+    color: var(--sms-success) !important;
+}
+
+.sms-app .badge-sms--warning,
+.sms-app .badge.text-bg-warning {
+    border-color: color-mix(in srgb, var(--sms-warning) 32%, var(--sms-surface));
+    background: color-mix(in srgb, var(--sms-warning) 10%, var(--sms-surface)) !important;
+    color: var(--sms-warning) !important;
+}
+
+.sms-app .badge-sms--danger,
+.sms-app .badge.text-bg-danger {
+    border-color: color-mix(in srgb, var(--sms-danger) 32%, var(--sms-surface));
+    background: color-mix(in srgb, var(--sms-danger) 10%, var(--sms-surface)) !important;
+    color: var(--sms-danger) !important;
+}
+
+.sms-app .badge-sms--info,
+.sms-app .badge.text-bg-info,
+.sms-app .badge.text-bg-primary {
+    border-color: color-mix(in srgb, var(--sms-info) 32%, var(--sms-surface));
+    background: color-mix(in srgb, var(--sms-info) 10%, var(--sms-surface)) !important;
+    color: var(--sms-info) !important;
+}
+
+.sms-app .badge-sms--muted,
+.sms-app .badge-sms--inactive,
+.sms-app .badge.text-bg-secondary {
+    border-color: var(--sms-border);
+    background: var(--sms-surface-muted) !important;
+    color: var(--sms-text-muted) !important;
+}
+
+.sms-app .card {
+    overflow: hidden;
+}
+
+.sms-app .card .card-body {
+    padding: clamp(1rem, 2vw, 1.35rem);
+}
+
+.sms-app .card-title,
+.sms-app .card h5,
+.sms-app .card h6 {
+    color: var(--sms-heading);
+}
+
+.sms-app .stat-card {
+    border-top: 2px solid var(--sms-primary-light);
+}
+
+.sms-app .stat-card .stat-icon {
+    border-radius: 12px;
+    background: var(--sms-primary-xlight);
+    color: var(--sms-primary);
+}
+
+.sms-app .table {
+    --bs-table-bg: transparent;
+    --bs-table-color: var(--sms-text);
+    --bs-table-border-color: var(--sms-table-border);
+}
+
+.sms-app .table thead th {
+    background: var(--sms-table-head-bg);
+    color: var(--sms-text-muted);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.045em;
+    text-transform: uppercase;
+}
+
+.sms-app .list-group {
+    border-radius: 10px;
+}
+
+.sms-app .list-group-item {
+    border-color: var(--sms-table-border);
+    background: transparent;
+    color: var(--sms-text);
+}
+
+.sms-app .list-group-item-action:hover,
+.sms-app .list-group-item-action:focus {
+    background: var(--sms-surface-muted);
+    color: var(--sms-primary);
+}
+
+.sms-app .nav-tabs {
+    gap: 0.25rem;
+    border-bottom-color: var(--sms-border);
+}
+
+.sms-app .nav-tabs .nav-link {
+    border-color: transparent;
+    border-radius: 8px 8px 0 0;
+    color: var(--sms-text-muted);
+    font-size: 0.84rem;
+    font-weight: 600;
+}
+
+.sms-app .nav-tabs .nav-link:hover {
+    border-color: transparent;
+    background: var(--sms-surface-muted);
+    color: var(--sms-primary);
+}
+
+.sms-app .nav-tabs .nav-link.active {
+    border-color: var(--sms-border) var(--sms-border) var(--sms-surface-solid);
+    background: var(--sms-surface-solid);
+    color: var(--sms-primary);
+}
+
+.sms-app .nav-pills .nav-link {
+    border-radius: 8px;
+    color: var(--sms-text-muted);
+    font-size: 0.84rem;
+    font-weight: 600;
+}
+
+.sms-app .nav-pills .nav-link:hover {
+    background: var(--sms-sidebar-hover);
+    color: var(--sms-primary);
+}
+
+.sms-app .nav-pills .nav-link.active {
+    background: var(--sms-sidebar-active);
+    color: var(--sms-primary);
+}
+
+.sms-app .form-control,
+.sms-app .form-select {
+    min-height: 42px;
+    border-color: var(--sms-input-border);
+    border-radius: 9px;
+    color: var(--sms-text-strong);
+    background: var(--sms-input-bg);
+    box-shadow: none;
+}
+
+.sms-app .form-control:focus,
+.sms-app .form-select:focus {
+    border-color: var(--sms-primary-light);
+    box-shadow: 0 0 0 3px var(--sms-input-focus);
+}
+
+.sms-app .form-label,
+.sms-app label {
+    color: var(--sms-heading);
+    font-weight: 600;
+}
+
+.sms-app .modal-content,
+.sms-app .offcanvas {
+    border: 1px solid var(--sms-border);
+    border-radius: var(--sms-radius-lg);
+    background: var(--sms-surface-elevated);
+    box-shadow: var(--sms-shadow-lg);
+}
+
+.sms-app .modal-header,
+.sms-app .offcanvas-header {
+    border-bottom-color: var(--sms-border-soft);
+}
+
+.sms-app .modal-footer {
+    border-top-color: var(--sms-border-soft);
+}
+
+.sms-app .modal-title,
+.sms-app .offcanvas-title {
+    color: var(--sms-heading);
+    font-weight: 700;
+}
+
+.sms-app .alert {
+    border-radius: 10px;
+}
+
+.sms-app .breadcrumb {
+    --bs-breadcrumb-divider-color: var(--sms-text-faint);
+    color: var(--sms-text-muted);
+}
+
+.sms-app .breadcrumb-item.active {
+    color: var(--sms-text);
+}
+
+.sms-app .btn-primary,
+.sms-app .btn-sms-primary {
+    border-color: var(--sms-primary);
+    border-radius: 9px;
+    background: var(--sms-primary);
+    box-shadow: none;
+}
+
+.sms-app .btn-primary:hover,
+.sms-app .btn-sms-primary:hover {
+    border-color: var(--sms-primary-dark);
+    background: var(--sms-primary-dark);
+}
+
+.sms-app .btn-outline-primary {
+    border-color: var(--sms-primary-light);
+    border-radius: 9px;
+    color: var(--sms-primary);
+}
+
+.sms-app .btn-outline-primary:hover {
+    border-color: var(--sms-primary);
+    background: var(--sms-primary);
+}
+
+.sms-app .sms-footer {
+    border-top-color: var(--sms-border);
+    background: var(--sms-surface-solid);
+}
+
+.sms-app :where(a, button, input, select, textarea, [tabindex]):focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--sms-primary) 58%, transparent);
+    outline-offset: 2px;
+}
+
+.sms-app .table-responsive {
+    border-radius: var(--sms-radius-sm);
+    scrollbar-color: var(--sms-border) transparent;
+}
+
+.sms-app .table > :not(caption) > * > * {
+    padding: 0.68rem 0.85rem;
+}
+
+.sms-app .form-control,
+.sms-app .form-select {
+    min-height: 40px;
+    color: var(--sms-text-strong);
+    background-color: var(--sms-input-bg);
+}
+
+.sms-app .form-control::placeholder {
+    color: var(--sms-text-faint);
+    opacity: 1;
+}
+
+.sms-app .sms-role-workspace {
+    width: 100%;
+    max-width: 1260px;
+    margin-inline: auto;
+}
+
+.sms-app .sms-role-workspace-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--sms-border);
+}
+
+.sms-app .sms-role-workspace-header h1,
+.sms-app .sms-role-workspace-header h2 {
+    margin: 0;
+    color: var(--sms-heading);
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: clamp(1.35rem, 2.3vw, 1.75rem);
+    font-weight: 500;
+    letter-spacing: -0.025em;
+}
+
+.sms-app .sms-role-workspace-header p {
+    max-width: 760px;
+    margin: 0.35rem 0 0;
+    color: var(--sms-text-muted);
+    font-size: 0.86rem;
+    line-height: 1.55;
+}
+
+.sms-app .sms-role-workspace-section {
+    margin-bottom: 1rem;
+    padding: 0;
+    border: 1px solid var(--sms-border);
+    border-radius: var(--sms-surface-radius);
+    background: var(--sms-surface-solid);
+    box-shadow: var(--sms-shadow-xs);
+}
+
+.sms-app .sms-role-workspace-section > .card-body {
+    padding: clamp(0.9rem, 1.8vw, 1.25rem);
+}
+
+.sms-app .sms-role-workspace-section > h2,
+.sms-app .sms-role-workspace-section > h3 {
+    margin: 0 0 0.35rem;
+    color: var(--sms-heading);
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+.sms-app .sms-role-workspace-section > p {
+    color: var(--sms-text-muted);
+    font-size: 0.82rem;
+}
+
+.sms-app .sms-workspace-tabs {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 0.3rem;
+    overflow-x: auto;
+    margin-bottom: 0.85rem;
+    padding: 0 0 0.35rem;
+    border-bottom: 1px solid var(--sms-border);
+    scrollbar-width: thin;
+}
+
+.sms-app .sms-workspace-tabs .nav-link {
+    flex: 0 0 auto;
+    min-height: 38px;
+    padding: 0.55rem 0.75rem;
+    border: 1px solid transparent;
+    border-radius: var(--sms-radius-sm);
+    color: var(--sms-text-muted);
+    font-size: 0.79rem;
+    font-weight: 650;
+}
+
+.sms-app .sms-workspace-tabs .nav-link:hover {
+    color: var(--sms-primary);
+    background: var(--sms-surface-muted);
+}
+
+.sms-app .sms-workspace-tabs .nav-link.active {
+    border-color: var(--sms-border);
+    color: var(--sms-primary);
+    background: var(--sms-primary-xlight);
+}
+
+.sms-app .sms-workspace-panel {
+    padding: 0.25rem 0.15rem;
+}
+
+.sms-app .sms-workspace-panel > h3 {
+    margin-bottom: 0.25rem;
+    color: var(--sms-heading);
+    font-size: 0.92rem;
+    font-weight: 700;
+}
+
+.sms-app .sms-workspace-link-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 265px), 1fr));
+    gap: 0.65rem;
+    margin-top: 0.8rem;
+}
+
+.sms-app .sms-workspace-link {
+    display: flex;
+    min-width: 0;
+    min-height: 84px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.85rem;
+    padding: 0.8rem 0.9rem;
+    border: 1px solid var(--sms-border);
+    border-radius: var(--sms-radius-sm);
+    color: var(--sms-text);
+    background: var(--sms-surface-solid);
+    text-decoration: none;
+    transition: border-color 0.16s ease, background-color 0.16s ease, color 0.16s ease;
+}
+
+.sms-app .sms-workspace-link:hover {
+    border-color: var(--sms-primary-light);
+    color: var(--sms-primary);
+    background: var(--sms-surface-muted);
+}
+
+.sms-app .sms-workspace-link strong,
+.sms-app .sms-workspace-link small {
+    display: block;
+}
+
+.sms-app .sms-workspace-link strong {
+    color: var(--sms-heading);
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.sms-app .sms-workspace-link small {
+    margin-top: 0.2rem;
+    color: var(--sms-text-muted);
+    font-size: 0.72rem;
+    line-height: 1.4;
+}
+
+.sms-app .sms-workspace-link-icon {
+    display: grid;
+    flex: 0 0 32px;
+    width: 32px;
+    height: 32px;
+    place-items: center;
+    border-radius: 9px;
+    color: var(--sms-primary);
+    background: var(--sms-primary-xlight);
+}
+
+@media (max-width: 991.98px) {
+    .sms-app .sms-main {
+        padding: 1.25rem 1rem;
+    }
+}
+
+@media (max-width: 575.98px) {
+    :root:not([data-theme="dark"]),
+    [data-theme="light"] {
+        --sms-navbar-height: 58px;
+    }
+
+    .sms-app .sms-main {
+        padding: 1rem 0.8rem;
+    }
+
+    .sms-app .card .card-body {
+        padding: 1rem;
+    }
+
+    .sms-app .sms-role-workspace-header {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .sms-app .sms-role-workspace-section {
+        margin-bottom: 0.8rem;
+    }
+
+    .sms-app .sms-role-workspace-section > .card-body {
+        padding: 0.9rem;
+    }
+}
+
+[data-theme="dark"] body.sms-app {
+    color: var(--sms-text);
+}
+
+[data-theme="dark"] body.sms-app .sms-navbar .navbar-brand,
+[data-theme="dark"] body.sms-app .sms-navbar .navbar-ph-clock,
+[data-theme="dark"] body.sms-app .sms-navbar .nav-link,
+[data-theme="dark"] body.sms-app .sms-navbar .dropdown-toggle,
+[data-theme="dark"] body.sms-app .sms-navbar .btn-link {
+    color: var(--sms-text-strong) !important;
+    -webkit-text-fill-color: currentColor;
+}
+
+[data-theme="dark"] body.sms-app .page-header h1,
+[data-theme="dark"] body.sms-app .student-portal-header h1,
+[data-theme="dark"] body.sms-app .card-title,
+[data-theme="dark"] body.sms-app .card h5,
+[data-theme="dark"] body.sms-app .card h6,
+[data-theme="dark"] body.sms-app .modal-title,
+[data-theme="dark"] body.sms-app .offcanvas-title {
+    color: var(--sms-heading);
+}
+
+[data-theme="dark"] body.sms-app #smsSidebar .sidebar-group-heading {
+    color: var(--sms-sidebar-icon) !important;
+}
+
+[data-theme="dark"] body.sms-app #smsSidebar.research-director-sidebar {
+    --sms-sidebar-bg: #070d1a;
+    --sms-sidebar-hover: rgba(255, 255, 255, 0.08);
+    --sms-sidebar-active: rgba(96, 165, 250, 0.18);
+    --sms-sidebar-border: rgba(255, 255, 255, 0.08);
+    --sms-sidebar-text: #f8fafc;
+    --sms-sidebar-text-muted: #cbd5e1;
+    --sms-sidebar-icon: #93c5fd;
+    --sms-sidebar-active-accent: #60a5fa;
+}
+
+[data-theme="dark"] body.sms-app #smsSidebar.admin-sidebar-collapsible .admin-module-toggle {
+    color: var(--sms-sidebar-text) !important;
+}
+
+[data-theme="dark"] body.sms-app #smsSidebar.admin-sidebar-collapsible .admin-module-toggle.active,
+[data-theme="dark"] body.sms-app #smsSidebar.admin-sidebar-collapsible .admin-module-toggle[aria-expanded="true"],
+[data-theme="dark"] body.sms-app #smsSidebar .sidebar-home-link.active {
+    border-color: rgba(96, 165, 250, 0.2);
+    background: rgba(96, 165, 250, 0.16) !important;
+    color: #bfdbfe !important;
+}
+
+[data-theme="dark"] body.sms-app #smsSidebar .admin-module-body .sidebar-sub,
+[data-theme="dark"] body.sms-app #smsSidebar .sidebar-submenu .nav-link {
+    color: var(--sms-sidebar-text-muted) !important;
+}
+
+[data-theme="dark"] body.sms-app #smsSidebar .admin-module-body .sidebar-sub.active,
+[data-theme="dark"] body.sms-app #smsSidebar .sidebar-submenu .nav-link.active {
+    background: rgba(96, 165, 250, 0.16) !important;
+    color: #bfdbfe !important;
+}
+
+[data-theme="dark"] body.sms-app .card,
+[data-theme="dark"] body.sms-app .academic-notices-panel,
+[data-theme="dark"] body.sms-app .module-card,
+[data-theme="dark"] body.sms-app .glass-panel,
+[data-theme="dark"] body.sms-app .modal-content,
+[data-theme="dark"] body.sms-app .offcanvas {
+    border-color: var(--sms-border);
+    background: var(--sms-surface);
+    box-shadow: var(--sms-shadow-sm);
+}
+
+[data-theme="dark"] body.sms-app .glass-panel:hover {
+    border-color: rgba(96, 165, 250, 0.28);
+    box-shadow: var(--sms-shadow-md);
+}
+
+[data-theme="dark"] body.sms-app .form-label,
+[data-theme="dark"] body.sms-app label {
+    color: var(--sms-text);
+}
+
+[data-theme="dark"] body.sms-app .table {
+    --bs-table-color: var(--sms-text);
+    --bs-table-border-color: var(--sms-border);
+}
+
+[data-theme="dark"] body.sms-app .table thead th {
+    background: var(--sms-surface-muted);
+    color: var(--sms-text-muted);
+}
+
+[data-theme="dark"] body.sms-app .list-group-item {
+    border-color: var(--sms-border);
+    color: var(--sms-text);
+}
+
+[data-theme="dark"] body.sms-app .list-group-item-action:hover,
+[data-theme="dark"] body.sms-app .list-group-item-action:focus,
+[data-theme="dark"] body.sms-app .nav-tabs .nav-link:hover,
+[data-theme="dark"] body.sms-app .nav-pills .nav-link:hover {
+    background: var(--sms-dropdown-hover);
+    color: var(--sms-primary-light);
+}
+
+[data-theme="dark"] body.sms-app .nav-tabs {
+    border-bottom-color: var(--sms-border);
+}
+
+[data-theme="dark"] body.sms-app .nav-tabs .nav-link,
+[data-theme="dark"] body.sms-app .nav-pills .nav-link {
+    color: var(--sms-text-muted);
+}
+
+[data-theme="dark"] body.sms-app .nav-tabs .nav-link.active {
+    border-color: var(--sms-border) var(--sms-border) var(--sms-surface);
+    background: var(--sms-surface);
+    color: var(--sms-primary-light);
+}
+
+[data-theme="dark"] body.sms-app .nav-pills .nav-link.active {
+    background: var(--sms-primary-xlight);
+    color: var(--sms-primary-light);
+}
+
+[data-theme="dark"] body.sms-app .modal-header,
+[data-theme="dark"] body.sms-app .offcanvas-header {
+    border-bottom-color: var(--sms-border);
+}
+
+[data-theme="dark"] body.sms-app .modal-footer {
+    border-top-color: var(--sms-border);
+}
+
+[data-theme="dark"] body.sms-app .sms-footer {
+    border-top-color: var(--sms-border);
+    background: var(--sms-surface);
+}
+
+.sms-app .sms-research-workspace {
+    --sms-rw-line: var(--sms-border);
+    --sms-rw-muted-bg: var(--sms-surface-muted);
+    --sms-rw-success: var(--sms-success);
+    --sms-rw-warning: var(--sms-warning);
+    --sms-rw-danger: var(--sms-danger);
+}
+
+.sms-app .sms-rw-hero {
+    overflow: hidden;
+    background: var(--sms-surface);
+}
+
+.sms-app .sms-rw-hero h2,
+.sms-app .sms-rw-section-head h2,
+.sms-app .sms-rw-step h3,
+.sms-app .sms-rw-action-card h3 {
+    color: var(--sms-heading);
+}
+
+.sms-app .sms-rw-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin-bottom: 0.45rem;
+    color: var(--sms-primary);
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.09em;
+    line-height: 1.3;
+    text-transform: uppercase;
+}
+
+.sms-app .sms-rw-back {
+    flex: 0 0 auto;
+}
+
+.sms-app .sms-rw-summary {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.75rem;
+}
+
+.sms-app .sms-rw-summary > div {
+    min-width: 0;
+    padding: 0.8rem 0.9rem;
+    border: 1px solid var(--sms-border-soft);
+    border-radius: 10px;
+    background: var(--sms-rw-muted-bg);
+}
+
+.sms-app .sms-rw-summary .sms-rw-summary-title {
+    grid-column: span 2;
+}
+
+.sms-app .sms-rw-summary span,
+.sms-app .sms-rw-detail span {
+    display: block;
+    margin-bottom: 0.22rem;
+    color: var(--sms-text-muted);
+    font-size: 0.72rem;
+    font-weight: 650;
+}
+
+.sms-app .sms-rw-summary strong,
+.sms-app .sms-rw-detail strong {
+    display: block;
+    overflow-wrap: anywhere;
+    color: var(--sms-heading);
+    font-size: 0.88rem;
+    font-weight: 700;
+}
+
+.sms-app .sms-rw-section-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.sms-app .sms-rw-progress-count {
+    flex: 0 0 auto;
+    color: var(--sms-text-muted);
+    font-size: 0.8rem;
+    font-weight: 650;
+}
+
+.sms-app .sms-rw-progress {
+    height: 0.45rem;
+    overflow: visible;
+    border-radius: 99px;
+    background: var(--sms-rw-line);
+}
+
+.sms-app .sms-rw-progress .progress-bar {
+    border-radius: inherit;
+    background: linear-gradient(90deg, var(--sms-primary), var(--sms-primary-light));
+}
+
+.sms-app .sms-rw-current {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.15rem;
+    border: 1px solid color-mix(in srgb, var(--sms-primary) 28%, var(--sms-border));
+    border-radius: 12px;
+    background: var(--sms-primary-xlight);
+}
+
+.sms-app .sms-rw-current-icon,
+.sms-app .sms-rw-action-icon {
+    display: grid;
+    width: 2.7rem;
+    height: 2.7rem;
+    flex: 0 0 2.7rem;
+    place-items: center;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--sms-primary) 12%, var(--sms-surface));
+    color: var(--sms-primary);
+    font-size: 1.05rem;
+}
+
+.sms-app .sms-rw-current-copy {
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.sms-app .sms-rw-current-copy .sms-rw-eyebrow {
+    margin-bottom: 0.35rem;
+}
+
+.sms-app .sms-rw-current-copy p {
+    margin-bottom: 0.45rem;
+    color: var(--sms-text);
+}
+
+.sms-app .sms-rw-current-meta,
+.sms-app .sms-rw-step-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 1rem;
+    color: var(--sms-text-muted);
+    font-size: 0.76rem;
+}
+
+.sms-app .sms-rw-current-meta strong,
+.sms-app .sms-rw-step-meta strong {
+    color: var(--sms-text);
+}
+
+.sms-app .sms-rw-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    width: fit-content;
+    max-width: 100%;
+    padding: 0.3rem 0.58rem;
+    border: 1px solid transparent;
+    border-radius: 99px;
+    font-size: 0.7rem;
+    font-weight: 750;
+    line-height: 1.2;
+}
+
+.sms-app .sms-rw-status-complete {
+    border-color: color-mix(in srgb, var(--sms-rw-success) 32%, var(--sms-surface));
+    background: color-mix(in srgb, var(--sms-rw-success) 10%, var(--sms-surface));
+    color: var(--sms-rw-success);
+}
+
+.sms-app .sms-rw-status-current,
+.sms-app .sms-rw-status-in_progress {
+    border-color: color-mix(in srgb, var(--sms-primary) 32%, var(--sms-surface));
+    background: color-mix(in srgb, var(--sms-primary) 10%, var(--sms-surface));
+    color: var(--sms-primary);
+}
+
+.sms-app .sms-rw-status-pending,
+.sms-app .sms-rw-status-unknown {
+    border-color: var(--sms-border);
+    background: var(--sms-surface-muted);
+    color: var(--sms-text-muted);
+}
+
+.sms-app .sms-rw-status-revision {
+    border-color: color-mix(in srgb, var(--sms-rw-warning) 32%, var(--sms-surface));
+    background: color-mix(in srgb, var(--sms-rw-warning) 10%, var(--sms-surface));
+    color: var(--sms-rw-warning);
+}
+
+.sms-app .sms-rw-status-rejected {
+    border-color: color-mix(in srgb, var(--sms-rw-danger) 32%, var(--sms-surface));
+    background: color-mix(in srgb, var(--sms-rw-danger) 10%, var(--sms-surface));
+    color: var(--sms-rw-danger);
+}
+
+.sms-app .sms-rw-status-locked {
+    border-color: var(--sms-border);
+    background: var(--sms-surface-muted);
+    color: var(--sms-text-muted);
+}
+
+.sms-app .sms-rw-steps {
+    position: relative;
+    display: grid;
+    gap: 0.75rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.sms-app .sms-rw-step {
+    position: relative;
+    display: grid;
+    grid-template-columns: 2.5rem minmax(0, 1fr);
+    gap: 0.85rem;
+    padding-bottom: 0.25rem;
+}
+
+.sms-app .sms-rw-step:not(:last-child)::after {
+    position: absolute;
+    top: 2.8rem;
+    bottom: -0.7rem;
+    left: 1.2rem;
+    width: 1px;
+    background: var(--sms-rw-line);
+    content: "";
+}
+
+.sms-app .sms-rw-step-marker {
+    z-index: 1;
+    display: grid;
+    width: 2.45rem;
+    height: 2.45rem;
+    place-items: center;
+    border: 1px solid var(--sms-rw-line);
+    border-radius: 50%;
+    background: var(--sms-surface);
+    color: var(--sms-text-muted);
+    font-size: 0.76rem;
+    font-weight: 750;
+}
+
+.sms-app .sms-rw-step-complete .sms-rw-step-marker {
+    border-color: color-mix(in srgb, var(--sms-rw-success) 38%, var(--sms-surface));
+    background: color-mix(in srgb, var(--sms-rw-success) 14%, var(--sms-surface));
+    color: var(--sms-rw-success);
+}
+
+.sms-app .sms-rw-step-current .sms-rw-step-marker,
+.sms-app .sms-rw-step-in_progress .sms-rw-step-marker {
+    border-color: var(--sms-primary-light);
+    background: var(--sms-primary);
+    color: #ffffff;
+}
+
+.sms-app .sms-rw-step-revision .sms-rw-step-marker {
+    border-color: color-mix(in srgb, var(--sms-rw-warning) 38%, var(--sms-surface));
+    background: color-mix(in srgb, var(--sms-rw-warning) 14%, var(--sms-surface));
+    color: var(--sms-rw-warning);
+}
+
+.sms-app .sms-rw-step-rejected .sms-rw-step-marker {
+    border-color: color-mix(in srgb, var(--sms-rw-danger) 38%, var(--sms-surface));
+    background: color-mix(in srgb, var(--sms-rw-danger) 14%, var(--sms-surface));
+    color: var(--sms-rw-danger);
+}
+
+.sms-app .sms-rw-step-body {
+    min-width: 0;
+    padding: 0.9rem 1rem;
+    border: 1px solid var(--sms-border-soft);
+    border-radius: 11px;
+    background: var(--sms-surface);
+    transition: var(--sms-transition);
+}
+
+.sms-app .sms-rw-step-body:hover {
+    border-color: var(--sms-primary-light);
+    box-shadow: var(--sms-shadow-xs);
+}
+
+.sms-app .sms-rw-step.is-current .sms-rw-step-body {
+    border-color: color-mix(in srgb, var(--sms-primary) 40%, var(--sms-border));
+    background: var(--sms-rw-muted-bg);
+    box-shadow: inset 3px 0 0 var(--sms-primary);
+}
+
+.sms-app .sms-rw-step-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.8rem;
+}
+
+.sms-app .sms-rw-step-kicker {
+    display: block;
+    margin-bottom: 0.15rem;
+    color: var(--sms-text-muted);
+    font-size: 0.65rem;
+    font-weight: 750;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+}
+
+.sms-app .sms-rw-step h3 {
+    margin: 0;
+    font-size: 0.94rem;
+    font-weight: 750;
+}
+
+.sms-app .sms-rw-step p {
+    margin: 0.45rem 0;
+    color: var(--sms-text-muted);
+    font-size: 0.82rem;
+    overflow-wrap: anywhere;
+}
+
+.sms-app .sms-rw-step .sms-rw-action {
+    margin-top: 0.75rem;
+}
+
+.sms-app .sms-rw-detail {
+    height: 100%;
+    padding: 0.8rem 0.9rem;
+    border: 1px solid var(--sms-border-soft);
+    border-radius: 10px;
+    background: var(--sms-rw-muted-bg);
+}
+
+.sms-app .sms-rw-action-card {
+    display: flex;
+    gap: 0.8rem;
+    padding: 1rem;
+    border: 1px solid var(--sms-border-soft);
+    border-radius: 11px;
+    background: var(--sms-surface);
+    transition: var(--sms-transition);
+}
+
+.sms-app .sms-rw-action-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--sms-primary-light);
+    box-shadow: var(--sms-shadow-hover);
+}
+
+.sms-app .sms-rw-action-content {
+    min-width: 0;
+}
+
+.sms-app .sms-rw-action-card h3 {
+    margin: 0.1rem 0 0.35rem;
+    font-size: 0.9rem;
+    font-weight: 750;
+}
+
+.sms-app .sms-rw-action-card p {
+    margin-bottom: 0.75rem;
+    color: var(--sms-text-muted);
+    font-size: 0.8rem;
+}
+
+.sms-app .sms-rw-action {
+    flex: 0 0 auto;
+    white-space: nowrap;
+}
+
+@media (max-width: 767.98px) {
+    .sms-app .sms-rw-summary {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .sms-app .sms-rw-current {
+        align-items: flex-start;
+        flex-wrap: wrap;
+    }
+
+    .sms-app .sms-rw-current-copy {
+        flex-basis: calc(100% - 3.7rem);
+    }
+
+    .sms-app .sms-rw-current > .sms-rw-action {
+        margin-left: 3.7rem;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .sms-app .sms-rw-hero,
+    .sms-app #workflow-overview,
+    .sms-app .sms-research-workspace > .glass-board > .glass-panel {
+        padding: 1rem !important;
+    }
+
+    .sms-app .sms-rw-back {
+        width: 100%;
+    }
+
+    .sms-app .sms-rw-summary .sms-rw-summary-title {
+        grid-column: 1 / -1;
+    }
+
+    .sms-app .sms-rw-section-head {
+        flex-direction: column;
+    }
+
+    .sms-app .sms-rw-progress-count {
+        font-size: 0.75rem;
+    }
+
+    .sms-app .sms-rw-step {
+        grid-template-columns: 2rem minmax(0, 1fr);
+        gap: 0.55rem;
+    }
+
+    .sms-app .sms-rw-step-marker {
+        width: 2rem;
+        height: 2rem;
+    }
+
+    .sms-app .sms-rw-step:not(:last-child)::after {
+        top: 2.25rem;
+        left: 0.98rem;
+    }
+
+    .sms-app .sms-rw-step-body {
+        padding: 0.8rem;
+    }
+
+    .sms-app .sms-rw-step-heading {
+        flex-direction: column;
+    }
+
+    .sms-app .sms-rw-current > .sms-rw-action {
+        width: calc(100% - 3.7rem);
+    }
+}
+
+html {
+    background: var(--bg-primary);
+    color-scheme: light;
+}
+
+html[data-theme="dark"] {
+    color-scheme: dark;
+}
+
+body {
+    background-color: var(--bg-primary);
+    color: var(--text-secondary);
+}
+
+.app,
+.main-content {
+    background-color: var(--bg-primary);
+    color: var(--text-secondary);
+}
+
+.navbar,
+.sidebar {
+    color: var(--text-secondary);
+}
+
+body.sms-app,
+.sms-app,
+.sms-app .sms-main,
+.sms-app .sms-main-content {
+    background-color: var(--bg-primary);
+    color: var(--text-secondary);
+}
+
+.sms-app .sms-navbar,
+.sms-app .sms-navbar.navbar-dark {
+    background: var(--navbar-bg) !important;
+    border-color: var(--border-color);
+}
+
+.sms-app .sms-navbar .navbar-brand,
+.sms-app .sms-navbar .navbar-ph-clock,
+.sms-app .sms-navbar .nav-link,
+.sms-app .sms-navbar .dropdown-toggle,
+.sms-app .sms-navbar .btn-link,
+.sms-app .sms-navbar .btn-link:hover,
+.sms-app .sms-navbar .sidebar-toggle,
+.sms-app .sms-navbar .theme-toggle {
+    color: var(--navbar-text) !important;
+    -webkit-text-fill-color: currentColor;
+}
+
+.sms-app .sms-navbar .navbar-brand:hover,
+.sms-app .sms-navbar .nav-link:hover,
+.sms-app .sms-navbar .dropdown-toggle:hover,
+.sms-app .sms-navbar .btn-link:hover,
+.sms-app .sms-navbar .sidebar-toggle:hover {
+    color: var(--link-color) !important;
+}
+
+.sms-app .theme-toggle {
+    width: 40px;
+    min-width: 40px;
+    height: 40px;
+    min-height: 40px;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    background: var(--bg-secondary);
+    color: var(--navbar-text) !important;
+}
+
+.sms-app .theme-toggle:hover,
+.sms-app .theme-toggle:focus-visible {
+    border-color: var(--primary-color);
+    background: var(--bg-elevated);
+    color: var(--link-color) !important;
+}
+
+.sms-app .theme-toggle:focus-visible,
+.auth-theme-toggle:focus-visible {
+    outline: 3px solid var(--sms-input-focus);
+    outline-offset: 2px;
+    box-shadow: 0 0 0 2px var(--bg-surface);
+}
+
+.sms-app .sms-sidebar:not(.crad-officer-sidebar),
+.sms-app #smsSidebar:not(.crad-officer-sidebar) {
+    border-color: var(--border-color);
+    background: var(--sidebar-bg);
+    color: var(--sidebar-text);
+}
+
+.sms-app #smsSidebar .sidebar-header,
+.sms-app #smsSidebar .sidebar-group-heading {
+    color: var(--text-muted);
+}
+
+.sms-app #smsSidebar .sidebar-nav > ul > .nav-item > .nav-link {
+    color: var(--sidebar-text) !important;
+}
+
+.sms-app #smsSidebar .sidebar-nav > ul > .nav-item > .nav-link > i:first-child {
+    color: var(--icon-color) !important;
+}
+
+.sms-app #smsSidebar .sidebar-nav > ul > .nav-item > .nav-link:hover,
+.sms-app #smsSidebar .sidebar-nav > ul > .nav-item > .nav-link.active,
+.sms-app #smsSidebar .sidebar-nav > ul > .nav-item > .nav-link[aria-expanded="true"] {
+    border-color: var(--border-color);
+    background: var(--sidebar-active) !important;
+    color: var(--text-primary) !important;
+}
+
+.sms-app #smsSidebar .sidebar-nav > ul > .nav-item > .nav-link:hover > i:first-child,
+.sms-app #smsSidebar .sidebar-nav > ul > .nav-item > .nav-link.active > i:first-child {
+    color: var(--primary-color) !important;
+}
+
+.sms-app .card,
+.sms-app .glass-panel,
+.sms-app .module-card,
+.sms-app .academic-notices-panel,
+.sms-app .modal-content,
+.sms-app .offcanvas,
+.sms-app .popover {
+    border-color: var(--border-color);
+    background-color: var(--card-bg);
+    color: var(--text-secondary);
+}
+
+.sms-app .card-header,
+.sms-app .card-footer {
+    border-color: var(--border-subtle);
+    background-color: var(--bg-secondary);
+    color: var(--text-secondary);
+}
+
+.sms-app .card-title,
+.sms-app .card h1,
+.sms-app .card h2,
+.sms-app .card h3,
+.sms-app .card h4,
+.sms-app .card h5,
+.sms-app .card h6,
+.sms-app .modal-title,
+.sms-app .offcanvas-title,
+.sms-app .popover-header,
+.sms-app .page-header h1,
+.sms-app .module-page-banner h1 {
+    color: var(--text-primary);
+}
+
+.sms-app .form-control,
+.sms-app .form-select,
+.sms-app textarea,
+.sms-app input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+.sms-app select {
+    border-color: var(--input-border);
+    background-color: var(--input-bg);
+    color: var(--text-primary);
+    color-scheme: inherit;
+}
+
+.sms-app .form-control:focus,
+.sms-app .form-select:focus,
+.sms-app textarea:focus,
+.sms-app input:focus,
+.sms-app select:focus {
+    border-color: var(--primary-color);
+    background-color: var(--input-bg);
+    color: var(--text-primary);
+    box-shadow: 0 0 0 0.2rem var(--sms-input-focus);
+}
+
+.sms-app .form-control::placeholder,
+.sms-app textarea::placeholder {
+    color: var(--text-muted);
+    opacity: 1;
+}
+
+.sms-app select option {
+    background-color: var(--bg-surface);
+    color: var(--text-primary);
+}
+
+.sms-app .input-group-text {
+    border-color: var(--input-border);
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+}
+
+.sms-app .btn-primary,
+.sms-app .btn-sms-primary {
+    border-color: var(--primary-color);
+    background: var(--primary-color);
+    color: var(--button-text);
+}
+
+.sms-app .btn-primary:hover,
+.sms-app .btn-primary:focus-visible,
+.sms-app .btn-sms-primary:hover {
+    border-color: var(--primary-hover);
+    background: var(--primary-hover);
+    color: var(--button-text);
+}
+
+.sms-app .btn-outline-primary {
+    border-color: var(--primary-color);
+    color: var(--link-color);
+}
+
+.sms-app .btn-outline-primary:hover,
+.sms-app .btn-outline-primary:focus-visible,
+.sms-app .btn-outline-primary:active {
+    border-color: var(--primary-color);
+    background: var(--primary-color);
+    color: var(--button-text);
+}
+
+.sms-app .btn-outline-secondary,
+.sms-app .btn-secondary,
+.sms-app .btn-light {
+    border-color: var(--border-color);
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+}
+
+.sms-app .btn-outline-secondary:hover,
+.sms-app .btn-secondary:hover,
+.sms-app .btn-light:hover {
+    border-color: var(--primary-color);
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+}
+
+.sms-app .btn:disabled,
+.sms-app .btn.disabled,
+.sms-app fieldset:disabled .btn {
+    border-color: var(--border-color);
+    background: var(--bg-secondary);
+    color: var(--text-muted);
+    opacity: 0.65;
+}
+
+.sms-app .dropdown-menu,
+.sms-app .dropdown-menu[data-bs-popper],
+.sms-app .list-group-item {
+    border-color: var(--border-color);
+    background-color: var(--bg-elevated);
+    color: var(--text-secondary);
+}
+
+.sms-app .dropdown-item,
+.sms-app .dropdown-item-text {
+    color: var(--text-secondary);
+}
+
+.sms-app .dropdown-item:hover,
+.sms-app .dropdown-item:focus,
+.sms-app .dropdown-item.active {
+    background-color: var(--bg-secondary);
+    color: var(--link-color);
+}
+
+.sms-app .dropdown-divider {
+    border-color: var(--border-color);
+}
+
+.sms-app .modal-header,
+.sms-app .modal-footer,
+.sms-app .offcanvas-header {
+    border-color: var(--border-color);
+}
+
+.sms-app .modal-body,
+.sms-app .offcanvas-body,
+.sms-app .popover-body {
+    color: var(--text-secondary);
+}
+
+.sms-app .table {
+    --bs-table-color: var(--text-secondary);
+    --bs-table-bg: transparent;
+    --bs-table-border-color: var(--border-subtle);
+    --bs-table-striped-bg: color-mix(in srgb, var(--bg-secondary) 72%, transparent);
+    --bs-table-striped-color: var(--text-secondary);
+    --bs-table-hover-bg: var(--bg-secondary);
+    --bs-table-hover-color: var(--text-primary);
+    color: var(--text-secondary);
+}
+
+.sms-app .table > :not(caption) > * > * {
+    border-color: var(--border-subtle);
+    background-color: transparent;
+    color: inherit;
+}
+
+.sms-app .table thead th,
+.sms-app .table-light,
+.sms-app .table-light th,
+.sms-app thead.table-light th {
+    background-color: var(--bg-secondary);
+    color: var(--text-muted);
+}
+
+.sms-app .table caption,
+.sms-app .table small,
+.sms-app .table .text-muted {
+    color: var(--text-muted);
+}
+
+.sms-app a:not(.btn):not(.nav-link):not(.dropdown-item):not(.navbar-brand) {
+    color: var(--link-color);
+}
+
+.sms-app a:not(.btn):not(.nav-link):not(.dropdown-item):not(.navbar-brand):hover {
+    color: var(--primary-hover);
+}
+
+.sms-app .text-primary,
+.sms-app .link-primary {
+    color: var(--link-color) !important;
+}
+
+.sms-app .text-dark,
+.sms-app .text-body-emphasis {
+    color: var(--text-primary) !important;
+}
+
+.sms-app .text-secondary,
+.sms-app .text-muted,
+.sms-app .text-body-secondary {
+    color: var(--text-muted) !important;
+}
+
+.sms-app .border,
+.sms-app .border-top,
+.sms-app .border-bottom,
+.sms-app .border-start,
+.sms-app .border-end {
+    border-color: var(--border-color) !important;
+}
+
+.sms-app .alert {
+    border-color: var(--border-color);
+    color: var(--text-secondary);
+}
+
+.sms-app .alert-success {
+    border-color: color-mix(in srgb, var(--success) 35%, var(--border-color));
+    background: color-mix(in srgb, var(--success) 10%, var(--bg-surface));
+    color: var(--success);
+}
+
+.sms-app .alert-warning {
+    border-color: color-mix(in srgb, var(--warning) 35%, var(--border-color));
+    background: color-mix(in srgb, var(--warning) 10%, var(--bg-surface));
+    color: var(--warning);
+}
+
+.sms-app .alert-danger {
+    border-color: color-mix(in srgb, var(--danger) 35%, var(--border-color));
+    background: color-mix(in srgb, var(--danger) 10%, var(--bg-surface));
+    color: var(--danger);
+}
+
+.sms-app .alert-info {
+    border-color: color-mix(in srgb, var(--info) 35%, var(--border-color));
+    background: color-mix(in srgb, var(--info) 10%, var(--bg-surface));
+    color: var(--info);
+}
+
+.sms-app .badge:not([class*="text-bg-"]):not([class*="bg-"]) {
+    border-color: var(--border-color);
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+}
+
+.sms-app .bg-white,
+.sms-app .bg-light,
+.sms-app .bg-body,
+.sms-app .bg-body-secondary,
+.sms-app .bg-body-tertiary {
+    background-color: var(--bg-secondary) !important;
+    color: var(--text-secondary);
+}
+
+.sms-app .text-bg-light,
+.sms-app .text-bg-secondary {
+    background-color: var(--bg-secondary) !important;
+    color: var(--text-secondary) !important;
+}
+
+.sms-app .btn-close {
+    filter: none;
+}
+
+[data-theme="dark"] .sms-app .table-light,
+[data-theme="dark"] .sms-app .table-light th,
+[data-theme="dark"] .sms-app thead.table-light th {
+    --bs-table-bg: var(--bg-secondary);
+    --bs-table-color: var(--text-muted);
+    background-color: var(--bg-secondary) !important;
+    color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] .sms-app .bg-white,
+[data-theme="dark"] .sms-app .bg-light,
+[data-theme="dark"] .sms-app .bg-body,
+[data-theme="dark"] .sms-app .bg-body-secondary,
+[data-theme="dark"] .sms-app .bg-body-tertiary {
+    color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .sms-app .text-bg-primary {
+    background-color: color-mix(in srgb, var(--primary-color) 22%, var(--bg-surface)) !important;
+    color: var(--link-color) !important;
+}
+
+[data-theme="dark"] .sms-app .text-bg-success,
+[data-theme="dark"] .sms-app .text-bg-warning,
+[data-theme="dark"] .sms-app .text-bg-danger,
+[data-theme="dark"] .sms-app .text-bg-info,
+[data-theme="dark"] .sms-app .text-bg-secondary,
+[data-theme="dark"] .sms-app .text-bg-light {
+    border: 1px solid var(--border-color);
+}
+
+.auth-theme-toggle {
+    position: fixed;
+    z-index: 1100;
+    top: 1rem;
+    right: 1rem;
+    box-shadow: 0 2px 10px rgba(16, 24, 40, 0.12);
+}
+
+.login-page .auth-theme-toggle {
+    border-color: rgba(255, 255, 255, 0.42);
+    background: rgba(15, 23, 42, 0.42);
+    color: #ffffff !important;
+}
+
+.login-page .auth-theme-toggle:hover {
+    background: rgba(15, 23, 42, 0.7);
+    color: #ffffff !important;
+}
+
+[data-theme="dark"] body.login-page {
+    color-scheme: dark !important;
+}
+
+[data-theme="dark"] body.login-page .auth-card,
+[data-theme="dark"] body.login-page .login-card,
+[data-theme="dark"] body.login-page .login-glass,
+[data-theme="dark"] body.login-page .login-shell {
+    border-color: var(--border-color) !important;
+    background: var(--bg-elevated) !important;
+    color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] body.login-page .auth-card :is(h1, h2, h3, p, label, small, .auth-lead),
+[data-theme="dark"] body.login-page .login-card :is(h1, h2, h3, p, label, small),
+[data-theme="dark"] body.login-page .login-glass :is(h1, h2, h3, p, label, small) {
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] body.login-page :is(.auth-card, .login-card, .login-glass) :is(input, select, textarea, .form-control) {
+    border-color: var(--input-border) !important;
+    background-color: var(--input-bg) !important;
+    color: var(--text-primary) !important;
+    -webkit-text-fill-color: var(--text-primary) !important;
+    caret-color: var(--text-primary);
+}
+
+[data-theme="dark"] body.login-page :is(.auth-card, .login-card, .login-glass) :is(input, select, textarea, .form-control)::placeholder {
+    color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] body.login-page :is(.auth-links, .auth-links a, .password-toggle) {
+    color: var(--link-color) !important;
+}
+
+[data-theme="dark"] body.login-page .login-badge {
+    border-color: var(--border-color);
+    background: var(--bg-secondary);
+    color: var(--link-color);
+}
+
+[data-theme="dark"] body.login-page .auth-reset-box {
+    border-color: color-mix(in srgb, var(--warning) 35%, var(--border-color));
+    background: color-mix(in srgb, var(--warning) 10%, var(--bg-surface));
+    color: var(--text-primary);
+}

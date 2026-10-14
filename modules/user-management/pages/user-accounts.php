@@ -5,6 +5,14 @@
  */
 require_once __DIR__ . '/../../../config/config.php';
 
+if (!headers_sent()) {
+    header('Cache-Control: private, no-store, no-cache, must-revalidate, max-age=0');
+    header('Pragma: no-cache');
+    header('Expires: 0');
+    header('CDN-Cache-Control: no-store');
+    header('Cloudflare-CDN-Cache-Control: no-store');
+}
+
 $isArchiveView = (($_GET['view'] ?? '') === 'archive');
 $pageTitle     = $isArchiveView ? 'User Archive' : 'User Accounts';
 $activeModule  = 'user-management';
@@ -23,6 +31,8 @@ require_once ROOT_PATH . '/includes/security-ui.php';
 require_once ROOT_PATH . '/includes/security-workflow.php';
 requireSuperAdmin();
 
+logActivity('view', $isArchiveView ? 'Opened User Archive' : 'Opened User Accounts', 'user-management');
+
 $minPasswordLen = (int) smsSetting('min_password_length', '8');
 
 $users = [];
@@ -30,9 +40,14 @@ $archivedCount = 0;
 $activeCount = 0;
 $pdo = db();
 if ($pdo) {
+    require_once __DIR__ . '/../includes/user-account-schema.php';
+    $userColumns = umSms2UsersColumns($pdo);
+    if ($userColumns !== null) {
+        umRepairSms2UsersForAccountWrite($pdo, $userColumns);
+    }
     try {
         $pdo->prepare(
-            "INSERT IGNORE INTO sms_roles (role_key, label, description, is_system)
+            "INSERT IGNORE INTO `sms2_roles` (role_key, label, description, is_system)
              VALUES
                 ('superadmin', 'Super Admin', 'Full system access', 1),
                 ('admin', 'Super Admin', 'Legacy super admin access', 1),
@@ -50,63 +65,63 @@ if ($pdo) {
                 ('review_committee', 'Review Committee', 'Grant proposal review and rubric evaluation', 1)"
         )->execute();
         $pdo->prepare(
-            "INSERT INTO sms_role_permissions (role_key, module_key, granted)
+            "INSERT INTO `sms2_role_permissions` (role_key, module_key, granted)
              VALUES ('department_head', 'crad', 1)
              ON DUPLICATE KEY UPDATE granted = VALUES(granted)"
         )->execute();
         $pdo->prepare(
-            "INSERT INTO sms_role_permissions (role_key, module_key, granted)
+            "INSERT INTO `sms2_role_permissions` (role_key, module_key, granted)
              VALUES ('department_chair', 'crad', 1)
              ON DUPLICATE KEY UPDATE granted = VALUES(granted)"
         )->execute();
         $pdo->prepare(
-            "INSERT INTO sms_role_permissions (role_key, module_key, granted)
+            "INSERT INTO `sms2_role_permissions` (role_key, module_key, granted)
              VALUES ('research_office', 'crad', 1)
              ON DUPLICATE KEY UPDATE granted = VALUES(granted)"
         )->execute();
         $pdo->prepare(
-            "INSERT INTO sms_role_permissions (role_key, module_key, granted)
+            "INSERT INTO `sms2_role_permissions` (role_key, module_key, granted)
              VALUES ('vpaa', 'accreditation', 1)
              ON DUPLICATE KEY UPDATE granted = VALUES(granted)"
         )->execute();
         $pdo->prepare(
-            "UPDATE sms_users SET role_key = 'department_head' WHERE username = 'depthead' LIMIT 1"
+            "UPDATE `sms2_users` SET role_key = 'department_head' WHERE username = 'depthead' LIMIT 1"
         )->execute();
         $pdo->prepare(
-            "UPDATE sms_users SET role_key = 'department_chair' WHERE username = 'deptchair' LIMIT 1"
+            "UPDATE `sms2_users` SET role_key = 'department_chair' WHERE username = 'deptchair' LIMIT 1"
         )->execute();
         $pdo->prepare(
-            "UPDATE sms_users SET role_key = 'research_office' WHERE username = 'researchoffice' LIMIT 1"
+            "UPDATE `sms2_users` SET role_key = 'research_office' WHERE username = 'researchoffice' LIMIT 1"
         )->execute();
         $pdo->prepare(
-            "UPDATE sms_users SET role_key = 'vpaa' WHERE username = 'vpaa' LIMIT 1"
+            "UPDATE `sms2_users` SET role_key = 'vpaa' WHERE username = 'vpaa' LIMIT 1"
         )->execute();
         $pdo->prepare(
-            "UPDATE sms_roles
+            "UPDATE `sms2_roles`
              SET label = 'Super Admin', description = 'Legacy super admin access'
              WHERE role_key = 'admin'"
         )->execute();
         $pdo->prepare(
-            "UPDATE sms_users
+            "UPDATE `sms2_users`
              SET role_key = 'superadmin'
              WHERE username = 'superadmin'
                AND role_key = 'admin'"
         )->execute();
         $pdo->prepare(
-            "UPDATE sms_users
+            "UPDATE `sms2_users`
              SET username = 'dean'
              WHERE role_key = 'hr'
                AND username IN ('hr', 'faculty')"
         )->execute();
         $adminHash = password_hash('@admin123', PASSWORD_DEFAULT);
         $pdo->prepare(
-            "INSERT IGNORE INTO sms_users
+            "INSERT IGNORE INTO `sms2_users`
                 (username, email, password_hash, full_name, role_key, student_id, status, password_changed_at, must_change_password, failed_login_attempts, locked_until)
              VALUES
                 ('admin', 'admin@bestlink.edu.ph', ?, 'Admin', 'sms_admin', NULL, 'active', NOW(), 0, 0, NULL)"
         )->execute([$adminHash]);
         $insAdminPerm = $pdo->prepare(
-            "INSERT INTO sms_role_permissions (role_key, module_key, granted)
+            "INSERT INTO `sms2_role_permissions` (role_key, module_key, granted)
              VALUES ('sms_admin', ?, 1)
              ON DUPLICATE KEY UPDATE granted = VALUES(granted)"
         );
@@ -115,7 +130,7 @@ if ($pdo) {
         }
         $facultyHash = password_hash('@faculty123', PASSWORD_DEFAULT);
         $seedFaculty = $pdo->prepare(
-            "INSERT IGNORE INTO sms_users
+            "INSERT IGNORE INTO `sms2_users`
                 (username, email, password_hash, full_name, role_key, student_id, status, notes, password_changed_at, must_change_password, failed_login_attempts, locked_until)
              VALUES
                 (?, ?, ?, ?, ?, NULL, 'active', ?, NOW(), 0, 0, NULL)"
@@ -126,7 +141,7 @@ if ($pdo) {
         $seedFaculty->execute(['jonathanestrada', 'jonathanestrada@bestlink.edu.ph', password_hash('@Adviser123', PASSWORD_DEFAULT), 'Dr. Jonathan Estrada', 'panel', 'Panel Member']);
         $seedFaculty->execute(['michelleguevarra', 'michelleguevarra@bestlink.edu.ph', password_hash('@Adviser123', PASSWORD_DEFAULT), 'Dr. Michelle Guevarra', 'panel', 'Panel Member']);
         $insFacultyPerm = $pdo->prepare(
-            "INSERT INTO sms_role_permissions (role_key, module_key, granted)
+            "INSERT INTO `sms2_role_permissions` (role_key, module_key, granted)
              VALUES (?, 'faculty', 1)
              ON DUPLICATE KEY UPDATE granted = VALUES(granted)"
         );
@@ -136,7 +151,7 @@ if ($pdo) {
 
         // Research Grant login account is retired from User Management.
         $pdo->exec(
-            "UPDATE sms_users
+            "UPDATE `sms2_users`
              SET status = 'inactive'
              WHERE role_key = 'research_grant'
                 OR username = 'researchgrant'
@@ -144,7 +159,7 @@ if ($pdo) {
         );
         try {
             $pdo->exec(
-                "DELETE FROM sms_users
+                "DELETE FROM `sms2_users`
                  WHERE role_key = 'research_grant'
                     OR username = 'researchgrant'
                     OR email = 'researchgrant@bestlink.edu.ph'"
@@ -156,18 +171,18 @@ if ($pdo) {
         // Review Committee account (grant proposal evaluator)
         $rcHash = password_hash('@Committee123', PASSWORD_DEFAULT);
         $pdo->prepare(
-            "INSERT IGNORE INTO sms_users
+            "INSERT IGNORE INTO `sms2_users`
                 (username, email, password_hash, full_name, role_key, student_id, status, password_changed_at, must_change_password, failed_login_attempts, locked_until)
              VALUES
                 ('reviewcommittee', 'reviewcommittee@bestlink.edu.ph', ?, 'Review Committee Member', 'review_committee', NULL, 'active', NOW(), 0, 0, NULL)"
         )->execute([$rcHash]);
         $pdo->prepare(
-            "INSERT INTO sms_role_permissions (role_key, module_key, granted)
+            "INSERT INTO `sms2_role_permissions` (role_key, module_key, granted)
              VALUES ('review_committee', 'crad_grant', 1)
              ON DUPLICATE KEY UPDATE granted = VALUES(granted)"
         )->execute();
         $pdo->prepare(
-            "UPDATE sms_users
+            "UPDATE `sms2_users`
              SET role_key = 'review_committee'
              WHERE username = 'reviewcommittee'
                AND role_key <> 'review_committee'"
@@ -175,7 +190,7 @@ if ($pdo) {
 
         $deptHeadHash = password_hash('@Depthead123', PASSWORD_DEFAULT);
         $pdo->prepare(
-            "INSERT IGNORE INTO sms_users
+            "INSERT IGNORE INTO `sms2_users`
                 (username, email, password_hash, full_name, role_key, student_id, status, password_changed_at, must_change_password, failed_login_attempts, locked_until)
              VALUES
                 ('depthead', 'depthead@bestlink.edu.ph', ?, 'Department Head', 'department_head', NULL, 'active', NOW(), 0, 0, NULL)"
@@ -190,8 +205,8 @@ if ($pdo) {
                     r.label AS roleLabel, u.status, u.notes,
                     DATE_FORMAT(u.created_at, "%b %e, %Y") AS created,
                     IFNULL(DATE_FORMAT(u.last_login_at, "%b %e, %Y %H:%i"), "—") AS last_login
-             FROM sms_users u
-             LEFT JOIN sms_roles r ON r.role_key = u.role_key
+             FROM `sms2_users` u
+             LEFT JOIN `sms2_roles` r ON r.role_key = u.role_key
              WHERE u.status IN (\'inactive\', \'suspended\')
                AND u.role_key <> \'research_grant\'
                AND u.username <> \'researchgrant\'
@@ -200,7 +215,7 @@ if ($pdo) {
         $users = $stmt->fetchAll() ?: [];
         $archivedCount = count($users);
         $activeCount = (int) $pdo->query(
-            'SELECT COUNT(*) FROM sms_users
+            'SELECT COUNT(*) FROM `sms2_users`
              WHERE status NOT IN (\'inactive\', \'suspended\')
                AND role_key <> \'research_grant\'
                AND username <> \'researchgrant\''
@@ -211,8 +226,8 @@ if ($pdo) {
                     r.label AS roleLabel, u.status, u.notes,
                     DATE_FORMAT(u.created_at, "%b %e, %Y") AS created,
                     IFNULL(DATE_FORMAT(u.last_login_at, "%b %e, %Y %H:%i"), "—") AS last_login
-             FROM sms_users u
-             LEFT JOIN sms_roles r ON r.role_key = u.role_key
+             FROM `sms2_users` u
+             LEFT JOIN `sms2_roles` r ON r.role_key = u.role_key
              WHERE u.status NOT IN (\'inactive\', \'suspended\')
                AND u.role_key <> \'research_grant\'
                AND u.username <> \'researchgrant\'
@@ -220,7 +235,7 @@ if ($pdo) {
         );
         $users = $stmt->fetchAll() ?: [];
         $archivedCount = (int) $pdo->query(
-            'SELECT COUNT(*) FROM sms_users
+            'SELECT COUNT(*) FROM `sms2_users`
              WHERE status IN (\'inactive\', \'suspended\')
                AND role_key <> \'research_grant\'
                AND username <> \'researchgrant\''
@@ -327,7 +342,7 @@ $archiveUrl  = $accountsUrl . '?view=archive';
 $currentUserId = (int) getCurrentUserId();
 ?>
 
-<link href="<?= BASE_URL ?>/modules/user-management/assets/css/user-management.css?v=dept-head-badge-2" rel="stylesheet">
+<link href="<?= BASE_URL ?>/modules/user-management/assets/css/user-management.css?v=20260926-add-user-errors" rel="stylesheet">
 <meta name="csrf-token" content="<?= e($csrf) ?>">
 
 <?php
@@ -338,7 +353,12 @@ $pageBannerDescription = $isArchiveView
 renderBreadcrumbs($breadcrumbs);
 ?>
 
-<div id="umToastContainer" class="position-fixed bottom-0 end-0 p-3" style="z-index:1100;"></div>
+<div id="umToastContainer" class="position-fixed bottom-0 end-0 p-3" style="z-index:2000;"></div>
+
+<div id="umPageAlert" class="alert alert-success alert-dismissible mb-3" role="status" hidden>
+    <span id="umPageAlertText"></span>
+    <button type="button" class="btn-close" data-um-dismiss="page-alert" aria-label="Dismiss"></button>
+</div>
 
 <div class="page-header d-flex justify-content-between align-items-start flex-wrap gap-2">
     <div></div>
@@ -595,11 +615,8 @@ renderBreadcrumbs($breadcrumbs);
                 <input type="hidden" name="user_id">
                 <input type="hidden" name="csrf_token" value="<?= e($csrf) ?>">
                 <input type="hidden" name="action" value="save">
-                <div class="um-autofill-trap" aria-hidden="true" style="position:absolute;left:-9999px;height:0;width:0;overflow:hidden;">
-                    <input type="text" name="um_prevent_autofill_user" value="" autocomplete="username" tabindex="-1">
-                    <input type="password" name="um_prevent_autofill_pass" value="" autocomplete="current-password" tabindex="-1">
-                </div>
                 <div class="modal-body">
+                    <div id="umUserFormAlert" class="alert alert-danger um-form-alert mb-3" role="alert" hidden></div>
                     <div class="um-modal-avatar-row mb-3">
                         <div class="um-modal-avatar">?</div>
                         <small class="text-muted">Avatar auto-generated from name</small>
@@ -607,15 +624,16 @@ renderBreadcrumbs($breadcrumbs);
                     <div class="row g-3">
                         <div class="col-12">
                             <label class="form-label fw-semibold">Full Name <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" name="full_name" placeholder="e.g. Maria Santos" required>
+                            <input type="text" class="form-control" name="full_name" placeholder="e.g. Maria Santos" required autocomplete="off">
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-semibold">Username <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" name="username" placeholder="e.g. msantos" required autocomplete="off">
+                            <input type="text" class="form-control" name="username" placeholder="e.g. mariasantos" maxlength="80" required autocomplete="off">
+                            <div class="form-text" id="umUsernameHelp">Use letters and numbers only (A–Z, 0–9).</div>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-semibold">Email <span class="text-danger">*</span></label>
-                            <input type="email" class="form-control" name="email" placeholder="user@bestlink.edu.ph" required>
+                            <input type="text" class="form-control" name="email" inputmode="email" autocapitalize="none" spellcheck="false" placeholder="user@bestlink.edu.ph" required autocomplete="off">
                         </div>
                         <div class="col-md-6 um-pw-row">
                             <label class="form-label fw-semibold um-pw-label">Password <span class="text-danger um-pw-required">*</span></label>
@@ -626,7 +644,7 @@ renderBreadcrumbs($breadcrumbs);
                                 'required' => true,
                                 'minlength' => $minPasswordLen,
                                 'autocomplete' => 'new-password',
-                                'attrs' => 'data-lpignore="true" data-1p-ignore="true"',
+                                'attrs' => 'form="umPasswordSink" readonly data-lpignore="true" data-1p-ignore="true" data-bwignore="true"',
                             ]) ?>
                         </div>
                         <div class="col-md-6 um-pw-confirm-row">
@@ -638,7 +656,7 @@ renderBreadcrumbs($breadcrumbs);
                                 'required' => true,
                                 'minlength' => $minPasswordLen,
                                 'autocomplete' => 'new-password',
-                                'attrs' => 'data-lpignore="true" data-1p-ignore="true"',
+                                'attrs' => 'form="umPasswordSink" readonly data-lpignore="true" data-1p-ignore="true" data-bwignore="true"',
                             ]) ?>
                         </div>
                         <div class="col-md-6">
@@ -691,46 +709,150 @@ renderBreadcrumbs($breadcrumbs);
                     </button>
                 </div>
             </form>
+            <form id="umPasswordSink" autocomplete="off" hidden aria-hidden="true"></form>
         </div>
     </div>
 </div>
 <?php endif; ?>
 
-<script src="<?= BASE_URL ?>/modules/user-management/assets/js/user-management.js?v=20260919-live-edit-2"></script>
+<script src="<?= BASE_URL ?>/modules/user-management/assets/js/user-management.js?v=20260926-um-no-save-password"></script>
 <script>
 (function () {
     var ENDPOINT = '<?= BASE_URL ?>/modules/user-management/includes/save-user.php';
-    var CSRF = document.querySelector('meta[name="csrf-token"]')?.content || '';
     var ACCOUNTS = '<?= e($accountsUrl) ?>';
     var ARCHIVE = '<?= e($archiveUrl) ?>';
     var IS_ARCHIVE = <?= $isArchiveView ? 'true' : 'false' ?>;
+
+    function currentCsrf() {
+        var meta = document.querySelector('meta[name="csrf-token"]');
+        var input = document.querySelector('#umUserForm [name="csrf_token"]');
+        return (meta && meta.getAttribute('content')) || (input && input.value) || '';
+    }
+
+    function parseJsonLoose(text) {
+        var raw = String(text || '').replace(/^\uFEFF/, '').trim();
+        if (!raw) return null;
+        try {
+            return JSON.parse(raw);
+        } catch (err) { /* response may have a notice before the JSON object */ }
+        var start = raw.indexOf('{');
+        var end = raw.lastIndexOf('}');
+        if (start === -1 || end <= start) return null;
+        try {
+            return JSON.parse(raw.slice(start, end + 1));
+        } catch (err2) {
+            return null;
+        }
+    }
+
+    function unexplainedResponse(status, text) {
+        var sample = String(text || '').replace(/\s+/g, ' ').slice(0, 400);
+        if (/110200|cf-error-code|challenge-platform|cf-challenge|Just a moment/i.test(sample)) {
+            return 'Cloudflare blocked Add User (error 110200). Refresh the page and try again.';
+        }
+        if (status === 401) {
+            return 'Your session has expired. Sign in again, then add the user.';
+        }
+        if (status === 403) {
+            return 'You do not have permission to save this user, or the security token was rejected. Refresh the page and try again.';
+        }
+        if (status === 404) {
+            return 'Add User could not reach the save service (HTTP 404).';
+        }
+        if (status >= 500) {
+            return 'Add User failed because the server had an error (HTTP ' + status + '). Nothing was saved.';
+        }
+        if (!sample) {
+            return 'Add User failed (HTTP ' + status + ') and the server sent an empty response.';
+        }
+        return 'Add User failed (HTTP ' + status + '). The server did not return a usable error message.';
+    }
+
+    function umErrorText(data, fallback) {
+        var error = data && data.error != null ? String(data.error) : '';
+        var message = data && data.message != null ? String(data.message) : '';
+        if (error === 'csrf_invalid') {
+            return 'Your security token expired. Refresh the page and try again.';
+        }
+        if (error === 'session_expired') {
+            return 'Your session has expired. Sign in again, then add the user.';
+        }
+        if (error === 'Forbidden' || error === 'forbidden') {
+            return 'You do not have permission to add or update users.';
+        }
+        if (message && message !== error) return message;
+        if (error) return error;
+        return fallback || 'The account could not be saved.';
+    }
+
+    function showFormAlert(message) {
+        var alertEl = document.getElementById('umUserFormAlert');
+        if (!alertEl) return;
+        alertEl.textContent = message || '';
+        alertEl.hidden = !message;
+        if (message && alertEl.scrollIntoView) {
+            alertEl.scrollIntoView({ block: 'nearest' });
+        }
+    }
+
+    function showPageAlert(message, type) {
+        var alertEl = document.getElementById('umPageAlert');
+        var textEl = document.getElementById('umPageAlertText');
+        if (!alertEl || !textEl) return;
+        textEl.textContent = message || '';
+        alertEl.classList.remove('alert-success', 'alert-danger', 'alert-warning');
+        alertEl.classList.add(type === 'danger' ? 'alert-danger' : (type === 'warning' ? 'alert-warning' : 'alert-success'));
+        alertEl.hidden = !message;
+        if (message && alertEl.scrollIntoView) {
+            alertEl.scrollIntoView({ block: 'nearest' });
+        }
+    }
 
     function postJson(payload) {
         return fetch(ENDPOINT, {
             method: 'POST',
             credentials: 'same-origin',
-            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-            body: JSON.stringify(Object.assign({ csrf_token: CSRF }, payload))
+            cache: 'no-store',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'Cache-Control': 'no-store'
+            },
+            body: JSON.stringify(Object.assign({ csrf_token: currentCsrf() }, payload))
         }).then(function (r) {
             return r.text().then(function (text) {
-                try {
-                    return JSON.parse(text);
-                } catch (err) {
-                    return { ok: false, error: 'Save failed' };
+                var data = parseJsonLoose(text);
+                if (data && typeof data === 'object') {
+                    var explicitOk = data.ok === true || (data.success === true && data.ok !== false && !data.error);
+                    data.ok = explicitOk;
+                    if (!explicitOk && !data.error && !data.message) {
+                        data.error = unexplainedResponse(r.status, text);
+                    }
+                    return data;
                 }
+                return { ok: false, error: unexplainedResponse(r.status, text) };
             });
         });
     }
 
-    function passwordMeetsPolicy(form, password) {
-        if (!password) return false;
+    function passwordPolicyMessage(form, password) {
         var box = form.querySelector('.pw-strength');
         var minLen = box ? parseInt(box.getAttribute('data-pw-min') || '8', 10) : 8;
-        return password.length >= minLen
-            && /[A-Z]/.test(password)
-            && /[a-z]/.test(password)
-            && /[0-9]/.test(password)
-            && /[^A-Za-z0-9]/.test(password);
+        if (!minLen || minLen < 1) minLen = 8;
+        var missing = [];
+        if (password.length < minLen) missing.push('at least ' + minLen + ' characters');
+        if (!/[A-Z]/.test(password)) missing.push('an uppercase letter');
+        if (!/[a-z]/.test(password)) missing.push('a lowercase letter');
+        if (!/[0-9]/.test(password)) missing.push('a number');
+        if (!/[^A-Za-z0-9]/.test(password)) missing.push('a special character');
+        if (!missing.length) return '';
+        return 'Password needs ' + missing.join(', ') + '.';
+    }
+
+    function showSaveError(message) {
+        var text = message || 'The account could not be saved.';
+        showFormAlert(text);
+        if (typeof umShowToast === 'function') umShowToast(text, 'danger');
     }
 
     var FACULTY_ROLES = ['hr', 'adviser', 'grammarian', 'panel'];
@@ -960,10 +1082,20 @@ renderBreadcrumbs($breadcrumbs);
     }
 
     document.addEventListener('DOMContentLoaded', function () {
+        var params = new URLSearchParams(window.location.search);
+        if (params.get('created') === '1') {
+            showPageAlert('User account created. They can sign in with the username and password you set.', 'success');
+        } else if (params.get('updated') === '1') {
+            showPageAlert('User account updated.', 'success');
+        } else if (params.get('password') === '1') {
+            showPageAlert('Password updated. The user can sign in with the new password now.', 'success');
+        }
+
         var form = document.getElementById('umUserForm');
         if (form) {
             form.addEventListener('submit', function (e) {
                 e.preventDefault();
+                showFormAlert('');
                 var fd = new FormData(form);
                 var userId = fd.get('user_id') || '';
                 var pwInput = document.getElementById('um_password');
@@ -974,22 +1106,49 @@ renderBreadcrumbs($breadcrumbs);
                 var password = (!userId || passwordDirty) ? typedPassword : '';
                 var confirm = (!userId || passwordDirty) ? typedConfirm : '';
                 var submitBtn = form.querySelector('[type="submit"]');
+                var fullName = String(fd.get('full_name') || '').trim();
+                var username = String(fd.get('username') || '').trim();
+                var email = String(fd.get('email') || '').trim();
+                var role = String(fd.get('role') || '').trim();
 
+                var missing = [];
+                if (!fullName) missing.push('full name');
+                if (!username) missing.push('username');
+                if (!email) missing.push('email');
+                if (!role) missing.push('role');
+                if (missing.length) {
+                    showSaveError('Enter ' + missing.join(', ') + '.');
+                    return;
+                }
+                if (!userId && !/^[a-z0-9]+$/i.test(username)) {
+                    showSaveError('Username can contain letters and numbers only (A-Z, 0-9).');
+                    form.querySelector('[name="username"]').focus();
+                    return;
+                }
+                if (email.indexOf('@') === -1 || email.indexOf('.') === -1) {
+                    showSaveError('Enter a valid email address.');
+                    return;
+                }
                 if (!userId && !password) {
-                    if (typeof umShowToast === 'function') umShowToast('Password is required for new users.', 'danger');
-                    else alert('Password is required for new users.');
+                    showSaveError('Password is required for new users.');
+                    if (pwInput) pwInput.focus();
                     return;
                 }
                 if (password && password !== confirm) {
-                    if (typeof umShowToast === 'function') umShowToast('New password and confirmation do not match.', 'danger');
-                    else alert('New password and confirmation do not match.');
+                    showSaveError('New password and confirmation do not match.');
+                    if (pwConfirmInput) pwConfirmInput.focus();
                     return;
                 }
-                if ((!userId || password) && password && !passwordMeetsPolicy(form, password)) {
-                    if (typeof umShowToast === 'function') umShowToast('Password does not meet security requirements.', 'danger');
-                    else alert('Password does not meet security requirements.');
-                    return;
+                if (password) {
+                    var policyMessage = passwordPolicyMessage(form, password);
+                    if (policyMessage) {
+                        showSaveError(policyMessage);
+                        if (pwInput) pwInput.focus();
+                        return;
+                    }
                 }
+                if (pwInput) pwInput.value = '';
+                if (pwConfirmInput) pwConfirmInput.value = '';
                 var payload = {
                     action: 'save',
                     user_id: fd.get('user_id') || '',
@@ -1017,26 +1176,28 @@ renderBreadcrumbs($breadcrumbs);
                         applySavedUserRow(form, savedUser);
                         form.dataset.umSaved = '1';
                         closeUserModal();
-                        if (typeof umShowToast === 'function') {
-                            umShowToast(
-                                data.created
-                                    ? 'User account created.'
-                                    : (data.password_updated
-                                        ? 'Password updated. The user can sign in with the new password now.'
-                                        : 'User account updated.'),
-                                'success'
-                            );
-                        }
+                        var successText = (data && data.message) || (data.created
+                            ? 'Account successfully created.'
+                            : (data.password_updated
+                                ? 'Password updated. The user can sign in with the new password now.'
+                                : 'User account updated.'));
+                        var followupWarning = data && data.warning ? String(data.warning) : '';
+                        var alertText = successText + (followupWarning ? ' ' + followupWarning : '');
+                        var alertType = followupWarning ? 'warning' : 'success';
+                        showPageAlert(alertText, alertType);
+                        if (typeof umShowToast === 'function') umShowToast(alertText, alertType);
                         form.dataset.pwDirty = '0';
                         if (pwInput) pwInput.value = '';
                         if (pwConfirmInput) pwConfirmInput.value = '';
-                    } else if (typeof umShowToast === 'function') {
-                        umShowToast((data && data.error) || 'Save failed', 'danger');
                     } else {
-                        alert((data && data.error) || 'Save failed');
+                        if (pwInput && password) pwInput.value = password;
+                        if (pwConfirmInput && confirm) pwConfirmInput.value = confirm;
+                        showSaveError(umErrorText(data, 'The account could not be saved.'));
                     }
                 }).catch(function () {
-                    if (typeof umShowToast === 'function') umShowToast('Network error', 'danger');
+                    if (pwInput && password) pwInput.value = password;
+                    if (pwConfirmInput && confirm) pwConfirmInput.value = confirm;
+                    showSaveError('Add User could not reach the server. Check your connection and try again.');
                 }).finally(function () {
                     if (submitBtn) submitBtn.disabled = false;
                 });
@@ -1064,6 +1225,7 @@ renderBreadcrumbs($breadcrumbs);
             modalEl.addEventListener('show.bs.modal', function () {
                 form.dataset.umSaved = '0';
                 form.dataset.umLive = '0';
+                showFormAlert('');
             });
 
             modalEl.addEventListener('shown.bs.modal', function () {
@@ -1096,6 +1258,15 @@ renderBreadcrumbs($breadcrumbs);
             });
         }
 
+        var pageAlert = document.getElementById('umPageAlert');
+        if (pageAlert) {
+            pageAlert.addEventListener('click', function (ev) {
+                if (ev.target.closest('[data-um-dismiss="page-alert"]')) {
+                    pageAlert.hidden = true;
+                }
+            });
+        }
+
         document.querySelectorAll('.um-set-status').forEach(function (btn) {
             btn.addEventListener('click', function () {
                 if (btn.hasAttribute('data-um-confirm')) return;
@@ -1110,8 +1281,10 @@ renderBreadcrumbs($breadcrumbs);
                         } else {
                             location.href = ACCOUNTS + '?restored=1';
                         }
-                    } else if (typeof umShowToast === 'function') {
-                        umShowToast(data.error || 'Status update failed', 'danger');
+                    } else {
+                        var statusError = umErrorText(data, 'Status update failed');
+                        showPageAlert(statusError, 'danger');
+                        if (typeof umShowToast === 'function') umShowToast(statusError, 'danger');
                     }
                 });
             });
@@ -1122,7 +1295,11 @@ renderBreadcrumbs($breadcrumbs);
                 if (btn.hasAttribute('data-um-confirm')) return;
                 postJson({ action: 'delete', user_id: btn.dataset.uid }).then(function (data) {
                     if (data.ok) location.href = ARCHIVE + '&purged=1';
-                    else if (typeof umShowToast === 'function') umShowToast(data.error || 'Delete failed', 'danger');
+                    else {
+                        var deleteError = umErrorText(data, 'Delete failed');
+                        showPageAlert(deleteError, 'danger');
+                        if (typeof umShowToast === 'function') umShowToast(deleteError, 'danger');
+                    }
                 });
             });
         });

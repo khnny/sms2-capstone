@@ -8,7 +8,7 @@ declare(strict_types=1);
 if (PHP_SAPI !== 'cli') {
     http_response_code(403);
     header('Content-Type: text/plain; charset=utf-8');
-    echo "Forbidden. Run from CLI only:\n  C:\\xampp\\php\\php.exe database/update_official_credentials.php\n";
+    echo "Forbidden. Run from CLI only:\n  php database/update_official_credentials.php\n";
     exit(1);
 }
 
@@ -71,13 +71,13 @@ function smsSyncCradEmails(PDO $crad, array $emails): void
 }
 
 $find = $pdo->prepare(
-    'SELECT id, username, email FROM sms_users
+    'SELECT id, username, email FROM `sms2_users`
      WHERE username = :uname OR LOWER(email) = LOWER(:email)
      LIMIT 1'
 );
 
 $update = $pdo->prepare(
-    'UPDATE sms_users
+    'UPDATE `sms2_users`
         SET username = :username,
             email = :email,
             password_hash = :hash,
@@ -137,7 +137,7 @@ foreach ($accounts as $account) {
     }
 
     $pdo->prepare(
-        'INSERT INTO sms_users
+        'INSERT INTO `sms2_users`
             (username, email, password_hash, full_name, role_key, student_id, status, password_changed_at, must_change_password, failed_login_attempts, locked_until)
          VALUES (?, ?, ?, ?, ?, ?, \'active\', NOW(), 0, 0, NULL)'
     )->execute([

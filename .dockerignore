@@ -1,0 +1,14 @@
+.git
+.cursor
+*.bak
+*.preprefix.bak
+*.sql
+!database/sms2_db.sql
+!modules/crad/database/crad_db.sql
+!database/patches/*.sql
+config/local.php
+storage/backups/*
+storage/keys/*
+storage/uploads/*
+storage/logs/*
+*.log

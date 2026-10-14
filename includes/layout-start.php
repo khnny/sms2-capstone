@@ -48,6 +48,32 @@ if ($activePage === '' && str_ends_with($scriptPath, '/dashboard/index.php') && 
 }
 
 $onMainDashboard = str_ends_with($scriptPath, '/dashboard/index.php');
+$roleHomeUrl = smsRoleHomeUrl($layoutRoleKey);
+$roleHomePath = (string) (parse_url($roleHomeUrl, PHP_URL_PATH) ?? '');
+$roleHomeQuery = [];
+parse_str((string) (parse_url($roleHomeUrl, PHP_URL_QUERY) ?? ''), $roleHomeQuery);
+$isRoleDashboardHome = $layoutRoleKey !== 'student'
+    && !$onMainDashboard
+    && $roleHomePath !== ''
+    && str_ends_with($scriptPath, $roleHomePath)
+    && !isset($_GET['id']);
+foreach ($_GET as $queryKey => $_queryValue) {
+    if (!array_key_exists((string) $queryKey, $roleHomeQuery)) {
+        $isRoleDashboardHome = false;
+        break;
+    }
+}
+foreach ($roleHomeQuery as $queryKey => $queryValue) {
+    $currentQueryValue = $_GET[$queryKey] ?? null;
+    if (!is_scalar($currentQueryValue) || (string) $currentQueryValue !== (string) $queryValue) {
+        $isRoleDashboardHome = false;
+        break;
+    }
+}
+if ($isRoleDashboardHome) {
+    $bodyClass .= ' role-dashboard-home';
+}
+
 if ($onMainDashboard && !smsShowsMainDashboard($layoutRoleKey)) {
     $homeUrl = smsRoleHomeUrl($layoutRoleKey);
     $homePath = (string) (parse_url($homeUrl, PHP_URL_PATH) ?? '');

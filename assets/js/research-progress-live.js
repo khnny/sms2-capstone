@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Research Progress Live Updates
  * Read-only polling for real-time updates
  * 

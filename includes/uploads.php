@@ -16,11 +16,14 @@ function smsUploadRoot(): string
     return ROOT_PATH . '/storage/uploads';
 }
 
-function smsUploadEnsureDirs(): void
+function smsUploadEnsureDirs(): bool
 {
     $root = smsUploadRoot();
     if (!is_dir($root)) {
         @mkdir($root, 0750, true);
+    }
+    if (!is_dir($root) || !is_writable($root)) {
+        return false;
     }
     $deny = $root . '/.htaccess';
     if (!is_file($deny)) {
@@ -51,6 +54,8 @@ function smsUploadEnsureDirs(): void
             . "<IfModule !mod_authz_core.c>\n    Deny from all\n</IfModule>\n"
         );
     }
+
+    return true;
 }
 
 /**
@@ -81,8 +86,6 @@ function smsUploadAllowedDocuments(): array
  */
 function smsSecureUpload(array $file, array $opts = []): array
 {
-    smsUploadEnsureDirs();
-
     $empty = [
         'ok' => false,
         'error' => 'Upload failed.',
@@ -93,9 +96,20 @@ function smsSecureUpload(array $file, array $opts = []): array
         'mime' => '',
     ];
 
+    if (!smsUploadEnsureDirs()) {
+        $empty['error'] = 'Upload storage is unavailable or not writable. Ask the hosting administrator to make storage/uploads writable.';
+        return $empty;
+    }
+
     $required = !empty($opts['required']);
     $error = (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE);
     if ($error === UPLOAD_ERR_NO_FILE) {
+        $contentLength = (int) ($_SERVER['CONTENT_LENGTH'] ?? 0);
+        $postMaxBytes = smsUploadIniBytes((string) ini_get('post_max_size'));
+        if ($contentLength > 0 && $postMaxBytes > 0 && $contentLength > $postMaxBytes) {
+            $empty['error'] = 'The upload was rejected by the hosting post_max_size limit (' . ini_get('post_max_size') . '). Increase the hosting PHP upload limit.';
+            return $empty;
+        }
         if ($required) {
             $empty['error'] = 'A required file is missing.';
             return $empty;
@@ -111,7 +125,15 @@ function smsSecureUpload(array $file, array $opts = []): array
         ];
     }
     if ($error !== UPLOAD_ERR_OK) {
-        $empty['error'] = 'Upload error code ' . $error . '.';
+        $empty['error'] = match ($error) {
+            UPLOAD_ERR_INI_SIZE => 'The file is larger than the hosting upload_max_filesize limit (' . ini_get('upload_max_filesize') . ').',
+            UPLOAD_ERR_FORM_SIZE => 'The file is larger than the form upload limit.',
+            UPLOAD_ERR_PARTIAL => 'The upload was interrupted. Please try again.',
+            UPLOAD_ERR_NO_TMP_DIR => 'The hosting server has no temporary upload directory configured.',
+            UPLOAD_ERR_CANT_WRITE => 'The hosting server could not write the uploaded file.',
+            UPLOAD_ERR_EXTENSION => 'A PHP extension stopped the upload.',
+            default => 'Upload failed with error code ' . $error . '.',
+        };
         return $empty;
     }
 
@@ -161,6 +183,10 @@ function smsSecureUpload(array $file, array $opts = []): array
     if (!is_dir($destDir)) {
         @mkdir($destDir, 0750, true);
     }
+    if (!is_dir($destDir) || !is_writable($destDir)) {
+        $empty['error'] = 'The upload folder is not writable on the hosting server.';
+        return $empty;
+    }
 
     $stored = bin2hex(random_bytes(16)) . '.' . $ext;
     $dest = $destDir . '/' . $stored;
@@ -179,4 +205,23 @@ function smsSecureUpload(array $file, array $opts = []): array
         'size' => $size,
         'mime' => $mime,
     ];
+}
+
+function smsUploadIniBytes(string $value): int
+{
+    $value = trim($value);
+    if ($value === '') {
+        return 0;
+    }
+    $number = (float) $value;
+    $unit = strtolower(substr($value, -1));
+    $multiplier = 1;
+    if ($unit === 'g') {
+        $multiplier = 1024 * 1024 * 1024;
+    } elseif ($unit === 'm') {
+        $multiplier = 1024 * 1024;
+    } elseif ($unit === 'k') {
+        $multiplier = 1024;
+    }
+    return (int) ($number * $multiplier);
 }

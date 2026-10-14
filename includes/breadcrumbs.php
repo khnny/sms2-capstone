@@ -6,10 +6,7 @@
  */
 function renderBreadcrumbs(array $breadcrumbs): void
 {
-    if (empty($breadcrumbs)) {
-        return;
-    }
-    ?>
+    if (!empty($breadcrumbs)): ?>
     <nav aria-label="breadcrumb">
         <ol class="breadcrumb">
             <li class="breadcrumb-item">
@@ -33,8 +30,14 @@ function renderBreadcrumbs(array $breadcrumbs): void
         </ol>
     </nav>
     <?php
+        renderModulePageBanner($breadcrumbs);
+    endif;
 
-    renderModulePageBanner($breadcrumbs);
+    if (!empty($GLOBALS['isRoleDashboardHome'])) {
+        require ROOT_PATH . '/communication/dashboard-announcements.php';
+        require ROOT_PATH . '/communication/dashboard-widgets.php';
+    }
+
 }
 
 function renderModulePageBanner(array $breadcrumbs): void

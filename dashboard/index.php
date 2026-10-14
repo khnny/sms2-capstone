@@ -39,6 +39,50 @@ if ($isStudentPortal):
         </div>
     </div>
 
+    <?php require ROOT_PATH . '/communication/dashboard-announcements.php'; ?>
+    <?php require ROOT_PATH . '/communication/dashboard-widgets.php'; ?>
+
+    <?php if (strtoupper(trim((string) $studentId)) === 'S230000001'): ?>
+    <section class="student-ai-example" aria-labelledby="studentAiExampleTitle">
+        <div class="student-ai-example-header">
+            <div>
+                <span class="student-ai-example-kicker">Example analysis</span>
+                <h2 id="studentAiExampleTitle"><?= smsIcon('robot', ['aria-hidden' => 'true']) ?>AI Research Assistant</h2>
+                <p>An example of the writing observations an Adviser may review.</p>
+            </div>
+            <span class="student-ai-example-badge">Read-only example</span>
+        </div>
+        <div class="student-ai-example-document">
+            <span class="student-ai-example-file-icon"><?= smsIcon('file-text', ['aria-hidden' => 'true']) ?></span>
+            <span><strong>Chapter 1 - Introduction.docx</strong><small>DOCX · 1.8 MB · Chapter 1</small></span>
+            <span class="student-ai-example-status">Writing review</span>
+        </div>
+        <div class="student-ai-example-grid">
+            <div class="student-ai-example-summary">
+                <h3>Summary</h3>
+                <p>The study explores how a community-based flood monitoring and early warning system could support timely, localized alerts for residents and local responders.</p>
+                <h4>Key points</h4>
+                <ul>
+                    <li>Combines sensor readings with a community notification process.</li>
+                    <li>Frames the project around preparedness and response time.</li>
+                </ul>
+            </div>
+            <div class="student-ai-example-observations">
+                <h3>Areas to review</h3>
+                <details>
+                    <summary><span class="student-ai-example-tag attention">Attention</span>Clarify the study boundary</summary>
+                    <p>State which locations, users, and alert conditions are included in the initial system scope.</p>
+                </details>
+                <details>
+                    <summary><span class="student-ai-example-tag review">Review</span>Keep terminology consistent</summary>
+                    <p>Use one term consistently for the alert platform throughout the chapter.</p>
+                </details>
+            </div>
+        </div>
+        <p class="student-ai-example-disclaimer">Illustrative content only. It is not based on your submission and does not change your research status or evaluation.</p>
+    </section>
+    <?php endif; ?>
+
     <section class="academic-notices-panel" aria-labelledby="studentAcademicNoticesTitle">
         <div class="academic-notices-icon" aria-hidden="true"><?= smsIcon('bullhorn') ?></div>
         <div>
@@ -537,144 +581,25 @@ endif;
 
 <?php
 /* ── Role-aware performance metrics ───────────────────── */
+// Every figure is a live query against the table that backs the role's
+// module. No mock values; modules without a records table show a real 0.
 $roleKey   = getCurrentUserRoleKey();
-$statCards = [];
-
-if (smsIsGrantedAdminRole($roleKey)) {
-    $statCards = [
-        ['icon'=>'fa-users-cog',  'label'=>'Managed Accounts', 'value'=>'14', 'type'=>'primary', 'delta'=>'+3', 'deltaDir'=>'up', 'deltaLabel'=>'this month'],
-        ['icon'=>'fa-shield-alt', 'label'=>'Secured Modules',  'value'=>(string) max(1, count($visibleModules)), 'type'=>'success', 'delta'=>'Active', 'deltaDir'=>'neutral', 'deltaLabel'=>'role scoped'],
-        ['icon'=>'fa-user-check', 'label'=>'Active Sessions',  'value'=>'9', 'type'=>'info', 'delta'=>'+2', 'deltaDir'=>'up', 'deltaLabel'=>'today'],
-        ['icon'=>'fa-history',    'label'=>'Audit Events',     'value'=>'186', 'type'=>'warning', 'delta'=>'+18', 'deltaDir'=>'up', 'deltaLabel'=>'this week'],
-    ];
-} elseif ($roleKey === 'admission') {
-    $statCards = [
-        ['icon'=>'fa-file-signature',  'label'=>'Pre-registrations',    'value'=>'86', 'type'=>'primary', 'delta'=>'+12', 'deltaDir'=>'up', 'deltaLabel'=>'this week'],
-        ['icon'=>'fa-cloud-upload-alt','label'=>'Docs for Checking',    'value'=>'31', 'type'=>'warning', 'delta'=>'-6', 'deltaDir'=>'down', 'deltaLabel'=>'vs yesterday'],
-        ['icon'=>'fa-user-check',      'label'=>'Validated Applicants', 'value'=>'54', 'type'=>'success', 'delta'=>'+9', 'deltaDir'=>'up', 'deltaLabel'=>'this week'],
-        ['icon'=>'fa-layer-group',     'label'=>'Section Placements',   'value'=>'28', 'type'=>'info', 'delta'=>'+4', 'deltaDir'=>'up', 'deltaLabel'=>'today'],
-    ];
-} elseif ($roleKey === 'registrar') {
-    $statCards = [
-        ['icon'=>'fa-user-graduate', 'label'=>'Total Students',      'value'=>'2,893', 'type'=>'primary', 'delta'=>'+3.8%', 'deltaDir'=>'up',   'deltaLabel'=>'vs last month'],
-        ['icon'=>'fa-file-alt',      'label'=>'Pending Enrollments', 'value'=>'47',    'type'=>'warning', 'delta'=>'-5.4%', 'deltaDir'=>'down', 'deltaLabel'=>'vs last week'],
-        ['icon'=>'fa-folder-open',   'label'=>'Document Requests',   'value'=>'28',    'type'=>'info',    'delta'=>'+9.2%', 'deltaDir'=>'up',   'deltaLabel'=>'vs last week'],
-        ['icon'=>'fa-check-circle',  'label'=>'Enrolled This Term',  'value'=>'1,204', 'type'=>'success', 'delta'=>'+6.1%', 'deltaDir'=>'up',   'deltaLabel'=>'vs last term'],
-    ];
-} elseif ($roleKey === 'finance') {
-    $statCards = [
-        ['icon'=>'fa-peso-sign',           'label'=>'Collections Today',       'value'=>'₱38,500', 'type'=>'success', 'delta'=>'+12.5%', 'deltaDir'=>'up',   'deltaLabel'=>'vs yesterday'],
-        ['icon'=>'fa-file-invoice-dollar', 'label'=>'Pending Payments',        'value'=>'134',     'type'=>'warning', 'delta'=>'-3.2%',  'deltaDir'=>'down', 'deltaLabel'=>'vs last week'],
-        ['icon'=>'fa-wallet',              'label'=>'Total Collected (Month)', 'value'=>'₱1.2M',   'type'=>'primary', 'delta'=>'+8.4%',  'deltaDir'=>'up',   'deltaLabel'=>'vs last month'],
-        ['icon'=>'fa-times-circle',        'label'=>'Overdue Accounts',        'value'=>'23',      'type'=>'info',    'delta'=>'-1.5%',  'deltaDir'=>'down', 'deltaLabel'=>'vs last week'],
-    ];
-} elseif ($roleKey === 'hr') {
-    $statCards = [
-        ['icon'=>'fa-chalkboard-teacher', 'label'=>'Total Faculty',          'value'=>'102', 'type'=>'primary', 'delta'=>'+1.0%', 'deltaDir'=>'up',   'deltaLabel'=>'vs last month'],
-        ['icon'=>'fa-calendar-times',     'label'=>'On Leave Today',         'value'=>'5',   'type'=>'warning', 'delta'=>'+2',    'deltaDir'=>'up',   'deltaLabel'=>'vs yesterday'],
-        ['icon'=>'fa-star',               'label'=>'Avg Evaluation Score',   'value'=>'4.2', 'type'=>'success', 'delta'=>'+0.1',  'deltaDir'=>'up',   'deltaLabel'=>'vs last term'],
-        ['icon'=>'fa-clock',              'label'=>'Pending Leave Requests', 'value'=>'8',   'type'=>'info',    'delta'=>'-3',    'deltaDir'=>'down', 'deltaLabel'=>'vs last week'],
-    ];
-} elseif ($roleKey === 'it_office') {
-    $statCards = [
-        ['icon'=>'fa-laptop',     'label'=>'Active Classes (LMS)',  'value'=>'148',   'type'=>'primary', 'delta'=>'+5.6%', 'deltaDir'=>'up',   'deltaLabel'=>'vs last week'],
-        ['icon'=>'fa-users',      'label'=>'Active LMS Users',      'value'=>'2,104', 'type'=>'success', 'delta'=>'+7.3%', 'deltaDir'=>'up',   'deltaLabel'=>'vs last month'],
-        ['icon'=>'fa-tasks',      'label'=>'Pending Submissions',   'value'=>'312',   'type'=>'warning', 'delta'=>'-4.1%', 'deltaDir'=>'down', 'deltaLabel'=>'vs last week'],
-        ['icon'=>'fa-chart-line', 'label'=>'Avg Module Completion', 'value'=>'68%',   'type'=>'info',    'delta'=>'+2.4%', 'deltaDir'=>'up',   'deltaLabel'=>'vs last month'],
-    ];
-} elseif ($roleKey === 'osa') {
-    $statCards = [
-        ['icon'=>'fa-users',            'label'=>'Registered Clubs',  'value'=>'24',  'type'=>'primary', 'delta'=>'+1',    'deltaDir'=>'up',   'deltaLabel'=>'new this month'],
-        ['icon'=>'fa-calendar-check',   'label'=>'Events This Month', 'value'=>'9',   'type'=>'success', 'delta'=>'+3',    'deltaDir'=>'up',   'deltaLabel'=>'vs last month'],
-        ['icon'=>'fa-user-check',       'label'=>'Active Members',    'value'=>'876', 'type'=>'info',    'delta'=>'+4.8%', 'deltaDir'=>'up',   'deltaLabel'=>'vs last month'],
-        ['icon'=>'fa-hand-holding-usd', 'label'=>'Budget Requests',   'value'=>'6',   'type'=>'warning', 'delta'=>'-2',    'deltaDir'=>'down', 'deltaLabel'=>'vs last week'],
-    ];
-} elseif ($roleKey === 'qa') {
-    $statCards = [
-        ['icon'=>'fa-award',              'label'=>'Accredited Programs', 'value'=>'8',        'type'=>'success', 'delta'=>'+1',    'deltaDir'=>'up',   'deltaLabel'=>'this year'],
-        ['icon'=>'fa-clipboard-list',     'label'=>'Compliance Items',    'value'=>'142',      'type'=>'primary', 'delta'=>'+6.2%', 'deltaDir'=>'up',   'deltaLabel'=>'vs last audit'],
-        ['icon'=>'fa-exclamation-circle', 'label'=>'Non-Conformities',    'value'=>'7',        'type'=>'warning', 'delta'=>'-2',    'deltaDir'=>'down', 'deltaLabel'=>'vs last review'],
-        ['icon'=>'fa-calendar-alt',       'label'=>'Next Visit',          'value'=>'Sep 2026', 'type'=>'info',    'delta'=>'On track', 'deltaDir'=>'neutral', 'deltaLabel'=>'schedule'],
-    ];
-} elseif ($roleKey === 'crad_officer') {
-    $grantDashboardMetrics = [
-        'total_grant_calls' => 0, 'submitted_proposals' => 0, 'under_review' => 0,
-        'revision_required' => 0, 'rejected_proposals' => 0, 'approved_funded_projects' => 0,
-        'total_funding' => 0.0, 'ongoing_research' => 0, 'completed_research' => 0,
-        'crad_publications' => 0, 'ip_records' => 0, 'updated_at' => '',
-    ];
-    $grantDashStats = ['submitted' => 0, 'in_progress' => 0, 'completed' => 0, 'committee_scored' => 0];
-    try {
-        require_once ROOT_PATH . '/modules/crad/config/config.php';
-        require_once ROOT_PATH . '/modules/crad/includes/grant-helpers.php';
-        require_once ROOT_PATH . '/modules/crad/includes/grant-approval-helpers.php';
-        $cradDb = cradDb();
-        if ($cradDb) {
-            $grantDashboardMetrics = grantGetDashboardMetrics($cradDb);
-            $grantDashStats = grantApprovalDashboardStats($cradDb);
-        }
-    } catch (Throwable $e) {
-        error_log('dashboard crad_officer grant stats: ' . $e->getMessage());
-    }
-    $statCards = [
-        ['icon'=>'fa-bullhorn',         'label'=>'Total Grant Calls',          'value'=>grantFormatDashboardMetricValue('total_grant_calls', $grantDashboardMetrics),         'metricKey'=>'total_grant_calls',        'type'=>'primary', 'delta'=>'Live', 'deltaDir'=>'neutral', 'deltaLabel'=>'from CRAD database'],
-        ['icon'=>'fa-file-alt',         'label'=>'Submitted Proposals',        'value'=>grantFormatDashboardMetricValue('submitted_proposals', $grantDashboardMetrics),       'metricKey'=>'submitted_proposals',      'type'=>'info',    'delta'=>'Live', 'deltaDir'=>'neutral', 'deltaLabel'=>'all applications'],
-        ['icon'=>'fa-check-circle',     'label'=>'Approved & Funded',        'value'=>grantFormatDashboardMetricValue('approved_funded_projects', $grantDashboardMetrics), 'metricKey'=>'approved_funded_projects', 'type'=>'success', 'delta'=>'Live', 'deltaDir'=>'neutral', 'deltaLabel'=>'active funded projects'],
-        ['icon'=>'fa-peso-sign',        'label'=>'Total Funding Released',   'value'=>grantFormatDashboardMetricValue('total_funding', $grantDashboardMetrics),            'metricKey'=>'total_funding',            'type'=>'warning', 'delta'=>'Live', 'deltaDir'=>'neutral', 'deltaLabel'=>'disbursements'],
-    ];
-} elseif ($roleKey === 'research_coordinator') {
-    $statCards = [
-        ['icon'=>'fa-check-square', 'label'=>'Approved Research',    'value'=>'18', 'type'=>'success', 'delta'=>'+3', 'deltaDir'=>'up', 'deltaLabel'=>'this month'],
-        ['icon'=>'fa-user-tie',     'label'=>'Adviser Matches',      'value'=>'12', 'type'=>'primary', 'delta'=>'+4', 'deltaDir'=>'up', 'deltaLabel'=>'assigned'],
-        ['icon'=>'fa-envelope',     'label'=>'Coordination Notices', 'value'=>'27', 'type'=>'info',    'delta'=>'+8', 'deltaDir'=>'up', 'deltaLabel'=>'sent'],
-        ['icon'=>'fa-tasks',        'label'=>'Open Assignments',     'value'=>'6',  'type'=>'warning', 'delta'=>'-2', 'deltaDir'=>'down', 'deltaLabel'=>'pending'],
-    ];
-} elseif ($roleKey === 'research_grant') {
-    $statCards = [
-        ['icon'=>'fa-hand-holding-usd', 'label'=>'Grant Applications', 'value'=>'16',       'type'=>'primary', 'delta'=>'+5',   'deltaDir'=>'up', 'deltaLabel'=>'this month'],
-        ['icon'=>'fa-search-dollar',    'label'=>'For Evaluation',     'value'=>'7',        'type'=>'warning', 'delta'=>'+2',   'deltaDir'=>'up', 'deltaLabel'=>'new'],
-        ['icon'=>'fa-check-circle',     'label'=>'Funded Research',    'value'=>'9',        'type'=>'success', 'delta'=>'+3',   'deltaDir'=>'up', 'deltaLabel'=>'approved'],
-        ['icon'=>'fa-peso-sign',        'label'=>'Funds Released',     'value'=>'PHP 486K', 'type'=>'info',    'delta'=>'+11%', 'deltaDir'=>'up', 'deltaLabel'=>'vs last month'],
-    ];
-} elseif (in_array($roleKey, ['adviser', 'panel'], true)) {
-    $statCards = [
-        ['icon'=>'fa-flask',        'label'=>'Assigned Research',  'value'=>'8',  'type'=>'primary', 'delta'=>'+2', 'deltaDir'=>'up', 'deltaLabel'=>'active'],
-        ['icon'=>'fa-calendar',     'label'=>'Defense Schedules',  'value'=>'5',  'type'=>'warning', 'delta'=>'+1', 'deltaDir'=>'up', 'deltaLabel'=>'this week'],
-        ['icon'=>'fa-folder-open',  'label'=>'Research Documents', 'value'=>'24', 'type'=>'info',    'delta'=>'+6', 'deltaDir'=>'up', 'deltaLabel'=>'reviewed'],
-        ['icon'=>'fa-check-square', 'label'=>'Completed Reviews',  'value'=>'11', 'type'=>'success', 'delta'=>'+3', 'deltaDir'=>'up', 'deltaLabel'=>'this month'],
-    ];
-} elseif ($roleKey === 'research_director') {
-    $statCards = [
-        ['icon'=>'fa-check-double',  'label'=>'Defense Ready',      'value'=>'14', 'type'=>'primary', 'delta'=>'+4', 'deltaDir'=>'up', 'deltaLabel'=>'verified'],
-        ['icon'=>'fa-calendar-plus', 'label'=>'Proposed Schedules', 'value'=>'9',  'type'=>'warning', 'delta'=>'+2', 'deltaDir'=>'up', 'deltaLabel'=>'pending'],
-        ['icon'=>'fa-users',         'label'=>'Panel Assignments',  'value'=>'21', 'type'=>'info',    'delta'=>'+5', 'deltaDir'=>'up', 'deltaLabel'=>'this month'],
-        ['icon'=>'fa-archive',       'label'=>'For Archiving',      'value'=>'6',  'type'=>'success', 'delta'=>'+1', 'deltaDir'=>'up', 'deltaLabel'=>'completed'],
-    ];
-} else {
-    $statCards = [
-        ['icon'=>'fa-flask',            'label'=>'Active Research Projects', 'value'=>'18', 'type'=>'primary', 'delta'=>'+3',    'deltaDir'=>'up',   'deltaLabel'=>'vs last quarter'],
-        ['icon'=>'fa-file-upload',      'label'=>'Submitted Proposals',      'value'=>'12', 'type'=>'info',    'delta'=>'+4',    'deltaDir'=>'up',   'deltaLabel'=>'this month'],
-        ['icon'=>'fa-book-open',        'label'=>'Publications This Year',   'value'=>'9',  'type'=>'success', 'delta'=>'+2',    'deltaDir'=>'up',   'deltaLabel'=>'vs last year'],
-        ['icon'=>'fa-hand-holding-usd', 'label'=>'Active Grants',            'value'=>'4',  'type'=>'warning', 'delta'=>'Stable', 'deltaDir'=>'neutral', 'deltaLabel'=>'current'],
-    ];
-}
+require_once ROOT_PATH . '/includes/dashboard-metrics.php';
+$statCards = smsDashStatCards($roleKey);
 
 require_once __DIR__ . '/period-filter.php';
 $dashboardPeriodKey    = smsDashboardCurrentPeriod();
 $dashboardPeriods      = smsDashboardPeriods();
 $dashboardPeriodMeta   = $dashboardPeriods[$dashboardPeriodKey];
 $dashboardPeriodFactor = $dashboardPeriodMeta['factor'];
-if ($roleKey !== 'crad_officer') {
-    $statCards = smsDashboardScaleStatCards($statCards, $dashboardPeriodFactor);
-}
+$dashboardIntro        = 'A concise view of your role-specific workspace and priority work.';
+// No period scaling: every card value is a real count from the database.
 
-require_once __DIR__ . '/glass-board.php';
+require_once __DIR__ . '/compact-board.php';
+require ROOT_PATH . '/communication/dashboard-announcements.php';
+require ROOT_PATH . '/communication/dashboard-widgets.php';
 ?>
 
-<script src="<?= BASE_URL ?>/assets/js/dashboard-glass.js"></script>
-<?php if ($roleKey === 'crad_officer'): ?>
-<link href="<?= BASE_URL ?>/assets/css/grant-approval-workflows.css?v=4" rel="stylesheet">
-<script src="<?= BASE_URL ?>/assets/js/crad-approval-dashboard-live.js?v=1"></script>
-<?php endif; ?>
+<script src="<?= BASE_URL ?>/assets/js/dashboard-live-metrics.js?v=1"></script>
 
 <?php require_once __DIR__ . '/../includes/layout-end.php'; ?>

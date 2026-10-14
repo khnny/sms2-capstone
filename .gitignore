@@ -1,6 +1,13 @@
-# Machine-specific config (copy from config/local.example.php)
+# Machine-specific config (copy from config/local*.example.php)
 config/local.php
 config/local.infinityfree.php
+config/local.hostforge.php
+*.env
+!.env.example
+
+# One-shot rewrite backups from prefix migration tools
+*.preprefix.bak
+*.sql.preprefix.bak
 
 # Secrets and generated keys
 storage/keys/*

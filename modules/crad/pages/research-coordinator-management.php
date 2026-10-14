@@ -3,13 +3,14 @@
  * SMS 2 - Research Coordinator Management
  * Module: CRAD
  *
- * Admin assigns a Research Coordinator from the Coordinator Roster to a
+ * Department Head assigns a Research Coordinator from the Coordinator Roster to a
  * student first. Adviser assignment happens next. Only then do both names
  * appear on the student's Title Approval Form.
  *
+ * Only department_head (and sms_admin support override) may assign / reassign.
  * Records live in the `crad_research_coordinator_assignments` table. The page
  * refreshes in real time (5s polling) via the `ajax=coordinator-assignments`
- * endpoint so the CRAD Officer always sees the latest eligible groups and
+ * endpoint so the Department Head always sees the latest eligible groups and
  * assignments without reloading.
  */
 require_once __DIR__ . '/../../../config/config.php';
@@ -18,16 +19,26 @@ require_once ROOT_PATH . '/config/database.php';
 require_once ROOT_PATH . '/includes/authentication.php';
 require_once ROOT_PATH . '/includes/security.php';
 require_once __DIR__ . '/../includes/title-approval-assignees.php';
+require_once __DIR__ . '/../includes/research-group-flow.php';
+require_once __DIR__ . '/../includes/research-adviser-assign-helpers.php';
 
 requireAuth();
 
 $roleKey = getCurrentUserRoleKey();
-if (
-    !smsIsGrantedAdminRole($roleKey)
-    && $roleKey !== 'department_head'
-    && !smsRoleAllowedForModule(['crad_officer'], 'crad')
-) {
-    header('Location: ' . BASE_URL . '/dashboard/index.php');
+$rcmAssignDeniedMessage = 'Only the Department Head may assign Research Coordinator and Adviser.';
+if (!smsCanManageCoordinatorAssignments($roleKey)) {
+    $ajaxEarly = (string) ($_REQUEST['ajax'] ?? '');
+    if ($ajaxEarly !== '') {
+        header('Content-Type: application/json; charset=utf-8');
+        http_response_code(403);
+        echo json_encode(['ok' => false, 'message' => $rcmAssignDeniedMessage]);
+        exit;
+    }
+    if ($roleKey === 'research_coordinator') {
+        header('Location: ' . BASE_URL . '/modules/crad/pages/assignment-confirmation.php?notice=assign-dh-only');
+        exit;
+    }
+    header('Location: ' . BASE_URL . '/dashboard/index.php?error=' . rawurlencode($rcmAssignDeniedMessage));
     exit;
 }
 
@@ -43,7 +54,7 @@ $breadcrumbs  = [
     ['label' => 'Research Coordinator Management', 'url' => null],
 ];
 $pageBannerIcon        = 'fa-user-tie';
-$pageBannerDescription = 'Assign a Research Coordinator from the Coordinator Roster to each student first. After that, assign a research adviser. Names appear on the Title Approval Form only once both assignments are saved.';
+$pageBannerDescription = 'Assign a Research Coordinator and Research Adviser to Department Head–approved Research Groups. Students appear here only after they submit a Research Group and DH approves it. Assign the coordinator first, then the adviser on this same page. Confirmation starts when the coordinator (or adviser) is assigned; Fully Assigned only after both Accept. Names appear on the Title Approval Form after both confirm.';
 
 require_once __DIR__ . '/../../../includes/breadcrumbs.php';
 
@@ -59,13 +70,13 @@ function rcmEnsureSchema(PDO $pdo): void
     try {
         $exists = $pdo->query("SHOW TABLES LIKE 'crad_research_groups'")->fetch();
         if ($exists) {
-            $pdo->exec("ALTER TABLE crad_research_groups CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+            $pdo->exec("ALTER TABLE `crad_research_groups` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
         }
     } catch (Throwable $e) {
         // ignore conversion errors
     }
 
-    $pdo->exec("CREATE TABLE IF NOT EXISTS crad_research_coordinator_assignments (
+    $pdo->exec("CREATE TABLE IF NOT EXISTS `crad_research_coordinator_assignments` (
         id INT UNSIGNED NOT NULL AUTO_INCREMENT,
         research_group_id INT UNSIGNED NULL,
         proposal_id INT UNSIGNED NULL,
@@ -90,9 +101,9 @@ function rcmEnsureSchema(PDO $pdo): void
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
     try {
-        $col = $pdo->query("SHOW COLUMNS FROM crad_research_coordinator_assignments LIKE 'group_number'")->fetch();
+        $col = $pdo->query("SHOW COLUMNS FROM `crad_research_coordinator_assignments` LIKE 'group_number'")->fetch();
         if ($col && strtoupper((string) ($col['Null'] ?? 'YES')) === 'NO') {
-            $pdo->exec("ALTER TABLE crad_research_coordinator_assignments MODIFY group_number VARCHAR(40) DEFAULT NULL");
+            $pdo->exec("ALTER TABLE `crad_research_coordinator_assignments` MODIFY group_number VARCHAR(40) DEFAULT NULL");
         }
     } catch (Throwable $e) {
         error_log('Coordinator assignment group_number nullable check skipped: ' . $e->getMessage());
@@ -107,54 +118,49 @@ function rcmEnsureSchema(PDO $pdo): void
 }
 
 /**
- * SQL fragment that only matches fully approved Title Approval Forms.
- * Reuses the same gate as Proposal Review / Approved Research.
- */
-function rcmFullyApprovedClause(string $alias = 't'): string
-{
-    return "{$alias}.status = 'Approved'
-        AND {$alias}.coordinator_status = 'Approved'
-        AND {$alias}.crad_status = 'Approved'
-        AND {$alias}.adviser_signature_data IS NOT NULL AND {$alias}.adviser_signature_data <> ''
-        AND {$alias}.coordinator_signature_data IS NOT NULL AND {$alias}.coordinator_signature_data <> ''
-        AND {$alias}.crad_signature_data IS NOT NULL AND {$alias}.crad_signature_data <> ''";
-}
-
-/**
- * Active students who still need a Research Coordinator from the roster.
+ * Leaders of DH-approved Research Groups who still need a Research Coordinator.
+ * Students with no group, draft-only, pending DH, or rejected groups are excluded.
+ * (Coordinator assignment happens after Department Head approval.)
  *
  * @return array<int, array<string, mixed>>
  */
 function rcmEligibleStudents(PDO $pdo): array
 {
-    $main = db();
-    if (!$main) {
-        return [];
+    try {
+        cradRgFlowEnsureSchema($pdo);
+    } catch (Throwable $e) {
+        error_log('RG flow schema ensure skipped in rcmEligibleStudents: ' . $e->getMessage());
     }
 
     try {
-        $students = $main->query(
-            "SELECT student_id, full_name, email
-             FROM sms_users
-             WHERE role_key = 'student'
-               AND status = 'active'
-               AND student_id IS NOT NULL
-               AND TRIM(student_id) <> ''
-             ORDER BY full_name ASC, student_id ASC"
+        $rows = $pdo->query(
+            "SELECT g.id AS group_id, g.group_number, g.group_name, g.research_title,
+                    g.adviser, g.proposal_number, g.leader_id, g.leader_name, g.flow_status,
+                    t.proposal_number AS tap_proposal_number,
+                    t.coordinator_name AS suggested_coordinator
+             FROM `crad_research_groups` g
+             LEFT JOIN `crad_title_approvals` t ON t.id = g.title_approval_id
+             WHERE g.flow_status IN ('approved', 'ready_for_assignment')
+               AND g.leader_id IS NOT NULL
+               AND TRIM(g.leader_id) <> ''
+             ORDER BY g.leader_name ASC, g.group_number ASC"
         )->fetchAll(PDO::FETCH_ASSOC) ?: [];
     } catch (Throwable $e) {
-        error_log('Eligible student list failed: ' . $e->getMessage());
+        error_log('Eligible student (RG) list failed: ' . $e->getMessage());
         return [];
     }
 
     $assigned = [];
     try {
-        foreach ($pdo->query("SELECT student_id, group_number FROM crad_research_coordinator_assignments WHERE status = 'Active'")->fetchAll() as $a) {
+        foreach ($pdo->query("SELECT student_id, group_number FROM `crad_research_coordinator_assignments` WHERE status = 'Active'")->fetchAll() as $a) {
             $sid = trim((string) ($a['student_id'] ?? ''));
             if ($sid !== '') {
                 $assigned[$sid] = true;
             }
             $gn = trim((string) ($a['group_number'] ?? ''));
+            if ($gn !== '') {
+                $assigned['gn:' . $gn] = true;
+            }
             if (str_starts_with($gn, 'STU-')) {
                 $assigned[substr($gn, 4)] = true;
             }
@@ -163,43 +169,37 @@ function rcmEligibleStudents(PDO $pdo): array
         error_log('Active coordinator student index failed: ' . $e->getMessage());
     }
 
-    $titles = [];
-    try {
-        foreach ($pdo->query("SELECT student_id, proposed_title, department FROM crad_title_approvals ORDER BY id DESC")->fetchAll() as $row) {
-            $sid = trim((string) ($row['student_id'] ?? ''));
-            if ($sid !== '' && !isset($titles[$sid])) {
-                $titles[$sid] = $row;
-            }
-        }
-    } catch (Throwable $e) {
-        error_log('Student title lookup failed: ' . $e->getMessage());
-    }
-
     $out = [];
-    foreach ($students as $student) {
-        $sid = trim((string) ($student['student_id'] ?? ''));
-        if ($sid === '' || isset($assigned[$sid])) {
+    $seen = [];
+    foreach ($rows as $r) {
+        $sid = trim((string) ($r['leader_id'] ?? ''));
+        $gn = trim((string) ($r['group_number'] ?? ''));
+        if ($sid === '' || isset($seen[$sid])) {
             continue;
         }
-        $title = trim((string) ($titles[$sid]['proposed_title'] ?? ''));
+        if (isset($assigned[$sid]) || ($gn !== '' && isset($assigned['gn:' . $gn]))) {
+            continue;
+        }
+        $seen[$sid] = true;
+        $title = trim((string) ($r['research_title'] ?? ''));
         $out[] = [
-            'group_id' => 0,
-            'group_number' => cradStudentAssignmentGroupNumber($sid),
-            'group_name' => (string) ($student['full_name'] ?? ''),
-            'research_title' => $title !== '' ? $title : 'Pending Title Approval',
-            'adviser' => '',
-            'proposal_number' => $sid,
-            'tap_proposal_number' => '',
-            'suggested_coordinator' => '',
+            'group_id' => (int) ($r['group_id'] ?? 0),
+            'group_number' => $gn !== '' ? $gn : cradStudentAssignmentGroupNumber($sid),
+            'group_name' => (string) (($r['group_name'] ?? '') !== '' ? $r['group_name'] : ($r['leader_name'] ?? '')),
+            'research_title' => $title !== '' ? $title : 'Pending research title',
+            'adviser' => (string) ($r['adviser'] ?? ''),
+            'proposal_number' => (string) ($r['proposal_number'] ?? $sid),
+            'tap_proposal_number' => (string) ($r['tap_proposal_number'] ?? ''),
+            'suggested_coordinator' => (string) ($r['suggested_coordinator'] ?? ''),
             'student_id' => $sid,
-            'student_name' => (string) ($student['full_name'] ?? ''),
-            'assign_kind' => 'student',
+            'student_name' => (string) ($r['leader_name'] ?? ''),
+            'flow_status' => (string) ($r['flow_status'] ?? ''),
+            'assign_kind' => 'group',
         ];
     }
 
     return $out;
 }
-
 /**
  * Deduplicated coordinator pool.
  * Prefers user accounts with the Research Coordinator role, then falls back
@@ -218,7 +218,7 @@ function rcmCoordinatorPool(PDO $pdo): array
         try {
             $users = $mainDb->query(
                 "SELECT id, full_name, email, status
-                 FROM sms_users
+                 FROM `sms2_users`
                  WHERE role_key = 'research_coordinator'
                  ORDER BY full_name ASC"
             )->fetchAll();
@@ -250,7 +250,7 @@ function rcmCoordinatorPool(PDO $pdo): array
     try {
         $approvals = $pdo->query(
             "SELECT DISTINCT coordinator_name
-             FROM crad_title_approvals
+             FROM `crad_title_approvals`
              WHERE coordinator_status = 'Approved'
                AND coordinator_name IS NOT NULL AND TRIM(coordinator_name) <> ''
              ORDER BY coordinator_name ASC"
@@ -282,45 +282,61 @@ function rcmCoordinatorPool(PDO $pdo): array
 }
 
 /**
- * Research groups that are fully approved but do not yet have an Active
- * coordinator assignment. The Title Approval coordinator is suggested.
+ * Research groups ready for Coordinator assignment after Department Head approval.
+ * Only flow_status IN (approved, ready_for_assignment). Draft / pending DH /
+ * rejected / missing groups are never listed.
  *
  * @return array<int, array<string, mixed>>
  */
 function rcmEligibleGroups(PDO $pdo): array
 {
+    try {
+        cradRgFlowEnsureSchema($pdo);
+    } catch (Throwable $e) {
+        error_log('RG flow schema ensure skipped in rcmEligibleGroups: ' . $e->getMessage());
+    }
+
     $sql = "SELECT g.id AS group_id, g.group_number, g.group_name, g.research_title,
-                   g.adviser, g.proposal_number, g.leader_id,
+                   g.adviser, g.proposal_number, g.leader_id, g.leader_name, g.flow_status,
                    t.proposal_number AS tap_proposal_number,
                    t.coordinator_name AS suggested_coordinator
-            FROM crad_research_groups g
-            JOIN crad_title_approvals t ON t.id = g.title_approval_id
-            WHERE g.title_approval_id IS NOT NULL
-              AND " . rcmFullyApprovedClause('t') . "
+            FROM `crad_research_groups` g
+            LEFT JOIN `crad_title_approvals` t ON t.id = g.title_approval_id
+            WHERE g.flow_status IN ('approved', 'ready_for_assignment')
             ORDER BY g.group_number ASC";
 
-    $rows = $pdo->query($sql)->fetchAll();
+    try {
+        $rows = $pdo->query($sql)->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    } catch (Throwable $e) {
+        error_log('Eligible research groups list failed: ' . $e->getMessage());
+        return [];
+    }
 
     $activeGroups = [];
     $assignedLeaders = [];
-    foreach ($pdo->query("SELECT student_id, group_number FROM crad_research_coordinator_assignments WHERE status = 'Active'")->fetchAll() as $a) {
-        $gn = trim((string) ($a['group_number'] ?? ''));
-        if ($gn !== '') {
-            $activeGroups[$gn] = true;
+    try {
+        foreach ($pdo->query("SELECT student_id, group_number FROM `crad_research_coordinator_assignments` WHERE status = 'Active'")->fetchAll() as $a) {
+            $gn = trim((string) ($a['group_number'] ?? ''));
+            if ($gn !== '') {
+                $activeGroups[$gn] = true;
+            }
+            $sid = trim((string) ($a['student_id'] ?? ''));
+            if ($sid !== '') {
+                $assignedLeaders[$sid] = true;
+            }
+            if (str_starts_with($gn, 'STU-')) {
+                $assignedLeaders[substr($gn, 4)] = true;
+            }
         }
-        $sid = trim((string) ($a['student_id'] ?? ''));
-        if ($sid !== '') {
-            $assignedLeaders[$sid] = true;
-        }
-        if (str_starts_with($gn, 'STU-')) {
-            $assignedLeaders[substr($gn, 4)] = true;
-        }
+    } catch (Throwable $e) {
+        error_log('Active coordinator group index failed: ' . $e->getMessage());
     }
 
     $eligible = [];
     $listedLeaders = [];
     foreach ($rows as $r) {
-        if (isset($activeGroups[$r['group_number']])) {
+        $gn = trim((string) ($r['group_number'] ?? ''));
+        if ($gn !== '' && isset($activeGroups[$gn])) {
             continue;
         }
         $leaderId = trim((string) ($r['leader_id'] ?? ''));
@@ -329,12 +345,15 @@ function rcmEligibleGroups(PDO $pdo): array
         }
         $r['assign_kind'] = 'group';
         $r['student_id'] = $leaderId;
+        $r['student_name'] = (string) ($r['leader_name'] ?? '');
         $eligible[] = $r;
         if ($leaderId !== '') {
             $listedLeaders[$leaderId] = true;
         }
     }
 
+    // Safety net: leaders of DH-approved groups not already listed above.
+    // Never pulls the full student roster.
     foreach (rcmEligibleStudents($pdo) as $studentRow) {
         $sid = trim((string) ($studentRow['student_id'] ?? ''));
         if ($sid !== '' && isset($listedLeaders[$sid])) {
@@ -345,7 +364,6 @@ function rcmEligibleGroups(PDO $pdo): array
 
     return $eligible;
 }
-
 /**
  * Coordinator assignments joined with the current research group / title
  * approval data.
@@ -358,9 +376,9 @@ function rcmAssignments(PDO $pdo): array
         "SELECT a.*, g.group_name AS current_group_name, g.research_title AS current_title,
                 g.adviser AS current_adviser,
                 t.coordinator_name AS approval_coordinator
-         FROM crad_research_coordinator_assignments a
-         LEFT JOIN crad_research_groups g ON g.id = a.research_group_id
-         LEFT JOIN crad_title_approvals t ON t.id = a.title_approval_id
+         FROM `crad_research_coordinator_assignments` a
+         LEFT JOIN `crad_research_groups` g ON g.id = a.research_group_id
+         LEFT JOIN `crad_title_approvals` t ON t.id = a.title_approval_id
          WHERE a.group_number IS NOT NULL AND a.group_number <> ''
          ORDER BY a.updated_at DESC, a.id DESC"
     )->fetchAll();
@@ -372,6 +390,7 @@ function rcmAssignments(PDO $pdo): array
             'research_group_id'   => $r['research_group_id'] !== null ? (int) $r['research_group_id'] : null,
             'title_approval_id'   => $r['title_approval_id'] !== null ? (int) $r['title_approval_id'] : null,
             'proposal_number'     => (string) ($r['proposal_number'] ?? ''),
+            'student_id'         => (string) ($r['student_id'] ?? ''),
             'group_number'        => (string) $r['group_number'],
             'group_name'          => (string) ($r['current_group_name'] !== null && $r['current_group_name'] !== '' ? $r['current_group_name'] : $r['group_name']),
             'research_title'      => (string) ($r['current_title'] !== null && $r['current_title'] !== '' ? $r['current_title'] : $r['research_title']),
@@ -472,7 +491,7 @@ function rcmResolveGroupMembers(PDO $pdo, array $group): array
         try {
             $stmt = $pdo->prepare(
                 "SELECT sort_order, student_id, student_name, email, contact
-                 FROM crad_proposal_members
+                 FROM `crad_proposal_members`
                  WHERE proposal_id = ?
                  ORDER BY sort_order ASC, id ASC"
             );
@@ -566,8 +585,8 @@ function rcmGroupDetails(PDO $pdo, string $groupNumber): array
 {
     $stmt = $pdo->prepare(
         "SELECT g.*, t.coordinator_name AS approval_coordinator, t.members_json
-         FROM crad_research_groups g
-         LEFT JOIN crad_title_approvals t ON t.id = g.title_approval_id
+         FROM `crad_research_groups` g
+         LEFT JOIN `crad_title_approvals` t ON t.id = g.title_approval_id
          WHERE g.group_number = ?
          LIMIT 1"
     );
@@ -581,7 +600,7 @@ function rcmGroupDetails(PDO $pdo, string $groupNumber): array
 
     $as = $pdo->prepare(
         "SELECT status, coordinator_name, coordinator_email, assigned_at, updated_at
-         FROM crad_research_coordinator_assignments
+         FROM `crad_research_coordinator_assignments`
          WHERE group_number = ?
          ORDER BY updated_at DESC, id DESC"
     );
@@ -672,6 +691,46 @@ function rcmPayload(PDO $pdo, ?string $flashMessage = null, bool $flashOk = true
     $pool        = rcmCoordinatorPool($pdo);
     $assignments = rcmAssignments($pdo);
     $roster      = rcmRoster($pdo);
+    $adviserPool = rcmAdviserPool();
+    $needAdviser = rcmGroupsNeedingAdviser($pdo);
+
+    // Enrich assignment rows with current research adviser label.
+    foreach ($assignments as &$assignmentRow) {
+        $assignmentRow['assigned_adviser'] = rcmCurrentAdviserLabel(
+            $pdo,
+            (string) ($assignmentRow['group_number'] ?? ''),
+            (string) ($assignmentRow['student_id'] ?? ''),
+            (int) ($assignmentRow['research_group_id'] ?? 0)
+        );
+        if ($assignmentRow['assigned_adviser'] === '' && trim((string) ($assignmentRow['adviser'] ?? '')) !== '') {
+            $assignmentRow['assigned_adviser'] = (string) $assignmentRow['adviser'];
+        }
+
+        $cycle = function_exists('cradRgFlowLatestCycleForGroup')
+            ? cradRgFlowLatestCycleForGroup(
+                $pdo,
+                (string) ($assignmentRow['group_number'] ?? ''),
+                (string) ($assignmentRow['student_id'] ?? ''),
+                (int) ($assignmentRow['research_group_id'] ?? 0)
+            )
+            : null;
+        $overall = function_exists('cradRgFlowOverallStatusFromCycle')
+            ? cradRgFlowOverallStatusFromCycle($cycle)
+            : '';
+        if ($overall === '' && (($assignmentRow['status'] ?? '') === 'Active')) {
+            $overall = 'pending_confirmation';
+        }
+        $assignmentRow['overall_status'] = $overall;
+        $assignmentRow['overall_status_label'] = function_exists('cradRgFlowOverallStatusLabel')
+            ? cradRgFlowOverallStatusLabel($overall !== '' ? $overall : (string) ($assignmentRow['status'] ?? ''))
+            : (string) ($assignmentRow['status'] ?? '');
+        if ($overall === 'confirmed') {
+            $assignmentRow['overall_status_label'] = 'Assigned';
+        } elseif ($overall === '' && (($assignmentRow['status'] ?? '') === 'Active')) {
+            $assignmentRow['overall_status_label'] = 'Assigned by Department Head';
+        }
+    }
+    unset($assignmentRow);
 
     $activeAssignments = 0;
     $activeCoordinators = 0;
@@ -694,12 +753,15 @@ function rcmPayload(PDO $pdo, ?string $flashMessage = null, bool $flashOk = true
             'active_coordinators' => $activeCoordinators,
             'assigned_groups'     => $activeAssignments,
             'pending_groups'      => count($eligible),
+            'pending_advisers'    => count($needAdviser),
         ],
-        'eligible'      => $eligible,
-        'pool'          => $pool,
-        'assignments'   => $assignments,
-        'roster'        => $roster,
-        'server_time'   => date('Y-m-d H:i:s'),
+        'eligible'       => $eligible,
+        'pool'           => $pool,
+        'adviser_pool'   => $adviserPool,
+        'need_adviser'   => $needAdviser,
+        'assignments'    => $assignments,
+        'roster'         => $roster,
+        'server_time'    => date('Y-m-d H:i:s'),
     ];
 }
 
@@ -754,6 +816,10 @@ if ($ajax === 'assign') {
         exit;
     }
 
+    if (!smsCanManageCoordinatorAssignments($roleKey)) {
+        echo json_encode(['ok' => false, 'message' => $rcmAssignDeniedMessage]);
+        exit;
+    }
     $groupNumber = trim((string) ($_POST['group_number'] ?? ''));
     $studentId   = trim((string) ($_POST['student_id'] ?? ''));
     $selection   = rcmResolveCoordinatorSelection(rcmCoordinatorPool($pdo), (string) ($_POST['coordinator'] ?? ''));
@@ -773,42 +839,33 @@ if ($ajax === 'assign') {
 
     $group = null;
     if ($studentId !== '' || str_starts_with($groupNumber, 'STU-')) {
-        $studentName = '';
-        $title = '';
-        $department = '';
-        $main = db();
-        if ($main && $studentId !== '') {
-            $u = $main->prepare("SELECT full_name FROM sms_users WHERE student_id = :sid LIMIT 1");
-            $u->execute([':sid' => $studentId]);
-            $studentName = trim((string) $u->fetchColumn());
+        if ($studentId === '' && str_starts_with($groupNumber, 'STU-')) {
+            $studentId = substr($groupNumber, 4);
         }
-        try {
-            $t = $pdo->prepare("SELECT proposed_title, department FROM crad_title_approvals WHERE student_id = :sid ORDER BY id DESC LIMIT 1");
-            $t->execute([':sid' => $studentId]);
-            $titleRow = $t->fetch(PDO::FETCH_ASSOC) ?: [];
-            $title = trim((string) ($titleRow['proposed_title'] ?? ''));
-            $department = trim((string) ($titleRow['department'] ?? ''));
-        } catch (Throwable) {
+        // Do not create placeholder groups. Only real DH-approved Research Groups may be assigned.
+        $stmt = $pdo->prepare(
+            "SELECT g.id AS group_id, g.group_number, g.group_name, g.research_title,
+                    g.proposal_number, g.title_approval_id, g.leader_id, g.flow_status,
+                    t.proposal_number AS tap_proposal_number
+             FROM `crad_research_groups` g
+             LEFT JOIN `crad_title_approvals` t ON t.id = g.title_approval_id
+             WHERE g.leader_id = ?
+               AND g.flow_status IN ('approved', 'ready_for_assignment')
+             ORDER BY g.id DESC
+             LIMIT 1"
+        );
+        $stmt->execute([$studentId]);
+        $group = $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+        if ($group) {
+            $groupNumber = (string) ($group['group_number'] ?? $groupNumber);
         }
-        $placeholder = cradEnsureStudentPlaceholderGroup($pdo, $studentId, $studentName, $title, $department);
-        $group = [
-            'group_id' => (int) ($placeholder['id'] ?? 0),
-            'group_number' => (string) ($placeholder['group_number'] ?? $groupNumber),
-            'group_name' => (string) ($placeholder['group_name'] ?? $studentName),
-            'research_title' => (string) ($placeholder['research_title'] ?? $title),
-            'proposal_number' => $studentId,
-            'title_approval_id' => $placeholder['title_approval_id'] ?? null,
-            'tap_proposal_number' => '',
-            'leader_id' => $studentId,
-        ];
-        $groupNumber = (string) $group['group_number'];
     } else {
         $stmt = $pdo->prepare(
             "SELECT g.id AS group_id, g.group_number, g.group_name, g.research_title,
                     g.proposal_number, g.title_approval_id, g.leader_id,
                     t.proposal_number AS tap_proposal_number
-             FROM crad_research_groups g
-             LEFT JOIN crad_title_approvals t ON t.id = g.title_approval_id
+             FROM `crad_research_groups` g
+             LEFT JOIN `crad_title_approvals` t ON t.id = g.title_approval_id
              WHERE g.group_number = ?
              LIMIT 1"
         );
@@ -823,13 +880,41 @@ if ($ajax === 'assign') {
         echo json_encode(['ok' => false, 'message' => 'This student or research group is not available for coordinator assignment.']);
         exit;
     }
+    // Locked flow: assign Coordinator only after DH approved the Research Group.
+    $flowStatus = '';
+    try {
+        $gid = (int) ($group['group_id'] ?? 0);
+        if ($gid > 0) {
+            $fs = $pdo->prepare("SELECT flow_status FROM `crad_research_groups` WHERE id = ? LIMIT 1");
+            $fs->execute([$gid]);
+            $flowStatus = strtolower(trim((string) ($fs->fetchColumn() ?: '')));
+        } elseif ($studentId !== '') {
+            $fs = $pdo->prepare(
+                "SELECT flow_status FROM `crad_research_groups`
+                 WHERE leader_id = ?
+                 ORDER BY (flow_status IN ('approved','ready_for_assignment')) DESC, id DESC
+                 LIMIT 1"
+            );
+            $fs->execute([$studentId]);
+            $flowStatus = strtolower(trim((string) ($fs->fetchColumn() ?: '')));
+        }
+    } catch (Throwable $e) {
+        error_log('Coordinator assign flow_status check failed: ' . $e->getMessage());
+    }
+    if (!in_array($flowStatus, ['approved', 'ready_for_assignment'], true)) {
+        echo json_encode([
+            'ok' => false,
+            'message' => 'Coordinator can only be assigned after the Research Group is submitted and approved by the Department Head.',
+        ]);
+        exit;
+    }
 
     $proposalNumber = (string) ($group['proposal_number'] !== null && $group['proposal_number'] !== '' ? $group['proposal_number'] : ($group['tap_proposal_number'] ?? ''));
 
     $pdo->beginTransaction();
     try {
         $stmt = $pdo->prepare(
-            "INSERT INTO crad_research_coordinator_assignments
+            "INSERT INTO `crad_research_coordinator_assignments`
                 (research_group_id, title_approval_id, proposal_number, group_number, group_name, research_title,
                  student_id, coordinator_user_id, coordinator_name, coordinator_email, status, assigned_by, assigned_at)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Active', ?, NOW())
@@ -866,6 +951,46 @@ if ($ajax === 'assign') {
             cradSyncTitleApprovalAssigneeNames($pdo, $studentId);
         }
 
+        // Start/refresh dual-confirm when adviser already assigned for this group/student.
+        try {
+            if (function_exists('cradRgFlowEnsureSchema')) {
+                cradRgFlowEnsureSchema($pdo);
+                $advStmt = $pdo->prepare(
+                    "SELECT id FROM `crad_research_adviser_assignments`
+                     WHERE (group_number = :gn OR student_id = :sid OR research_group_id = :gid)
+                       AND assignment_status IN ('Assigned','Confirmed','Pending')
+                     ORDER BY (assignment_status = 'Assigned') DESC, id DESC LIMIT 1"
+                );
+                $advStmt->execute([
+                    ':gn' => $groupNumber,
+                    ':sid' => $studentId,
+                    ':gid' => (int) ($group['group_id'] ?? 0),
+                ]);
+                $advId = (int) ($advStmt->fetchColumn() ?: 0);
+                $coordIdStmt = $pdo->prepare(
+                    "SELECT id FROM `crad_research_coordinator_assignments`
+                     WHERE status = 'Active' AND (group_number = :gn OR student_id = :sid)
+                     ORDER BY id DESC LIMIT 1"
+                );
+                $coordIdStmt->execute([':gn' => $groupNumber, ':sid' => $studentId]);
+                $coordId = (int) ($coordIdStmt->fetchColumn() ?: 0);
+                // Start pending confirmation as soon as coordinator is assigned
+                // (even before adviser). Adviser attach later extends the same cycle.
+                if ($coordId > 0 && function_exists('cradRgFlowStartAssignmentCycle')) {
+                    cradRgFlowStartAssignmentCycle(
+                        $pdo,
+                        (int) ($group['group_id'] ?? 0),
+                        $groupNumber,
+                        $studentId,
+                        $coordId,
+                        $advId > 0 ? $advId : null,
+                        (int) ($_SESSION['user_id'] ?? 0)
+                    );
+                }
+            }
+        } catch (Throwable $e) {
+            error_log('Coordinator dual-confirm start skipped: ' . $e->getMessage());
+        }
         if (function_exists('logActivity')) {
             logActivity('assign', 'Assigned coordinator "' . $selection['name'] . '" to ' . ($studentId !== '' ? 'student ' . $studentId : 'research group ' . $groupNumber), 'crad');
         }
@@ -877,7 +1002,45 @@ if ($ajax === 'assign') {
         exit;
     }
 
-    echo json_encode(rcmPayload($pdo, 'Coordinator assigned' . ($studentId !== '' ? ' to student ' . $studentId : ' to ' . $groupNumber) . '.'));
+    echo json_encode(rcmPayload($pdo, 'Coordinator assigned' . ($studentId !== '' ? ' to student ' . $studentId : ' to ' . $groupNumber) . '. Status: Assigned by Department Head (Pending Confirmation until both approve).'));
+    exit;
+}
+
+if ($ajax === 'assign-adviser') {
+    header('Content-Type: application/json; charset=utf-8');
+    $token = (string) ($_POST['_token'] ?? '');
+    if (!csrfVerify($token)) {
+        echo json_encode(['ok' => false, 'message' => 'Security token expired. Refresh the page and try again.']);
+        exit;
+    }
+
+    if (!smsCanManageCoordinatorAssignments($roleKey)) {
+        echo json_encode(['ok' => false, 'message' => $rcmAssignDeniedMessage]);
+        exit;
+    }
+    $groupNumber = trim((string) ($_POST['group_number'] ?? ''));
+    $studentId   = trim((string) ($_POST['student_id'] ?? ''));
+    $selection   = rcmResolveAdviserSelection(rcmAdviserPool(), (string) ($_POST['adviser'] ?? ''));
+
+    if ($selection === null) {
+        echo json_encode(['ok' => false, 'message' => 'Please choose a valid research adviser.']);
+        exit;
+    }
+
+    $result = rcmSaveAdviserAssignment(
+        $pdo,
+        $groupNumber,
+        $studentId,
+        $selection,
+        (int) ($_SESSION['user_id'] ?? 0) ?: null
+    );
+
+    if (empty($result['ok'])) {
+        echo json_encode(['ok' => false, 'message' => (string) ($result['message'] ?? 'Adviser assignment failed.')]);
+        exit;
+    }
+
+    echo json_encode(rcmPayload($pdo, (string) $result['message']));
     exit;
 }
 
@@ -889,6 +1052,10 @@ if ($ajax === 'set-status') {
         exit;
     }
 
+    if (!smsCanManageCoordinatorAssignments($roleKey)) {
+        echo json_encode(['ok' => false, 'message' => $rcmAssignDeniedMessage]);
+        exit;
+    }
     $id     = (int) ($_POST['id'] ?? 0);
     $status = ($_POST['status'] ?? '') === 'Inactive' ? 'Inactive' : 'Active';
 
@@ -897,7 +1064,7 @@ if ($ajax === 'set-status') {
         exit;
     }
 
-    $stmt = $pdo->prepare("SELECT group_number, coordinator_name FROM crad_research_coordinator_assignments WHERE id = ?");
+    $stmt = $pdo->prepare("SELECT group_number, coordinator_name FROM `crad_research_coordinator_assignments` WHERE id = ?");
     $stmt->execute([$id]);
     $row = $stmt->fetch();
     if (!$row) {
@@ -905,9 +1072,9 @@ if ($ajax === 'set-status') {
         exit;
     }
 
-    $pdo->prepare("UPDATE crad_research_coordinator_assignments SET status = ? WHERE id = ?")->execute([$status, $id]);
+    $pdo->prepare("UPDATE `crad_research_coordinator_assignments` SET status = ? WHERE id = ?")->execute([$status, $id]);
 
-    $sidStmt = $pdo->prepare("SELECT student_id, group_number FROM crad_research_coordinator_assignments WHERE id = ?");
+    $sidStmt = $pdo->prepare("SELECT student_id, group_number FROM `crad_research_coordinator_assignments` WHERE id = ?");
     $sidStmt->execute([$id]);
     $sidRow = $sidStmt->fetch(PDO::FETCH_ASSOC) ?: [];
     $studentId = trim((string) ($sidRow['student_id'] ?? ''));
@@ -946,7 +1113,7 @@ if ($ajax === 'details') {
     }
 
     if ($type === 'assignment') {
-        $stmt = $pdo->prepare("SELECT group_number FROM crad_research_coordinator_assignments WHERE id = ?");
+        $stmt = $pdo->prepare("SELECT group_number FROM `crad_research_coordinator_assignments` WHERE id = ?");
         $stmt->execute([(int) $id]);
         $row = $stmt->fetch();
         if (!$row) {
@@ -970,17 +1137,31 @@ if ($ajax === 'details') {
 // Full page render
 // ---------------------------------------------------------------------------
 
+$mergeNotice = '';
+if (isset($_GET['notice']) && $_GET['notice'] === 'adviser-merged') {
+    $mergeNotice = 'Adviser assignment is now handled on this page (Step 2), together with coordinator assignment.';
+}
+
 require_once ROOT_PATH . '/includes/layout-start.php';
 $payload = rcmPayload($pdo);
 $stats   = $payload['stats'];
 $eligible = $payload['eligible'];
 $pool     = $payload['pool'];
+$adviserPool = $payload['adviser_pool'] ?? [];
+$needAdviser = $payload['need_adviser'] ?? [];
 $assignments = $payload['assignments'];
 $roster   = $payload['roster'];
 $csrf     = csrfToken();
 ?>
 
 <?php renderBreadcrumbs($breadcrumbs); ?>
+
+<?php if ($mergeNotice !== ''): ?>
+<div class="rcm-alert rcm-alert-success" role="status">
+    <?= smsIcon('info-circle') ?>
+    <span><?= htmlspecialchars($mergeNotice) ?></span>
+</div>
+<?php endif; ?>
 
 <?php if (!empty($payload['message'])): ?>
 <div class="rcm-alert rcm-alert-<?= $payload['ok'] ? 'success' : 'danger' ?>" role="alert">
@@ -1114,6 +1295,7 @@ $csrf     = csrfToken();
 .rcm-pill { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.28rem 0.62rem; border-radius: 999px; font-size: 0.76rem; font-weight: 800; }
 .rcm-pill-active { color: #047857; background: #d1fae5; }
 .rcm-pill-inactive { color: #b91c1c; background: #fee2e2; }
+.rcm-pill-pending { color: #b45309; background: #fef3c7; }
 .rcm-select {
     background: var(--sms-surface-solid, #fff);
     border: 1px solid var(--sms-border, #dbe4f0);
@@ -1299,7 +1481,7 @@ $csrf     = csrfToken();
     <section class="rcm-card" data-rcm-card="eligible">
         <div class="rcm-card-head">
             <div class="rcm-card-title">
-                <h2><?= smsIcon('user-plus') ?> Assign Research Coordinator</h2>
+                <h2><?= smsIcon('user-plus') ?> Step 1: Assign Research Coordinator</h2>
                 <span data-rcm-count><?= count($eligible) ?> group<?= count($eligible) === 1 ? '' : 's' ?> waiting • <?= count($pool) ?> coordinator(s)</span>
             </div>
             <div class="rcm-meta" data-rcm-sync>Synced <?= htmlspecialchars(date('M j, Y g:i:s A')) ?></div>
@@ -1404,7 +1586,103 @@ $csrf     = csrfToken();
                 / page
             </label>
         </div>
-        <div class="rcm-empty" data-rcm-empty hidden>Walang record na tumugma sa search.</div>
+        <div class="rcm-empty" data-rcm-empty hidden>No records match your search.</div>
+    </section>
+
+    <section class="rcm-card" data-rcm-card="need-adviser" id="rcm-adviser">
+        <div class="rcm-card-head">
+            <div class="rcm-card-title">
+                <h2><?= smsIcon('user-tie') ?> Step 2: Assign Research Adviser</h2>
+                <span data-rcm-count><?= count($needAdviser) ?> group<?= count($needAdviser) === 1 ? '' : 's' ?> waiting · <?= count($adviserPool) ?> adviser(s)</span>
+            </div>
+            <div class="rcm-meta">After a coordinator is assigned, select a faculty adviser. Dual confirmation starts when both are saved.</div>
+        </div>
+        <div class="rcm-card-tools">
+            <label class="rcm-search">
+                <?= smsIcon('search') ?>
+                <input type="search" data-rcm-search placeholder="Search by group, title, or coordinator..." aria-label="Search groups needing adviser">
+            </label>
+        </div>
+        <div class="rcm-table-wrap" data-rcm-table>
+            <table class="rcm-table">
+                <thead>
+                    <tr>
+                        <th>Student / Group</th>
+                        <th>Title</th>
+                        <th>Coordinator</th>
+                        <th>Match hint</th>
+                        <th style="min-width:240px;">Research Adviser</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody data-rcm-tbody>
+                    <?php if (count($needAdviser) === 0): ?>
+                        <tr data-rcm-empty-row>
+                            <td colspan="6" class="rcm-meta">No groups waiting for adviser assignment. Assign a coordinator in Step 1 first.</td>
+                        </tr>
+                    <?php endif; ?>
+                    <?php foreach ($needAdviser as $g): ?>
+                        <?php
+                            $hint = (string) ($g['required_expertise'] ?? '');
+                            $searchText = strtolower(trim(($g['group_number'] ?? '') . ' ' . ($g['group_name'] ?? '') . ' ' . ($g['research_title'] ?? '') . ' ' . ($g['coordinator_name'] ?? '') . ' ' . ($g['student_id'] ?? '') . ' ' . $hint));
+                            // Sort advisers with simple expertise hint score first.
+                            $sortedPool = $adviserPool;
+                            usort($sortedPool, static function (array $a, array $b) use ($hint): int {
+                                $sa = rcmAdviserMatchScore((string) ($a['expertise'] ?? ''), $hint);
+                                $sb = rcmAdviserMatchScore((string) ($b['expertise'] ?? ''), $hint);
+                                if ($sa === $sb) {
+                                    return strcasecmp((string) ($a['name'] ?? ''), (string) ($b['name'] ?? ''));
+                                }
+                                return $sb <=> $sa;
+                            });
+                        ?>
+                        <tr data-rcm-row data-status="need-adviser" data-search="<?= htmlspecialchars($searchText) ?>">
+                            <td>
+                                <div class="rcm-title"><?= htmlspecialchars((string) $g['group_number']) ?></div>
+                                <?php if (trim((string) ($g['group_name'] ?? '')) !== ''): ?>
+                                    <span class="rcm-meta"><?= htmlspecialchars((string) $g['group_name']) ?></span>
+                                <?php endif; ?>
+                                <?php if (trim((string) ($g['student_id'] ?? '')) !== ''): ?>
+                                    <span class="rcm-meta"><?= htmlspecialchars((string) $g['student_id']) ?></span>
+                                <?php endif; ?>
+                            </td>
+                            <td><div class="rcm-title rcm-truncate" title="<?= htmlspecialchars((string) ($g['research_title'] ?? '')) ?>"><?= htmlspecialchars((string) ($g['research_title'] ?? '')) ?></div></td>
+                            <td>
+                                <div class="rcm-title"><?= htmlspecialchars((string) ($g['coordinator_name'] ?? '')) ?></div>
+                                <?php if (trim((string) ($g['coordinator_email'] ?? '')) !== ''): ?>
+                                    <span class="rcm-meta"><?= htmlspecialchars((string) $g['coordinator_email']) ?></span>
+                                <?php endif; ?>
+                            </td>
+                            <td><span class="rcm-meta"><?= htmlspecialchars($hint !== '' ? $hint : 'General Research Methods') ?></span></td>
+                            <td>
+                                <select class="rcm-select rcm-adviser-select" data-group="<?= htmlspecialchars((string) $g['group_number'], ENT_QUOTES) ?>" data-student="<?= htmlspecialchars((string) ($g['student_id'] ?? ''), ENT_QUOTES) ?>">
+                                    <option value="">Select adviser…</option>
+                                    <?php foreach ($sortedPool as $adv): ?>
+                                        <?php
+                                            $score = rcmAdviserMatchScore((string) ($adv['expertise'] ?? ''), $hint);
+                                            $optLabel = (string) ($adv['name'] ?? '');
+                                            if (!empty($adv['email'])) {
+                                                $optLabel .= ' (' . $adv['email'] . ')';
+                                            }
+                                            if ($score > 0) {
+                                                $optLabel .= ' · match';
+                                            }
+                                        ?>
+                                        <option value="<?= (int) ($adv['user_id'] ?? 0) ?>"><?= htmlspecialchars($optLabel) ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </td>
+                            <td>
+                                <button type="button" class="rcm-btn rcm-btn-primary rcm-assign-adviser-btn" data-group="<?= htmlspecialchars((string) $g['group_number'], ENT_QUOTES) ?>" data-student="<?= htmlspecialchars((string) ($g['student_id'] ?? ''), ENT_QUOTES) ?>">
+                                    <?= smsIcon('check') ?> Assign Adviser
+                                </button>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+        <div class="rcm-empty" data-rcm-empty hidden>No records match your search.</div>
     </section>
 
     <section class="rcm-card" data-rcm-card="assignments">
@@ -1421,8 +1699,9 @@ $csrf     = csrfToken();
             </label>
             <select class="rcm-filter" data-rcm-status aria-label="Filter assignment status">
                 <option value="">All Status</option>
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
+                <option value="active">Fully Assigned</option>
+                <option value="pending">Pending Confirmation</option>
+                <option value="inactive">Needs Reassignment / Inactive</option>
             </select>
         </div>
 
@@ -1432,6 +1711,7 @@ $csrf     = csrfToken();
                     <tr>
                         <th>Group</th>
                         <th>Coordinator</th>
+                        <th>Adviser</th>
                         <th>Status</th>
                         <th>Assigned At</th>
                         <th>Action</th>
@@ -1440,7 +1720,7 @@ $csrf     = csrfToken();
                 <tbody data-rcm-tbody>
                     <?php foreach ($assignments as $a): ?>
                         <?php $searchText = strtolower(trim(($a['group_number'] ?? '') . ' ' . ($a['group_name'] ?? '') . ' ' . ($a['research_title'] ?? '') . ' ' . ($a['adviser'] ?? '') . ' ' . ($a['coordinator_name'] ?? '') . ' ' . ($a['coordinator_email'] ?? '') . ' ' . ($a['proposal_number'] ?? ''))); ?>
-                        <tr data-rcm-row data-status="<?= $a['status'] === 'Active' ? 'active' : 'inactive' ?>" data-search="<?= htmlspecialchars($searchText) ?>">
+                        <tr data-rcm-row data-status="<?php $os = (string) ($a['overall_status'] ?? ''); if ($os === 'confirmed') { echo 'active'; } elseif (in_array($os, ['needs_reassignment','cancelled','declined'], true)) { echo 'inactive'; } elseif ($os !== '' || ($a['status'] ?? '') === 'Active') { echo 'pending'; } else { echo 'inactive'; } ?>" data-search="<?= htmlspecialchars($searchText) ?>">
                             <td>
                                 <div class="rcm-title"><?= htmlspecialchars($a['group_number']) ?></div>
                                 <?php if (trim((string) $a['group_name']) !== ''): ?>
@@ -1457,9 +1737,27 @@ $csrf     = csrfToken();
                                 <?php endif; ?>
                             </td>
                             <td>
-                                <span class="rcm-pill rcm-pill-<?= $a['status'] === 'Active' ? 'active' : 'inactive' ?>">
-                                    <?= smsIcon($a['status'] === 'Active' ? 'check-circle' : 'minus-circle') ?>
-                                    <?= htmlspecialchars($a['status']) ?>
+                                <?php $advLabel = trim((string) ($a['assigned_adviser'] ?? $a['adviser'] ?? '')); ?>
+                                <?php if ($advLabel !== ''): ?>
+                                    <div class="rcm-title"><?= htmlspecialchars($advLabel) ?></div>
+                                <?php else: ?>
+                                    <span class="rcm-meta">Not assigned</span>
+                                <?php endif; ?>
+                            </td>
+                            <td>
+                                <?php
+                                  $overall = (string) ($a['overall_status'] ?? '');
+                                  $overallLabel = (string) ($a['overall_status_label'] ?? $a['status'] ?? '');
+                                  $pillClass = 'inactive';
+                                  $pillIcon = 'minus-circle';
+                                  if ($overall === 'confirmed') { $pillClass = 'active'; $pillIcon = 'check-circle'; }
+                                  elseif (in_array($overall, ['pending_confirmation','waiting_adviser','waiting_coordinator'], true)) { $pillClass = 'pending'; $pillIcon = 'clock'; }
+                                  elseif (in_array($overall, ['needs_reassignment','cancelled','declined'], true)) { $pillClass = 'inactive'; $pillIcon = 'user-times'; }
+                                  elseif (($a['status'] ?? '') === 'Active') { $pillClass = 'pending'; $pillIcon = 'user-check'; $overallLabel = $overallLabel !== '' ? $overallLabel : 'Assigned by Department Head'; }
+                                ?>
+                                <span class="rcm-pill rcm-pill-<?= htmlspecialchars($pillClass) ?>" title="<?= htmlspecialchars($overallLabel) ?>">
+                                    <?= smsIcon($pillIcon) ?>
+                                    <?= htmlspecialchars($overallLabel !== '' ? $overallLabel : (string) ($a['status'] ?? '')) ?>
                                 </span>
                             </td>
                             <td class="rcm-meta"><?= $a['assigned_at'] !== '' ? htmlspecialchars(date('M j, Y g:i A', strtotime($a['assigned_at']))) : '—' ?></td>
@@ -1494,7 +1792,7 @@ $csrf     = csrfToken();
                 / page
             </label>
         </div>
-        <div class="rcm-empty" data-rcm-empty hidden>Walang record na tumugma sa search.</div>
+        <div class="rcm-empty" data-rcm-empty hidden>No records match your search.</div>
     </section>
 
     <section class="rcm-card" data-rcm-card="roster">
@@ -1511,8 +1809,9 @@ $csrf     = csrfToken();
             </label>
             <select class="rcm-filter" data-rcm-status aria-label="Filter coordinator status">
                 <option value="">All Status</option>
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
+                <option value="active">Fully Assigned</option>
+                <option value="pending">Pending Confirmation</option>
+                <option value="inactive">Needs Reassignment / Inactive</option>
             </select>
         </div>
 
@@ -1580,7 +1879,7 @@ $csrf     = csrfToken();
                 / page
             </label>
         </div>
-        <div class="rcm-empty" data-rcm-empty hidden>Walang record na tumugma sa search.</div>
+        <div class="rcm-empty" data-rcm-empty hidden>No records match your search.</div>
     </section>
 </div>
 
@@ -1601,6 +1900,8 @@ document.addEventListener('DOMContentLoaded', function () {
     let pollTimer = null;
     let pendingRequest = false;
     let CURRENT = null;
+    let lastPayloadFp = '';
+    const pendingCoordinatorByKey = {};
 
     const esc = function (value) {
         return String(value == null ? '' : value)
@@ -1788,16 +2089,86 @@ document.addEventListener('DOMContentLoaded', function () {
         el('rcm-stat-pending', s.pending_groups ?? '-');
     }
 
+    function coordinatorSelectKey(select) {
+        return String(select.getAttribute('data-group') || '') + '|' + String(select.getAttribute('data-student') || '');
+    }
+
+    function capturePendingCoordinatorSelections() {
+        document.querySelectorAll('.rcm-coordinator-select').forEach(function (select) {
+            const key = coordinatorSelectKey(select);
+            if (!key || key === '|') return;
+            if (select.value) {
+                pendingCoordinatorByKey[key] = select.value;
+            } else {
+                delete pendingCoordinatorByKey[key];
+            }
+        });
+    }
+
+    function rememberCoordinatorSelection(select) {
+        if (!select) return;
+        const key = coordinatorSelectKey(select);
+        if (!key || key === '|') return;
+        if (select.value) {
+            pendingCoordinatorByKey[key] = select.value;
+        } else {
+            delete pendingCoordinatorByKey[key];
+        }
+    }
+
+    function clearPendingCoordinator(groupNumber, studentId) {
+        const key = String(groupNumber || '') + '|' + String(studentId || '');
+        delete pendingCoordinatorByKey[key];
+    }
+
+    function isAssignUiBusy() {
+        const active = document.activeElement;
+        if (active && active.classList && active.classList.contains('rcm-coordinator-select')) {
+            return true;
+        }
+        const confirmModal = document.getElementById('rcmAssignConfirmModal');
+        if (confirmModal && confirmModal.classList.contains('show')) {
+            return true;
+        }
+        const detailModal = document.querySelector('[data-rcm-modal]');
+        if (detailModal && detailModal.hidden === false) {
+            return true;
+        }
+        const reassignModal = document.getElementById('rcmReassignModal');
+        if (reassignModal && (reassignModal.classList.contains('show') || reassignModal.style.display === 'block')) {
+            return true;
+        }
+        return false;
+    }
+
+    function payloadFingerprint(data) {
+        if (!data) return '';
+        try {
+            return JSON.stringify({
+                stats: data.stats || {},
+                eligible: data.eligible || [],
+                pool: data.pool || [],
+                need_adviser: data.need_adviser || [],
+                adviser_pool: data.adviser_pool || [],
+                assignments: data.assignments || [],
+                roster: data.roster || []
+            });
+        } catch (e) {
+            return String(Date.now());
+        }
+    }
+
     function renderEligible(card, data) {
         const tbody = card.querySelector('[data-rcm-tbody]');
         const empty = card.querySelector('[data-rcm-empty]');
         if (!tbody) return;
+        capturePendingCoordinatorSelections();
         const pool = data.pool || [];
         const eligible = data.eligible || [];
 
         if (!eligible.length) {
             tbody.innerHTML = '';
-            card.dataset.emptyMessage = '<strong>No Pending Assignments</strong><br><small>Assign a Research Coordinator from the roster to each student first. Students appear here until they have an active coordinator.</small>';
+            card.dataset.emptyMessage = '<strong>No Pending Assignments</strong><br><small>Students appear here only after they submit a Research Group and the Department Head approves it (ready for coordinator assignment).</small>';
             if (empty) {
                 empty.hidden = false;
                 empty.innerHTML = card.dataset.emptyMessage;
@@ -1813,6 +2184,10 @@ document.addEventListener('DOMContentLoaded', function () {
                     defaultValue = c.user_id > 0 ? String(c.user_id) : 'name:' + c.name;
                 }
             });
+            const rowKey = String(g.group_number || '') + '|' + String(g.student_id || '');
+            if (pendingCoordinatorByKey[rowKey]) {
+                defaultValue = pendingCoordinatorByKey[rowKey];
+            }
             const searchText = [g.group_number, g.group_name, g.research_title, g.adviser, g.proposal_number, g.student_id, suggested].join(' ').toLowerCase();
             const options = ['<option value="">Select coordinator…</option>'].concat(pool.map(function (c) {
                 const optValue = c.user_id > 0 ? String(c.user_id) : 'name:' + c.name;
@@ -1855,14 +2230,25 @@ document.addEventListener('DOMContentLoaded', function () {
 
         tbody.innerHTML = assignments.map(function (a) {
             const isActive = a.status === 'Active';
-            const searchText = [a.group_number, a.group_name, a.research_title, a.adviser, a.coordinator_name, a.coordinator_email, a.proposal_number].join(' ').toLowerCase();
-            return '<tr data-rcm-row data-status="' + (isActive ? 'active' : 'inactive') + '" data-search="' + esc(searchText) + '">' +
+            const advLabel = String(a.assigned_adviser || a.adviser || '').trim();
+            const overall = String(a.overall_status || '').toLowerCase();
+            const overallLabel = String(a.overall_status_label || '').trim() || (overall === 'confirmed' ? 'Assigned' : (isActive ? 'Assigned by Department Head' : String(a.status || '')));
+            const searchText = [a.group_number, a.group_name, a.research_title, advLabel, a.coordinator_name, a.coordinator_email, a.proposal_number, overallLabel].join(' ').toLowerCase();
+            let pillCls = 'inactive';
+            let pillIcon = 'minus-circle';
+            if (overall === 'confirmed') { pillCls = 'active'; pillIcon = 'check-circle'; }
+            else if (['pending_confirmation','waiting_adviser','waiting_coordinator'].indexOf(overall) !== -1) { pillCls = 'pending'; pillIcon = 'clock'; }
+            else if (['needs_reassignment','cancelled','declined'].indexOf(overall) !== -1) { pillCls = 'inactive'; pillIcon = 'user-times'; }
+            else if (isActive) { pillCls = 'pending'; pillIcon = 'user-check'; }
+            const rowStatus = overall === 'confirmed' ? 'active' : (overall === 'needs_reassignment' || overall === 'cancelled' || overall === 'declined' ? 'inactive' : (isActive ? 'pending' : 'inactive'));
+            return '<tr data-rcm-row data-status="' + rowStatus + '" data-search="' + esc(searchText) + '">' +
                 '<td><div class="rcm-title">' + esc(a.group_number) + '</div>' +
                     (a.group_name ? '<span class="rcm-meta">' + esc(a.group_name) + '</span>' : '') +
                     (a.research_title ? '<span class="rcm-meta rcm-meta-truncate" title="' + esc(a.research_title) + '">' + esc(a.research_title) + '</span>' : '') + '</td>' +
                 '<td><div class="rcm-title">' + esc(a.coordinator_name) + '</div>' +
                     (a.coordinator_email ? '<span class="rcm-meta">' + esc(a.coordinator_email) + '</span>' : '') + '</td>' +
-                '<td><span class="rcm-pill rcm-pill-' + (isActive ? 'active' : 'inactive') + '">' + (window.smsIconHtml ? window.smsIconHtml(isActive ? 'check-circle' : 'minus-circle') : '') + ' ' + esc(a.status) + '</span></td>' +
+                '<td>' + (advLabel ? ('<div class="rcm-title">' + esc(advLabel) + '</div>') : '<span class="rcm-meta">Not assigned</span>') + '</td>' +
+                '<td><span class="rcm-pill rcm-pill-' + pillCls + '" title="' + esc(overallLabel) + '">' + (window.smsIconHtml ? window.smsIconHtml(pillIcon) : '') + ' ' + esc(overallLabel) + '</span></td>' +
                 '<td class="rcm-meta">' + fmtDateTime(a.assigned_at) + '</td>' +
                 '<td><span class="rcm-menu-wrap">' +
                     '<button type="button" class="rcm-btn rcm-menu-btn" data-rcm-menu aria-label="Actions"><?= smsIcon('ellipsis-v') ?></button>' +
@@ -1916,13 +2302,31 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function render(data) {
-        if (!data || !data.ok) return;
+        if (!data || data.ok === false) return;
+        const fp = payloadFingerprint(data);
+        if (fp && fp === lastPayloadFp) {
+            CURRENT = data;
+            const syncSkip = document.querySelector('[data-rcm-sync]');
+            if (syncSkip && data.server_time) {
+                const dSkip = new Date(String(data.server_time).replace(' ', 'T'));
+                if (!isNaN(dSkip.getTime())) {
+                    const monthsSkip = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                    syncSkip.textContent = 'Synced ' + monthsSkip[dSkip.getMonth()] + ' ' + dSkip.getDate() + ', ' + dSkip.getFullYear() + ' ' + dSkip.toLocaleTimeString('en-US', { hour12: true });
+                }
+            }
+            return;
+        }
+        lastPayloadFp = fp;
         CURRENT = data;
         renderStats(data);
-        const cards = document.querySelectorAll('[data-rcm-card]');
-        if (cards[0]) renderEligible(cards[0], data);
-        if (cards[1]) renderAssignments(cards[1], data);
-        if (cards[2]) renderRoster(cards[2], data);
+        const eligibleCard = document.querySelector('[data-rcm-card="eligible"]');
+        const needAdviserCard = document.querySelector('[data-rcm-card="need-adviser"]');
+        const assignmentsCard = document.querySelector('[data-rcm-card="assignments"]');
+        const rosterCard = document.querySelector('[data-rcm-card="roster"]');
+        if (eligibleCard) renderEligible(eligibleCard, data);
+        if (needAdviserCard) renderNeedAdviser(needAdviserCard, data);
+        if (assignmentsCard) renderAssignments(assignmentsCard, data);
+        if (rosterCard) renderRoster(rosterCard, data);
 
         const sync = document.querySelector('[data-rcm-sync]');
         if (sync && data.server_time) {
@@ -1937,13 +2341,14 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function pollNow() {
-        if (pendingRequest) return;
+        if (pendingRequest || isAssignUiBusy()) return;
         pendingRequest = true;
         fetch(endpoint + '?ajax=coordinator-assignments&t=' + Date.now(), {
             headers: { 'X-Requested-With': 'fetch' }
         })
             .then(function (r) { return r.json(); })
             .then(function (data) {
+                if (isAssignUiBusy()) return;
                 render(data);
                 if (data && data.message) showFlash(data.message, data.ok !== false);
             })
@@ -1997,9 +2402,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
     let pendingAssignData = null;
 
-    function openAssignConfirm(btn, groupNumber, coordinatorLabel, researchTitle) {
+    function openAssignConfirm(btn, groupNumber, coordinatorLabel, researchTitle, coordinatorValue) {
         ensureAssignConfirmModal();
-        pendingAssignData = { btn: btn, groupNumber: groupNumber };
+        pendingAssignData = {
+            btn: btn,
+            groupNumber: groupNumber,
+            coordinator: coordinatorValue || ''
+        };
 
         const grpEl = document.getElementById('rcmConfirmGroupNumber');
         const titleEl = document.getElementById('rcmConfirmResearchTitle');
@@ -2020,7 +2429,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     window.bootstrap.Modal.getOrCreateInstance(modalEl).hide();
                 }
                 if (pendingAssignData) {
-                    doAssign(pendingAssignData.btn);
+                    doAssign(pendingAssignData.btn, pendingAssignData.coordinator);
                     pendingAssignData = null;
                 }
             };
@@ -2034,10 +2443,11 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    function doAssign(btn) {
+    function doAssign(btn, coordinatorValue) {
         const tr = btn.closest('tr');
         const select = tr ? tr.querySelector('.rcm-coordinator-select') : null;
-        if (!select || !select.value) {
+        const coordinator = coordinatorValue || (select ? select.value : '') || '';
+        if (!coordinator) {
             showFlash('Please select a Research Coordinator first.', false);
             return;
         }
@@ -2050,11 +2460,13 @@ document.addEventListener('DOMContentLoaded', function () {
         fd.append('_token', CSRF);
         fd.append('group_number', btn.dataset.group);
         fd.append('student_id', btn.dataset.student || '');
-        fd.append('coordinator', select.value);
+        fd.append('coordinator', coordinator);
 
         fetch(endpoint, { method: 'POST', body: fd, headers: { 'X-Requested-With': 'fetch' } })
             .then(function (r) { return r.json(); })
             .then(function (data) {
+                clearPendingCoordinator(btn.dataset.group, btn.dataset.student || '');
+                lastPayloadFp = '';
                 render(data);
                 if (data && data.message) showFlash(data.message, data.ok !== false);
             })
@@ -2067,7 +2479,21 @@ document.addEventListener('DOMContentLoaded', function () {
             });
     }
 
+    function bindCoordinatorSelectMemory() {
+        document.querySelectorAll('.rcm-coordinator-select').forEach(function (select) {
+            if (select.dataset.rcmRememberBound === '1') return;
+            select.dataset.rcmRememberBound = '1';
+            select.addEventListener('change', function () {
+                rememberCoordinatorSelection(select);
+            });
+            select.addEventListener('focus', function () {
+                rememberCoordinatorSelection(select);
+            });
+        });
+    }
+
     function bindActions() {
+        bindCoordinatorSelectMemory();
         document.querySelectorAll('.rcm-assign-btn').forEach(function (btn) {
             btn.onclick = function () {
                 const tr = btn.closest('tr');
@@ -2081,10 +2507,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 const groupNumber = btn.dataset.group || '—';
                 const selectedOption = select.options[select.selectedIndex];
                 const coordinatorLabel = selectedOption ? selectedOption.text : '—';
+                const coordinatorValue = select.value;
+                rememberCoordinatorSelection(select);
                 const titleCell = tr.querySelector('td:nth-child(2) .rcm-title');
                 const researchTitle = titleCell ? titleCell.textContent.trim() : '—';
 
-                openAssignConfirm(btn, groupNumber, coordinatorLabel, researchTitle);
+                openAssignConfirm(btn, groupNumber, coordinatorLabel, researchTitle, coordinatorValue);
             };
         });
     }
@@ -2098,6 +2526,7 @@ document.addEventListener('DOMContentLoaded', function () {
         fetch(endpoint, { method: 'POST', body: fd, headers: { 'X-Requested-With': 'fetch' } })
             .then(function (r) { return r.json(); })
             .then(function (data) {
+                lastPayloadFp = '';
                 render(data);
                 if (data && data.message) showFlash(data.message, data.ok !== false);
             })
@@ -2153,9 +2582,16 @@ document.addEventListener('DOMContentLoaded', function () {
         if (value === '' || value === null || value === undefined) return '';
         return '<div class="rcm-detail-item"><span class="rcm-detail-label">' + label + '</span><span class="rcm-detail-value">' + value + '</span></div>';
     }
-    function statusPill(status) {
-        const active = String(status || '').toLowerCase() === 'active';
-        return '<span class="rcm-pill rcm-pill-' + (active ? 'active' : 'inactive') + '">' + (window.smsIconHtml ? window.smsIconHtml(active ? 'check-circle' : 'minus-circle') : '') + ' ' + esc(status || '') + '</span>';
+    function statusPill(status, overallStatus, overallLabel) {
+        const overall = String(overallStatus || '').toLowerCase();
+        const label = String(overallLabel || status || '');
+        let cls = 'inactive';
+        let icon = 'minus-circle';
+        if (overall === 'confirmed') { cls = 'active'; icon = 'check-circle'; }
+        else if (['pending_confirmation','waiting_adviser','waiting_coordinator'].indexOf(overall) !== -1) { cls = 'pending'; icon = 'clock'; }
+        else if (['needs_reassignment','cancelled','declined'].indexOf(overall) !== -1) { cls = 'inactive'; icon = 'user-times'; }
+        else if (String(status || '').toLowerCase() === 'active') { cls = 'pending'; icon = 'user-check'; }
+        return '<span class="rcm-pill rcm-pill-' + cls + '" title="' + esc(label) + '">' + (window.smsIconHtml ? window.smsIconHtml(icon) : '') + ' ' + esc(label || status || '') + '</span>';
     }
     function buildGroupModalHtml(d) {
         const g = d.detail;
@@ -2275,6 +2711,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 .then(function (r) { return r.json(); })
                 .then(function (data) {
                     closeModal();
+                    lastPayloadFp = '';
                     render(data);
                     if (data && data.message) showFlash(data.message, data.ok !== false);
                 })
@@ -2288,6 +2725,7 @@ document.addEventListener('DOMContentLoaded', function () {
         bindPagers();
         bindActions();
         bindMenus();
+        bindAdviserAssign();
     }
 
     bindAll();
@@ -2296,6 +2734,108 @@ document.addEventListener('DOMContentLoaded', function () {
     const modalOverlay = document.querySelector('[data-rcm-modal]');
     if (modalOverlay) modalOverlay.addEventListener('click', function (e) { if (e.target === modalOverlay) closeModal(); });
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeModal(); });
+
+    function adviserOptionsHtml(pool, hint) {
+        const list = (pool || []).slice().sort(function (a, b) {
+            const sa = Number(a._score || 0);
+            const sb = Number(b._score || 0);
+            if (sa !== sb) return sb - sa;
+            return String(a.name || '').localeCompare(String(b.name || ''));
+        });
+        let html = '<option value="">Select adviser…</option>';
+        list.forEach(function (adv) {
+            let label = adv.name || '';
+            if (adv.email) label += ' (' + adv.email + ')';
+            if (Number(adv._score || 0) > 0) label += ' · match';
+            html += '<option value="' + esc(String(adv.user_id || '')) + '">' + esc(label) + '</option>';
+        });
+        return html;
+    }
+
+    function scoreAdviserPool(pool, hint) {
+        const tokens = String(hint || '').toLowerCase().split(/[^a-z0-9]+/).filter(function (t) { return t.length >= 4; });
+        return (pool || []).map(function (adv) {
+            const exp = String(adv.expertise || '').toLowerCase();
+            let score = 0;
+            tokens.forEach(function (t) { if (exp.indexOf(t) !== -1) score += 2; });
+            return Object.assign({}, adv, { _score: score });
+        });
+    }
+
+    function renderNeedAdviser(card, data) {
+        if (!card) return;
+        const tbody = card.querySelector('[data-rcm-tbody]');
+        const countEl = card.querySelector('[data-rcm-count]');
+        const empty = card.querySelector('[data-rcm-empty]');
+        if (!tbody) return;
+        const rows = data.need_adviser || [];
+        const pool = data.adviser_pool || [];
+        if (countEl) {
+            countEl.textContent = rows.length + ' group' + (rows.length === 1 ? '' : 's') + ' waiting · ' + pool.length + ' adviser(s)';
+        }
+        if (!rows.length) {
+            tbody.innerHTML = '<tr data-rcm-empty-row><td colspan="6" class="rcm-meta">No groups waiting for adviser assignment. Assign a coordinator in Step 1 first.</td></tr>';
+            if (empty) empty.hidden = true;
+            return;
+        }
+        tbody.innerHTML = rows.map(function (g) {
+            const hint = g.required_expertise || 'General Research Methods';
+            const scored = scoreAdviserPool(pool, hint);
+            const searchText = [g.group_number, g.group_name, g.research_title, g.coordinator_name, g.student_id, hint].join(' ').toLowerCase();
+            return '<tr data-rcm-row data-status="need-adviser" data-search="' + esc(searchText) + '">' +
+                '<td><div class="rcm-title">' + esc(g.group_number || '') + '</div>' +
+                    (g.group_name ? '<span class="rcm-meta">' + esc(g.group_name) + '</span>' : '') +
+                    (g.student_id ? '<span class="rcm-meta">' + esc(g.student_id) + '</span>' : '') + '</td>' +
+                '<td><div class="rcm-title rcm-truncate" title="' + esc(g.research_title || '') + '">' + esc(g.research_title || '') + '</div></td>' +
+                '<td><div class="rcm-title">' + esc(g.coordinator_name || '') + '</div>' +
+                    (g.coordinator_email ? '<span class="rcm-meta">' + esc(g.coordinator_email) + '</span>' : '') + '</td>' +
+                '<td><span class="rcm-meta">' + esc(hint) + '</span></td>' +
+                '<td><select class="rcm-select rcm-adviser-select" data-group="' + esc(g.group_number || '') + '" data-student="' + esc(g.student_id || '') + '">' +
+                    adviserOptionsHtml(scored, hint) + '</select></td>' +
+                '<td><button type="button" class="rcm-btn rcm-btn-primary rcm-assign-adviser-btn" data-group="' + esc(g.group_number || '') + '" data-student="' + esc(g.student_id || '') + '"><?= smsIcon('check') ?> Assign Adviser</button></td>' +
+                '</tr>';
+        }).join('');
+        if (empty) empty.hidden = true;
+    }
+
+    function bindAdviserAssign() {
+        document.querySelectorAll('.rcm-assign-adviser-btn').forEach(function (btn) {
+            if (btn.dataset.bound === '1') return;
+            btn.dataset.bound = '1';
+            btn.addEventListener('click', function () {
+                const tr = btn.closest('tr');
+                const select = tr ? tr.querySelector('.rcm-adviser-select') : null;
+                const adviser = select ? select.value : '';
+                if (!adviser) {
+                    showFlash('Please select a research adviser first.', false);
+                    return;
+                }
+                const original = btn.innerHTML;
+                btn.disabled = true;
+                btn.innerHTML = 'Saving…';
+                const fd = new FormData();
+                fd.append('ajax', 'assign-adviser');
+                fd.append('_token', CSRF);
+                fd.append('group_number', btn.dataset.group || '');
+                fd.append('student_id', btn.dataset.student || '');
+                fd.append('adviser', adviser);
+                fetch(endpoint, { method: 'POST', body: fd, headers: { 'X-Requested-With': 'fetch' } })
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) {
+                        render(data);
+                        if (data && data.message) showFlash(data.message, data.ok !== false);
+                    })
+                    .catch(function () {
+                        showFlash('Could not save the adviser assignment. Please try again.', false);
+                    })
+                    .finally(function () {
+                        btn.disabled = false;
+                        btn.innerHTML = original;
+                    });
+            });
+        });
+    }
+
     pollNow();
     pollTimer = setInterval(pollNow, 2000);
 });

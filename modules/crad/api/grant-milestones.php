@@ -33,7 +33,7 @@ try {
 }
 
 $userId   = (int) ($_SESSION['user_id'] ?? 0);
-$userName = trim((string) ($_SESSION['full_name'] ?? $_SESSION['username'] ?? 'User'));
+$userName = trim((string) ($_SESSION['user_name'] ?? $_SESSION['full_name'] ?? $_SESSION['username'] ?? 'User'));
 
 switch ($action) {
     case 'get_overview':

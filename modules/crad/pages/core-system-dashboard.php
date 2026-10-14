@@ -4,8 +4,8 @@
  * Module: CRAD
  *
  * Displays real-time summary statistics for the grant management workflow.
- * All counts are queried live from grant_opportunities and grant_applications
- * in crad_db. No mock data is used.
+ * All counts are queried live from `crad_grant_opportunities` and grant_applications
+ * in  No mock data is used.
  */
 require_once __DIR__ . '/../../../config/config.php';
 require_once __DIR__ . '/../config/config.php';

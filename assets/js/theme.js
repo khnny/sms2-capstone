@@ -53,6 +53,7 @@
         theme = normalize(theme);
         var root = document.documentElement;
         root.setAttribute('data-theme', theme);
+        root.setAttribute('data-bs-theme', theme);
         root.style.colorScheme = theme;
         if (!options || options.silent !== true) {
             root.style.backgroundColor = '';

@@ -1,0 +1,1160 @@
+.communication-prototype {
+    --communication-line: var(--border-color);
+    --communication-surface: var(--card-bg);
+    --communication-soft: var(--bg-secondary);
+    --communication-ink: var(--text-primary);
+    --communication-muted: var(--text-muted);
+    --communication-event-deadline: #b45309;
+    --communication-event-defense: #6d28d9;
+    --communication-event-research: #0369a1;
+    --communication-event-general: #475569;
+    --communication-event-evaluation: #be185d;
+    --communication-event-presentation: #047857;
+    max-width: 1440px;
+    margin: 0 auto;
+    color: var(--text-secondary);
+}
+
+html[data-theme="dark"] .communication-prototype {
+    --communication-event-deadline: #fbbf24;
+    --communication-event-defense: #c4b5fd;
+    --communication-event-research: #7dd3fc;
+    --communication-event-general: #cbd5e1;
+    --communication-event-evaluation: #f9a8d4;
+    --communication-event-presentation: #6ee7b7;
+}
+
+.communication-page-header,
+.communication-dashboard-heading,
+.communication-surface-heading,
+.communication-panel-heading,
+.communication-calendar-month-nav,
+.communication-results-heading,
+.communication-announcement-topline {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.communication-page-header {
+    margin: 0 0 1rem;
+}
+
+.communication-kicker {
+    display: block;
+    margin-bottom: 0.22rem;
+    color: var(--primary-color);
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+}
+
+.communication-page-header h1,
+.communication-dashboard-heading h2 {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: clamp(1.35rem, 2vw, 1.7rem);
+    font-weight: 750;
+    letter-spacing: -0.035em;
+}
+
+.communication-page-header p {
+    margin: 0.22rem 0 0;
+    color: var(--text-muted);
+    font-size: 0.84rem;
+}
+
+.communication-demo-flag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.38rem;
+    flex: 0 0 auto;
+    padding: 0.32rem 0.62rem;
+    border: 1px solid color-mix(in srgb, var(--info) 35%, var(--border-color));
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--info) 9%, var(--bg-surface));
+    color: var(--info);
+    font-size: 0.68rem;
+    font-weight: 700;
+}
+
+.communication-summary-strip {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(90px, 0.65fr)) minmax(240px, 2fr);
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.9rem;
+    padding: 0.72rem 0.9rem;
+    border: 1px solid var(--communication-line);
+    border-radius: 12px;
+    background: var(--communication-surface);
+}
+
+.communication-summary-strip > div:not(.communication-summary-note) {
+    display: grid;
+    gap: 0.08rem;
+    padding-right: 0.7rem;
+    border-right: 1px solid var(--border-subtle);
+}
+
+.communication-summary-strip > div > span {
+    color: var(--communication-muted);
+    font-size: 0.7rem;
+}
+
+.communication-summary-strip > div > strong {
+    color: var(--communication-ink);
+    font-size: 1.15rem;
+    line-height: 1.1;
+}
+
+.communication-summary-strip .communication-summary-note {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    color: var(--communication-muted);
+    font-size: 0.72rem;
+}
+
+.communication-surface,
+.communication-calendar-surface,
+.communication-dashboard-panel {
+    min-width: 0;
+    border: 1px solid var(--communication-line);
+    border-radius: 12px;
+    background: var(--communication-surface);
+    box-shadow: var(--sms-shadow-xs, 0 1px 3px rgba(15, 33, 88, 0.06));
+}
+
+.communication-surface {
+    margin-bottom: 1rem;
+    padding: 0.9rem;
+}
+
+.communication-surface-heading {
+    margin-bottom: 0.7rem;
+}
+
+.communication-surface-heading h2,
+.communication-results-heading h2,
+.communication-panel-heading h3 {
+    margin: 0;
+    color: var(--communication-ink);
+    font-size: 0.91rem;
+    font-weight: 730;
+}
+
+.communication-surface-heading p,
+.communication-panel-heading p {
+    margin: 0.15rem 0 0;
+    color: var(--communication-muted);
+    font-size: 0.72rem;
+}
+
+.communication-filters {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(125px, 1fr));
+    gap: 0.65rem;
+}
+
+.communication-filters label {
+    display: grid;
+    gap: 0.25rem;
+    color: var(--text-secondary);
+    font-size: 0.68rem;
+    font-weight: 700;
+}
+
+.communication-filters .form-control,
+.communication-filters .form-select {
+    min-height: 36px;
+    padding: 0.4rem 0.55rem;
+    font-size: 0.74rem;
+}
+
+.communication-filter-search {
+    grid-column: span 2;
+}
+
+.communication-results-heading {
+    margin: 0 0 0.55rem;
+}
+
+.communication-results-heading > div {
+    display: flex;
+    align-items: baseline;
+    gap: 0.55rem;
+}
+
+.communication-results-heading [data-ann-count] {
+    color: var(--communication-muted);
+    font-size: 0.72rem;
+}
+
+.communication-results-caption {
+    color: var(--communication-muted);
+    font-size: 0.69rem;
+}
+
+.communication-announcement-list {
+    display: grid;
+    gap: 0.55rem;
+}
+
+.communication-announcement-card {
+    display: grid;
+    grid-template-columns: 4px minmax(0, 1fr);
+    overflow: hidden;
+    border: 1px solid var(--communication-line);
+    border-radius: 11px;
+    background: var(--communication-surface);
+    transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
+}
+
+.communication-announcement-card:hover {
+    border-color: color-mix(in srgb, var(--primary-color) 45%, var(--border-color));
+    box-shadow: var(--sms-shadow-sm, 0 3px 10px rgba(15, 33, 88, 0.08));
+    transform: translateY(-1px);
+}
+
+.communication-announcement-accent {
+    background: var(--primary-color);
+}
+
+.communication-announcement-accent.defense,
+.communication-calendar-legend i.defense {
+    --event-color: var(--communication-event-defense);
+    background-color: var(--event-color);
+}
+
+.communication-announcement-accent.deadline,
+.communication-calendar-legend i.deadline {
+    --event-color: var(--communication-event-deadline);
+    background-color: var(--event-color);
+}
+
+.communication-announcement-accent.research,
+.communication-calendar-legend i.consultation {
+    --event-color: var(--communication-event-research);
+    background-color: var(--event-color);
+}
+
+.communication-announcement-accent.general {
+    --event-color: var(--communication-event-general);
+    background-color: var(--event-color);
+}
+
+.communication-announcement-content {
+    min-width: 0;
+    padding: 0.72rem 0.82rem;
+}
+
+.communication-announcement-tags {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.38rem;
+}
+
+.communication-type-pill,
+.communication-priority,
+.communication-status {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    max-width: 100%;
+    padding: 0.2rem 0.48rem;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    font-size: 0.63rem;
+    font-weight: 750;
+    line-height: 1.25;
+    white-space: nowrap;
+}
+
+.communication-type-pill {
+    background: color-mix(in srgb, var(--event-color, var(--primary-color)) 11%, var(--bg-surface));
+    color: var(--event-color, var(--primary-color));
+}
+
+.communication-announcement-accent.evaluation,
+.communication-calendar-legend i.evaluation {
+    --event-color: var(--communication-event-evaluation);
+    background-color: var(--event-color);
+}
+
+.communication-type-pill.research {
+    --event-color: var(--communication-event-research);
+}
+
+.communication-type-pill.defense {
+    --event-color: var(--communication-event-defense);
+}
+
+.communication-type-pill.deadline {
+    --event-color: var(--communication-event-deadline);
+}
+
+.communication-type-pill.general {
+    --event-color: var(--communication-event-general);
+}
+
+.communication-type-pill.evaluation {
+    --event-color: var(--communication-event-evaluation);
+}
+
+.communication-type-pill.presentation {
+    --event-color: var(--communication-event-presentation);
+}
+
+.communication-priority.important,
+.communication-priority.urgent {
+    border-color: color-mix(in srgb, var(--danger) 25%, var(--border-color));
+    background: color-mix(in srgb, var(--danger) 9%, var(--bg-surface));
+    color: var(--danger);
+}
+
+.communication-status.published,
+.communication-status.scheduled {
+    border-color: color-mix(in srgb, var(--success) 24%, var(--border-color));
+    background: color-mix(in srgb, var(--success) 9%, var(--bg-surface));
+    color: var(--success);
+}
+
+.communication-status.upcoming {
+    border-color: color-mix(in srgb, var(--info) 25%, var(--border-color));
+    background: color-mix(in srgb, var(--info) 9%, var(--bg-surface));
+    color: var(--info);
+}
+
+.communication-status.draft,
+.communication-status.unpublished {
+    border-color: color-mix(in srgb, var(--warning) 25%, var(--border-color));
+    background: color-mix(in srgb, var(--warning) 9%, var(--bg-surface));
+    color: var(--warning);
+}
+
+.communication-status.archived {
+    border-color: var(--border-color);
+    background: var(--bg-secondary);
+    color: var(--text-muted);
+}
+
+.communication-announcement-card h3 {
+    margin: 0.4rem 0 0.18rem;
+    color: var(--communication-ink);
+    font-size: 0.84rem;
+    font-weight: 730;
+}
+
+.communication-announcement-card p {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    line-height: 1.5;
+}
+
+.communication-announcement-card footer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.8rem;
+    margin-top: 0.58rem;
+    color: var(--communication-muted);
+    font-size: 0.65rem;
+}
+
+.communication-announcement-card footer span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.28rem;
+}
+
+.communication-empty-state {
+    padding: 2rem 1rem;
+    border: 1px dashed var(--border-color);
+    border-radius: 12px;
+    background: var(--bg-secondary);
+    text-align: center;
+}
+
+.communication-empty-state > span {
+    display: grid;
+    width: 38px;
+    height: 38px;
+    place-items: center;
+    margin: 0 auto 0.5rem;
+    border-radius: 10px;
+    background: var(--bg-surface);
+    color: var(--icon-color);
+}
+
+.communication-empty-state strong {
+    display: block;
+    color: var(--text-primary);
+    font-size: 0.85rem;
+}
+
+.communication-empty-state p {
+    margin: 0.2rem 0 0.7rem;
+    color: var(--text-muted);
+    font-size: 0.73rem;
+}
+
+.communication-calendar-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.8rem;
+    margin-bottom: 0.75rem;
+}
+
+.communication-calendar-month-nav {
+    justify-content: flex-start;
+    gap: 0.45rem;
+}
+
+.communication-calendar-month-nav h2 {
+    min-width: 140px;
+    margin: 0 0.25rem;
+    color: var(--text-primary);
+    font-size: 0.96rem;
+    font-weight: 750;
+    text-align: center;
+}
+
+.communication-view-switch {
+    display: inline-flex;
+    padding: 3px;
+    border: 1px solid var(--border-color);
+    border-radius: 9px;
+    background: var(--bg-secondary);
+}
+
+.communication-view-switch button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.32rem;
+    min-height: 31px;
+    padding: 0.32rem 0.58rem;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-muted);
+    font: inherit;
+    font-size: 0.7rem;
+    font-weight: 700;
+}
+
+.communication-view-switch button.active {
+    background: var(--bg-surface);
+    color: var(--primary-color);
+    box-shadow: 0 1px 3px rgba(15, 33, 88, 0.12);
+}
+
+.communication-calendar-filters {
+    padding-bottom: 0.82rem;
+}
+
+.communication-calendar-surface {
+    padding: 0.8rem;
+}
+
+.communication-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 150px;
+    color: var(--text-muted);
+    font-size: 0.75rem;
+}
+
+.communication-calendar-legend {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.65rem;
+    margin-bottom: 0.65rem;
+}
+
+.communication-calendar-legend > span:not(.communication-demo-flag) {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    color: var(--text-muted);
+    font-size: 0.65rem;
+}
+
+.communication-calendar-legend i {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--primary-color);
+}
+
+.communication-calendar-legend i.defense {
+    --event-color: var(--communication-event-defense);
+}
+
+.communication-calendar-legend i.deadline {
+    --event-color: var(--communication-event-deadline);
+}
+
+.communication-calendar-legend i.consultation {
+    --event-color: var(--communication-event-research);
+}
+
+.communication-calendar-legend i.evaluation {
+    --event-color: var(--communication-event-evaluation);
+}
+
+.communication-calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+    border-radius: 9px;
+}
+
+.communication-calendar-weekday {
+    padding: 0.45rem 0.35rem;
+    border-right: 1px solid var(--border-subtle);
+    border-bottom: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+    color: var(--text-muted);
+    font-size: 0.63rem;
+    font-weight: 750;
+    text-align: center;
+    text-transform: uppercase;
+}
+
+.communication-calendar-day {
+    min-width: 0;
+    min-height: 100px;
+    padding: 0.35rem;
+    border-right: 1px solid var(--border-subtle);
+    border-bottom: 1px solid var(--border-subtle);
+    background: var(--bg-surface);
+}
+
+.communication-calendar-day.is-outside {
+    background: var(--bg-secondary);
+}
+
+.communication-calendar-day.is-today {
+    box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--primary-color) 55%, transparent);
+}
+
+.communication-calendar-day > time {
+    display: block;
+    margin-bottom: 0.22rem;
+    color: var(--text-secondary);
+    font-size: 0.67rem;
+    font-weight: 750;
+    text-align: right;
+}
+
+.communication-calendar-day.is-outside > time {
+    color: var(--text-muted);
+    opacity: 0.7;
+}
+
+.communication-calendar-day-events {
+    display: grid;
+    gap: 0.2rem;
+}
+
+.communication-calendar-event {
+    display: block;
+    width: 100%;
+    overflow: hidden;
+    padding: 0.2rem 0.3rem;
+    border: 0;
+    border-left: 2px solid var(--event-color, var(--primary-color));
+    border-radius: 4px;
+    background: color-mix(in srgb, var(--event-color, var(--primary-color)) 10%, var(--bg-surface));
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 0.61rem;
+    line-height: 1.3;
+    text-align: left;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.communication-calendar-event:hover,
+.communication-calendar-event:focus-visible {
+    background: color-mix(in srgb, var(--event-color, var(--primary-color)) 18%, var(--bg-surface));
+    outline: 2px solid var(--event-color, var(--primary-color));
+    outline-offset: 1px;
+}
+
+.communication-calendar-event.deadline,
+.communication-event-list-card.deadline {
+    --event-color: var(--communication-event-deadline);
+}
+
+.communication-calendar-event.defense,
+.communication-event-list-card.defense {
+    --event-color: var(--communication-event-defense);
+}
+
+.communication-calendar-event.consultation,
+.communication-event-list-card.consultation {
+    --event-color: var(--communication-event-research);
+}
+
+.communication-calendar-event.evaluation,
+.communication-event-list-card.evaluation {
+    --event-color: var(--communication-event-evaluation);
+}
+
+.communication-calendar-event.presentation,
+.communication-event-list-card.presentation {
+    --event-color: var(--communication-event-presentation);
+}
+
+.communication-event-list {
+    display: grid;
+    gap: 0.5rem;
+}
+
+.communication-event-list-card {
+    display: grid;
+    grid-template-columns: 72px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.7rem;
+    padding: 0.65rem 0.72rem;
+    border: 1px solid var(--border-color);
+    border-left: 3px solid var(--event-color, var(--primary-color));
+    border-radius: 9px;
+    background: var(--bg-surface);
+}
+
+.communication-event-list-date {
+    color: var(--event-color, var(--primary-color));
+    font-size: 0.7rem;
+    font-weight: 780;
+}
+
+.communication-event-list-card h3 {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 0.78rem;
+    font-weight: 720;
+}
+
+.communication-event-list-card p {
+    margin: 0.12rem 0 0;
+    color: var(--text-muted);
+    font-size: 0.67rem;
+}
+
+.communication-event-list-card button {
+    min-width: 60px;
+}
+
+.communication-event-modal .modal-header,
+.communication-event-modal .modal-footer {
+    border-color: var(--border-color);
+}
+
+.communication-event-modal .modal-title {
+    color: var(--text-primary);
+    font-size: 1rem;
+}
+
+.communication-event-modal .modal-body {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.communication-event-description {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 0.82rem;
+    line-height: 1.55;
+}
+
+.communication-event-details {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.65rem;
+    margin: 0;
+}
+
+.communication-event-details div {
+    min-width: 0;
+    padding: 0.56rem 0.62rem;
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    background: var(--bg-secondary);
+}
+
+.communication-event-details dt {
+    margin-bottom: 0.15rem;
+    color: var(--text-muted);
+    font-size: 0.62rem;
+    font-weight: 750;
+    text-transform: uppercase;
+}
+
+.communication-event-details dd {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 0.73rem;
+    overflow-wrap: anywhere;
+}
+
+.communication-live-status {
+    min-height: 1.2rem;
+    margin-top: 0.3rem;
+    color: var(--danger);
+    font-size: 0.7rem;
+}
+
+.communication-dashboard {
+    margin: 0 0 1rem;
+}
+
+.communication-dashboard-heading {
+    margin-bottom: 0.55rem;
+}
+
+.communication-dashboard-heading h2 {
+    font-size: 1.02rem;
+}
+
+.communication-dashboard-heading .communication-demo-flag {
+    font-size: 0.62rem;
+}
+
+.communication-dashboard-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.7rem;
+}
+
+.communication-dashboard-panel {
+    padding: 0.78rem 0.85rem;
+}
+
+.communication-panel-heading {
+    margin-bottom: 0.38rem;
+}
+
+.communication-panel-heading h3 {
+    font-size: 0.81rem;
+}
+
+.communication-panel-heading p {
+    font-size: 0.66rem;
+}
+
+.communication-panel-heading > a {
+    color: var(--link-color);
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.communication-upcoming-list,
+.communication-latest-list {
+    display: grid;
+    gap: 0;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.communication-upcoming-list li,
+.communication-latest-list li {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.55rem;
+    min-width: 0;
+    padding: 0.42rem 0;
+    border-top: 1px solid var(--border-subtle);
+}
+
+.communication-upcoming-list li:first-child,
+.communication-latest-list li:first-child {
+    border-top: 0;
+}
+
+.communication-upcoming-list time {
+    display: grid;
+    min-width: 43px;
+    padding: 0.22rem 0.28rem;
+    border-radius: 7px;
+    background: var(--bg-secondary);
+    color: var(--primary-color);
+    text-align: center;
+}
+
+.communication-upcoming-list time strong {
+    font-size: 0.68rem;
+    line-height: 1.15;
+}
+
+.communication-upcoming-list time span {
+    color: var(--text-muted);
+    font-size: 0.55rem;
+    text-transform: uppercase;
+}
+
+.communication-upcoming-list li > div,
+.communication-latest-list li > div {
+    display: grid;
+    min-width: 0;
+}
+
+.communication-upcoming-list li > div > strong,
+.communication-latest-list li > div > strong {
+    overflow: hidden;
+    color: var(--text-primary);
+    font-size: 0.69rem;
+    font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.communication-upcoming-list li > div > span,
+.communication-latest-list li > div > span {
+    overflow: hidden;
+    color: var(--text-muted);
+    font-size: 0.61rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.communication-ann-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--primary-color);
+}
+
+.communication-ann-dot.defense {
+    background: var(--communication-event-defense);
+}
+
+.communication-ann-dot.deadline {
+    background: var(--communication-event-deadline);
+}
+
+.communication-ann-dot.research {
+    background: var(--communication-event-research);
+}
+
+.communication-ann-dot.general {
+    background: var(--communication-event-general);
+}
+
+.communication-latest-list li {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.communication-priority {
+    font-size: 0.58rem;
+}
+
+.communication-empty {
+    margin: 0.6rem 0 0;
+    color: var(--text-muted);
+    font-size: 0.7rem;
+}
+
+@media (max-width: 1100px) {
+    .communication-filters {
+        grid-template-columns: repeat(3, minmax(120px, 1fr));
+    }
+}
+
+@media (max-width: 767.98px) {
+    .communication-page-header {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 0.6rem;
+    }
+
+    .communication-summary-strip {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .communication-summary-strip .communication-summary-note {
+        grid-column: 1 / -1;
+        padding-top: 0.5rem;
+        border-top: 1px solid var(--border-subtle);
+    }
+
+    .communication-filters {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .communication-filter-search {
+        grid-column: 1 / -1;
+    }
+
+    .communication-dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .communication-calendar-day {
+        min-height: 82px;
+        padding: 0.25rem;
+    }
+
+    .communication-calendar-event {
+        font-size: 0.56rem;
+    }
+}
+
+@media (max-width: 520px) {
+    .communication-summary-strip {
+        gap: 0.5rem;
+        padding: 0.6rem;
+    }
+
+    .communication-calendar-toolbar {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .communication-calendar-month-nav {
+        justify-content: space-between;
+    }
+
+    .communication-calendar-month-nav h2 {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .communication-calendar-grid {
+        grid-template-columns: repeat(7, minmax(36px, 1fr));
+        overflow-x: auto;
+    }
+
+    .communication-calendar-day {
+        min-height: 70px;
+    }
+
+    .communication-calendar-day-events {
+        max-height: 50px;
+        overflow-y: auto;
+    }
+
+    .communication-calendar-legend .communication-demo-flag {
+        flex-basis: 100%;
+        width: fit-content;
+    }
+
+    .communication-event-list-card {
+        grid-template-columns: 54px minmax(0, 1fr);
+        gap: 0.45rem;
+    }
+
+    .communication-event-list-card button {
+        grid-column: 2;
+        width: fit-content;
+    }
+
+    .communication-event-details {
+        grid-template-columns: 1fr;
+    }
+
+    .communication-announcement-content {
+        padding: 0.62rem;
+    }
+
+    .communication-announcement-card footer {
+        gap: 0.35rem 0.65rem;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .communication-announcement-card {
+        transition: none;
+    }
+}
+
+.communication-composer {
+    scroll-margin-top: 1rem;
+}
+
+.communication-announcement-form {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.7rem;
+}
+
+.communication-announcement-form > label {
+    display: grid;
+    align-content: start;
+    gap: 0.28rem;
+    color: var(--text-secondary);
+    font-size: 0.69rem;
+    font-weight: 700;
+}
+
+.communication-announcement-form .form-control,
+.communication-announcement-form .form-select {
+    min-height: 36px;
+    font-size: 0.75rem;
+}
+
+.communication-announcement-form .communication-form-body {
+    grid-column: span 2;
+}
+
+.communication-announcement-form .communication-form-image {
+    grid-column: 3;
+}
+
+.communication-form-actions {
+    grid-column: 1 / -1;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.communication-detail-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--link-color);
+    font: inherit;
+    font-size: inherit;
+    cursor: pointer;
+}
+
+.communication-detail-trigger:hover {
+    text-decoration: underline;
+}
+
+.communication-announcement-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.35rem;
+    margin-top: 0.6rem;
+    padding-top: 0.55rem;
+    border-top: 1px solid var(--border-subtle);
+}
+
+.communication-dashboard-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.communication-recent-activity {
+    display: grid;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.communication-recent-activity li {
+    display: grid;
+    grid-template-columns: 28px minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 0.5rem;
+    padding: 0.48rem 0;
+    border-top: 1px solid var(--border-subtle);
+}
+
+.communication-recent-activity li:first-child {
+    border-top: 0;
+}
+
+.communication-activity-icon {
+    display: grid;
+    width: 26px;
+    height: 26px;
+    place-items: center;
+    border-radius: 7px;
+    background: var(--bg-secondary);
+    color: var(--primary-color);
+    font-size: 0.68rem;
+}
+
+.communication-recent-activity li > div {
+    min-width: 0;
+}
+
+.communication-recent-activity strong {
+    display: block;
+    color: var(--text-primary);
+    font-size: 0.69rem;
+}
+
+.communication-recent-activity p {
+    margin: 0.08rem 0 0;
+    color: var(--text-muted);
+    font-size: 0.63rem;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+}
+
+.communication-recent-activity time {
+    color: var(--text-muted);
+    font-size: 0.59rem;
+    white-space: nowrap;
+}
+
+.communication-detail-meta {
+    color: var(--text-muted);
+    font-size: 0.68rem;
+}
+
+.communication-detail-image {
+    display: block;
+    max-width: 100%;
+    max-height: 300px;
+    object-fit: contain;
+    border-radius: 8px;
+}
+
+[data-ann-modal-body] {
+    white-space: pre-wrap;
+}
+
+@media (max-width: 767.98px) {
+    .communication-announcement-form {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .communication-announcement-form .communication-form-body,
+    .communication-announcement-form .communication-form-image {
+        grid-column: 1 / -1;
+    }
+
+    .communication-dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 520px) {
+    .communication-announcement-form {
+        grid-template-columns: 1fr;
+    }
+
+    .communication-announcement-form .communication-form-body,
+    .communication-announcement-form .communication-form-image {
+        grid-column: 1;
+    }
+
+    .communication-recent-activity li {
+        grid-template-columns: 28px minmax(0, 1fr);
+    }
+
+    .communication-recent-activity time {
+        grid-column: 2;
+    }
+}

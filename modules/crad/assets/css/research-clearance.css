@@ -57,20 +57,42 @@
 .rsc-inbox-scroll { max-height: 420px; overflow: auto; }
 .rsc-inbox tr[data-rsc-open] { cursor: pointer; }
 .rsc-inbox tr[data-rsc-open]:hover { background: #f1f5f9; }
+.rsc-or-list { display: flex; flex-direction: column; gap: 2px; }
+.rsc-or-item { display: flex; flex-direction: column; line-height: 1.25; }
+.rsc-or-name { font-size: .78rem; color: #475569; }
+.rsc-or-no { font-size: .82rem; font-weight: 600; font-variant-numeric: tabular-nums; word-break: break-all; }
 .rsc-physical { display:inline-block; font-size:8.5pt; font-weight:700; color:#047857; }
 .rsc-upload-file { margin-bottom: 1rem; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; padding: .65rem .85rem; }
 .rsc-upload-file summary { cursor: pointer; font-weight: 700; }
 .rsc-upload-img {
     display: block;
-    width: 860px;
-    max-width: 100%;
+    width: auto;
+    max-width: min(100%, 480px);
+    max-height: min(68vh, 640px);
     height: auto;
-    margin: 0 auto;
+    margin: 0.75rem auto;
     border: 1px solid #cbd5e1;
+    border-radius: 12px;
     background: #fff;
     object-fit: contain;
+    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.1);
 }
-.rsc-upload-frame { width:100%; min-height:420px; border:1px solid #cbd5e1; background:#fff; margin-top:.65rem; }
+.rsc-upload-frame {
+    width: 100%;
+    max-width: 520px;
+    margin: 0.75rem auto 0;
+    min-height: 0;
+    border: 1px solid #cbd5e1;
+    border-radius: 12px;
+    background: #f8fafc;
+    padding: 0.75rem;
+    text-align: center;
+}
+.rsc-upload-frame .rsc-upload-img {
+    margin: 0 auto;
+    max-width: 100%;
+    max-height: min(62vh, 580px);
+}
 @media print {
     @page { size: letter portrait; margin: 7mm; }
     html, body {
@@ -92,10 +114,13 @@
     .module-page-banner,
     .rsc-toolbar,
     .rsc-inbox,
+    .rsc-no-print,
     .rsc-pick,
     [data-rsc-empty],
     [data-rsc-close],
     [data-rsc-check-wrap],
+    [data-rsc-student-hint],
+    [data-rsc-reject-note],
     .alert,
     .sms-page-loader {
         display: none !important;

@@ -10,12 +10,28 @@ require_once ROOT_PATH . '/includes/authentication.php';
 require_once ROOT_PATH . '/includes/breadcrumbs.php';
 require_once ROOT_PATH . '/includes/notifications.php';
 require_once __DIR__ . '/title-approval-assignees.php';
+require_once __DIR__ . '/research-group-flow.php';
 
 requireAuth();
 
 $roleKey = getCurrentUserRoleKey();
-if (!smsCanManageCoordinatorAssignments($roleKey)) {
-    header('Location: ' . BASE_URL . '/dashboard/index.php');
+$requestedRcPageSlug = $rcPageSlug ?? 'find-contact-adviser';
+$canViewRetrieveApprovedResearch = $requestedRcPageSlug === 'retrieve-approved-research'
+    && $roleKey === 'crad_officer';
+$rcAssignDeniedMessage = 'Only the Department Head may assign Research Coordinator and Adviser.';
+if (!smsCanManageCoordinatorAssignments($roleKey) && !$canViewRetrieveApprovedResearch) {
+    $isAjax = (($_POST['ajax'] ?? '') !== '') || (($_GET['ajax'] ?? '') !== '');
+    if ($isAjax) {
+        header('Content-Type: application/json; charset=utf-8');
+        http_response_code(403);
+        echo json_encode(['ok' => false, 'error' => $rcAssignDeniedMessage, 'message' => $rcAssignDeniedMessage]);
+        exit;
+    }
+    if ($roleKey === 'research_coordinator') {
+        header('Location: ' . BASE_URL . '/modules/crad/pages/assignment-confirmation.php?notice=assign-dh-only');
+        exit;
+    }
+    header('Location: ' . BASE_URL . '/dashboard/index.php?error=' . rawurlencode($rcAssignDeniedMessage));
     exit;
 }
 
@@ -23,7 +39,7 @@ $rcAssignmentKind = $rcAssignmentKind ?? 'adviser';
 $rcPageSlug = $rcPageSlug ?? 'find-contact-adviser';
 
 $pageMap = [
-    'retrieve-approved-research' => ['kind' => 'adviser', 'title' => 'Retrieve Approved Research', 'lead' => 'Adviser Assignment'],
+    'retrieve-approved-research' => ['kind' => 'adviser', 'title' => 'Retrieve Approved Research', 'lead' => 'Signature Monitoring'],
     'find-contact-adviser' => ['kind' => 'adviser', 'title' => 'Find/Contact Adviser', 'lead' => 'Adviser Assignment'],
     'adviser-availability' => ['kind' => 'adviser', 'title' => 'Check Adviser Availability', 'lead' => 'Adviser Assignment'],
     'assign-research-adviser' => ['kind' => 'adviser', 'title' => 'Assign Research Adviser', 'lead' => 'Adviser Assignment'],
@@ -37,19 +53,81 @@ if (!isset($pageMap[$rcPageSlug])) {
 $pageConfig = $pageMap[$rcPageSlug];
 $rcAssignmentKind = $pageConfig['kind'];
 
+
+function rcAssignmentStartDualConfirmCycle(PDO $pdo, string $groupNumber, ?int $userId): void
+{
+    try {
+        if (!function_exists('cradRgFlowStartAssignmentCycle')) {
+            return;
+        }
+        cradRgFlowEnsureSchema($pdo);
+        $groupNumber = trim($groupNumber);
+        if ($groupNumber === '') {
+            return;
+        }
+        $gStmt = $pdo->prepare("SELECT id, leader_id, flow_status FROM `crad_research_groups` WHERE group_number = ? LIMIT 1");
+        $gStmt->execute([$groupNumber]);
+        $group = $gStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+        $groupId = (int) ($group['id'] ?? 0);
+        $studentId = trim((string) ($group['leader_id'] ?? ''));
+        if ($studentId === '' && str_starts_with($groupNumber, 'STU-')) {
+            $studentId = substr($groupNumber, 4);
+        }
+
+        // Prefer groups that completed Research Group approval before assignment.
+        $flow = strtolower((string) ($group['flow_status'] ?? ''));
+        if (in_array($flow, ['draft', 'pending_incomplete_approval', 'rejected'], true)) {
+            error_log('Dual-confirm skipped: research group flow_status=' . $flow . ' for ' . $groupNumber);
+            return;
+        }
+
+        $adv = $pdo->prepare(
+            "SELECT id FROM `crad_research_adviser_assignments`
+             WHERE group_number = :gn OR research_group_id = :gid
+             ORDER BY (assignment_status IN ('Assigned','Confirmed')) DESC, id DESC LIMIT 1"
+        );
+        $adv->execute([':gn' => $groupNumber, ':gid' => $groupId]);
+        $adviserId = (int) ($adv->fetchColumn() ?: 0);
+
+        $coord = $pdo->prepare(
+            "SELECT id FROM `crad_research_coordinator_assignments`
+             WHERE status = 'Active' AND (group_number = :gn OR research_group_id = :gid OR student_id = :sid)
+             ORDER BY id DESC LIMIT 1"
+        );
+        $coord->execute([':gn' => $groupNumber, ':gid' => $groupId, ':sid' => $studentId]);
+        $coordId = (int) ($coord->fetchColumn() ?: 0);
+
+        if ($adviserId <= 0 || $coordId <= 0) {
+            return; // wait until both exist
+        }
+
+        cradRgFlowStartAssignmentCycle(
+            $pdo,
+            $groupId,
+            $groupNumber,
+            $studentId,
+            $coordId > 0 ? $coordId : null,
+            $adviserId > 0 ? $adviserId : null,
+            (int) ($userId ?? 0)
+        );
+    } catch (Throwable $e) {
+        error_log('Dual-confirm cycle start failed: ' . $e->getMessage());
+    }
+}
+
 function rcAssignmentEnsureSchema(PDO $pdo): void
 {
     try {
         $exists = $pdo->query("SHOW TABLES LIKE 'crad_research_groups'")->fetch();
         if ($exists) {
-            $pdo->exec("ALTER TABLE crad_research_groups CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+            $pdo->exec("ALTER TABLE `crad_research_groups` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
         }
     } catch (Throwable $e) {
         error_log('CRAD research group collation alignment skipped: ' . $e->getMessage());
     }
 
     $pdo->exec("
-        CREATE TABLE IF NOT EXISTS crad_research_adviser_assignments (
+        CREATE TABLE IF NOT EXISTS `crad_research_adviser_assignments` (
             id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
             research_group_id INT UNSIGNED DEFAULT NULL,
             proposal_id INT UNSIGNED DEFAULT NULL,
@@ -78,9 +156,9 @@ function rcAssignmentEnsureSchema(PDO $pdo): void
     cradEnsureTitleApprovalAdviserAssignmentConsistency($pdo);
 
     try {
-        $col = $pdo->query("SHOW COLUMNS FROM crad_research_adviser_assignments LIKE 'adviser_user_id'")->fetch();
+        $col = $pdo->query("SHOW COLUMNS FROM `crad_research_adviser_assignments` LIKE 'adviser_user_id'")->fetch();
         if (!$col) {
-            $pdo->exec("ALTER TABLE crad_research_adviser_assignments ADD COLUMN adviser_user_id INT UNSIGNED DEFAULT NULL AFTER adviser_email, ADD KEY idx_raa_user (adviser_user_id)");
+            $pdo->exec("ALTER TABLE `crad_research_adviser_assignments` ADD COLUMN adviser_user_id INT UNSIGNED DEFAULT NULL AFTER adviser_email, ADD KEY idx_raa_user (adviser_user_id)");
         }
     } catch (Throwable $e) {
         error_log('Research adviser user link column skipped: ' . $e->getMessage());
@@ -89,8 +167,8 @@ function rcAssignmentEnsureSchema(PDO $pdo): void
     try {
         $pdo->exec("
             DELETE a
-            FROM crad_research_adviser_assignments a
-            INNER JOIN crad_research_adviser_assignments keep
+            FROM `crad_research_adviser_assignments` a
+            INNER JOIN `crad_research_adviser_assignments` keep
               ON LOWER(TRIM(a.adviser_email)) = LOWER(TRIM(keep.adviser_email))
              AND LOWER(TRIM(a.adviser_name)) = LOWER(TRIM(keep.adviser_name))
              AND IFNULL(a.group_number, '') = IFNULL(keep.group_number, '')
@@ -99,8 +177,8 @@ function rcAssignmentEnsureSchema(PDO $pdo): void
               AND TRIM(a.adviser_name) <> ''
         ");
 
-        if ($pdo->query("SHOW INDEX FROM crad_research_adviser_assignments WHERE Key_name = 'uniq_raa_adviser_identity'")->fetch()) {
-            $pdo->exec("ALTER TABLE crad_research_adviser_assignments DROP INDEX uniq_raa_adviser_identity");
+        if ($pdo->query("SHOW INDEX FROM `crad_research_adviser_assignments` WHERE Key_name = 'uniq_raa_adviser_identity'")->fetch()) {
+            $pdo->exec("ALTER TABLE `crad_research_adviser_assignments` DROP INDEX uniq_raa_adviser_identity");
         }
     } catch (Throwable $e) {
         error_log('Research adviser duplicate guard skipped: ' . $e->getMessage());
@@ -132,7 +210,7 @@ function rcAssignmentSyncApprovedTitleGroups(PDO $pdo): void
 {
     try {
         $pdo->exec("
-            CREATE TABLE IF NOT EXISTS crad_research_groups (
+            CREATE TABLE IF NOT EXISTS `crad_research_groups` (
                 id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
                 proposal_id INT UNSIGNED DEFAULT NULL,
                 title_approval_id INT UNSIGNED DEFAULT NULL,
@@ -155,21 +233,21 @@ function rcAssignmentSyncApprovedTitleGroups(PDO $pdo): void
         ");
 
         foreach ([
-            'title_approval_id' => "ALTER TABLE crad_research_groups ADD title_approval_id INT UNSIGNED DEFAULT NULL AFTER proposal_id",
-            'proposal_number' => "ALTER TABLE crad_research_groups ADD proposal_number VARCHAR(30) DEFAULT NULL AFTER title_approval_id",
-            'group_name' => "ALTER TABLE crad_research_groups ADD group_name VARCHAR(40) NOT NULL DEFAULT '' AFTER group_number",
+            'title_approval_id' => "ALTER TABLE `crad_research_groups` ADD title_approval_id INT UNSIGNED DEFAULT NULL AFTER proposal_id",
+            'proposal_number' => "ALTER TABLE `crad_research_groups` ADD proposal_number VARCHAR(30) DEFAULT NULL AFTER title_approval_id",
+            'group_name' => "ALTER TABLE `crad_research_groups` ADD group_name VARCHAR(40) NOT NULL DEFAULT '' AFTER group_number",
         ] as $column => $sql) {
-            if (!$pdo->query("SHOW COLUMNS FROM crad_research_groups LIKE " . $pdo->quote($column))->fetch()) {
+            if (!$pdo->query("SHOW COLUMNS FROM `crad_research_groups` LIKE " . $pdo->quote($column))->fetch()) {
                 $pdo->exec($sql);
             }
         }
 
         foreach ([
-            'title_approval_id' => "ALTER TABLE crad_research_groups ADD UNIQUE KEY title_approval_id (title_approval_id)",
-            'group_number' => "ALTER TABLE crad_research_groups ADD UNIQUE KEY group_number (group_number)",
-            'idx_rg_proposal_number' => "ALTER TABLE crad_research_groups ADD KEY idx_rg_proposal_number (proposal_number)",
+            'title_approval_id' => "ALTER TABLE `crad_research_groups` ADD UNIQUE KEY title_approval_id (title_approval_id)",
+            'group_number' => "ALTER TABLE `crad_research_groups` ADD UNIQUE KEY group_number (group_number)",
+            'idx_rg_proposal_number' => "ALTER TABLE `crad_research_groups` ADD KEY idx_rg_proposal_number (proposal_number)",
         ] as $name => $sql) {
-            if (!$pdo->query("SHOW INDEX FROM crad_research_groups WHERE Key_name = " . $pdo->quote($name))->fetch()) {
+            if (!$pdo->query("SHOW INDEX FROM `crad_research_groups` WHERE Key_name = " . $pdo->quote($name))->fetch()) {
                 $pdo->exec($sql);
             }
         }
@@ -179,16 +257,16 @@ function rcAssignmentSyncApprovedTitleGroups(PDO $pdo): void
             throw new RuntimeException((string) $relationship['message']);
         }
 
-        $proposalNumberCol = $pdo->query("SHOW COLUMNS FROM crad_title_approvals LIKE 'proposal_number'")->fetch();
+        $proposalNumberCol = $pdo->query("SHOW COLUMNS FROM `crad_title_approvals` LIKE 'proposal_number'")->fetch();
         if (!$proposalNumberCol) {
-            $pdo->exec("ALTER TABLE crad_title_approvals ADD COLUMN proposal_number VARCHAR(30) DEFAULT NULL AFTER coordinator_name");
+            $pdo->exec("ALTER TABLE `crad_title_approvals` ADD COLUMN proposal_number VARCHAR(30) DEFAULT NULL AFTER coordinator_name");
         }
 
         $stmt = $pdo->query("
             SELECT t.id, t.student_id, t.student_name, t.department, t.proposed_title,
                    t.adviser_name, t.proposal_number
-            FROM crad_title_approvals t
-            LEFT JOIN crad_research_groups g ON g.title_approval_id = t.id
+            FROM `crad_title_approvals` t
+            LEFT JOIN `crad_research_groups` g ON g.title_approval_id = t.id
             WHERE t.status = 'Approved'
               AND t.coordinator_status = 'Approved'
               AND t.crad_status = 'Approved'
@@ -207,18 +285,18 @@ function rcAssignmentSyncApprovedTitleGroups(PDO $pdo): void
             $proposalNumber = trim((string) ($approval['proposal_number'] ?? ''));
             if ($proposalNumber === '') {
                 $proposalNumber = rcAssignmentBuildTitleProposalNumber((int) $approval['id']);
-                $setProposal = $pdo->prepare("UPDATE crad_title_approvals SET proposal_number = :proposal_number WHERE id = :id LIMIT 1");
+                $setProposal = $pdo->prepare("UPDATE `crad_title_approvals` SET proposal_number = :proposal_number WHERE id = :id LIMIT 1");
                 $setProposal->execute([
                     ':proposal_number' => $proposalNumber,
                     ':id' => (int) $approval['id'],
                 ]);
             }
 
-            $lastRow = $pdo->query("SELECT MAX(id) AS max_id FROM crad_research_groups")->fetch();
+            $lastRow = $pdo->query("SELECT MAX(id) AS max_id FROM `crad_research_groups`")->fetch();
             $seq = (int) ($lastRow['max_id'] ?? 0) + 1;
             $newGroupNumber = rcAssignmentBuildGroupNumber($seq);
             $ins = $pdo->prepare("
-                INSERT INTO crad_research_groups
+                INSERT INTO `crad_research_groups`
                     (proposal_id, title_approval_id, proposal_number, group_number, group_name,
                      research_title, college_dept, adviser, academic_year,
                      leader_name, leader_id, leader_email, leader_contact,
@@ -244,6 +322,9 @@ function rcAssignmentSyncApprovedTitleGroups(PDO $pdo): void
                 ':created_by' => (int) ($_SESSION['user_id'] ?? 0) ?: null,
             ]);
             $newGroupId = (int) $pdo->lastInsertId();
+            if (function_exists('cradRgFlowSyncAfterTitleApproved')) {
+                cradRgFlowSyncAfterTitleApproved($pdo, (int) $approval['id'], $newGroupId);
+            }
             cradMigrateStudentAssignmentsToOfficialGroup($pdo, (string) $approval['student_id'], [
                 'id' => $newGroupId,
                 'group_number' => $newGroupNumber,
@@ -259,8 +340,8 @@ function rcAssignmentPruneOrphanAssignments(PDO $pdo): void
 {
     try {
         $pdo->exec("
-            UPDATE crad_research_adviser_assignments a
-            JOIN crad_research_proposals p
+            UPDATE `crad_research_adviser_assignments` a
+            JOIN `crad_research_proposals` p
               ON a.proposal_number IS NOT NULL
              AND a.proposal_number <> ''
              AND (p.proposal_number = a.proposal_number OR p.ref_code = a.proposal_number)
@@ -284,7 +365,7 @@ function rcAssignmentResetStaleAssignments(PDO $pdo): void
 
     try {
         $pdo->exec("
-            UPDATE crad_research_adviser_assignments
+            UPDATE `crad_research_adviser_assignments`
                SET assignment_status = 'Pending',
                    assigned_by = NULL,
                    assigned_at = NULL,
@@ -296,14 +377,14 @@ function rcAssignmentResetStaleAssignments(PDO $pdo): void
         ");
 
         $pdo->exec("
-            UPDATE crad_research_adviser_assignments a
+            UPDATE `crad_research_adviser_assignments` a
                SET a.assignment_status = 'Pending',
                    a.updated_at = NOW()
              WHERE a.assignment_status = 'Assigned'
                AND NOT EXISTS (
                 SELECT 1
-                FROM crad_research_groups g
-                LEFT JOIN crad_research_proposals p ON p.id = g.proposal_id
+                FROM `crad_research_groups` g
+                LEFT JOIN `crad_research_proposals` p ON p.id = g.proposal_id
                 WHERE g.group_number IS NOT NULL
                   AND g.group_number <> ''
                   AND (
@@ -320,6 +401,7 @@ function rcAssignmentResetStaleAssignments(PDO $pdo): void
 
     $defenseTables = [
         'crad_research_defense_schedules',
+        'research_defense_schedules',
         'research_defense_schedule',
         'research_defenses',
         'defense_schedules',
@@ -380,7 +462,7 @@ function rcAssignmentResetStaleAssignments(PDO $pdo): void
             ";
 
             $pdo->exec("
-                UPDATE crad_research_adviser_assignments a
+                UPDATE `crad_research_adviser_assignments` a
                    SET a.assignment_status = 'Pending',
                        a.assigned_by = NULL,
                        a.assigned_at = NULL,
@@ -423,11 +505,11 @@ function rcAssignmentRows(PDO $pdo, string $kind): array
                 COALESCE(NULLIF(g.research_title, ''), p.research_title, t.proposed_title) AS research_title,
                 COALESCE(NULLIF(g.college_dept, ''), p.college_department, t.department) AS college_dept,
                 COALESCE(p.proposal_number, t.proposal_number, g.proposal_number) AS proposal_number
-             FROM crad_research_adviser_assignments a
-             INNER JOIN crad_research_groups g ON g.id = a.research_group_id
+             FROM `crad_research_adviser_assignments` a
+             INNER JOIN `crad_research_groups` g ON g.id = a.research_group_id
                 OR CONVERT(g.group_number USING utf8mb4) COLLATE utf8mb4_unicode_ci = CONVERT(a.group_number USING utf8mb4) COLLATE utf8mb4_unicode_ci
-             LEFT JOIN crad_research_proposals p ON p.id = COALESCE(a.proposal_id, g.proposal_id)
-             LEFT JOIN crad_title_approvals t ON t.id = g.title_approval_id
+             LEFT JOIN `crad_research_proposals` p ON p.id = COALESCE(a.proposal_id, g.proposal_id)
+             LEFT JOIN `crad_title_approvals` t ON t.id = g.title_approval_id
              WHERE g.group_number IS NOT NULL
                AND g.group_number <> ''
                AND (
@@ -446,7 +528,7 @@ function rcAssignmentRows(PDO $pdo, string $kind): array
                  )
                  OR EXISTS (
                     SELECT 1
-                    FROM crad_research_coordinator_assignments ca
+                    FROM `crad_research_coordinator_assignments` ca
                     WHERE ca.status = 'Active'
                       AND (
                             ca.research_group_id = g.id
@@ -551,9 +633,9 @@ function rcAssignmentApprovedGroups(PDO $pdo): array
             COALESCE(p.status, t.status) AS proposal_status,
             COALESCE(p.registration_status, 'Title Approved') AS registration_status,
             COALESCE(g.created_at, p.registered_at, p.approved_at, t.crad_reviewed_at, t.updated_at, p.created_at) AS updated_at
-         FROM crad_research_groups g
-         LEFT JOIN crad_research_proposals p ON p.id = g.proposal_id
-         LEFT JOIN crad_title_approvals t ON t.id = g.title_approval_id
+         FROM `crad_research_groups` g
+         LEFT JOIN `crad_research_proposals` p ON p.id = g.proposal_id
+         LEFT JOIN `crad_title_approvals` t ON t.id = g.title_approval_id
          WHERE (
                 (p.id IS NOT NULL AND p.status = 'Approved' AND p.registration_status = 'Registered' AND p.proposal_number IS NOT NULL)
              OR (
@@ -610,16 +692,16 @@ function rcAssignmentApprovedGroups(PDO $pdo): array
                 COALESCE(p.status, t.status) AS proposal_status,
                 COALESCE(p.registration_status, 'Title Approved') AS registration_status,
                 COALESCE(g.created_at, p.registered_at, p.approved_at, t.crad_reviewed_at, t.updated_at, p.created_at) AS updated_at
-             FROM crad_research_groups g
-             INNER JOIN crad_research_coordinator_assignments ca
+             FROM `crad_research_groups` g
+             INNER JOIN `crad_research_coordinator_assignments` ca
                ON ca.status = 'Active'
               AND (
                     ca.research_group_id = g.id
                  OR ca.group_number = g.group_number
                  OR (g.leader_id IS NOT NULL AND g.leader_id <> '' AND ca.student_id = g.leader_id)
               )
-             LEFT JOIN crad_research_proposals p ON p.id = g.proposal_id
-             LEFT JOIN crad_title_approvals t ON t.id = g.title_approval_id
+             LEFT JOIN `crad_research_proposals` p ON p.id = g.proposal_id
+             LEFT JOIN `crad_title_approvals` t ON t.id = g.title_approval_id
              WHERE g.group_number IS NOT NULL
                AND g.group_number <> ''
              ORDER BY updated_at DESC, g.id DESC
@@ -643,6 +725,18 @@ function rcAssignmentApprovedGroups(PDO $pdo): array
     return $groups;
 }
 
+/**
+ * Title approvals for the CRAD Officer's Retrieve Approved Research monitor.
+ * Unlike the assignment-ready list, this intentionally includes records that
+ * are still waiting for a coordinator or CRAD signature.
+ */
+function rcAssignmentRetrieveApprovalGroups(PDO $pdo): array
+{
+    $stmt = $pdo->query("\n        SELECT\n            t.id AS title_approval_id,\n            t.proposal_number,\n            t.proposed_title AS research_title,\n            t.department AS college_dept,\n            t.student_name AS leader_name,\n            t.student_id AS leader_id,\n            t.adviser_name AS approved_adviser_name,\n            t.status AS adviser_approval_status,\n            t.reviewed_at AS adviser_approved_at,\n            CASE WHEN t.adviser_signature_data IS NOT NULL AND t.adviser_signature_data <> '' THEN 1 ELSE 0 END AS adviser_signed,\n            t.coordinator_name AS coordinator_approved_name,\n            t.coordinator_status AS coordinator_approval_status,\n            t.coordinator_reviewed_at AS coordinator_approved_at,\n            CASE WHEN t.coordinator_signature_data IS NOT NULL AND t.coordinator_signature_data <> '' THEN 1 ELSE 0 END AS coordinator_signed,\n            t.crad_status AS crad_approval_status,\n            t.crad_reviewed_at AS crad_approved_at,\n            CASE WHEN t.crad_signature_data IS NOT NULL AND t.crad_signature_data <> '' THEN 1 ELSE 0 END AS crad_signed,\n            COALESCE(t.crad_reviewed_at, t.coordinator_reviewed_at, t.reviewed_at, t.updated_at, t.created_at) AS updated_at\n         FROM `crad_title_approvals` t\n         WHERE t.status = 'Approved'\n         ORDER BY COALESCE(t.crad_reviewed_at, t.coordinator_reviewed_at, t.reviewed_at, t.updated_at, t.created_at) DESC, t.id DESC\n    ");
+
+    return $stmt->fetchAll() ?: [];
+}
+
 function rcAssignmentCandidateKey(string $email, string $name): string
 {
     $email = strtolower(trim($email));
@@ -659,7 +753,7 @@ function rcAssignmentAdviserAccountPool(): array
         $smsPdo = getDatabaseConnection();
         $stmt = $smsPdo->query("
             SELECT id AS assignee_user_id, full_name AS assignee_name, email AS assignee_email, role_key
-            FROM sms_users
+            FROM `sms2_users`
             WHERE status = 'active'
               AND TRIM(full_name) <> ''
               AND (
@@ -714,7 +808,7 @@ function rcAssignmentLiveAdviserDisplayRows(PDO $pdo, array $groups): array
 
     $find = $pdo->prepare("
         SELECT id, expertise, availability_status, assignment_status, notes, assigned_at, updated_at, group_number
-        FROM crad_research_adviser_assignments
+        FROM `crad_research_adviser_assignments`
         WHERE (
                 (:uid_a > 0 AND adviser_user_id = :uid_b)
              OR (:email_a <> '' AND LOWER(TRIM(adviser_email)) = :email_b)
@@ -736,7 +830,7 @@ function rcAssignmentLiveAdviserDisplayRows(PDO $pdo, array $groups): array
         LIMIT 1
     ");
     $update = $pdo->prepare("
-        UPDATE crad_research_adviser_assignments
+        UPDATE `crad_research_adviser_assignments`
            SET adviser_user_id = COALESCE(:adviser_user_id, adviser_user_id),
                adviser_name = :adviser_name,
                adviser_email = :adviser_email,
@@ -873,7 +967,7 @@ function rcAssignmentResolveAdviserUserId(string $email, string $name): ?int
         $smsPdo = getDatabaseConnection();
         $stmt = $smsPdo->prepare("
             SELECT id
-            FROM sms_users
+            FROM `sms2_users`
             WHERE role_key IN ('adviser', 'research_adviser')
               AND status = 'active'
               AND (
@@ -913,7 +1007,7 @@ function rcAssignmentCandidatePool(PDO $pdo): array
             availability_status,
             notes,
             updated_at
-        FROM crad_research_adviser_assignments
+        FROM `crad_research_adviser_assignments`
         WHERE adviser_name <> ''
         ORDER BY updated_at DESC, id DESC
     ")->fetchAll() ?: [];
@@ -939,7 +1033,7 @@ function rcAssignmentEnsureGroupCandidateRows(PDO $pdo, array $groups): void
     $advisers = rcAssignmentCandidatePool($pdo);
     $adviserExists = $pdo->prepare("
         SELECT id, expertise, availability_status, assignment_status
-        FROM crad_research_adviser_assignments
+        FROM `crad_research_adviser_assignments`
         WHERE (
                 (:email_gate <> '' AND LOWER(TRIM(adviser_email)) = :email_match)
              OR (:name_gate <> '' AND LOWER(TRIM(adviser_name)) = :name_match)
@@ -957,7 +1051,7 @@ function rcAssignmentEnsureGroupCandidateRows(PDO $pdo, array $groups): void
         LIMIT 1
     ");
     $updateAdviser = $pdo->prepare("
-        UPDATE crad_research_adviser_assignments
+        UPDATE `crad_research_adviser_assignments`
            SET research_group_id = COALESCE(:research_group_id, research_group_id),
                proposal_id = COALESCE(:proposal_id, proposal_id),
                proposal_number = COALESCE(NULLIF(:proposal_number, ''), proposal_number),
@@ -980,7 +1074,7 @@ function rcAssignmentEnsureGroupCandidateRows(PDO $pdo, array $groups): void
          LIMIT 1
     ");
     $insertAdviser = $pdo->prepare("
-        INSERT INTO crad_research_adviser_assignments
+        INSERT INTO `crad_research_adviser_assignments`
             (research_group_id, proposal_id, proposal_number, group_number, student_id, adviser_user_id, adviser_name, adviser_email, expertise, availability_status, assignment_status, notes, assigned_by, assigned_at, created_at, updated_at, notification_sent_at, notification_sent_by)
         VALUES
             (:research_group_id, :proposal_id, :proposal_number, :group_number, NULLIF(:student_id, ''), :adviser_user_id, :adviser_name, :adviser_email, :expertise, :availability_status, 'Pending', :notes, NULL, NULL, NOW(), NOW(), NULL, NULL)
@@ -1105,9 +1199,9 @@ function rcAssignmentCompletionGroup(PDO $pdo, array $candidate, string $groupNu
             p.rep_id,
             p.rep_email,
             p.submitted_by_user
-         FROM crad_research_groups g
-         LEFT JOIN crad_research_proposals p ON p.id = g.proposal_id
-         LEFT JOIN crad_title_approvals t ON t.id = g.title_approval_id
+         FROM `crad_research_groups` g
+         LEFT JOIN `crad_research_proposals` p ON p.id = g.proposal_id
+         LEFT JOIN `crad_title_approvals` t ON t.id = g.title_approval_id
          WHERE (
                 (p.id IS NOT NULL AND p.status = 'Approved' AND p.registration_status = 'Registered')
              OR (
@@ -1161,7 +1255,7 @@ function rcAssignmentAssignedParties(PDO $pdo, array $group): array
 
     $adviserStmt = $pdo->prepare("
         SELECT adviser_name, adviser_email
-        FROM crad_research_adviser_assignments a
+        FROM `crad_research_adviser_assignments` a
         WHERE assignment_status = 'Assigned' AND " . rcAssignmentGroupWhere('a') . "
         ORDER BY assigned_at DESC, updated_at DESC, id DESC
         LIMIT 1
@@ -1174,12 +1268,13 @@ function rcAssignmentAssignedParties(PDO $pdo, array $group): array
 
 function rcAssignmentResetOtherRowsForGroup(PDO $pdo, string $table, int $keepId, array $selectedGroup): void
 {
-    if ($table !== 'crad_research_adviser_assignments' || $keepId <= 0) {
+    if (!in_array($table, ['research_adviser_assignments', 'crad_research_adviser_assignments'], true) || $keepId <= 0) {
         return;
     }
 
+    $table = 'crad_research_adviser_assignments';
     $stmt = $pdo->prepare("
-        UPDATE {$table}
+        UPDATE `{$table}`
            SET assignment_status = 'Pending',
                assigned_by = NULL,
                assigned_at = NULL,
@@ -1213,7 +1308,7 @@ function rcAssignmentCollapseDuplicatePendingRows(PDO $pdo, int $keepId, array $
     $userId = (int) ($candidate['adviser_user_id'] ?? 0);
 
     $stmt = $pdo->prepare("
-        DELETE FROM crad_research_adviser_assignments
+        DELETE FROM `crad_research_adviser_assignments`
          WHERE id <> :keep_id
            AND assignment_status <> 'Assigned'
            AND (
@@ -1255,7 +1350,7 @@ function rcAssignmentFindCandidateRowForGroup(PDO $pdo, string $kind, array $can
 
     $stmt = $pdo->prepare("
         SELECT *
-        FROM {$table}
+        FROM `{$table}`
         WHERE (
                 (:email_gate <> '' AND LOWER(TRIM({$emailColumn})) = :email_match)
              OR (:name_gate <> '' AND LOWER(TRIM({$nameColumn})) = :name_match)
@@ -1295,7 +1390,7 @@ function rcAssignmentProposalStudentRecipients(PDO $pdo, array $group): array
     try {
         $stmt = $pdo->prepare("
             SELECT student_id, student_name, email
-            FROM crad_proposal_members
+            FROM `crad_proposal_members`
             WHERE proposal_id = :proposal_id
             ORDER BY sort_order ASC, id ASC
         ");
@@ -1336,7 +1431,7 @@ function rcAssignmentApplyOfficialAssignedState(PDO $pdo, array $groups): void
         try {
             $assigned = $pdo->prepare("
                 SELECT id, adviser_name, adviser_email, adviser_user_id
-                FROM crad_research_adviser_assignments
+                FROM `crad_research_adviser_assignments`
                 WHERE assignment_status IN ('Assigned', 'Confirmed')
                   AND (
                         group_number = :gn_a
@@ -1365,7 +1460,7 @@ function rcAssignmentApplyOfficialAssignedState(PDO $pdo, array $groups): void
             }
 
             $pdo->prepare("
-                UPDATE crad_research_adviser_assignments
+                UPDATE `crad_research_adviser_assignments`
                    SET research_group_id = COALESCE(:gid, research_group_id),
                        group_number = :gn,
                        student_id = COALESCE(NULLIF(:sid, ''), student_id),
@@ -1384,7 +1479,7 @@ function rcAssignmentApplyOfficialAssignedState(PDO $pdo, array $groups): void
             $name = strtolower(trim((string) ($keep['adviser_name'] ?? '')));
             $userId = (int) ($keep['adviser_user_id'] ?? 0);
             $pdo->prepare("
-                DELETE FROM crad_research_adviser_assignments
+                DELETE FROM `crad_research_adviser_assignments`
                  WHERE id <> :keep_id
                    AND assignment_status <> 'Assigned'
                    AND (
@@ -1491,12 +1586,16 @@ function rcAssignmentPayload(string $kind): array
                 return ($approved['email'] !== '' && $rowEmail === $approved['email'])
                     || ($approved['name'] !== '' && $rowName === $approved['name']);
             }));
+            // The monitoring screen must retain every adviser-approved title,
+            // including those still awaiting coordinator or CRAD signatures.
+            $groups = rcAssignmentRetrieveApprovalGroups($pdo);
+            $rows = [];
         }
     } catch (Throwable $e) {
         error_log('Research Coordinator assignment load failed: ' . $e->getMessage());
         return [
             'ok' => false,
-            'error' => 'Failed to load assignment records.',
+            'error' => 'Failed to load assignment records. ' . $e->getMessage(),
             'rows' => [],
             'groups' => [],
             'stats' => ['total' => 0, 'pending' => 0, 'available' => 0, 'assigned' => 0],
@@ -1504,15 +1603,16 @@ function rcAssignmentPayload(string $kind): array
         ];
     }
 
+    $statsRows = (($rcPageSlug ?? '') === 'retrieve-approved-research') ? $groups : $rows;
     return [
         'ok' => true,
         'rows' => $rows,
         'groups' => $groups,
         'stats' => [
-            'total' => count($rows),
-            'pending' => count(array_filter($rows, static fn($row) => strcasecmp((string) ($row['assignment_status'] ?? ''), 'Pending') === 0)),
-            'available' => count(array_filter($rows, static fn($row) => strcasecmp((string) ($row['availability_status'] ?? ''), 'Available') === 0)),
-            'assigned' => count(array_filter($rows, static fn($row) => strcasecmp((string) ($row['assignment_status'] ?? ''), 'Assigned') === 0)),
+            'total' => count($statsRows),
+            'pending' => count(array_filter($statsRows, static fn($row) => strcasecmp((string) ($row['assignment_status'] ?? ''), 'Pending') === 0)),
+            'available' => count(array_filter($statsRows, static fn($row) => strcasecmp((string) ($row['availability_status'] ?? ''), 'Available') === 0)),
+            'assigned' => count(array_filter($statsRows, static fn($row) => strcasecmp((string) ($row['assignment_status'] ?? ''), 'Assigned') === 0)),
         ],
         'last_sync' => date('M j, Y g:i:s A'),
     ];
@@ -1530,9 +1630,9 @@ function rcAssignmentSave(PDO $pdo, string $kind, int $assignmentId, string $gro
     $groupStmt = $pdo->prepare("
         SELECT g.id, g.proposal_id, COALESCE(p.proposal_number, t.proposal_number, g.proposal_number) AS proposal_number,
                g.group_number, g.leader_id, g.title_approval_id
-        FROM crad_research_groups g
-        LEFT JOIN crad_research_proposals p ON p.id = g.proposal_id
-        LEFT JOIN crad_title_approvals t ON t.id = g.title_approval_id
+        FROM `crad_research_groups` g
+        LEFT JOIN `crad_research_proposals` p ON p.id = g.proposal_id
+        LEFT JOIN `crad_title_approvals` t ON t.id = g.title_approval_id
         WHERE g.group_number = :group_number
         LIMIT 1
     ");
@@ -1567,7 +1667,7 @@ function rcAssignmentSave(PDO $pdo, string $kind, int $assignmentId, string $gro
         throw new RuntimeException('Only research adviser assignment is available.');
     }
 
-    $candidateStmt = $pdo->prepare("SELECT * FROM crad_research_adviser_assignments WHERE id = :id LIMIT 1");
+    $candidateStmt = $pdo->prepare("SELECT * FROM `crad_research_adviser_assignments` WHERE id = :id LIMIT 1");
     $candidateStmt->execute([':id' => $assignmentId]);
     $candidate = $candidateStmt->fetch();
     if (!$candidate) {
@@ -1595,7 +1695,7 @@ function rcAssignmentSave(PDO $pdo, string $kind, int $assignmentId, string $gro
     if ($matchesSelectedGroup($candidate) && strcasecmp((string) ($candidate['assignment_status'] ?? ''), 'Assigned') === 0) {
         if ($resolvedAdviserUserId !== null && (int) ($candidate['adviser_user_id'] ?? 0) <= 0) {
             $stampUser = $pdo->prepare("
-                UPDATE crad_research_adviser_assignments
+                UPDATE `crad_research_adviser_assignments`
                    SET adviser_user_id = :adviser_user_id,
                        updated_at = NOW()
                  WHERE id = :id
@@ -1607,6 +1707,7 @@ function rcAssignmentSave(PDO $pdo, string $kind, int $assignmentId, string $gro
             ]);
         }
         rcAssignmentMaybeSendCompletionNotifications($pdo, $candidate, $groupNumber, $userId);
+                rcAssignmentStartDualConfirmCycle($pdo, $groupNumber, $userId);
         return ['message' => 'Research adviser is already assigned.'];
     }
 
@@ -1619,7 +1720,7 @@ function rcAssignmentSave(PDO $pdo, string $kind, int $assignmentId, string $gro
         if ($matchesSelectedGroup($candidate)) {
             rcAssignmentResetOtherRowsForGroup($pdo, 'crad_research_adviser_assignments', $assignmentId, $selectedGroup);
             $stmt = $pdo->prepare("
-                UPDATE crad_research_adviser_assignments
+                UPDATE `crad_research_adviser_assignments`
                    SET assignment_status = 'Assigned',
                        adviser_user_id = COALESCE(:adviser_user_id, adviser_user_id),
                        assigned_by = :assigned_by,
@@ -1637,6 +1738,7 @@ function rcAssignmentSave(PDO $pdo, string $kind, int $assignmentId, string $gro
             rcAssignmentCollapseDuplicatePendingRows($pdo, $assignmentId, $candidate, $selectedGroup);
         }
         rcAssignmentMaybeSendCompletionNotifications($pdo, $candidate, $groupNumber, $userId);
+                rcAssignmentStartDualConfirmCycle($pdo, $groupNumber, $userId);
 
         if ($startedTransaction) {
             $pdo->commit();
@@ -1650,7 +1752,7 @@ function rcAssignmentSave(PDO $pdo, string $kind, int $assignmentId, string $gro
         );
         if ($studentId !== '') {
             try {
-                $pdo->prepare("UPDATE crad_research_adviser_assignments SET student_id = :sid, updated_at = NOW() WHERE id = :id LIMIT 1")
+                $pdo->prepare("UPDATE `crad_research_adviser_assignments` SET student_id = :sid, updated_at = NOW() WHERE id = :id LIMIT 1")
                     ->execute([':sid' => $studentId, ':id' => $assignmentId]);
             } catch (Throwable $e) {
                 error_log('Adviser student_id stamp skipped: ' . $e->getMessage());
@@ -1669,6 +1771,11 @@ function rcAssignmentSave(PDO $pdo, string $kind, int $assignmentId, string $gro
 
 if (($_POST['ajax'] ?? '') === 'assign') {
     header('Content-Type: application/json; charset=utf-8');
+    if (!smsCanManageCoordinatorAssignments($roleKey)) {
+        http_response_code(403);
+        echo json_encode(['ok' => false, 'error' => $rcAssignDeniedMessage, 'message' => $rcAssignDeniedMessage]);
+        exit;
+    }
     try {
         $pdo = getCradDatabaseConnection();
         rcAssignmentEnsureSchema($pdo);
@@ -1867,6 +1974,8 @@ renderBreadcrumbs($breadcrumbs);
 .rcas-retrieve-date { display: block; margin-top: 0.22rem; color: var(--sms-text-muted); font-size: 0.76rem; font-weight: 850; }
 .rcas-retrieve-approved { display: inline-flex; align-items: center; gap: 0.35rem; min-height: 28px; margin-top: 0.45rem; padding: 0.32rem 0.7rem; border-radius: 999px; color: #047857; background: #d1fae5; font-size: 0.75rem; font-weight: 900; }
 .rcas-retrieve-approved i { font-size: 0.7rem; }
+.rcas-retrieve-approved.awaiting { color: #92400e; background: #fef3c7; }
+.rcas-retrieve-approved.rejected { color: #991b1b; background: #fee2e2; }
 [data-theme="dark"] .rcas-header,
 [data-theme="dark"] .rcas-stat,
 [data-theme="dark"] .rcas-card { background: rgba(15,23,42,0.74); border-color: rgba(148,163,184,0.2); }
@@ -2303,6 +2412,16 @@ renderBreadcrumbs($breadcrumbs);
         if (approvalId > 0) return `Group ${String(approvalId).padStart(2, '0')}`;
         return group?.group_name || group?.group_number || 'Research Group';
     };
+    const retrieveApprovalBadge = (status, signed) => {
+        const normalized = String(status || '').toLowerCase();
+        if (normalized === 'rejected' || normalized === 'returned') {
+            return `<span class="rcas-retrieve-approved rejected"><?= smsIcon('x') ?>${esc(status || 'Rejected')}</span>`;
+        }
+        if (Number(signed) === 1 || signed === true || String(signed) === '1') {
+            return `<span class="rcas-retrieve-approved"><?= smsIcon('check') ?>Signed</span>`;
+        }
+        return `<span class="rcas-retrieve-approved awaiting"><?= smsIcon('clock') ?>Awaiting signature</span>`;
+    };
     const renderRetrieveList = () => {
         if (!retrieveList) return;
         const term = (search?.value || '').trim().toLowerCase();
@@ -2336,18 +2455,18 @@ renderBreadcrumbs($breadcrumbs);
                 </td>
                 <td>
                     <span class="rcas-retrieve-adviser">${esc(group.approved_adviser_name || 'For adviser')}</span>
-                    <span class="rcas-retrieve-date">${esc(formatDate(group.updated_at || ''))}</span>
-                    <span class="rcas-retrieve-approved"><?= smsIcon('check') ?>${esc(group.adviser_approval_status || 'Approved')}</span>
+                    <span class="rcas-retrieve-date">${esc(formatDate(group.adviser_approved_at || group.updated_at || ''))}</span>
+                    ${retrieveApprovalBadge(group.adviser_approval_status, group.adviser_signed)}
                 </td>
                 <td>
                     <span class="rcas-retrieve-main">${esc(group.coordinator_approved_name || 'Coordinator')}</span>
                     <span class="rcas-retrieve-date">${esc(formatDate(group.coordinator_approved_at || ''))}</span>
-                    <span class="rcas-retrieve-approved"><?= smsIcon('check') ?>${esc(group.coordinator_approval_status || 'Approved')}</span>
+                    ${retrieveApprovalBadge(group.coordinator_approval_status, group.coordinator_signed)}
                 </td>
                 <td>
                     <span class="rcas-retrieve-main">CRAD Officer</span>
                     <span class="rcas-retrieve-date">${esc(formatDate(group.crad_approved_at || ''))}</span>
-                    <span class="rcas-retrieve-approved"><?= smsIcon('check') ?>${esc(group.crad_approval_status || 'Approved')}</span>
+                    ${retrieveApprovalBadge(group.crad_approval_status, group.crad_signed)}
                 </td>
             </tr>
         `).join('');

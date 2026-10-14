@@ -22,9 +22,11 @@ $onDashboard = str_ends_with(
 );
 $highlightModule = smsSidebarHighlightModule((string) $activeModule, $roleKey);
 $roleHomeUrl = smsRoleHomeUrl($roleKey);
-$roleHomeLabel = smsRoleHomeLabel($roleKey);
 $roleHomeActive = smsRoleHomeIsActive($roleKey, str_replace('\\', '/', (string) ($_SERVER['SCRIPT_NAME'] ?? '')), (string) $activePage);
 $showMainDashboard = smsShowsMainDashboard($roleKey);
+$currentScriptPath = str_replace('\\', '/', (string) ($_SERVER['SCRIPT_NAME'] ?? ''));
+$isCommunicationCalendar = str_ends_with($currentScriptPath, '/communication/calendar.php');
+$isCommunicationAnnouncements = str_ends_with($currentScriptPath, '/communication/announcements.php');
 $visibleModules = getVisibleModules($MODULES);
 $securitySettingsModule = '';
 $securitySettingsHrefOverride = '';
@@ -59,105 +61,7 @@ if ($securitySettingsModule !== '' && isset($visibleModules[$securitySettingsMod
     }
 }
 
-// ── For students: check if Research Forum is paid ───────────────────────────
-$researchForumPaid = false;
-$studentReturnedTitleApprovalId = 0;
-if ($sidebarMode === 'student') {
-    // If student-portal-page.php already computed this, use it.
-    // Otherwise check independently from the payment data source.
-    if (isset($researchForumPaid) && $researchForumPaid === true) {
-        // already set by student-portal-page.php context
-    } else {
-        // Standalone check: mirror the same transaction list.
-        // In production, replace with a real DB query against payment table.
-        $sidebarPayments = [
-            ['description' => 'Tuition Down Payment',  'status' => 'Paid'],
-            ['description' => 'Registration Fee',       'status' => 'Paid'],
-            ['description' => 'Laboratory Fee',         'status' => 'Paid'],
-            ['description' => 'Research Forum',         'status' => 'Paid'],
-        ];
-        foreach ($sidebarPayments as $txn) {
-            if (
-                stripos($txn['description'], 'Research Forum') !== false &&
-                strtolower($txn['status']) === 'paid'
-            ) {
-                $researchForumPaid = true;
-                break;
-            }
-        }
-    }
-
-    try {
-        require_once ROOT_PATH . '/modules/crad/config/config.php';
-        $sidebarCrad = function_exists('cradDb') ? cradDb() : null;
-        if ($sidebarCrad instanceof PDO) {
-            $sidebarStudentId = trim((string) ($_SESSION['student_id'] ?? ''));
-            $sidebarStudentName = strtolower(trim((string) ($_SESSION['user_name'] ?? '')));
-            $sidebarStudentUserId = (int) ($_SESSION['user_id'] ?? 0);
-            $titleStmt = $sidebarCrad->prepare(
-                "SELECT id
-                 FROM crad_title_approvals
-                 WHERE status = 'Returned'
-                   AND (
-                        (:student_id_value <> '' AND student_id = :student_id_match)
-                     OR (:student_name_value <> '' AND LOWER(TRIM(student_name)) = :student_name_match)
-                     OR (:user_id_value > 0 AND student_user_id = :user_id_match)
-                   )
-                 ORDER BY reviewed_at DESC, id DESC
-                 LIMIT 1"
-            );
-            $titleStmt->execute([
-                ':student_id_value' => $sidebarStudentId,
-                ':student_id_match' => $sidebarStudentId,
-                ':student_name_value' => $sidebarStudentName,
-                ':student_name_match' => $sidebarStudentName,
-                ':user_id_value' => $sidebarStudentUserId,
-                ':user_id_match' => $sidebarStudentUserId,
-            ]);
-            $studentReturnedTitleApprovalId = (int) ($titleStmt->fetchColumn() ?: 0);
-        }
-    } catch (Throwable $e) {
-        error_log('Student returned title approval sidebar check failed: ' . $e->getMessage());
-    }
-}
-
-$studentResearchProposalHref = $studentReturnedTitleApprovalId > 0
-    ? BASE_URL . '/notifications/view.php?type=returned_title_approval&title_approval=' . $studentReturnedTitleApprovalId
-    : BASE_URL . '/modules/student-portal/pages/research-proposal-submission.php';
-
-$studentResearchDevelopmentItems = [
-    ['slug' => 'my-research',       'href' => BASE_URL . '/modules/student-portal/pages/my-research.php',       'icon' => 'fa-book',            'label' => 'My Research',       'locked' => false],
-    ['slug' => 'research-plan',     'href' => BASE_URL . '/modules/student-portal/pages/research-plan.php',     'icon' => 'fa-project-diagram', 'label' => 'Research Plan',     'locked' => false],
-    ['slug' => 'milestones',        'href' => BASE_URL . '/modules/student-portal/pages/milestones.php',        'icon' => 'fa-tasks',           'label' => 'Milestones',        'locked' => false],
-    ['slug' => 'progress-updates',  'href' => BASE_URL . '/modules/student-portal/pages/progress-updates.php',  'icon' => 'fa-chart-line',      'label' => 'Progress Updates',  'locked' => false],
-    ['slug' => 'adviser-feedback',  'href' => BASE_URL . '/modules/student-portal/pages/adviser-feedback.php',  'icon' => 'fa-comments',        'label' => 'Adviser Feedback',  'locked' => false],
-    ['slug' => 'final-manuscript',  'href' => BASE_URL . '/modules/student-portal/pages/final-manuscript.php',  'icon' => 'fa-file-signature',  'label' => 'Final Manuscript',  'locked' => false],
-];
-
-// ── Check if student has an approved research group ──────────────────────────
-$studentHasResearchGroup = false;
-if ($sidebarMode === 'student' && isset($sidebarCrad) && $sidebarCrad instanceof PDO) {
-    try {
-        $checkGroupStmt = $sidebarCrad->prepare("
-            SELECT COUNT(*) FROM crad_research_groups 
-            WHERE status = 'Approved'
-              AND (leader_id = :student_id OR leader_id = (SELECT student_id FROM sms_users WHERE id = :user_id LIMIT 1))
-            LIMIT 1
-        ");
-        $checkGroupStmt->execute([
-            ':student_id' => $sidebarStudentId,
-            ':user_id' => $sidebarStudentUserId
-        ]);
-        $studentHasResearchGroup = ((int) $checkGroupStmt->fetchColumn() > 0);
-    } catch (Throwable $e) {
-        error_log('Student research group check failed: ' . $e->getMessage());
-    }
-}
-
 $studentNavGroups = [
-    'Overview' => [
-        ['slug' => 'dashboard', 'href' => BASE_URL . '/modules/student-portal/pages/dashboard.php', 'icon' => 'fa-tachometer-alt', 'label' => 'Dashboard', 'locked' => false],
-    ],
     'Student Information' => [
         ['slug' => 'my-profile',  'href' => BASE_URL . '/modules/student-portal/pages/my-profile.php',  'icon' => 'fa-user',    'label' => 'My Profile',  'locked' => false],
         ['slug' => 'student-id',  'href' => BASE_URL . '/modules/student-portal/pages/student-id.php',  'icon' => 'fa-id-card', 'label' => 'Student ID',  'locked' => false],
@@ -165,6 +69,7 @@ $studentNavGroups = [
     'Financial' => [
         ['slug' => 'account-balance',  'href' => BASE_URL . '/modules/student-portal/pages/account-balance.php',  'icon' => 'fa-wallet',  'label' => 'Account Balance',  'locked' => false],
         ['slug' => 'payment-history',  'href' => BASE_URL . '/modules/student-portal/pages/payment-history.php',  'icon' => 'fa-receipt', 'label' => 'Payment History',  'locked' => false],
+        ['slug' => 'college-payment', 'href' => BASE_URL . '/modules/student-portal/pages/college-payment.php', 'icon' => 'fa-receipt', 'label' => 'College Payment', 'locked' => false],
     ],
     'Academics' => [
         ['slug' => 'class-schedule',      'href' => BASE_URL . '/modules/student-portal/pages/class-schedule.php',      'icon' => 'fa-calendar-alt',        'label' => 'Class Schedule',       'locked' => false],
@@ -172,19 +77,8 @@ $studentNavGroups = [
         ['slug' => 'subjects-professors', 'href' => BASE_URL . '/modules/student-portal/pages/subjects-professors.php', 'icon' => 'fa-chalkboard-teacher',  'label' => 'Subject & Professors', 'locked' => false],
         ['slug' => 'grades-portal',       'href' => BASE_URL . '/modules/student-portal/pages/grades-portal.php',       'icon' => 'fa-star-half-alt',       'label' => 'Grades Portal',        'locked' => false],
     ],
-    'Research' => [
-        ['slug' => 'research-proposal-submission', 'href' => $studentResearchProposalHref, 'icon' => 'fa-flask',            'label' => 'Research Proposal', 'locked' => false],
-    ],
-    'Research Development' => $studentResearchDevelopmentItems,
-    'Document Submission' => [
-        ['slug' => 'submit-chapters', 'href' => BASE_URL . '/modules/student-portal/pages/submit-chapters.php', 'icon' => 'fa-file-upload', 'label' => 'Submit Chapter 1-3', 'locked' => false],
-        ['slug' => 'my-submissions', 'href' => BASE_URL . '/modules/student-portal/pages/my-submissions.php', 'icon' => 'fa-folder-open', 'label' => 'My Submissions', 'locked' => false],
-        ['slug' => 'submission-status', 'href' => BASE_URL . '/modules/student-portal/pages/submission-status.php', 'icon' => 'fa-chart-line', 'label' => 'Submission Status', 'locked' => false],
-        ['slug' => 'submission-history', 'href' => BASE_URL . '/modules/student-portal/pages/submission-history.php', 'icon' => 'fa-history', 'label' => 'Submission History', 'locked' => false],
-    ],
-    'Research Clearance' => [
-        ['slug' => 'college-payment', 'href' => BASE_URL . '/modules/student-portal/pages/college-payment.php', 'icon' => 'fa-receipt', 'label' => 'Upload Collage Payment', 'locked' => false],
-        ['slug' => 'research-clearance', 'href' => BASE_URL . '/modules/student-portal/pages/research-clearance.php', 'icon' => 'fa-stamp', 'label' => 'Research Services Clearance', 'locked' => false],
+    'Research Workspace' => [
+        ['slug' => 'research-workspace', 'href' => BASE_URL . '/modules/student-portal/pages/research-workspace.php', 'icon' => 'fa-flask', 'label' => 'Research Workspace', 'locked' => false],
     ],
     'Core System' => [
         ['slug' => 'grant-opportunities', 'href' => BASE_URL . '/modules/crad/pages/grant-opportunities.php', 'icon' => 'fa-hand-holding-usd', 'label' => 'Grant Opportunities', 'locked' => false],
@@ -202,41 +96,34 @@ $studentNavGroups = [
         ['slug' => 'security-settings', 'href' => BASE_URL . '/account/module-security.php?module=student_portal', 'icon' => 'fa-shield-alt', 'label' => 'Security Settings', 'locked' => false],
     ],
 ];
+$studentDashboardItem = [
+    'slug' => 'dashboard',
+    'href' => BASE_URL . '/modules/student-portal/pages/dashboard.php',
+    'icon' => 'fa-tachometer-alt',
+    'label' => 'Dashboard',
+];
 
-// ── Add Research Development section if student has approved research group ──
-// DUPLICATE PREVENTION: Only add if not already present in array
-if ($studentHasResearchGroup && !isset($studentNavGroups['Research Development'])) {
-    $researchDevItems = [
-        ['slug' => 'my-research',       'href' => BASE_URL . '/modules/student-portal/pages/my-research.php',       'icon' => 'fa-book',        'label' => 'My Research',       'locked' => false],
-        ['slug' => 'research-plan',     'href' => BASE_URL . '/modules/student-portal/pages/research-plan.php',     'icon' => 'fa-project-diagram', 'label' => 'Research Plan',     'locked' => false],
-        ['slug' => 'milestones',        'href' => BASE_URL . '/modules/student-portal/pages/milestones.php',        'icon' => 'fa-tasks',       'label' => 'Milestones',        'locked' => false],
-        ['slug' => 'progress-updates',  'href' => BASE_URL . '/modules/student-portal/pages/progress-updates.php',  'icon' => 'fa-chart-line',  'label' => 'Progress Updates',  'locked' => false],
-        ['slug' => 'adviser-feedback',  'href' => BASE_URL . '/modules/student-portal/pages/adviser-feedback.php',  'icon' => 'fa-comments',    'label' => 'Adviser Feedback',  'locked' => false],
-        ['slug' => 'final-manuscript',  'href' => BASE_URL . '/modules/student-portal/pages/final-manuscript.php',  'icon' => 'fa-file-signature',  'label' => 'Final Manuscript',  'locked' => false],
-    ];
-    
-    // Insert after 'Research' section, before 'System'
-    $insertPosition = array_search('System', array_keys($studentNavGroups));
-    if ($insertPosition !== false) {
-        $studentNavGroups = array_slice($studentNavGroups, 0, $insertPosition, true) +
-                           ['Research Development' => $researchDevItems] +
-                           array_slice($studentNavGroups, $insertPosition, null, true);
-    } else {
-        // Fallback: add before System
-        $temp = [];
-        foreach ($studentNavGroups as $key => $value) {
-            if ($key === 'System') {
-                $temp['Research Development'] = $researchDevItems;
-            }
-            $temp[$key] = $value;
-        }
-        $studentNavGroups = $temp;
-    }
-}
+$studentResearchPageSlugs = [
+    'research-group',
+    'research-proposal-submission',
+    'my-research',
+    'research-plan',
+    'milestones',
+    'progress-updates',
+    'adviser-feedback',
+    'final-manuscript',
+    'submit-documents',
+    'submit-chapters',
+    'my-submissions',
+    'submission-status',
+    'submission-history',
+    'research-clearance',
+];
 
 $facultyAccountNavGroups = [
-    'Approved Research' => [
-        ['slug' => 'approved-research', 'href' => BASE_URL . '/modules/faculty/pages/approved-research.php', 'icon' => 'fa-check-square', 'label' => 'View Approved Research'],
+    'Research Status' => [
+        ['slug' => 'assignment-confirmation', 'href' => BASE_URL . '/modules/faculty/pages/assignment-confirmation.php', 'icon' => 'ti-heart-handshake', 'label' => 'Assignment Confirmation'],
+        ['slug' => 'approved-research', 'href' => BASE_URL . '/modules/faculty/pages/approved-research.php', 'icon' => 'ti-clipboard-check', 'label' => 'Research Status'],
     ],
     'My Research' => [
         ['slug' => 'assigned-research', 'href' => BASE_URL . '/modules/faculty/pages/assigned-research.php', 'icon' => 'fa-flask', 'label' => 'Assigned Research'],
@@ -287,12 +174,10 @@ $facultyAccountNavGroups += [
 if ($roleKey === 'adviser' && isset($facultyAccountNavGroups['My Research'])) {
     unset($facultyAccountNavGroups['My Research']);
 }
-if ($roleKey === 'adviser' && !isset($facultyAccountNavGroups['Research Clearance'])) {
-    $facultyAccountNavGroups = [
-        'Research Clearance' => [
-            ['slug' => 'research-clearance', 'href' => BASE_URL . '/modules/faculty/pages/research-clearance.php', 'icon' => 'fa-stamp', 'label' => 'Research Services Clearance'],
-        ],
-    ] + $facultyAccountNavGroups;
+// ── Adviser: Research Clearance (adviser signing) removed from sidebar.
+// Students upload signed forms; CRAD approves or rejects.
+if ($roleKey === 'adviser' && isset($facultyAccountNavGroups['Research Clearance'])) {
+    unset($facultyAccountNavGroups['Research Clearance']);
 }
 
 // ── Adviser: Core System grant pages (researchers apply to published calls) ──
@@ -383,15 +268,80 @@ $researchDirectorNavGroups = [
         ['slug' => 'security-settings', 'href' => BASE_URL . '/account/module-security.php?module=faculty', 'icon' => 'fa-shield-alt', 'label' => 'Security Settings'],
     ],
 ];
+
+$facultyResearchPageSlugs = [
+    'assignment-confirmation',
+    'approved-research',
+    'assigned-research',
+    'final-manuscript-review',
+    'research-details',
+    'research-progress',
+    'research-documents',
+    'my-research-groups',
+    'final-defense-revision-monitoring',
+    'research-progress-monitoring',
+    'milestones-overview',
+    'revision-monitoring',
+    'submitted-updates',
+    'adviser-feedback-history',
+    'research-clearance',
+];
+$cradWorkspaceRoleKeys = ['crad_officer', 'research_coordinator', 'department_head'];
+$cradResearchWorkspaceSlugs = [
+    'register-proposal',
+    'research-group-number',
+    'retrieve-approved-research',
+    'adviser-panel-assignment',
+    'research-coordinator-management',
+    'capstone-group-student-registry',
+    'research-defense-scheduling',
+    'research-clearance',
+    'approval-clearance-payment',
+    'final-manuscript-review',
+    'revision-compliance',
+    'final-manuscript-approval',
+    'research-group-approvals',
+    'approved-research',
+    'assignment-confirmation',
+    'assign-research-adviser',
+];
 ?>
 <aside class="sms-sidebar <?= smsIsGrantedAdminRole($roleKey) ? 'admin-sidebar' : '' ?> admin-sidebar-collapsible <?= $sidebarMode === 'faculty_workspace' ? 'workspace-sidebar' : '' ?> <?= ($roleKey === 'research_director' && $sidebarMode === 'faculty_workspace') ? 'research-director-sidebar' : '' ?>" id="smsSidebar" aria-label="Main navigation">
     <nav class="sidebar-nav" id="smsSidebarAccordion">
         <ul class="nav flex-column">
             <?php if ($sidebarMode === 'student'): ?>
+                <li class="nav-item sidebar-home-item">
+                    <a class="nav-link sidebar-home-link <?= $activeModule === 'student_portal' && $activePage === 'dashboard' ? 'active' : '' ?>"
+                       href="<?= htmlspecialchars($studentDashboardItem['href']) ?>"
+                       data-title="<?= htmlspecialchars($studentDashboardItem['label']) ?>"
+                       title="<?= htmlspecialchars($studentDashboardItem['label']) ?>">
+                        <?= smsIcon($studentDashboardItem['icon'], ['aria-hidden' => 'true']) ?>
+                        <span><?= htmlspecialchars($studentDashboardItem['label']) ?></span>
+                    </a>
+                </li>
+                <li class="nav-item sidebar-home-item">
+                    <a class="nav-link sidebar-home-link <?= $isCommunicationCalendar ? 'active' : '' ?>"
+                       href="<?= e(BASE_URL . '/communication/calendar.php') ?>"
+                       data-title="Research Calendar"
+                       title="Research Calendar">
+                        <?= smsIcon('calendar-alt', ['aria-hidden' => 'true']) ?>
+                        <span>Research Calendar</span>
+                    </a>
+                </li>
+                <li class="nav-item sidebar-home-item">
+                    <a class="nav-link sidebar-home-link <?= $isCommunicationAnnouncements ? 'active' : '' ?>"
+                       href="<?= e(BASE_URL . '/communication/announcements.php') ?>"
+                       data-title="Announcement Bulletin"
+                       title="Announcement Bulletin">
+                        <?= smsIcon('bullhorn', ['aria-hidden' => 'true']) ?>
+                        <span>Announcement Bulletin</span>
+                    </a>
+                </li>
                 <?php foreach ($studentNavGroups as $groupLabel => $groupItems): ?>
                     <?php
                     $groupCollapseId = 'navGrp_' . preg_replace('/[^a-z0-9_]/', '_', strtolower((string) $groupLabel));
                     $isGroupActive = false;
+                    $isWorkspaceDestination = $groupLabel === 'Research Workspace';
                     $groupOverviewUrl = '';
                     foreach ($groupItems as $groupItemProbe) {
                         if (empty($groupItemProbe['locked']) && $groupOverviewUrl === '') {
@@ -401,9 +351,21 @@ $researchDirectorNavGroups = [
                             $isGroupActive = true;
                         }
                     }
+                    if ($isWorkspaceDestination && $activeModule === 'student_portal' && in_array($activePage, $studentResearchPageSlugs, true)) {
+                        $isGroupActive = true;
+                    }
                     $groupIcon = (string) ($groupItems[0]['icon'] ?? 'fa-folder');
                     ?>
                     <li class="nav-item admin-module-item">
+                        <?php if ($isWorkspaceDestination): ?>
+                        <a class="nav-link sidebar-home-link <?= $isGroupActive ? 'active' : '' ?>"
+                           href="<?= htmlspecialchars($groupOverviewUrl) ?>"
+                           data-title="Research Workspace"
+                           title="Research Workspace">
+                            <?= smsIcon($groupIcon, ['aria-hidden' => 'true']) ?>
+                            <span>Research Workspace</span>
+                        </a>
+                        <?php else: ?>
                         <button type="button"
                                 class="nav-link sidebar-parent admin-module-toggle <?= $isGroupActive ? 'active' : '' ?>"
                                 data-bs-toggle="collapse"
@@ -430,7 +392,7 @@ $researchDirectorNavGroups = [
                             <?php if ($isLocked): ?>
                                 <span class="nav-link sidebar-sub <?= $linkClass ?>"
                                       data-title="<?= htmlspecialchars($item['label']) ?> (Locked)"
-                                      title="<?= htmlspecialchars($item['label']) ?> — Pay Research Forum to unlock"
+                                      title="<?= htmlspecialchars($item['label']) ?> - <?= htmlspecialchars((string) ($item['lock_reason'] ?? 'Pay Research Forum to unlock')) ?>"
                                       style="cursor:not-allowed;opacity:0.5;">
                                     <?= smsIcon('lock', ['class' => 'me-1', 'aria-hidden' => 'true', 'style' => 'font-size:0.75rem;']) ?>
                                     <?= smsIcon($item['icon'], ['aria-hidden' => 'true']) ?>
@@ -449,6 +411,7 @@ $researchDirectorNavGroups = [
                     <?php endforeach; ?>
                             </ul>
                         </div>
+                        <?php endif; ?>
                     </li>
                 <?php endforeach; ?>
 
@@ -464,22 +427,43 @@ $researchDirectorNavGroups = [
                 } elseif ($roleKey === 'hr') {
                     $accountNavGroups = $deanGrantNavGroups;
                 }
+                $facultyResearchWorkspacePages = $roleKey === 'adviser' ? $facultyResearchPageSlugs : [];
+                if ($roleKey === 'adviser') {
+                    $workspaceItem = [
+                        'slug' => 'research-workspace',
+                        'href' => BASE_URL . '/modules/faculty/pages/research-workspace.php',
+                        'icon' => 'fa-flask',
+                        'label' => 'Research Workspace',
+                    ];
+                    $filteredGroups = [];
+                    foreach ($accountNavGroups as $groupLabel => $groupItems) {
+                        $groupItems = array_values(array_filter(
+                            $groupItems,
+                            static fn(array $item): bool => !in_array((string) ($item['slug'] ?? ''), $facultyResearchPageSlugs, true)
+                        ));
+                        if ($groupItems !== []) {
+                            $filteredGroups[$groupLabel] = $groupItems;
+                        }
+                    }
+                    $accountNavGroups = ['Research Workspace' => [$workspaceItem]] + $filteredGroups;
+                }
                 $facultyWorkspaceFirstGroup = true;
                 ?>
                 <li class="nav-item sidebar-home-item">
                     <a class="nav-link sidebar-home-link <?= $roleHomeActive ? 'active' : '' ?>"
                        href="<?= htmlspecialchars($roleHomeUrl) ?>"
                        data-overview-url="<?= htmlspecialchars($roleHomeUrl) ?>"
-                       data-title="<?= htmlspecialchars($roleHomeLabel) ?>"
-                       title="<?= htmlspecialchars($roleHomeLabel) ?>">
+                       data-title="Dashboard"
+                       title="Dashboard">
                         <?= smsIcon('home', ['aria-hidden' => 'true']) ?>
-                        <span><?= htmlspecialchars($roleHomeLabel) ?></span>
+                        <span>Dashboard</span>
                     </a>
                 </li>
                 <?php foreach ($accountNavGroups as $groupLabel => $groupItems): ?>
                     <?php
                     $groupCollapseId = 'navGrp_' . preg_replace('/[^a-z0-9_]/', '_', strtolower((string) $groupLabel));
                     $isGroupActive = false;
+                    $isWorkspaceDestination = $groupLabel === 'Research Workspace';
                     $groupOverviewUrl = '';
                     foreach ($groupItems as $groupItemProbe) {
                         if ($groupOverviewUrl === '') {
@@ -489,12 +473,24 @@ $researchDirectorNavGroups = [
                             $isGroupActive = true;
                         }
                     }
+                    if ($isWorkspaceDestination && in_array($activePage, $facultyResearchWorkspacePages, true)) {
+                        $isGroupActive = true;
+                    }
                     if ($facultyWorkspaceFirstGroup) {
                         $facultyWorkspaceFirstGroup = false;
                     }
                     $groupIcon = (string) ($groupItems[0]['icon'] ?? 'fa-folder');
                     ?>
                     <li class="nav-item admin-module-item">
+                        <?php if ($isWorkspaceDestination): ?>
+                        <a class="nav-link sidebar-home-link <?= $isGroupActive ? 'active' : '' ?>"
+                           href="<?= htmlspecialchars($groupOverviewUrl) ?>"
+                           data-title="Research Workspace"
+                           title="Research Workspace">
+                            <?= smsIcon($groupIcon, ['aria-hidden' => 'true']) ?>
+                            <span>Research Workspace</span>
+                        </a>
+                        <?php else: ?>
                         <button type="button"
                                 class="nav-link sidebar-parent admin-module-toggle <?= $isGroupActive ? 'active' : '' ?>"
                                 data-bs-toggle="collapse"
@@ -525,6 +521,7 @@ $researchDirectorNavGroups = [
                     <?php endforeach; ?>
                             </ul>
                         </div>
+                        <?php endif; ?>
                     </li>
                 <?php endforeach; ?>
 
@@ -545,13 +542,31 @@ $researchDirectorNavGroups = [
                     <a class="nav-link sidebar-home-link <?= $roleHomeActive ? 'active' : '' ?>"
                        href="<?= htmlspecialchars($roleHomeUrl) ?>"
                        data-overview-url="<?= htmlspecialchars($roleHomeUrl) ?>"
-                       data-title="<?= htmlspecialchars($roleHomeLabel) ?>"
-                       title="<?= htmlspecialchars($roleHomeLabel) ?>">
-                        <?= smsIcon('home', ['aria-hidden' => 'true']) ?>
-                        <span><?= htmlspecialchars($roleHomeLabel) ?></span>
+                       data-title="Dashboard"
+                       title="Dashboard">
+                        <?= smsIcon('layout-grid', ['aria-hidden' => 'true']) ?>
+                        <span>Dashboard</span>
                     </a>
                 </li>
                 <?php endif; ?>
+                <li class="nav-item sidebar-home-item">
+                    <a class="nav-link sidebar-home-link <?= $isCommunicationCalendar ? 'active' : '' ?>"
+                       href="<?= e(BASE_URL . '/communication/calendar.php') ?>"
+                       data-title="Research Calendar"
+                       title="Research Calendar">
+                        <?= smsIcon('calendar-alt', ['aria-hidden' => 'true']) ?>
+                        <span>Research Calendar</span>
+                    </a>
+                </li>
+                <li class="nav-item sidebar-home-item">
+                    <a class="nav-link sidebar-home-link <?= $isCommunicationAnnouncements ? 'active' : '' ?>"
+                       href="<?= e(BASE_URL . '/communication/announcements.php') ?>"
+                       data-title="Announcement Bulletin"
+                       title="Announcement Bulletin">
+                        <?= smsIcon('bullhorn', ['aria-hidden' => 'true']) ?>
+                        <span>Announcement Bulletin</span>
+                    </a>
+                </li>
 
                 <?php if ($roleKey === 'department_chair'): ?>
                     <?php
@@ -661,10 +676,25 @@ $researchDirectorNavGroups = [
                     $moduleInMaint = smsIsModuleInMaintenance((string) $navModuleKey);
                     $moduleIcon = (string) ($module['icon'] ?? 'fa-folder');
                     $moduleCollapseId = 'adminMod_' . preg_replace('/[^a-z0-9_]/', '_', (string) $navModuleKey);
-                    $hasGroups = !empty($module['groups']) && is_array($module['groups']);
+                    $moduleGroups = isset($module['groups']) && is_array($module['groups']) ? $module['groups'] : [];
+                    $showCradWorkspace = $navModuleKey === 'crad' && in_array($roleKey, $cradWorkspaceRoleKeys, true);
+                    if ($showCradWorkspace) {
+                        foreach ($moduleGroups as $groupLabel => $groupSlugs) {
+                            $remainingSlugs = array_values(array_filter(
+                                (array) $groupSlugs,
+                                static fn(string $slug): bool => !in_array($slug, $cradResearchWorkspaceSlugs, true)
+                            ));
+                            if ($remainingSlugs === []) {
+                                unset($moduleGroups[$groupLabel]);
+                            } else {
+                                $moduleGroups[$groupLabel] = $remainingSlugs;
+                            }
+                        }
+                    }
+                    $hasGroups = $moduleGroups !== [];
                     $activeGroupLabel = null;
                     if ($hasGroups && $isModuleActive && $activePage !== '') {
-                        foreach ($module['groups'] as $groupLabel => $groupSlugs) {
+                        foreach ($moduleGroups as $groupLabel => $groupSlugs) {
                             if (in_array($activePage, $groupSlugs, true)) {
                                 $activeGroupLabel = (string) $groupLabel;
                                 break;
@@ -679,6 +709,8 @@ $researchDirectorNavGroups = [
                     $showModuleOverview = empty($module['hide_overview']);
                     $onModuleOverview = ($activeModule === $navModuleKey && $activePage === '');
                     $showModuleGroups = $hasGroups;
+                    $isCradWorkspaceActive = $showCradWorkspace
+                        && ($activePage === 'research-workspace' || in_array($activePage, $cradResearchWorkspaceSlugs, true));
                     ?>
 
                     <li class="nav-item admin-module-item">
@@ -712,10 +744,21 @@ $researchDirectorNavGroups = [
                                     </a>
                                 </li>
                                 <?php endif; ?>
+                                <?php if ($showCradWorkspace): ?>
+                                <li class="nav-item">
+                                    <a class="nav-link sidebar-sub <?= $isCradWorkspaceActive ? 'active' : '' ?>"
+                                       href="<?= BASE_URL ?>/modules/crad/pages/research-workspace.php"
+                                       data-title="Research Workspace"
+                                       title="Research Workspace">
+                                        <?= smsIcon('fa-flask', ['aria-hidden' => 'true']) ?>
+                                        <span>Research Workspace</span>
+                                    </a>
+                                </li>
+                                <?php endif; ?>
                                 <?php
                                 $groupedSlugSet = [];
                                 if ($showModuleGroups) {
-                                    foreach ($module['groups'] as $groupSlugsForSet) {
+                                    foreach ($moduleGroups as $groupSlugsForSet) {
                                         foreach ((array) $groupSlugsForSet as $groupedSlug) {
                                             $groupedSlugSet[(string) $groupedSlug] = true;
                                         }
@@ -747,21 +790,14 @@ $researchDirectorNavGroups = [
                                     <?php endforeach; ?>
                                 <?php endif; ?>
                                 <?php if ($showModuleGroups): ?>
-                                    <?php foreach ($module['groups'] as $groupLabel => $groupSlugs): ?>
+                                    <?php foreach ($moduleGroups as $groupLabel => $groupSlugs): ?>
                                         <?php
                                         $groupCollapseId = $moduleCollapseId . '_grp_' . preg_replace('/[^a-z0-9_]/', '_', strtolower((string) $groupLabel));
                                         $isGroupActive = ($activeGroupLabel === (string) $groupLabel);
                                         $reportSidebarItems = null;
                                         $outputsSidebarItems = null;
                                         if ($navModuleKey === 'crad' && $groupLabel === 'Reports') {
-                                            $reportSidebarItems = [
-                                                ['slug' => 'capstone-analytics', 'label' => 'Capstone Analytics', 'icon' => 'fa-chart-pie'],
-                                                ['slug' => 'progress-reports', 'label' => 'Progress Reports', 'icon' => 'fa-chart-line'],
-                                                ['slug' => 'defense-reports', 'label' => 'Defense Reports', 'icon' => 'fa-gavel'],
-                                                ['slug' => 'adviser-reports', 'label' => 'Adviser Reports', 'icon' => 'fa-user-tie'],
-                                                ['slug' => 'completion-reports', 'label' => 'Completion Reports', 'icon' => 'fa-check-double'],
-                                                ['slug' => 'publication-reports', 'label' => 'Publication Reports', 'icon' => 'fa-book-open'],
-                                            ];
+                                            $reportSidebarItems = smsCradReportSidebarItems();
                                         }
                                         if (in_array($navModuleKey, ['crad', 'crad_grant'], true) && $groupLabel === 'Outputs & Records') {
                                             $outputsSidebarItems = [
@@ -805,7 +841,7 @@ $researchDirectorNavGroups = [
                                                             $pageIcon = (string) ($sidebarItem['icon'] ?? smsNavPageIcon($slug));
                                                         } else {
                                                             if (!isset($pageTitles[$slug])) { continue; }
-                                                            if ($roleKey === 'crad_officer' && in_array($slug, ['research-defense-scheduling', 'reviewer-evaluation'], true)) { continue; }
+                                                            if ($roleKey === 'crad_officer' && in_array($slug, smsCradOfficerHiddenNavSlugs(), true)) { continue; }
                                                             $isPageActive = ($isModuleActive && $activePage === $slug);
                                                             $pageHref = BASE_URL . '/modules/' . $moduleFolder . '/pages/' . $slug . '.php';
                                                             $sidebarPageTitle = $pageTitles[$slug];

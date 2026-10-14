@@ -1,34 +1,68 @@
-name: CI
+name: Validate production image
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
   pull_request:
-    branches: [main]
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
-  php-lint:
-    name: PHP syntax check
+  docker-build:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout
+      - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.2'
-          coverage: none
+      - name: Build production image
+        run: docker build --tag sms2-production-ci .
 
-      - name: Lint PHP files
+      - name: Verify required migration files are packaged
         run: |
-          set -e
-          while IFS= read -r -d '' file; do
-            php -l "$file"
-          done < <(find . -name '*.php' \
-            -not -path './.git/*' \
-            -not -path './sms2_system/*' \
-            -not -path './vendor/*' \
-            -not -path './storage/uploads/*' \
-            -not -path './storage/backups/*' \
-            -print0)
+          docker run --rm --entrypoint sh sms2-production-ci -c \
+            'test -r /var/www/html/database/sms2_db.sql && \
+             test -r /var/www/html/modules/crad/database/crad_db.sql && \
+             test -r /var/www/html/database/patches/research_group_flow_schema.sql && \
+             test -r /var/www/html/database/patches/ensure_sms2_users_account_columns.sql'
+
+      - name: PHP syntax check
+        run: |
+          docker run --rm --entrypoint sh sms2-production-ci -ec \
+            'find . -name "*.php" -not -path "./storage/*" -print0 | xargs -0 -n 1 php -l'
+
+      - name: Start disposable MariaDB
+        run: |
+          docker network create sms2-ci
+          docker run -d --name sms2-ci-db --network sms2-ci \
+            -e MARIADB_ALLOW_EMPTY_ROOT_PASSWORD=1 mariadb:11.4
+          for attempt in $(seq 1 30); do
+            if docker exec sms2-ci-db mariadb-admin ping -h 127.0.0.1 --silent; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs sms2-ci-db
+          exit 1
+
+      - name: Migration and research workflow integration checks
+        run: |
+          docker run --rm --network sms2-ci --entrypoint php \
+            -e DB_HOST=sms2-ci-db -e DB_DATABASE=sms2_test_ci \
+            -e DB_USERNAME=root -e DB_PASSWORD= \
+            sms2-production-ci tools/test-deployment.php
+          docker run --rm --network sms2-ci --entrypoint php \
+            -e DB_HOST=sms2-ci-db -e DB_DATABASE=sms2_test_ci \
+            -e DB_USERNAME=root -e DB_PASSWORD= \
+            sms2-production-ci database/tools/hostforge_repair.php
+
+      - name: Clean up disposable database
+        if: always()
+        run: |
+          docker rm -f sms2-ci-db || true
+          docker network rm sms2-ci || true

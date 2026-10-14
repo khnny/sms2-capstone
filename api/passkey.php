@@ -37,6 +37,9 @@ $action = (string) ($body['action'] ?? $_POST['action'] ?? $_GET['action'] ?? ''
 $csrf = (string) ($body['csrf'] ?? $_POST['csrf'] ?? '');
 
 $needAuth = in_array($action, [
+    'stepup_prepare',
+    'stepup_send_email',
+    'stepup_verify',
     'register_options',
     'register_verify',
     'delete',
@@ -54,9 +57,85 @@ if ($needAuth) {
 }
 
 try {
+
+    if ($action === 'stepup_prepare') {
+        $uid = (int) getCurrentUserId();
+        $info = smsPasskeyStepUpMethod($uid);
+        $payload = [
+            'ok' => true,
+            'method' => $info['method'],
+            'label' => $info['label'],
+            'email_masked' => $info['email_masked'] ?? '',
+            'otp_dev' => '',
+            'message' => '',
+        ];
+
+        if ($info['method'] === 'email') {
+            $issued = smsIssueOtpToEmail($uid, 'passkey_add', null, 10, 'passkey setup');
+            if (empty($issued['ok'])) {
+                smsPasskeyJson(['ok' => false, 'error' => (string) ($issued['error'] ?: 'Could not send email code.')], 400);
+            }
+            $payload['message'] = !empty($issued['emailed'])
+                ? 'We emailed a code to ' . ($info['email_masked'] ?? 'your email') . '.'
+                : 'Could not email the code' . (($issued['error'] ?? '') !== '' ? ': ' . $issued['error'] : '') . '.';
+            if (!empty($issued['show_local']) && !empty($issued['code'])) {
+                $payload['otp_dev'] = (string) $issued['code'];
+                $payload['message'] .= ' Local code shown below (SMTP not delivering).';
+            }
+        } elseif ($info['method'] === 'authenticator') {
+            $payload['message'] = 'Enter the 6-digit code from Google Authenticator.';
+        } else {
+            $payload['message'] = 'Enter your account password to continue.';
+        }
+
+        smsPasskeyJson($payload);
+    }
+
+    if ($action === 'stepup_send_email') {
+        $uid = (int) getCurrentUserId();
+        $info = smsPasskeyStepUpMethod($uid);
+        if ($info['method'] !== 'email') {
+            smsPasskeyJson(['ok' => false, 'error' => 'Email verification is not required for your account.'], 400);
+        }
+        $issued = smsIssueOtpToEmail($uid, 'passkey_add', null, 10, 'passkey setup');
+        if (empty($issued['ok'])) {
+            smsPasskeyJson(['ok' => false, 'error' => (string) ($issued['error'] ?: 'Could not send email code.')], 400);
+        }
+        $out = [
+            'ok' => true,
+            'message' => !empty($issued['emailed'])
+                ? 'Code resent to ' . ($info['email_masked'] ?? 'your email') . '.'
+                : 'Could not email the code' . (($issued['error'] ?? '') !== '' ? ': ' . $issued['error'] : '') . '.',
+            'otp_dev' => '',
+        ];
+        if (!empty($issued['show_local']) && !empty($issued['code'])) {
+            $out['otp_dev'] = (string) $issued['code'];
+        }
+        smsPasskeyJson($out);
+    }
+
+    if ($action === 'stepup_verify') {
+        $uid = (int) getCurrentUserId();
+        $method = (string) ($body['method'] ?? '');
+        $proof = smsPasskeyVerifyStepUpProof($uid, $method, $body, 'passkey_add');
+        if (empty($proof['ok'])) {
+            logActivity('security', 'Passkey step-up failed (' . $method . '): ' . ($proof['error'] ?? ''), 'System', $uid);
+            smsPasskeyJson(['ok' => false, 'error' => $proof['error'] ?: 'Verification failed.'], 400);
+        }
+        smsPasskeyStepUpGrant($uid, 300);
+        logActivity('security', 'Passkey step-up succeeded via ' . $method, 'System', $uid);
+        smsPasskeyJson(['ok' => true, 'expires_in' => 300]);
+    }
     if ($action === 'register_options') {
         $uid = (int) getCurrentUserId();
-        $opts = smsPasskeyRegisterOptions($uid);
+        if (!smsPasskeyStepUpOk($uid)) {
+            smsPasskeyJson(['ok' => false, 'error' => 'Verify your identity before adding a passkey.', 'need_stepup' => true], 403);
+        }
+        try {
+            $opts = smsPasskeyRegisterOptions($uid);
+        } catch (Throwable $e) {
+            smsPasskeyJson(['ok' => false, 'error' => $e->getMessage() ?: 'Could not start passkey setup.', 'need_stepup' => true], 403);
+        }
         smsPasskeyJson(['ok' => true, 'options' => $opts]);
     }
 
@@ -78,7 +157,7 @@ try {
         $pdo = db();
         $owns = false;
         if ($pdo && $id > 0) {
-            $st = $pdo->prepare('SELECT id FROM sms_user_passkeys WHERE id = ? AND user_id = ? LIMIT 1');
+            $st = $pdo->prepare('SELECT id FROM `sms2_user_passkeys` WHERE id = ? AND user_id = ? LIMIT 1');
             $st->execute([$id, $uid]);
             $owns = (bool) $st->fetch();
         }

@@ -5,49 +5,6 @@ require_once ROOT_PATH . '/includes/authentication.php';
 require_once ROOT_PATH . '/includes/security.php';
 require_once ROOT_PATH . '/modules/crad/config/config.php';
 
-function finalDefenseEnsureSchema(PDO $crad): void
-{
-    $crad->exec(
-        "CREATE TABLE IF NOT EXISTS crad_final_defense_evaluations (
-            id INT UNSIGNED NOT NULL AUTO_INCREMENT,
-            defense_schedule_id INT UNSIGNED NOT NULL,
-            research_group_id INT UNSIGNED DEFAULT NULL,
-            panel_user_id INT UNSIGNED NOT NULL,
-            panel_name VARCHAR(150) NOT NULL DEFAULT '',
-            content_score DECIMAL(5,2) NOT NULL,
-            methodology_score DECIMAL(5,2) NOT NULL,
-            references_score DECIMAL(5,2) NOT NULL,
-            format_score DECIMAL(5,2) NOT NULL,
-            defense_score DECIMAL(5,2) NOT NULL DEFAULT 0,
-            remarks TEXT DEFAULT NULL,
-            result ENUM('APPROVED','APPROVED WITH REVISION','FAILED') NOT NULL,
-            overall_score DECIMAL(5,2) NOT NULL,
-            status VARCHAR(30) NOT NULL DEFAULT 'Submitted',
-            submitted_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY (id),
-            UNIQUE KEY uniq_final_panel_submission (defense_schedule_id, panel_user_id),
-            KEY idx_final_group (research_group_id),
-            KEY idx_final_panel (panel_user_id),
-            KEY idx_final_status (status)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
-    );
-    $idColumn = $crad->query("SHOW COLUMNS FROM crad_final_defense_evaluations LIKE 'id'")->fetch(PDO::FETCH_ASSOC);
-    if ($idColumn && stripos((string) ($idColumn['Extra'] ?? ''), 'auto_increment') === false) {
-        $crad->exec("ALTER TABLE crad_final_defense_evaluations MODIFY id INT UNSIGNED NOT NULL AUTO_INCREMENT");
-    }
-    try {
-        if (!$crad->query("SHOW COLUMNS FROM crad_final_defense_evaluations LIKE 'defense_score'")->fetch()) {
-            $crad->exec(
-                "ALTER TABLE crad_final_defense_evaluations
-                 ADD COLUMN defense_score DECIMAL(5,2) NOT NULL DEFAULT 0 AFTER format_score"
-            );
-        }
-    } catch (Throwable $e) {
-        // column may already exist
-    }
-}
-
 function finalDefenseRequirePanelMember(): void
 {
     requireAuth();
@@ -77,7 +34,7 @@ function finalDefenseCurrentPanelId(PDO $crad): int
         try {
             $stmt = $crad->prepare(
                 "SELECT panel_user_id
-                 FROM crad_research_panel_assignments
+                 FROM `crad_research_panel_assignments`
                  WHERE {$identity['expression']} = ?
                    AND defense_phase = 'Final Defense'
                    AND assignment_status = 'Assigned'
@@ -103,7 +60,7 @@ function finalDefenseCurrentPanelId(PDO $crad): int
         }
         try {
             $operator = $identity['column'] === 'email' ? 'LOWER(TRIM(email))' : 'TRIM(full_name)';
-            $stmt = $crad->prepare("SELECT id FROM sms_users WHERE {$operator} = ? AND role_key = 'panel' LIMIT 1");
+            $stmt = $crad->prepare("SELECT id FROM sms2_users WHERE {$operator} = ? AND role_key = 'panel' LIMIT 1");
             $stmt->execute([$identity['value']]);
             $userId = (int) ($stmt->fetchColumn() ?: 0);
             if ($userId > 0) {
@@ -155,12 +112,12 @@ function finalDefenseAssignedSchedule(PDO $crad, int $scheduleId): ?array
                 rds.defense_type,
                                 rpa.panel_user_id AS assigned_panel_user_id,
                                 rpa.panel_name,
-                                (SELECT fde.id FROM crad_final_defense_evaluations fde
+                                (SELECT fde.id FROM `crad_final_defense_evaluations` fde
                  WHERE fde.defense_schedule_id = rds.id
                                      AND fde.panel_user_id = rpa.panel_user_id
                  LIMIT 1) AS evaluation_id
-         FROM crad_research_defense_schedules rds
-         INNER JOIN crad_research_panel_assignments rpa
+         FROM `crad_research_defense_schedules` rds
+         INNER JOIN `crad_research_panel_assignments` rpa
            ON rpa.research_group_id = rds.research_group_id
                     AND rpa.defense_schedule_id = rds.id
            AND rpa.defense_phase = 'Final Defense'
@@ -171,7 +128,7 @@ function finalDefenseAssignedSchedule(PDO $crad, int $scheduleId): ?array
            AND rds.defense_datetime IS NOT NULL
            AND EXISTS (
                 SELECT 1
-                FROM crad_research_groups rg_gate
+                FROM `crad_research_groups` rg_gate
                 WHERE rg_gate.id = rds.research_group_id
                   AND " . cradOfficialRegistryGroupWhereSql('rg_gate') . "
            )
@@ -188,7 +145,6 @@ function finalDefenseAssignedSchedule(PDO $crad, int $scheduleId): ?array
 
 function finalDefenseRows(PDO $crad, bool $history = false): array
 {
-    finalDefenseEnsureSchema($crad);
     $panelId = finalDefenseCurrentPanelId($crad);
     $evaluationFilter = $history ? 'fde.id IS NOT NULL' : 'fde.id IS NULL';
 
@@ -199,14 +155,14 @@ function finalDefenseRows(PDO $crad, bool $history = false): array
                 rds.defense_type, fde.id AS evaluation_id,
                 fde.result AS panel_result, fde.overall_score AS panel_score,
                 fde.submitted_at
-         FROM crad_research_defense_schedules rds
-         INNER JOIN crad_research_panel_assignments rpa
+         FROM `crad_research_defense_schedules` rds
+         INNER JOIN `crad_research_panel_assignments` rpa
            ON rpa.research_group_id = rds.research_group_id
           AND rpa.defense_schedule_id = rds.id
           AND rpa.panel_user_id = :panel_id
           AND rpa.defense_phase = 'Final Defense'
           AND rpa.assignment_status = 'Assigned'
-         LEFT JOIN crad_final_defense_evaluations fde
+         LEFT JOIN `crad_final_defense_evaluations` fde
            ON fde.defense_schedule_id = rds.id
           AND fde.panel_user_id = :panel_id_eval
          WHERE LOWER(TRIM(COALESCE(rds.defense_type, ''))) = 'final defense'
@@ -214,7 +170,7 @@ function finalDefenseRows(PDO $crad, bool $history = false): array
            AND LOWER(rds.status) IN ('scheduled', 'finalized', 'final', 'completed', 'passed', 'failed')
            AND EXISTS (
                 SELECT 1
-                FROM crad_research_groups rg_gate
+                FROM `crad_research_groups` rg_gate
                 WHERE rg_gate.id = rds.research_group_id
                   AND " . cradOfficialRegistryGroupWhereSql('rg_gate') . "
            )
@@ -271,7 +227,7 @@ function finalDefenseSubmitEvaluation(PDO $crad, int $scheduleId, array $data): 
 
     try {
         $stmt = $crad->prepare(
-            "INSERT INTO crad_final_defense_evaluations
+            "INSERT INTO `crad_final_defense_evaluations`
                 (defense_schedule_id, research_group_id, panel_user_id, panel_name,
                  content_score, methodology_score, references_score, format_score, defense_score,
                  remarks, result, overall_score, status, submitted_at, created_at)

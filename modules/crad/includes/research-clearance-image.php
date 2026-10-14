@@ -125,7 +125,7 @@ function rscDrawFormCopy($im, array $row, int $left, int $top, int $width): int
     $m3 = (int) ($width * 0.32);
     $m4 = $width - $m1 - $m2 - $m3;
     $cx = $x;
-    foreach (['Last Name', 'First Name', rscOrColumnLabel((string) ($row['research_stage'] ?? 'research_1')), 'Remarks'] as $i => $label) {
+    foreach (['First Name', 'Last Name', rscOrColumnLabel((string) ($row['research_stage'] ?? 'research_1')), 'Remarks'] as $i => $label) {
         $w = [$m1, $m2, $m3, $m4][$i];
         rscImageCell($im, $cx, $y, $w, $rh, $black, true, $head);
         rscImageText($im, $cx + 6, $y + 7, $label, 10, $black, true, $w - 10);
@@ -139,8 +139,8 @@ function rscDrawFormCopy($im, array $row, int $left, int $top, int $width): int
     $fallbackOr = trim((string) ($row['or_number'] ?? ''));
     foreach ($members as $member) {
         $split = rscSplitName((string) ($member['name'] ?? ''));
-        $or = rscExtractOrNumber((string) ($member['or_number'] ?? '')) ?: $fallbackOr;
-        $vals = [$split['last'], $split['first'], $or, trim((string) ($row['payment_remarks'] ?? '')) ?: 'HMA'];
+        $or = rscMemberOrNumber((string) ($member['or_number'] ?? ''), $fallbackOr);
+        $vals = [$split['first'], $split['last'], $or, trim((string) ($row['payment_remarks'] ?? '')) ?: 'HMA'];
         $cx = $x;
         foreach ([$m1, $m2, $m3, $m4] as $i => $w) {
             rscImageCell($im, $cx, $y, $w, $rh, $black);
@@ -264,7 +264,7 @@ function rscSendFormPngDownload(PDO $crad, array $row): void
 {
     $fresh = rscRefreshExisting($crad, $row) ?: $row;
     $png = rscBuildFormPng($fresh);
-    $crad->prepare('UPDATE crad_research_services_clearances SET export_hash = ? WHERE id = ?')
+    $crad->prepare('UPDATE `crad_research_services_clearances` SET export_hash = ? WHERE id = ?')
         ->execute([hash('sha256', $png), (int) $fresh['id']]);
     $group = preg_replace('/[^A-Za-z0-9\-]/', '', (string) ($fresh['leader_group_no'] ?? 'clearance')) ?: 'clearance';
     header('Content-Type: image/png');

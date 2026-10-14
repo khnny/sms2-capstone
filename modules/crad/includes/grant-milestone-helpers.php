@@ -76,7 +76,7 @@ function grantEnsureMilestoneTables(PDO $crad): void
     $done = true;
 
     $crad->exec("
-        CREATE TABLE IF NOT EXISTS crad_grant_funded_project_milestones (
+        CREATE TABLE IF NOT EXISTS `crad_grant_funded_project_milestones` (
             id                    INT UNSIGNED NOT NULL AUTO_INCREMENT,
             grant_application_id  INT UNSIGNED NOT NULL,
             milestone_order       TINYINT UNSIGNED NOT NULL DEFAULT 1,
@@ -106,13 +106,14 @@ function grantInitializeFundedProjectMilestones(PDO $crad, int $applicationId): 
 {
     grantEnsureMilestoneTables($crad);
 
-    $stmt = $crad->prepare('SELECT id FROM crad_grant_applications WHERE id = ? AND status = ? LIMIT 1');
-    $stmt->execute([$applicationId, grantStatusApprovedFunded()]);
+    $statuses = grantPostFundingApplicationStatuses();
+    $stmt = $crad->prepare('SELECT id FROM `crad_grant_applications` WHERE id = ? AND status IN (' . implode(',', array_fill(0, count($statuses), '?')) . ') LIMIT 1');
+    $stmt->execute(array_merge([$applicationId], $statuses));
     if (!$stmt->fetchColumn()) {
         return ['ok' => false, 'error' => 'Approved & Funded application not found.'];
     }
 
-    $existing = $crad->prepare('SELECT COUNT(*) FROM crad_grant_funded_project_milestones WHERE grant_application_id = ?');
+    $existing = $crad->prepare('SELECT COUNT(*) FROM `crad_grant_funded_project_milestones` WHERE grant_application_id = ?');
     $existing->execute([$applicationId]);
     if ((int) $existing->fetchColumn() > 0) {
         return ['ok' => true];
@@ -121,7 +122,7 @@ function grantInitializeFundedProjectMilestones(PDO $crad, int $applicationId): 
     try {
         $crad->beginTransaction();
         $insert = $crad->prepare("
-            INSERT INTO crad_grant_funded_project_milestones
+            INSERT INTO `crad_grant_funded_project_milestones`
                 (grant_application_id, milestone_order, milestone_name, completion_pct, status, created_at, updated_at)
             VALUES (?, ?, ?, ?, ?, NOW(), NOW())
         ");
@@ -153,8 +154,9 @@ function grantBackfillFundedProjectMilestones(PDO $crad): void
 {
     grantEnsureMilestoneTables($crad);
 
-    $stmt = $crad->prepare('SELECT id FROM crad_grant_applications WHERE status = ? ORDER BY id ASC');
-    $stmt->execute([grantStatusApprovedFunded()]);
+    $statuses = grantPostFundingApplicationStatuses();
+    $stmt = $crad->prepare('SELECT id FROM `crad_grant_applications` WHERE status IN (' . implode(',', array_fill(0, count($statuses), '?')) . ') ORDER BY id ASC');
+    $stmt->execute($statuses);
 
     foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) ?: [] as $applicationId) {
         grantInitializeFundedProjectMilestones($crad, (int) $applicationId);
@@ -180,11 +182,11 @@ function grantGetFundedMilestoneOverview(PDO $crad): array
                ga.college_dept,
                ga.updated_at AS funded_at,
                go.funding_title
-          FROM crad_grant_applications ga
-         INNER JOIN crad_grant_opportunities go ON go.id = ga.grant_opportunity_id
-         WHERE ga.status = ?
+          FROM `crad_grant_applications` ga
+         INNER JOIN `crad_grant_opportunities` go ON go.id = ga.grant_opportunity_id
+         WHERE ga.status IN (" . implode(',', array_fill(0, count(grantPostFundingApplicationStatuses()), '?')) . ")
     ";
-    $params = [grantStatusApprovedFunded()];
+    $params = grantPostFundingApplicationStatuses();
 
     if (!$canTrack && grantUserCanApply()) {
         $sql .= ' AND ga.applicant_user_id = ?';
@@ -212,7 +214,7 @@ function grantGetFundedMilestoneOverview(PDO $crad): array
                SUM(CASE WHEN status = 'Pending' THEN 1 ELSE 0 END) AS pending_count,
                ROUND(AVG(completion_pct), 1) AS avg_completion_pct,
                MAX(updated_at) AS milestones_updated_at
-          FROM crad_grant_funded_project_milestones
+          FROM `crad_grant_funded_project_milestones`
          WHERE grant_application_id IN ({$placeholders})
          GROUP BY grant_application_id
     ");
@@ -277,7 +279,7 @@ function grantGetFundedMilestoneDetail(PDO $crad, int $applicationId): ?array
 
     $stmt = $crad->prepare("
         SELECT *
-          FROM crad_grant_funded_project_milestones
+          FROM `crad_grant_funded_project_milestones`
          WHERE grant_application_id = ?
          ORDER BY milestone_order ASC
     ");
@@ -413,8 +415,8 @@ function grantUpdateFundedProjectMilestone(
 
     $stmt = $crad->prepare("
         SELECT m.*, ga.status AS application_status
-          FROM crad_grant_funded_project_milestones m
-         INNER JOIN crad_grant_applications ga ON ga.id = m.grant_application_id
+          FROM `crad_grant_funded_project_milestones` m
+         INNER JOIN `crad_grant_applications` ga ON ga.id = m.grant_application_id
          WHERE m.id = ?
          LIMIT 1
     ");
@@ -424,7 +426,7 @@ function grantUpdateFundedProjectMilestone(
         return ['ok' => false, 'error' => 'Milestone not found.'];
     }
 
-    if ((string) ($row['application_status'] ?? '') !== grantStatusApprovedFunded()) {
+    if (!in_array((string) ($row['application_status'] ?? ''), grantPostFundingApplicationStatuses(), true)) {
         return ['ok' => false, 'error' => 'Milestone tracking is only available for funded projects.'];
     }
 
@@ -446,7 +448,7 @@ function grantUpdateFundedProjectMilestone(
 
     try {
         $crad->prepare("
-            UPDATE crad_grant_funded_project_milestones
+            UPDATE `crad_grant_funded_project_milestones`
                SET due_date = ?,
                    completion_pct = ?,
                    status = ?,
@@ -467,7 +469,7 @@ function grantUpdateFundedProjectMilestone(
 
         $applicationId = (int) ($row['grant_application_id'] ?? 0);
 
-        $updatedRow = $crad->prepare('SELECT * FROM crad_grant_funded_project_milestones WHERE id = ? LIMIT 1');
+        $updatedRow = $crad->prepare('SELECT * FROM `crad_grant_funded_project_milestones` WHERE id = ? LIMIT 1');
         $updatedRow->execute([$milestoneId]);
         $milestoneRow = $updatedRow->fetch(PDO::FETCH_ASSOC) ?: $row;
         grantNotifyApplicantMilestoneUpdated($crad, $applicationId, $milestoneRow, $userName);
@@ -500,7 +502,7 @@ function grantUploadFundedMilestoneDocument(
         return ['ok' => false, 'error' => 'You are not authorized to upload milestone documents.'];
     }
 
-    $stmt = $crad->prepare('SELECT * FROM crad_grant_funded_project_milestones WHERE id = ? LIMIT 1');
+    $stmt = $crad->prepare('SELECT * FROM `crad_grant_funded_project_milestones` WHERE id = ? LIMIT 1');
     $stmt->execute([$milestoneId]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
     if (!$row) {
@@ -513,7 +515,7 @@ function grantUploadFundedMilestoneDocument(
 
     try {
         $crad->prepare("
-            UPDATE crad_grant_funded_project_milestones
+            UPDATE `crad_grant_funded_project_milestones`
                SET supporting_doc = ?,
                    supporting_doc_original = ?,
                    updated_by_user_id = ?,
@@ -530,7 +532,7 @@ function grantUploadFundedMilestoneDocument(
 
         $applicationId = (int) ($row['grant_application_id'] ?? 0);
 
-        $updatedRow = $crad->prepare('SELECT * FROM crad_grant_funded_project_milestones WHERE id = ? LIMIT 1');
+        $updatedRow = $crad->prepare('SELECT * FROM `crad_grant_funded_project_milestones` WHERE id = ? LIMIT 1');
         $updatedRow->execute([$milestoneId]);
         $milestoneRow = $updatedRow->fetch(PDO::FETCH_ASSOC) ?: $row;
         grantNotifyApplicantMilestoneUpdated($crad, $applicationId, $milestoneRow, $userName);
@@ -560,7 +562,7 @@ function grantNotifyApplicantMilestoneUpdated(
         require_once __DIR__ . '/grant-funded-research-helpers.php';
     }
 
-    $stmt = $crad->prepare('SELECT * FROM crad_grant_applications WHERE id = ? LIMIT 1');
+    $stmt = $crad->prepare('SELECT * FROM `crad_grant_applications` WHERE id = ? LIMIT 1');
     $stmt->execute([$applicationId]);
     $application = $stmt->fetch(PDO::FETCH_ASSOC);
     if (!$application) {
@@ -594,7 +596,7 @@ function grantNotifyApplicantMilestoneUpdated(
     if (function_exists('db')) {
         $mainDb = db();
         if ($mainDb) {
-            $userStmt = $mainDb->prepare('SELECT role_key FROM sms_users WHERE id = ? LIMIT 1');
+            $userStmt = $mainDb->prepare('SELECT role_key FROM `sms2_users` WHERE id = ? LIMIT 1');
             $userStmt->execute([$recipientUserId]);
             $recipientRole = (string) ($userStmt->fetchColumn() ?: 'student');
         }

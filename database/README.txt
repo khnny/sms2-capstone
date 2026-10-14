@@ -28,33 +28,32 @@ For web/database deployment, run both SQL dumps with:
      php database/migrate.php
 
 This runner calls:
-  - database/sms2_db.sql  (combined: sms_* + crad_* tables in ONE database)
+  - database/sms2_db.sql
+  - modules/crad/database/crad_db.sql
 
 HostForge:
   - Choose MySQL in the database step. HostForge's MySQL option is MariaDB,
     which is compatible with this project.
   - Do not choose PostgreSQL; these schema dumps are MySQL/MariaDB SQL.
-  - HostForge-injected DB_HOST, DB_PORT, DB_DATABASE, DB_USERNAME,
-    DB_PASSWORD, DB_CONNECTION, and DB_CHARSET are supported automatically.
-  - Import into the HostForge database (hf_db_*). Do NOT create crad_db —
-    CRAD tables (crad_*) live in the same DB.
-  - phpMyAdmin: do NOT use database/sms2_db.sql (DELIMITER/triggers break the
-    importer). Use database/imports/ instead:
-       01_sms_tables.sql then 02_crad_tables.sql
-    Or one file: database/imports/sms2_db_phpmyadmin_safe.sql
-    See database/imports/README.txt.
-  - CLI / migrate.php can still use database/sms2_db.sql (includes triggers).
+  - Prefer HostForge Environment Variables for DB_HOST, DB_PORT, DB_DATABASE,
+    DB_USERNAME, DB_PASSWORD, DB_CONNECTION (no password in committed files).
+  - Optional fallback: copy config/local.hostforge.example.php → config/local.php
+    with placeholders filled (config/local.php is gitignored).
+  - Single-database target: SMS2 + CRAD share one schema (sms2_* + crad_* tables;
+    see config/tables.php). Set CRAD_DB_NAME to the same value as DB_DATABASE,
+    or omit CRAD_DB_NAME so migrate falls back to the main DB.
   - After the first successful deployment, open the web terminal and run:
 
      php database/migrate.php
 
 It creates/uses the configured database name from environment variables, then
-records the applied dump hashes in schema_migrations. CRAD always uses the same
-database as SMS2 (DB_NAME). Never create crad_db.
+records the applied dump hashes in schema_migrations. If CRAD_DB_NAME is not
+set, the CRAD tables are installed into the same HostForge database as SMS2.
 
 Useful options:
-  - --fresh  Drop and rebuild both databases. DESTROYS DATA.
-  - --force  Apply SQL even when tables already exist.
+  - --fresh  Drop and rebuild the shared database once. DESTROYS DATA.
+  - --force  Replays initial dumps only when their target tables are absent.
+             Existing installations must use additive repairs, not dump replay.
 
 Docker startup option:
   Set SMS2_RUN_MIGRATIONS=1 to run database/migrate.php before Apache starts.
@@ -74,5 +73,25 @@ InfinityFree has no SSH, so use the web deploy helper instead of CLI migrate.
 7. Open: https://YOUR-SITE.infinityfreeapp.com/setup/ and create the Super Admin.
 8. Remove SMS2_DEPLOY_TOKEN from config/local.php after migration succeeds.
 
-Alternative: import database/imports/01_sms_tables.sql then
-database/imports/02_crad_tables.sql via phpMyAdmin instead of step 6.
+HostForge / single-DB cutover
+-----------------------------
+1. Backup both databases.
+2. Deploy this codebase (prefixed dumps + PHP).
+3. Set HostForge env: DB_HOST, DB_PORT, DB_DATABASE, DB_USERNAME, DB_PASSWORD
+   (or copy config/local.hostforge.example.php → config/local.php with placeholders filled).
+4. Ensure CRAD uses the same DB (omit CRAD_DB_NAME, or set it equal to DB_DATABASE).
+5. For existing unprefixed or sms_* data (including mixed sms_* + crad_*):
+     php database/migrate_to_single_prefixed.php --dry-run
+     php database/migrate_to_single_prefixed.php
+6. For empty HostForge DB (fresh):
+     php database/migrate.php
+7. After deploy, repair HostForge drift once (not separate patch files):
+     php database/tools/hostforge_repair.php
+   Then run php database/migrate.php again to add v3 announcement,
+   availability, clearance, and stage-scoped receipt columns without
+   replacing existing accounts or replaying the full SQL dumps.
+   Smoke only:
+     php database/tools/smoke_single_db.php
+
+Table map: config/tables.php (sms2_* + crad_*).
+Do not commit real HostForge passwords or *.env files.

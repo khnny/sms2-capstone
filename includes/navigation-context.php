@@ -188,18 +188,18 @@ if (!function_exists('smsRoleHomeUrl')) {
 
         $homes = [
             'student'              => BASE_URL . '/modules/student-portal/pages/dashboard.php',
-            'research_coordinator' => BASE_URL . '/modules/crad/index.php',
-            'department_head'      => BASE_URL . '/modules/crad/pages/research-coordinator-management.php',
+            'research_coordinator' => BASE_URL . '/modules/crad/pages/research-workspace.php',
+            'department_head'      => BASE_URL . '/modules/crad/pages/research-workspace.php',
             'department_chair'     => grantReviewWorkflowPageUrl('approval-workflows', 0, 'crad'),
             'research_office'      => grantReviewWorkflowPageUrl('approval-workflows', 0, 'crad'),
             'vpaa'                 => grantReviewWorkflowPageUrl('approval-workflows', 0, 'accreditation'),
             'finance'              => grantReviewWorkflowPageUrl('approval-workflows', 0, 'payment'),
             'hr'                   => grantReviewWorkflowPageUrl('approval-workflows', 0, 'faculty'),
-            'crad_officer'         => BASE_URL . '/dashboard/index.php',
+            'crad_officer'         => BASE_URL . '/modules/crad/pages/research-workspace.php',
             'grammarian'           => BASE_URL . '/modules/faculty/pages/for-evaluation.php',
             'panel'                => BASE_URL . '/modules/faculty/pages/assigned-defenses.php',
             'research_director'    => BASE_URL . '/modules/faculty/pages/research-director.php?view=overview',
-            'adviser'              => BASE_URL . '/modules/faculty/pages/assigned-research.php',
+            'adviser'              => BASE_URL . '/modules/faculty/pages/research-workspace.php',
             'research_grant'       => BASE_URL . '/modules/crad/pages/grant-opportunities.php',
             'review_committee'     => BASE_URL . '/modules/crad/pages/reviewer-evaluation.php',
         ];
@@ -233,14 +233,14 @@ if (!function_exists('smsRoleHomeLabel')) {
 
         $labels = [
             'student'              => 'Home',
-            'research_coordinator' => 'Home',
-            'department_head'      => 'Home',
+            'research_coordinator' => 'Research Workspace',
+            'department_head'      => 'Research Workspace',
             'grammarian'           => 'Home',
             'panel'                => 'Home',
             'research_director'    => 'Home',
-            'adviser'              => 'Home',
+            'adviser'              => 'Research Workspace',
             'hr'                   => 'Home',
-            'crad_officer'         => 'Dashboard',
+            'crad_officer'         => 'Research Workspace',
             'research_grant'       => 'Home',
             'review_committee'     => 'Home',
         ];
@@ -257,7 +257,7 @@ if (!function_exists('smsRoleHomeIsActive')) {
             : $roleKey;
 
         if ($roleKey === 'department_head') {
-            return false;
+            return str_ends_with($scriptPath, '/modules/crad/pages/research-workspace.php');
         }
 
         $homeUrl = smsRoleHomeUrl($roleKey);
@@ -275,7 +275,7 @@ if (!function_exists('smsRoleHomeIsActive')) {
             'panel'             => $activePage === 'assigned-defenses',
             'research_director' => str_contains($scriptPath, '/research-director.php')
                 && (($activePage === '') || $activePage === 'overview'),
-            'adviser'           => $activePage === 'assigned-research',
+            'adviser'           => $activePage === 'research-workspace',
             'hr'                => in_array($activePage, ['approval-workflows', 'reviewer-evaluation'], true)
                 || str_contains($scriptPath, '/modules/faculty/pages/approval-workflows.php')
                 || str_contains($scriptPath, '/modules/faculty/pages/reviewer-evaluation.php')
@@ -295,7 +295,8 @@ if (!function_exists('smsRoleHomeIsActive')) {
             'finance' => in_array($activePage, ['approval-workflows', 'reviewer-evaluation'], true)
                 || str_contains($scriptPath, '/modules/payment/pages/approval-workflows.php')
                 || str_contains($scriptPath, '/modules/payment/pages/reviewer-evaluation.php'),
-            'research_coordinator' => str_contains($scriptPath, '/modules/crad/index.php'),
+            'research_coordinator' => $activePage === 'research-workspace'
+                || str_contains($scriptPath, '/modules/crad/index.php'),
             'research_grant' => str_contains($scriptPath, '/modules/crad/pages/grant-opportunities.php'),
             'review_committee' => str_contains($scriptPath, '/modules/crad/pages/reviewer-evaluation.php'),
             'student'           => str_contains($scriptPath, '/modules/student-portal/pages/dashboard.php'),
